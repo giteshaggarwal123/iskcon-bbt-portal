@@ -6,9 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Vote, Clock, Users, CheckCircle, XCircle, MinusCircle, Plus, BarChart3 } from 'lucide-react';
 import { VotingDialog } from './VotingDialog';
+import { CreatePollDialog } from './CreatePollDialog';
 
 export const VotingModule: React.FC = () => {
   const [showVotingDialog, setShowVotingDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedPoll, setSelectedPoll] = useState<any>(null);
   const [voteType, setVoteType] = useState<'favor' | 'against' | 'abstain'>('favor');
 
@@ -76,7 +78,10 @@ export const VotingModule: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">Voting System</h1>
             <p className="text-gray-600">Manage polls, ballots, and voting processes</p>
           </div>
-          <Button className="bg-primary hover:bg-primary/90">
+          <Button 
+            className="bg-primary hover:bg-primary/90"
+            onClick={() => setShowCreateDialog(true)}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Create Poll
           </Button>
@@ -314,6 +319,10 @@ export const VotingModule: React.FC = () => {
         onOpenChange={setShowVotingDialog}
         poll={selectedPoll}
         voteType={voteType}
+      />
+      <CreatePollDialog 
+        open={showCreateDialog} 
+        onOpenChange={setShowCreateDialog}
       />
     </>
   );

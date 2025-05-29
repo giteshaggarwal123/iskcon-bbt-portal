@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,9 +61,43 @@ export const DocumentsModule: React.FC = () => {
   ];
 
   const analytics = [
-    { document: 'Annual Meeting Agenda 2024.pdf', views: 23, avgTime: '5:30', completion: 85 },
-    { document: 'Temple Construction Policy.docx', views: 67, avgTime: '12:45', completion: 78 },
-    { document: 'Financial Report Q4.xlsx', views: 34, avgTime: '8:15', completion: 92 }
+    { 
+      document: 'Annual Meeting Agenda 2024.pdf', 
+      views: 23, 
+      avgTime: '5:30', 
+      completion: 85,
+      viewers: [
+        { name: 'Temple President', email: 'president@iskcon.org', viewTime: '8:45', lastViewed: '2024-01-16', completion: 100 },
+        { name: 'General Secretary', email: 'secretary@iskcon.org', viewTime: '12:30', lastViewed: '2024-01-15', completion: 95 },
+        { name: 'Treasurer', email: 'treasurer@iskcon.org', viewTime: '6:15', lastViewed: '2024-01-16', completion: 80 },
+        { name: 'Head Pujari', email: 'pujari@iskcon.org', viewTime: '4:20', lastViewed: '2024-01-14', completion: 60 },
+        { name: 'Building Committee Head', email: 'building@iskcon.org', viewTime: '15:45', lastViewed: '2024-01-16', completion: 100 }
+      ]
+    },
+    { 
+      document: 'Temple Construction Policy.docx', 
+      views: 67, 
+      avgTime: '12:45', 
+      completion: 78,
+      viewers: [
+        { name: 'Building Committee Head', email: 'building@iskcon.org', viewTime: '25:30', lastViewed: '2024-01-15', completion: 100 },
+        { name: 'Temple President', email: 'president@iskcon.org', viewTime: '18:20', lastViewed: '2024-01-14', completion: 90 },
+        { name: 'Facilities Manager', email: 'facilities@iskcon.org', viewTime: '22:15', lastViewed: '2024-01-16', completion: 85 },
+        { name: 'Legal Advisor', email: 'legal@iskcon.org', viewTime: '35:40', lastViewed: '2024-01-15', completion: 100 }
+      ]
+    },
+    { 
+      document: 'Financial Report Q4.xlsx', 
+      views: 34, 
+      avgTime: '8:15', 
+      completion: 92,
+      viewers: [
+        { name: 'Treasurer', email: 'treasurer@iskcon.org', viewTime: '15:30', lastViewed: '2024-01-13', completion: 100 },
+        { name: 'Temple President', email: 'president@iskcon.org', viewTime: '12:45', lastViewed: '2024-01-14', completion: 95 },
+        { name: 'Audit Committee Chair', email: 'audit@iskcon.org', viewTime: '20:10', lastViewed: '2024-01-15', completion: 100 },
+        { name: 'Finance Committee Member', email: 'finance@iskcon.org', viewTime: '8:25', lastViewed: '2024-01-13', completion: 80 }
+      ]
+    }
   ];
 
   return (
@@ -180,10 +213,10 @@ export const DocumentsModule: React.FC = () => {
               <Card key={index}>
                 <CardHeader>
                   <CardTitle className="text-lg">{item.document}</CardTitle>
-                  <CardDescription>Document engagement analytics</CardDescription>
+                  <CardDescription>Document engagement analytics with detailed viewer information</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-primary">{item.views}</div>
                       <div className="text-sm text-gray-500">Total Views</div>
@@ -195,6 +228,58 @@ export const DocumentsModule: React.FC = () => {
                     <div className="text-center">
                       <div className="text-2xl font-bold text-warning">{item.completion}%</div>
                       <div className="text-sm text-gray-500">Completion Rate</div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <h4 className="font-semibold mb-4 flex items-center">
+                      <User className="h-4 w-4 mr-2" />
+                      Individual Viewer Analytics
+                    </h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-2">Viewer</th>
+                            <th className="text-left py-2">Time Spent</th>
+                            <th className="text-left py-2">Last Viewed</th>
+                            <th className="text-left py-2">Completion</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {item.viewers.map((viewer, viewerIndex) => (
+                            <tr key={viewerIndex} className="border-b">
+                              <td className="py-3">
+                                <div>
+                                  <div className="font-medium">{viewer.name}</div>
+                                  <div className="text-gray-500 text-xs">{viewer.email}</div>
+                                </div>
+                              </td>
+                              <td className="py-3">
+                                <div className="flex items-center">
+                                  <Clock className="h-3 w-3 mr-1 text-gray-400" />
+                                  {viewer.viewTime}
+                                </div>
+                              </td>
+                              <td className="py-3 text-gray-600">{viewer.lastViewed}</td>
+                              <td className="py-3">
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-16 bg-gray-200 rounded-full h-2">
+                                    <div 
+                                      className={`h-2 rounded-full ${
+                                        viewer.completion >= 90 ? 'bg-success' : 
+                                        viewer.completion >= 70 ? 'bg-warning' : 'bg-error'
+                                      }`}
+                                      style={{ width: `${viewer.completion}%` }}
+                                    ></div>
+                                  </div>
+                                  <span className="text-xs font-medium">{viewer.completion}%</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </CardContent>
