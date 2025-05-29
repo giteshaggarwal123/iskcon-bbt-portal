@@ -1,340 +1,174 @@
-
 import React from 'react';
 import { Calendar, FileText, Users, Mail, Clock, Check, TrendingUp, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { DocumentsModule } from './DocumentsModule';
+import { MeetingsModule } from './MeetingsModule';
+import { VotingModule } from './VotingModule';
+import { AttendanceModule } from './AttendanceModule';
+import { EmailModule } from './EmailModule';
+import { MembersModule } from './MembersModule';
+import { SettingsModule } from './SettingsModule';
 
-export const Dashboard: React.FC = () => {
-  const upcomingMeetings = [
-    {
-      id: 1,
-      title: 'Monthly Bureau Meeting',
-      date: 'Today, 2:00 PM',
-      attendees: 12,
-      status: 'upcoming'
-    },
-    {
-      id: 2,
-      title: 'Temple Committee Review',
-      date: 'Tomorrow, 10:00 AM',
-      attendees: 8,
-      status: 'scheduled'
-    },
-    {
-      id: 3,
-      title: 'Festival Planning',
-      date: 'Dec 15, 3:00 PM',
-      attendees: 15,
-      status: 'scheduled'
-    }
-  ];
+interface DashboardProps {
+  currentModule?: string;
+}
 
-  const recentDocuments = [
-    {
-      id: 1,
-      name: 'Q4 Financial Report.pdf',
-      uploadedBy: 'Secretary',
-      date: '2 hours ago',
-      views: 24
-    },
-    {
-      id: 2,
-      name: 'Temple Renovation Proposal.docx',
-      uploadedBy: 'Project Manager',
-      date: '1 day ago',
-      views: 18
-    },
-    {
-      id: 3,
-      name: 'Festival Budget 2024.xlsx',
-      uploadedBy: 'Treasurer',
-      date: '2 days ago',
-      views: 31
-    }
-  ];
-
-  const activeVotings = [
-    {
-      id: 1,
-      title: 'Temple Renovation Budget Approval',
-      endDate: '2 days left',
-      votes: { favor: 8, against: 2, abstain: 1 },
-      total: 15
-    },
-    {
-      id: 2,
-      title: 'New Committee Member Selection',
-      endDate: '5 days left',
-      votes: { favor: 12, against: 1, abstain: 2 },
-      total: 15
-    }
-  ];
-
-  return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-primary to-primary/80 rounded-lg p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">Welcome back, General Secretary</h1>
-        <p className="text-primary-foreground/90">Here's what's happening in your bureau today.</p>
-        <div className="flex items-center mt-4 space-x-4 text-sm">
-          <span className="flex items-center">
-            <Calendar className="h-4 w-4 mr-1" />
-            3 meetings this week
-          </span>
-          <span className="flex items-center">
-            <FileText className="h-4 w-4 mr-1" />
-            12 new documents
-          </span>
-          <span className="flex items-center">
-            <Check className="h-4 w-4 mr-1" />
-            2 active votes
-          </span>
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Members</p>
-                <p className="text-2xl font-bold text-gray-900">24</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Users className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">This Month's Meetings</p>
-                <p className="text-2xl font-bold text-gray-900">8</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Calendar className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Documents</p>
-                <p className="text-2xl font-bold text-gray-900">156</p>
-              </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <FileText className="h-6 w-6 text-yellow-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Avg Attendance</p>
-                <p className="text-2xl font-bold text-gray-900">87%</p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upcoming Meetings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Upcoming Meetings</span>
-              <Button variant="outline" size="sm">View All</Button>
-            </CardTitle>
-            <CardDescription>Your scheduled meetings and events</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {upcomingMeetings.map((meeting) => (
-                <div key={meeting.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{meeting.title}</h4>
-                    <p className="text-sm text-gray-600 flex items-center">
-                      <Clock className="h-4 w-4 mr-1" />
-                      {meeting.date}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant={meeting.status === 'upcoming' ? 'default' : 'secondary'}>
-                      {meeting.status}
-                    </Badge>
-                    <p className="text-xs text-gray-500 mt-1">{meeting.attendees} attendees</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Documents */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Recent Documents</span>
-              <Button variant="outline" size="sm">View All</Button>
-            </CardTitle>
-            <CardDescription>Latest uploaded and accessed files</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentDocuments.map((doc) => (
-                <div key={doc.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
-                      <FileText className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 text-sm">{doc.name}</h4>
-                      <p className="text-xs text-gray-600">by {doc.uploadedBy} • {doc.date}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500">{doc.views} views</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Active Voting */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Active Voting</span>
-            <Button variant="outline" size="sm">Create Vote</Button>
-          </CardTitle>
-          <CardDescription>Current votes requiring your attention</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {activeVotings.map((vote) => (
-              <div key={vote.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <h4 className="font-medium text-gray-900">{vote.title}</h4>
-                  <Badge variant="outline" className="text-xs">
-                    {vote.endDate}
-                  </Badge>
-                </div>
-                
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-green-600">Favor: {vote.votes.favor}</span>
-                    <span className="text-red-600">Against: {vote.votes.against}</span>
-                    <span className="text-gray-600">Abstain: {vote.votes.abstain}</span>
-                  </div>
-                  <Progress 
-                    value={(vote.votes.favor / vote.total) * 100} 
-                    className="h-2"
-                  />
-                  <p className="text-xs text-gray-500">
-                    {vote.votes.favor + vote.votes.against + vote.votes.abstain} of {vote.total} votes cast
-                  </p>
-                </div>
-                
-                <div className="flex space-x-2">
-                  <Button size="sm" variant="outline" className="flex-1 text-green-600 border-green-200 hover:bg-green-50">
-                    Favor
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50">
-                    Against
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex-1">
-                    Abstain
-                  </Button>
-                </div>
-              </div>
-            ))}
+export const Dashboard: React.FC<DashboardProps> = ({ currentModule = 'dashboard' }) => {
+  // Render specific module based on currentModule prop
+  switch (currentModule) {
+    case 'documents':
+      return <DocumentsModule />;
+    case 'meetings':
+      return <MeetingsModule />;
+    case 'voting':
+      return <VotingModule />;
+    case 'attendance':
+      return <AttendanceModule />;
+    case 'email':
+      return <EmailModule />;
+    case 'members':
+      return <MembersModule />;
+    case 'settings':
+      return <SettingsModule />;
+    case 'search':
+      return (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Search</h1>
+            <p className="text-gray-600">Search across all documents, meetings, and communications</p>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Activity & Notifications */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest actions in your bureau</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3 text-sm">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-gray-900">Meeting minutes uploaded</span>
-                <span className="text-gray-500">2 hours ago</span>
-              </div>
-              <div className="flex items-center space-x-3 text-sm">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-gray-900">New member added to committee</span>
-                <span className="text-gray-500">5 hours ago</span>
-              </div>
-              <div className="flex items-center space-x-3 text-sm">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <span className="text-gray-900">Document shared via email</span>
-                <span className="text-gray-500">1 day ago</span>
-              </div>
-              <div className="flex items-center space-x-3 text-sm">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <span className="text-gray-900">Voting session completed</span>
-                <span className="text-gray-500">2 days ago</span>
+          <div className="bg-secondary/50 rounded-lg p-8 text-center">
+            <p className="text-gray-600">Universal search functionality coming soon</p>
+          </div>
+        </div>
+      );
+    default:
+      // Default dashboard content
+      return (
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Bureau Dashboard</h1>
+              <p className="text-gray-600">Welcome to ISKCON Bureau Management Platform</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Last Login</p>
+                <p className="font-semibold">Jan 18, 2024 2:30 PM</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Important Notifications</CardTitle>
-            <CardDescription>Items requiring your attention</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-start space-x-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-red-900">Urgent: Meeting agenda approval needed</p>
-                  <p className="text-xs text-red-700">Due in 2 hours</p>
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
                 </div>
-              </div>
-              <div className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <Clock className="h-4 w-4 text-yellow-600 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-yellow-900">Document review pending</p>
-                  <p className="text-xs text-yellow-700">3 documents waiting for approval</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <Mail className="h-4 w-4 text-blue-600 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-blue-900">New messages</p>
-                  <p className="text-xs text-blue-700">5 unread emails from committee members</p>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-900">3</h3>
+                  <p className="text-sm text-gray-500">Upcoming Meetings</p>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-900">2</h3>
+                  <p className="text-sm text-gray-500">Active Polls</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-900">15</h3>
+                  <p className="text-sm text-gray-500">New Documents</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-error/10 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-900">7</h3>
+                  <p className="text-sm text-gray-500">Unread Emails</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">Recent Meetings</h2>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-gray-900">Monthly Bureau Meeting</h3>
+                    <p className="text-sm text-gray-500">Jan 20, 2024 • 10:00 AM</p>
+                  </div>
+                  <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">Upcoming</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-gray-900">Emergency Committee</h3>
+                    <p className="text-sm text-gray-500">Jan 18, 2024 • 2:00 PM</p>
+                  </div>
+                  <span className="px-2 py-1 bg-success/10 text-success text-xs rounded-full">Completed</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">Active Voting</h2>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-gray-900">Temple Expansion Budget</h3>
+                    <p className="text-sm text-gray-500">8/12 votes cast</p>
+                  </div>
+                  <span className="px-2 py-1 bg-warning/10 text-warning text-xs rounded-full">Active</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-gray-900">Festival Committee</h3>
+                    <p className="text-sm text-gray-500">5/12 votes cast</p>
+                  </div>
+                  <span className="px-2 py-1 bg-warning/10 text-warning text-xs rounded-full">Active</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+  }
 };

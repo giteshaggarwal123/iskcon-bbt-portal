@@ -17,10 +17,12 @@ import {
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  currentModule: string;
+  onModuleChange: (module: string) => void;
 }
 
 const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: Calendar, active: true },
+  { id: 'dashboard', label: 'Dashboard', icon: Calendar },
   { id: 'meetings', label: 'Meetings', icon: Calendar },
   { id: 'documents', label: 'Documents', icon: File },
   { id: 'voting', label: 'Voting', icon: Check },
@@ -31,7 +33,7 @@ const menuItems = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModuleChange }) => {
   return (
     <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="flex flex-col h-full">
@@ -53,18 +55,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-1">
           {menuItems.map((item) => (
-            <a
+            <button
               key={item.id}
-              href="#"
-              className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                item.active
+              onClick={() => onModuleChange(item.id)}
+              className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                currentModule === item.id
                   ? 'bg-primary text-white shadow-sm'
                   : 'text-gray-600 hover:bg-secondary hover:text-gray-900'
               }`}
             >
               <item.icon className="mr-3 h-5 w-5" />
               {item.label}
-            </a>
+            </button>
           ))}
         </nav>
 
