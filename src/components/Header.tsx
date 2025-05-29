@@ -4,6 +4,8 @@ import { Menu, Search, Bell, Mail, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
+import { NotificationsDialog } from './NotificationsDialog';
+import { MessagesDialog } from './MessagesDialog';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -11,6 +13,8 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showMessages, setShowMessages] = useState(false);
 
   return (
     <>
@@ -54,13 +58,23 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
             {/* Notifications */}
             <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="sm" className="relative">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="relative"
+                onClick={() => setShowMessages(true)}
+              >
                 <Mail className="h-5 w-5" />
                 <span className="absolute -top-1 -right-1 h-4 w-4 bg-primary text-white text-xs rounded-full flex items-center justify-center">
                   3
                 </span>
               </Button>
-              <Button variant="ghost" size="sm" className="relative">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="relative"
+                onClick={() => setShowNotifications(true)}
+              >
                 <Bell className="h-5 w-5" />
                 <span className="absolute -top-1 -right-1 h-4 w-4 bg-primary text-white text-xs rounded-full flex items-center justify-center">
                   7
@@ -74,6 +88,14 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
       <ScheduleMeetingDialog 
         open={showScheduleDialog} 
         onOpenChange={setShowScheduleDialog} 
+      />
+      <NotificationsDialog 
+        open={showNotifications} 
+        onOpenChange={setShowNotifications} 
+      />
+      <MessagesDialog 
+        open={showMessages} 
+        onOpenChange={setShowMessages} 
       />
     </>
   );
