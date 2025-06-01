@@ -18,6 +18,9 @@ interface UseUserRoleReturn {
   canManageDocuments: boolean;
   canViewReports: boolean;
   canManageSettings: boolean;
+  canCreateContent: boolean;
+  canDeleteContent: boolean;
+  canEditContent: boolean;
 }
 
 export const useUserRole = (): UseUserRoleReturn => {
@@ -61,14 +64,19 @@ export const useUserRole = (): UseUserRoleReturn => {
   const isAdmin = userRole === 'admin' || isSuperAdmin;
   const isSecretary = userRole === 'secretary' || isAdmin;
   const isTreasurer = userRole === 'treasurer' || isAdmin;
-  const isMember = userRole === 'member';
+  const isMember = userRole === 'member' || isSecretary || isTreasurer || isAdmin || isSuperAdmin;
 
-  // Permission calculations
+  // Permission calculations - everyone can view, but editing/deleting is restricted
   const canManageMembers = isSuperAdmin || isAdmin;
   const canManageMeetings = isSuperAdmin || isAdmin || isSecretary;
   const canManageDocuments = isSuperAdmin || isAdmin || isSecretary;
   const canViewReports = isSuperAdmin || isAdmin || isTreasurer;
   const canManageSettings = isSuperAdmin || isAdmin;
+  
+  // New granular permissions
+  const canCreateContent = isSuperAdmin || isAdmin || isSecretary;
+  const canDeleteContent = isSuperAdmin || isAdmin;
+  const canEditContent = isSuperAdmin || isAdmin || isSecretary;
 
   return {
     userRole,
@@ -82,6 +90,9 @@ export const useUserRole = (): UseUserRoleReturn => {
     canManageMeetings,
     canManageDocuments,
     canViewReports,
-    canManageSettings
+    canManageSettings,
+    canCreateContent,
+    canDeleteContent,
+    canEditContent
   };
 };

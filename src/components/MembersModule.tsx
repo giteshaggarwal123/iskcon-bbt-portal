@@ -75,18 +75,6 @@ export const MembersModule: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  // Check if user has permission to access members module
-  if (!userRole.canManageMembers) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Access Restricted</h3>
-          <p className="text-gray-500">You don't have permission to access the Members module.</p>
-        </div>
-      </div>
-    );
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -103,21 +91,23 @@ export const MembersModule: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">Member Management</h1>
             <p className="text-gray-600">Manage bureau members, roles, and permissions</p>
           </div>
-          <Button 
-            className="bg-primary hover:bg-primary/90"
-            onClick={() => setShowAddMemberDialog(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Member
-          </Button>
+          {userRole.canManageMembers && (
+            <Button 
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => setShowAddMemberDialog(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Member
+            </Button>
+          )}
         </div>
 
         <Tabs defaultValue="members" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="members">Members ({members.length})</TabsTrigger>
             <TabsTrigger value="roles">Roles & Permissions</TabsTrigger>
-            <TabsTrigger value="activity">Activity Logs</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+            {userRole.canManageMembers && <TabsTrigger value="activity">Activity Logs</TabsTrigger>}
+            {userRole.canManageSettings && <TabsTrigger value="settings">Settings</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="members" className="space-y-6">
@@ -133,10 +123,12 @@ export const MembersModule: React.FC = () => {
                   />
                 </div>
               </div>
-              <Button variant="outline" onClick={handleExportMembers}>
-                <Download className="h-4 w-4 mr-2" />
-                Export List
-              </Button>
+              {userRole.canManageMembers && (
+                <Button variant="outline" onClick={handleExportMembers}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export List
+                </Button>
+              )}
             </div>
 
             <div className="grid gap-6">
@@ -162,7 +154,7 @@ export const MembersModule: React.FC = () => {
                     : 'Get started by adding your first member'
                   }
                 </p>
-                {!searchTerm && (
+                {!searchTerm && userRole.canManageMembers && (
                   <Button onClick={() => setShowAddMemberDialog(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Member
@@ -198,7 +190,7 @@ export const MembersModule: React.FC = () => {
                           ))}
                         </div>
                       </div>
-                      {userRole.isSuperAdmin && (
+                      {userRole.canManageSettings && (
                         <div className="flex space-x-2 pt-4 border-t">
                           <Button variant="outline" size="sm">Edit Permissions</Button>
                           <Button variant="outline" size="sm">Manage Members</Button>
@@ -211,84 +203,90 @@ export const MembersModule: React.FC = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="activity" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Activity className="h-5 w-5 mr-2" />
-                  Recent Activity
-                </CardTitle>
-                <CardDescription>Track member actions and system usage</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {activityLogs.length > 0 ? (
-                    activityLogs.map((log) => (
-                      <div key={log.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                            <Activity className="h-4 w-4 text-primary" />
+          {userRole.canManageMembers && (
+            <TabsContent value="activity" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Activity className="h-5 w-5 mr-2" />
+                    Recent Activity
+                  </CardTitle>
+                  <CardDescription>Track member actions and system usage</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {activityLogs.length > 0 ? (
+                      activityLogs.map((log) => (
+                        <div key={log.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                              <Activity className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{log.user_name}</p>
+                              <p className="text-sm text-gray-500">{log.action}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium">{log.user_name}</p>
-                            <p className="text-sm text-gray-500">{log.action}</p>
+                          <div className="text-sm text-gray-500">
+                            {new Date(log.timestamp).toLocaleString()}
                           </div>
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {new Date(log.timestamp).toLocaleString()}
-                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        No activity logs yet. Member actions will appear here.
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      No activity logs yet. Member actions will appear here.
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
-          <TabsContent value="settings" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Member Management Settings</CardTitle>
-                <CardDescription>Configure member access and permissions</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-secondary/50 rounded-lg p-6">
-                  <h3 className="font-semibold mb-4">Default Settings</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span>New member default role</span>
-                      <Badge variant="outline">Member</Badge>
+          {userRole.canManageSettings && (
+            <TabsContent value="settings" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Member Management Settings</CardTitle>
+                  <CardDescription>Configure member access and permissions</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-secondary/50 rounded-lg p-6">
+                    <h3 className="font-semibold mb-4">Default Settings</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span>New member default role</span>
+                        <Badge variant="outline">Member</Badge>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>Require admin approval</span>
+                        <Badge variant="outline">Yes</Badge>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>Auto-deactivate inactive members</span>
+                        <Badge variant="outline">90 days</Badge>
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span>Require admin approval</span>
-                      <Badge variant="outline">Yes</Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Auto-deactivate inactive members</span>
-                      <Badge variant="outline">90 days</Badge>
+                    <div className="mt-4 pt-4 border-t">
+                      <Button variant="outline" size="sm">Update Settings</Button>
                     </div>
                   </div>
-                  <div className="mt-4 pt-4 border-t">
-                    <Button variant="outline" size="sm">Update Settings</Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
-      <AddMemberDialog 
-        open={showAddMemberDialog} 
-        onOpenChange={setShowAddMemberDialog}
-        onMemberAdded={() => {
-          setShowAddMemberDialog(false);
-        }}
-      />
+      {userRole.canManageMembers && (
+        <AddMemberDialog 
+          open={showAddMemberDialog} 
+          onOpenChange={setShowAddMemberDialog}
+          onMemberAdded={() => {
+            setShowAddMemberDialog(false);
+          }}
+        />
+      )}
     </>
   );
 };

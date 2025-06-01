@@ -23,12 +23,12 @@ interface SidebarProps {
 
 const allMenuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: Calendar, requiredPermission: null },
-  { id: 'meetings', label: 'Meetings', icon: Calendar, requiredPermission: 'canManageMeetings' },
-  { id: 'documents', label: 'Documents', icon: File, requiredPermission: 'canManageDocuments' },
+  { id: 'meetings', label: 'Meetings', icon: Calendar, requiredPermission: null }, // All users can view meetings
+  { id: 'documents', label: 'Documents', icon: File, requiredPermission: null }, // All users can view documents
   { id: 'voting', label: 'Voting', icon: Check, requiredPermission: null },
-  { id: 'attendance', label: 'Attendance', icon: Clock, requiredPermission: 'canManageMeetings' },
-  { id: 'email', label: 'Email', icon: Mail, requiredPermission: 'canManageMeetings' },
-  { id: 'members', label: 'Members', icon: Users, requiredPermission: 'canManageMembers' },
+  { id: 'attendance', label: 'Attendance', icon: Clock, requiredPermission: null }, // All users can view attendance
+  { id: 'email', label: 'Email', icon: Mail, requiredPermission: 'canManageMeetings' }, // Only admins/secretaries can send emails
+  { id: 'members', label: 'Members', icon: Users, requiredPermission: null }, // All users can view members
   { id: 'reports', label: 'Reports', icon: BarChart3, requiredPermission: 'canViewReports' },
   { id: 'settings', label: 'Settings', icon: Settings, requiredPermission: 'canManageSettings' },
 ];
