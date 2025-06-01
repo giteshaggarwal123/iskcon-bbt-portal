@@ -27,7 +27,7 @@ const allMenuItems = [
   { id: 'documents', label: 'Documents', icon: File, requiredPermission: null }, // All users can view documents
   { id: 'voting', label: 'Voting', icon: Check, requiredPermission: null },
   { id: 'attendance', label: 'Attendance', icon: Clock, requiredPermission: null }, // All users can view attendance
-  { id: 'email', label: 'Email', icon: Mail, requiredPermission: 'canManageMeetings' }, // Only admins/secretaries can send emails
+  { id: 'email', label: 'Email', icon: Mail, requiredPermission: null }, // All users can access email
   { id: 'members', label: 'Members', icon: Users, requiredPermission: null }, // All users can view members
   { id: 'reports', label: 'Reports', icon: BarChart3, requiredPermission: 'canViewReports' },
   { id: 'settings', label: 'Settings', icon: Settings, requiredPermission: null }, // All users can access settings (but content varies by role)
