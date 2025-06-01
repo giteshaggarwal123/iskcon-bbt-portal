@@ -13,29 +13,30 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  currentModule: string;
-  onModuleChange: (module: string) => void;
 }
 
 const allMenuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: Calendar, requiredPermission: null },
-  { id: 'meetings', label: 'Meetings', icon: Calendar, requiredPermission: null }, // All users can view meetings
-  { id: 'documents', label: 'Documents', icon: File, requiredPermission: null }, // All users can view documents
-  { id: 'voting', label: 'Voting', icon: Check, requiredPermission: null },
-  { id: 'attendance', label: 'Attendance', icon: Clock, requiredPermission: null }, // All users can view attendance
-  { id: 'email', label: 'Email', icon: Mail, requiredPermission: null }, // All users can access email
-  { id: 'members', label: 'Members', icon: Users, requiredPermission: null }, // All users can view members
-  { id: 'reports', label: 'Reports', icon: BarChart3, requiredPermission: 'canViewReports' },
-  { id: 'settings', label: 'Settings', icon: Settings, requiredPermission: null }, // All users can access settings (but content varies by role)
+  { id: 'dashboard', label: 'Dashboard', icon: Calendar, path: '/', requiredPermission: null },
+  { id: 'meetings', label: 'Meetings', icon: Calendar, path: '/meetings', requiredPermission: null },
+  { id: 'documents', label: 'Documents', icon: File, path: '/documents', requiredPermission: null },
+  { id: 'voting', label: 'Voting', icon: Check, path: '/voting', requiredPermission: null },
+  { id: 'attendance', label: 'Attendance', icon: Clock, path: '/attendance', requiredPermission: null },
+  { id: 'email', label: 'Email', icon: Mail, path: '/email', requiredPermission: null },
+  { id: 'members', label: 'Members', icon: Users, path: '/members', requiredPermission: null },
+  { id: 'reports', label: 'Reports', icon: BarChart3, path: '/reports', requiredPermission: 'canViewReports' },
+  { id: 'settings', label: 'Settings', icon: Settings, path: '/settings', requiredPermission: null },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModuleChange }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   const { user } = useAuth();
   const userRole = useUserRole();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Filter menu items based on user permissions
   const menuItems = allMenuItems.filter(item => {
@@ -49,6 +50,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModul
     : user?.email?.split('@')[0] || 'User';
   
   const userEmail = user?.email || 'user@iskcon.org';
+
+  const handleNavigation = (path: string) => {
+    navigate(path);
+  };
+
+  const getCurrentModule = () => {
+    const currentPath = location.pathname;
+    const currentItem = allMenuItems.find(item => item.path === currentPath);
+    return currentItem?.id || 'dashboard';
+  };
+
+  const currentModule = getCurrentModule();
 
   return (
     <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -75,7 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModul
           {menuItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => onModuleChange(item.id)}
+              onClick={() => handleNavigation(item.path)}
               className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 currentModule === item.id
                   ? 'bg-primary text-white shadow-sm'
