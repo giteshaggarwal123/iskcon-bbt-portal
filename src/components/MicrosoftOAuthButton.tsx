@@ -30,7 +30,13 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       // Generate Microsoft OAuth URL
       const clientId = '44391516-babe-4072-8422-a4fc8a79fbde';
       const tenantId = 'b2333ef6-3378-4d02-b9b9-d8e66d9dfa3d';
-      const redirectUri = `${window.location.origin}/microsoft-callback`;
+      
+      // Use the exact domain from your current deployment
+      const currentDomain = window.location.origin;
+      const redirectUri = `${currentDomain}/microsoft-callback`;
+      
+      console.log('Microsoft OAuth redirect URI:', redirectUri);
+      
       const scope = 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All https://graph.microsoft.com/Sites.ReadWrite.All https://graph.microsoft.com/OnlineMeetings.ReadWrite';
       
       const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?` +
@@ -43,6 +49,13 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       
       // Store user ID in session storage for callback
       sessionStorage.setItem('microsoft_auth_user_id', user.id);
+      
+      // Show instructions to user
+      toast({
+        title: "Redirect URI Configuration Needed",
+        description: `Please add this redirect URI to your Azure app: ${redirectUri}`,
+        duration: 10000
+      });
       
       // Redirect to Microsoft OAuth
       window.location.href = authUrl;
@@ -59,24 +72,42 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
   };
 
   return (
-    <Button 
-      onClick={handleMicrosoftLogin}
-      disabled={loading}
-      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-    >
-      {loading ? (
-        <div className="flex items-center space-x-2">
-          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-          <span>Connecting...</span>
+    <div className="space-y-4">
+      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h4 className="font-medium text-blue-800 mb-2">Azure Configuration Required</h4>
+        <p className="text-sm text-blue-700 mb-2">
+          Before connecting, add these redirect URIs to your Azure app registration:
+        </p>
+        <div className="bg-white p-2 rounded border text-xs font-mono text-gray-800 mb-2">
+          https://bhakti-bureau-nexus.lovable.app/microsoft-callback
         </div>
-      ) : (
-        <div className="flex items-center space-x-2">
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/>
-          </svg>
-          <span>Connect Microsoft 365</span>
+        <div className="bg-white p-2 rounded border text-xs font-mono text-gray-800 mb-2">
+          http://localhost:3000/microsoft-callback
         </div>
-      )}
-    </Button>
+        <p className="text-xs text-blue-600">
+          Go to Azure Portal → App registrations → Authentication → Add platform → Web → Add these URIs
+        </p>
+      </div>
+      
+      <Button 
+        onClick={handleMicrosoftLogin}
+        disabled={loading}
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+      >
+        {loading ? (
+          <div className="flex items-center space-x-2">
+            <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+            <span>Connecting...</span>
+          </div>
+        ) : (
+          <div className="flex items-center space-x-2">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/>
+            </svg>
+            <span>Connect Microsoft 365</span>
+          </div>
+        )}
+      </Button>
+    </div>
   );
 };
