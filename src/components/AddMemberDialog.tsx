@@ -7,8 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { User, Mail, Phone, Shield } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { useMembers } from '@/hooks/useMembers';
 
 interface AddMemberDialogProps {
   open: boolean;
@@ -17,7 +16,7 @@ interface AddMemberDialogProps {
 }
 
 export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenChange, onMemberAdded }) => {
-  const { toast } = useToast();
+  const { addMember } = useMembers();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -25,7 +24,7 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenCh
     firstName: '',
     lastName: '',
     phone: '',
-    role: '',
+    role: 'member',
     notes: ''
   });
 
@@ -34,38 +33,13 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenCh
     setLoading(true);
 
     try {
-      // Create the user account
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      await addMember({
         email: formData.email,
         password: formData.password,
-        user_metadata: {
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          phone: formData.phone
-        },
-        email_confirm: true // Auto-confirm for admin created users
-      });
-
-      if (authError) throw authError;
-
-      // Add user role if specified
-      if (formData.role && authData.user) {
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: authData.user.id,
-            role: formData.role as any
-          });
-
-        if (roleError) {
-          console.error('Error adding role:', roleError);
-          // Don't throw here, user was created successfully
-        }
-      }
-
-      toast({
-        title: "Member Added Successfully!",
-        description: `${formData.firstName} ${formData.lastName} has been added to the bureau. They can now sign in with their email and password.`
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        role: formData.role
       });
 
       // Reset form
@@ -75,20 +49,14 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenCh
         firstName: '',
         lastName: '',
         phone: '',
-        role: '',
+        role: 'member',
         notes: ''
       });
 
       onMemberAdded?.();
       onOpenChange(false);
-
-    } catch (error: any) {
-      console.error('Error adding member:', error);
-      toast({
-        title: "Failed to Add Member",
-        description: error.message || "An error occurred while adding the member",
-        variant: "destructive"
-      });
+    } catch (error) {
+      console.error('Error in form submission:', error);
     } finally {
       setLoading(false);
     }
