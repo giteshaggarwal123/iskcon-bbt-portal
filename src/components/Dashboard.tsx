@@ -7,6 +7,7 @@ import { CalendarDays, Users, FileText, Mail, TrendingUp, Clock, MessageSquare, 
 import { useMeetings } from '@/hooks/useMeetings';
 import { useMembers } from '@/hooks/useMembers';
 import { useDocuments } from '@/hooks/useDocuments';
+import { useEmails } from '@/hooks/useEmails';
 import { MicrosoftConnectionStatus } from './MicrosoftConnectionStatus';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -15,6 +16,7 @@ interface DashboardStats {
   activeMeetings: number;
   documentsCount: number;
   emailsCount: number;
+  inboxEmailsCount: number;
   pollsCount: number;
 }
 
@@ -24,18 +26,20 @@ export const Dashboard: React.FC = () => {
     activeMeetings: 0,
     documentsCount: 0,
     emailsCount: 0,
+    inboxEmailsCount: 0,
     pollsCount: 0
   });
 
   const { meetings, loading: meetingsLoading } = useMeetings();
   const { members, loading: membersLoading } = useMembers();
   const { documents, loading: documentsLoading } = useDocuments();
+  const { emails, loading: emailsLoading } = useEmails();
 
   // Fetch additional stats
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Fetch emails count
+        // Fetch emails count from Supabase (sent emails)
         const { count: emailsCount } = await supabase
           .from('emails')
           .select('*', { count: 'exact', head: true });
@@ -60,6 +64,7 @@ export const Dashboard: React.FC = () => {
           activeMeetings,
           documentsCount: documents.length,
           emailsCount: emailsCount || 0,
+          inboxEmailsCount: emails.length, // Outlook inbox emails
           pollsCount: pollsCount || 0
         });
       } catch (error) {
@@ -67,10 +72,10 @@ export const Dashboard: React.FC = () => {
       }
     };
 
-    if (!meetingsLoading && !membersLoading && !documentsLoading) {
+    if (!meetingsLoading && !membersLoading && !documentsLoading && !emailsLoading) {
       fetchStats();
     }
-  }, [meetings, members, documents, meetingsLoading, membersLoading, documentsLoading]);
+  }, [meetings, members, documents, emails, meetingsLoading, membersLoading, documentsLoading, emailsLoading]);
 
   // Set up real-time subscriptions for live updates
   useEffect(() => {
@@ -79,6 +84,22 @@ export const Dashboard: React.FC = () => {
         .channel('meetings-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, () => {
           // Refresh stats when meetings change
+          setStats(prev => ({ ...prev }));
+        })
+        .subscribe(),
+
+      supabase
+        .channel('members-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+          // Refresh stats when members change
+          setStats(prev => ({ ...prev }));
+        })
+        .subscribe(),
+
+      supabase
+        .channel('documents-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'documents' }, () => {
+          // Refresh stats when documents change
           setStats(prev => ({ ...prev }));
         })
         .subscribe(),
@@ -105,6 +126,18 @@ export const Dashboard: React.FC = () => {
     };
   }, []);
 
+  // Auto-refresh inbox emails every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!emailsLoading) {
+        // This will trigger a refresh of the emails hook
+        setStats(prev => ({ ...prev, inboxEmailsCount: emails.length }));
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [emails.length, emailsLoading]);
+
   const recentMeetings = meetings
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
     .slice(0, 3);
@@ -112,6 +145,12 @@ export const Dashboard: React.FC = () => {
   const recentDocuments = documents
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 3);
+
+  const recentEmails = emails
+    .sort((a, b) => new Date(b.receivedDateTime).getTime() - new Date(a.receivedDateTime).getTime())
+    .slice(0, 3);
+
+  const unreadEmailsCount = emails.filter(email => !email.isRead).length;
 
   return (
     <div className="space-y-6">
@@ -161,12 +200,14 @@ export const Dashboard: React.FC = () => {
 
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Emails</CardTitle>
+            <CardTitle className="text-sm font-medium">Inbox Emails</CardTitle>
             <Mail className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.emailsCount}</div>
-            <p className="text-xs text-muted-foreground">Total emails</p>
+            <div className="text-2xl font-bold">{stats.inboxEmailsCount}</div>
+            <p className="text-xs text-muted-foreground">
+              {unreadEmailsCount > 0 ? `${unreadEmailsCount} unread` : 'All read'}
+            </p>
           </CardContent>
         </Card>
 
@@ -226,15 +267,17 @@ export const Dashboard: React.FC = () => {
               <Mail className="w-6 h-6 text-red-500" />
             </div>
             <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">{stats.emailsCount}</h3>
-              <p className="text-sm text-gray-500">Emails</p>
+              <h3 className="text-lg font-semibold text-gray-900">{stats.inboxEmailsCount}</h3>
+              <p className="text-sm text-gray-500">
+                Inbox ({unreadEmailsCount} unread)
+              </p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Recent Activity with Real Data */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">Recent Meetings</h2>
@@ -284,6 +327,37 @@ export const Dashboard: React.FC = () => {
             ))}
             {documents.length === 0 && (
               <p className="text-sm text-gray-500">No documents uploaded</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900">Recent Emails</h2>
+          </div>
+          <div className="p-6 space-y-4">
+            {recentEmails.map((email) => (
+              <div key={email.id} className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium text-gray-900">{email.subject}</h3>
+                  <p className="text-sm text-gray-500">
+                    {email.from.name} • {new Date(email.receivedDateTime).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {!email.isRead && (
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  )}
+                  {email.importance === 'high' && (
+                    <span className="px-2 py-1 bg-red-500/10 text-red-500 text-xs rounded-full">
+                      High
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            {emails.length === 0 && (
+              <p className="text-sm text-gray-500">No emails found</p>
             )}
           </div>
         </div>
