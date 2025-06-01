@@ -132,27 +132,37 @@ export const useDocuments = () => {
   };
 
   const deleteDocument = async (documentId: string) => {
+    console.log('useDocuments: deleteDocument called with ID:', documentId);
+    
+    if (!user) {
+      throw new Error('Authentication required');
+    }
+
     try {
+      console.log('Attempting to delete document from Supabase...');
+      
       const { error } = await supabase
         .from('documents')
         .delete()
         .eq('id', documentId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase delete error:', error);
+        throw error;
+      }
 
-      toast({
-        title: "Success",
-        description: "Document deleted successfully"
-      });
+      console.log('Document deleted successfully from database');
 
-      fetchDocuments();
+      // Update local state immediately
+      setDocuments(prev => prev.filter(doc => doc.id !== documentId));
+
+      // Also refresh from server to be sure
+      await fetchDocuments();
+
+      return true;
     } catch (error: any) {
-      console.error('Error deleting document:', error);
-      toast({
-        title: "Delete Failed",
-        description: error.message || "Failed to delete document",
-        variant: "destructive"
-      });
+      console.error('Error in deleteDocument:', error);
+      throw error;
     }
   };
 

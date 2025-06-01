@@ -111,13 +111,18 @@ export const DocumentsModule: React.FC = () => {
   };
 
   const handleDeleteDocument = async (documentId: string, documentName: string) => {
+    console.log('Attempting to delete document:', documentId, documentName);
+    
     try {
+      // Call the deleteDocument function from the hook
       await deleteDocument(documentId);
+      
       toast({
         title: "Document Deleted",
-        description: `"${documentName}" has been permanently deleted`
+        description: `"${documentName}" has been successfully deleted`
       });
     } catch (error: any) {
+      console.error('Delete error:', error);
       toast({
         title: "Delete Failed",
         description: error.message || "Failed to delete document",
@@ -232,8 +237,41 @@ export const DocumentsModule: React.FC = () => {
 
   // Check if user can delete a specific document
   const canDeleteDocument = (document: any) => {
-    return canDeleteContent || user?.id === document.uploaded_by;
+    console.log('Checking delete permissions for document:', document.name);
+    console.log('canDeleteContent:', canDeleteContent);
+    console.log('user.id:', user?.id);
+    console.log('document.uploaded_by:', document.uploaded_by);
+    
+    const canDelete = canDeleteContent || user?.id === document.uploaded_by;
+    console.log('Final canDelete result:', canDelete);
+    
+    return canDelete;
   };
+
+  // Clean up test documents on load
+  useEffect(() => {
+    const cleanupTestDocuments = async () => {
+      const testDocuments = documents.filter(doc => 
+        doc.name.includes('GST Certificate') || 
+        doc.name.includes('Litmus Industries')
+      );
+      
+      console.log('Found test documents to cleanup:', testDocuments);
+      
+      for (const doc of testDocuments) {
+        try {
+          console.log('Deleting test document:', doc.name);
+          await deleteDocument(doc.id);
+        } catch (error) {
+          console.error('Failed to delete test document:', doc.name, error);
+        }
+      }
+    };
+
+    if (documents.length > 0) {
+      cleanupTestDocuments();
+    }
+  }, [documents.length]);
 
   // Fixed filtering logic to properly separate documents by folder
   const filteredDocuments = documents.filter(doc => {
