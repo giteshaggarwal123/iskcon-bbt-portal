@@ -7,7 +7,17 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { FileText, Upload, Search, Filter, Download, Trash2, Eye, Plus, Folder } from 'lucide-react';
+import { 
+  ContextMenu, 
+  ContextMenuContent, 
+  ContextMenuItem, 
+  ContextMenuSeparator, 
+  ContextMenuTrigger,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger
+} from '@/components/ui/context-menu';
+import { FileText, Upload, Search, Filter, Download, Trash2, Eye, Plus, Folder, FolderOpen, Move, Edit } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -16,7 +26,7 @@ import { CreateFolderDialog } from './CreateFolderDialog';
 import { supabase } from '@/integrations/supabase/client';
 
 export const DocumentsModule: React.FC = () => {
-  const { documents, loading, uploadDocument, deleteDocument } = useDocuments();
+  const { documents, folders, loading, uploadDocument, deleteDocument, moveDocument, createFolder, searchDocuments } = useDocuments();
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,6 +34,7 @@ export const DocumentsModule: React.FC = () => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadFolder, setUploadFolder] = useState('general');
+  const [draggedDocument, setDraggedDocument] = useState<string | null>(null);
 
   // Track document views
   const trackDocumentView = async (documentId: string) => {
@@ -70,21 +81,49 @@ export const DocumentsModule: React.FC = () => {
 
   const handleViewDocument = (documentId: string) => {
     trackDocumentView(documentId);
-    // Here you would typically open the document viewer
     toast({
       title: "Document Opened",
       description: "Document view has been tracked"
     });
   };
 
-  const handleFolderCreated = (folderName: string) => {
-    // The folder will be available when uploading documents
+  const handleFolderCreated = async (folderName: string) => {
+    await createFolder(folderName);
     setUploadFolder(folderName);
   };
 
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    searchDocuments(term);
+  };
+
+  const handleDragStart = (e: React.DragEvent, documentId: string) => {
+    setDraggedDocument(documentId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetFolder: string) => {
+    e.preventDefault();
+    if (draggedDocument) {
+      moveDocument(draggedDocument, targetFolder);
+      setDraggedDocument(null);
+    }
+  };
+
+  const handleMoveToFolder = (documentId: string, newFolder: string) => {
+    moveDocument(documentId, newFolder);
+  };
+
+  // Filter documents based on search and folder
   const filteredDocuments = documents.filter(doc => {
-    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFolder = selectedFolder === 'all' || doc.folder === selectedFolder;
+    const matchesSearch = !searchTerm || doc.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFolder = selectedFolder === 'all' || doc.folder === selectedFolder || 
+                         (selectedFolder === 'general' && !doc.folder);
     return matchesSearch && matchesFolder;
   });
 
@@ -105,7 +144,8 @@ export const DocumentsModule: React.FC = () => {
     });
   };
 
-  const folders = [...new Set(documents.map(doc => doc.folder).filter(Boolean))];
+  // Create all folders list including default ones
+  const allFolders = ['general', 'meetings', 'financial', 'policies', 'reports', ...folders.filter(f => !['general', 'meetings', 'financial', 'policies', 'reports'].includes(f))];
 
   if (loading) {
     return (
@@ -126,7 +166,7 @@ export const DocumentsModule: React.FC = () => {
         <div className="flex space-x-2">
           <CreateFolderDialog 
             onFolderCreated={handleFolderCreated}
-            existingFolders={folders}
+            existingFolders={allFolders}
           />
           <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
             <DialogTrigger asChild>
@@ -164,14 +204,9 @@ export const DocumentsModule: React.FC = () => {
                       <SelectValue placeholder="Select folder" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="general">General</SelectItem>
-                      <SelectItem value="meetings">Meetings</SelectItem>
-                      <SelectItem value="financial">Financial</SelectItem>
-                      <SelectItem value="policies">Policies</SelectItem>
-                      <SelectItem value="reports">Reports</SelectItem>
-                      {folders.filter(f => !['general', 'meetings', 'financial', 'policies', 'reports'].includes(f || '')).map(folder => (
-                        <SelectItem key={folder} value={folder || 'general'}>
-                          {folder || 'General'}
+                      {allFolders.map(folder => (
+                        <SelectItem key={folder} value={folder}>
+                          {folder.charAt(0).toUpperCase() + folder.slice(1)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -199,7 +234,7 @@ export const DocumentsModule: React.FC = () => {
           <Input
             placeholder="Search documents..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
             className="pl-10"
           />
         </div>
@@ -210,77 +245,146 @@ export const DocumentsModule: React.FC = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Folders</SelectItem>
-            {folders.map(folder => (
-              <SelectItem key={folder} value={folder || 'general'}>
-                {folder || 'General'}
+            {allFolders.map(folder => (
+              <SelectItem key={folder} value={folder}>
+                {folder.charAt(0).toUpperCase() + folder.slice(1)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
+      {/* Folders Row */}
+      <div className="flex space-x-4 overflow-x-auto pb-2">
+        {allFolders.map((folder) => (
+          <div
+            key={folder}
+            className="flex-shrink-0 min-w-[120px] p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary/50 transition-colors"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, folder)}
+          >
+            <div className="text-center">
+              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
+                <Folder className="h-6 w-6 text-primary" />
+              </div>
+              <p className="text-sm font-medium">{folder.charAt(0).toUpperCase() + folder.slice(1)}</p>
+              <p className="text-xs text-gray-500">
+                {documents.filter(doc => (doc.folder || 'general') === folder).length} files
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Documents Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredDocuments.map((document) => (
-          <Card key={document.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <FileText className="h-5 w-5 text-primary" />
+          <ContextMenu key={document.id}>
+            <ContextMenuTrigger>
+              <Card 
+                className="hover:shadow-md transition-shadow cursor-pointer" 
+                draggable
+                onDragStart={(e) => handleDragStart(e, document.id)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-sm font-medium truncate">
+                          {document.name}
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          {(document.folder || 'general').charAt(0).toUpperCase() + (document.folder || 'general').slice(1)}
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      {document.mime_type?.split('/')[1] || 'file'}
+                    </Badge>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-sm font-medium truncate">
-                      {document.name}
-                    </CardTitle>
-                    <CardDescription className="text-xs">
-                      {document.folder || 'General'}
-                    </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-2 text-xs text-gray-500">
+                    <div>Size: {formatFileSize(document.file_size)}</div>
+                    <div>Uploaded: {formatDate(document.created_at)}</div>
                   </div>
-                </div>
-                <Badge variant="secondary" className="text-xs">
-                  {document.mime_type?.split('/')[1] || 'file'}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-2 text-xs text-gray-500">
-                <div>Size: {formatFileSize(document.file_size)}</div>
-                <div>Uploaded: {formatDate(document.created_at)}</div>
-              </div>
-              <div className="flex justify-between items-center mt-4">
-                <div className="flex space-x-1">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="h-8 px-2"
-                    onClick={() => handleViewDocument(document.id)}
-                  >
-                    <Eye className="h-3 w-3 mr-1" />
-                    View
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-8 px-2">
-                    <Download className="h-3 w-3 mr-1" />
-                    Download
-                  </Button>
-                  <DocumentAnalytics 
-                    documentId={document.id}
-                    documentName={document.name}
-                  />
-                </div>
-                {user?.id === document.uploaded_by && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 px-2 text-red-600 hover:bg-red-50"
-                    onClick={() => deleteDocument(document.id)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="flex justify-between items-center mt-4">
+                    <div className="flex space-x-1">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-8 px-2"
+                        onClick={() => handleViewDocument(document.id)}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        View
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 px-2">
+                        <Download className="h-3 w-3 mr-1" />
+                        Download
+                      </Button>
+                      <DocumentAnalytics 
+                        documentId={document.id}
+                        documentName={document.name}
+                      />
+                    </div>
+                    {user?.id === document.uploaded_by && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2 text-red-600 hover:bg-red-50"
+                        onClick={() => deleteDocument(document.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </ContextMenuTrigger>
+            
+            <ContextMenuContent>
+              <ContextMenuItem onClick={() => handleViewDocument(document.id)}>
+                <Eye className="h-4 w-4 mr-2" />
+                View Document
+              </ContextMenuItem>
+              <ContextMenuItem>
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuSub>
+                <ContextMenuSubTrigger>
+                  <Move className="h-4 w-4 mr-2" />
+                  Move to Folder
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent>
+                  {allFolders.filter(f => f !== (document.folder || 'general')).map(folder => (
+                    <ContextMenuItem 
+                      key={folder}
+                      onClick={() => handleMoveToFolder(document.id, folder)}
+                    >
+                      <Folder className="h-4 w-4 mr-2" />
+                      {folder.charAt(0).toUpperCase() + folder.slice(1)}
+                    </ContextMenuItem>
+                  ))}
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+              <ContextMenuSeparator />
+              {user?.id === document.uploaded_by && (
+                <ContextMenuItem 
+                  onClick={() => deleteDocument(document.id)}
+                  className="text-red-600"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </ContextMenuItem>
+              )}
+            </ContextMenuContent>
+          </ContextMenu>
         ))}
       </div>
 

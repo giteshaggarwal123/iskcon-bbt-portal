@@ -19,6 +19,7 @@ interface Document {
 export const useDocuments = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [folders, setFolders] = useState<string[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -30,7 +31,13 @@ export const useDocuments = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDocuments(data || []);
+      
+      const docs = data || [];
+      setDocuments(docs);
+      
+      // Extract unique folders
+      const uniqueFolders = [...new Set(docs.map(doc => doc.folder).filter(Boolean))];
+      setFolders(uniqueFolders);
     } catch (error: any) {
       console.error('Error fetching documents:', error);
       toast({
@@ -41,6 +48,18 @@ export const useDocuments = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const createFolder = async (folderName: string) => {
+    // Just add to folders list - folders are created when documents are uploaded to them
+    if (!folders.includes(folderName)) {
+      setFolders(prev => [...prev, folderName]);
+      toast({
+        title: "Success",
+        description: `Folder "${folderName}" created successfully`
+      });
+    }
+    return folderName;
   };
 
   const uploadDocument = async (file: File, folder: string = 'general') => {
@@ -54,13 +73,11 @@ export const useDocuments = () => {
     }
 
     try {
-      // For now, we'll store file info in database without actual file upload
-      // In production, you'd upload to Supabase Storage or SharePoint
       const { data, error } = await supabase
         .from('documents')
         .insert({
           name: file.name,
-          file_path: `/uploads/${file.name}`, // Placeholder path
+          file_path: `/uploads/${folder}/${file.name}`,
           file_size: file.size,
           mime_type: file.type,
           folder: folder,
@@ -76,7 +93,7 @@ export const useDocuments = () => {
         description: `Document "${file.name}" uploaded successfully`
       });
 
-      // Refresh documents list
+      // Refresh documents and folders
       fetchDocuments();
       return data;
     } catch (error: any) {
@@ -84,6 +101,31 @@ export const useDocuments = () => {
       toast({
         title: "Upload Failed",
         description: error.message || "Failed to upload document",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const moveDocument = async (documentId: string, newFolder: string) => {
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .update({ folder: newFolder, updated_at: new Date().toISOString() })
+        .eq('id', documentId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Document moved successfully"
+      });
+
+      fetchDocuments();
+    } catch (error: any) {
+      console.error('Error moving document:', error);
+      toast({
+        title: "Move Failed",
+        description: error.message || "Failed to move document",
         variant: "destructive"
       });
     }
@@ -114,15 +156,44 @@ export const useDocuments = () => {
     }
   };
 
+  const searchDocuments = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      fetchDocuments();
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .ilike('name', `%${searchTerm}%`)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setDocuments(data || []);
+    } catch (error: any) {
+      console.error('Error searching documents:', error);
+      toast({
+        title: "Search Failed",
+        description: "Failed to search documents",
+        variant: "destructive"
+      });
+    }
+  };
+
   useEffect(() => {
     fetchDocuments();
   }, []);
 
   return {
     documents,
+    folders,
     loading,
     uploadDocument,
     deleteDocument,
+    moveDocument,
+    createFolder,
+    searchDocuments,
     fetchDocuments
   };
 };

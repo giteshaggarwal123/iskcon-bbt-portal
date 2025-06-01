@@ -20,7 +20,7 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
   const [folderName, setFolderName] = useState('');
   const { toast } = useToast();
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!folderName.trim()) {
       toast({
         title: "Invalid Folder Name",
@@ -30,7 +30,8 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
       return;
     }
 
-    if (existingFolders.includes(folderName.toLowerCase().trim())) {
+    const normalizedFolderName = folderName.toLowerCase().trim();
+    if (existingFolders.map(f => f.toLowerCase()).includes(normalizedFolderName)) {
       toast({
         title: "Folder Exists",
         description: "A folder with this name already exists",
@@ -39,14 +40,9 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
       return;
     }
 
-    onFolderCreated(folderName.trim());
+    await onFolderCreated(normalizedFolderName);
     setFolderName('');
     setOpen(false);
-    
-    toast({
-      title: "Success",
-      description: `Folder "${folderName}" created successfully`
-    });
   };
 
   return (

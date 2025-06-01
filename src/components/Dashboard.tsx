@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Calendar, FileText, Users, Mail, Clock, Check, TrendingUp, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +12,7 @@ import { EmailModule } from './EmailModule';
 import { MembersModule } from './MembersModule';
 import { SettingsModule } from './SettingsModule';
 import { ReportsModule } from './ReportsModule';
+import { GlobalSearch } from './GlobalSearch';
 
 interface DashboardProps {
   currentModule?: string;
@@ -38,17 +38,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentModule = 'dashboard
     case 'reports':
       return <ReportsModule />;
     case 'search':
-      return (
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Search</h1>
-            <p className="text-gray-600">Search across all documents, meetings, and communications</p>
-          </div>
-          <div className="bg-secondary/50 rounded-lg p-8 text-center">
-            <p className="text-gray-600">Universal search functionality coming soon</p>
-          </div>
-        </div>
-      );
+      return <GlobalSearch />;
     default:
       // Default dashboard content
       return (
