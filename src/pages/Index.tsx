@@ -37,7 +37,7 @@ const AppContent = () => {
       <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         <main className="p-6">
-          <Dashboard currentModule={currentModule} />
+          <Dashboard />
         </main>
       </div>
     </div>

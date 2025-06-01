@@ -107,15 +107,19 @@ export const useMembers = () => {
     try {
       console.log('Adding member:', memberData);
 
+      // Generate a UUID for the new profile since it's required
+      const newUserId = crypto.randomUUID();
+
       // For now, we'll just create the profile directly since we can't use admin functions
       // In a real implementation, you'd need proper admin access
       const { data: newProfile, error: profileError } = await supabase
         .from('profiles')
         .insert({
+          id: newUserId,
           email: memberData.email,
           first_name: memberData.firstName,
           last_name: memberData.lastName,
-          phone: memberData.phone
+          phone: memberData.phone || ''
         })
         .select()
         .single();

@@ -218,6 +218,9 @@ export const DocumentsModule: React.FC = () => {
     }
   });
 
+  // Define documents not in folders for when not viewing a specific folder
+  const documentsNotInFolders = currentFolder ? [] : filteredDocuments;
+
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return 'Unknown';
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];

@@ -1,12 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Users, FileText, Mail, TrendingUp, Clock, MessageSquare, Vote } from 'lucide-react';
+import { CalendarDays, Users, FileText, Mail, TrendingUp, Clock, MessageSquare, Vote, CheckCircle } from 'lucide-react';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useMembers } from '@/hooks/useMembers';
 import { useDocuments } from '@/hooks/useDocuments';
-import { VotingDialog } from './VotingDialog';
 import { MicrosoftConnectionStatus } from './MicrosoftConnectionStatus';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -19,7 +19,6 @@ interface DashboardStats {
 }
 
 export const Dashboard: React.FC = () => {
-  const [showVotingDialog, setShowVotingDialog] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     totalMembers: 0,
     activeMeetings: 0,
@@ -199,8 +198,8 @@ export const Dashboard: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-              <Check className="w-6 h-6 text-success" />
+            <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
+              <CheckCircle className="w-6 h-6 text-green-500" />
             </div>
             <div className="ml-4">
               <h3 className="text-lg font-semibold text-gray-900">{stats.pollsCount}</h3>
@@ -211,8 +210,8 @@ export const Dashboard: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-              <FileText className="w-6 h-6 text-warning" />
+            <div className="w-12 h-12 bg-yellow-500/10 rounded-lg flex items-center justify-center">
+              <FileText className="w-6 h-6 text-yellow-500" />
             </div>
             <div className="ml-4">
               <h3 className="text-lg font-semibold text-gray-900">{stats.documentsCount}</h3>
@@ -223,8 +222,8 @@ export const Dashboard: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="w-12 h-12 bg-error/10 rounded-lg flex items-center justify-center">
-              <Mail className="w-6 h-6 text-error" />
+            <div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center">
+              <Mail className="w-6 h-6 text-red-500" />
             </div>
             <div className="ml-4">
               <h3 className="text-lg font-semibold text-gray-900">{stats.emailsCount}</h3>
@@ -252,7 +251,7 @@ export const Dashboard: React.FC = () => {
                     </p>
                   </div>
                   <span className={`px-2 py-1 text-xs rounded-full ${
-                    isUpcoming ? 'bg-primary/10 text-primary' : 'bg-success/10 text-success'
+                    isUpcoming ? 'bg-primary/10 text-primary' : 'bg-green-500/10 text-green-500'
                   }`}>
                     {isUpcoming ? 'Upcoming' : 'Completed'}
                   </span>
@@ -278,7 +277,7 @@ export const Dashboard: React.FC = () => {
                     {new Date(doc.created_at).toLocaleDateString()} • {doc.folder || 'General'}
                   </p>
                 </div>
-                <span className="px-2 py-1 bg-blue/10 text-blue text-xs rounded-full">
+                <span className="px-2 py-1 bg-blue-500/10 text-blue-500 text-xs rounded-full">
                   {doc.mime_type?.includes('pdf') ? 'PDF' : 'Document'}
                 </span>
               </div>
@@ -289,11 +288,6 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
-      <VotingDialog 
-        open={showVotingDialog} 
-        onOpenChange={setShowVotingDialog}
-      />
     </div>
   );
 };
