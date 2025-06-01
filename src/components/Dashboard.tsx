@@ -13,12 +13,47 @@ import { EmailModule } from './EmailModule';
 import { MembersModule } from './MembersModule';
 import { SettingsModule } from './SettingsModule';
 import { ReportsModule } from './ReportsModule';
+import { MicrosoftConnectionStatus } from './MicrosoftConnectionStatus';
+import { useMeetings } from '@/hooks/useMeetings';
+import { useDocuments } from '@/hooks/useDocuments';
+import { useEmails } from '@/hooks/useEmails';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect } from 'react';
 
 interface DashboardProps {
   currentModule?: string;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ currentModule = 'dashboard' }) => {
+  const { meetings } = useMeetings();
+  const { documents } = useDocuments();
+  const { emails } = useEmails();
+  const { user } = useAuth();
+  const [pollsCount, setPollsCount] = useState(0);
+  const [unreadEmailsCount, setUnreadEmailsCount] = useState(0);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user) return;
+
+      // Fetch active polls count
+      const { data: polls } = await supabase
+        .from('polls')
+        .select('id')
+        .eq('status', 'active');
+      setPollsCount(polls?.length || 0);
+    };
+
+    fetchDashboardData();
+  }, [user]);
+
+  useEffect(() => {
+    // Count unread emails
+    const unreadCount = emails.filter(email => !email.isRead).length;
+    setUnreadEmailsCount(unreadCount);
+  }, [emails]);
+
   // Render specific module based on currentModule prop
   switch (currentModule) {
     case 'documents':
@@ -38,34 +73,44 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentModule = 'dashboard
     case 'reports':
       return <ReportsModule />;
     default:
-      // Default dashboard content
+      // Default dashboard content with dynamic data
+      const upcomingMeetings = meetings.filter(meeting => 
+        new Date(meeting.start_time) > new Date()
+      ).length;
+
+      const newDocuments = documents.filter(doc => {
+        const docDate = new Date(doc.created_at);
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return docDate > weekAgo;
+      }).length;
+
       return (
         <div className="space-y-6">
-          {/* Header */}
+          {/* Header with Microsoft 365 Status */}
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Bureau Dashboard</h1>
               <p className="text-gray-600">Welcome to ISKCON Bureau Management Platform</p>
             </div>
             <div className="flex items-center space-x-4">
+              <MicrosoftConnectionStatus />
               <div className="text-right">
                 <p className="text-sm text-gray-500">Last Login</p>
-                <p className="font-semibold">Jan 18, 2024 2:30 PM</p>
+                <p className="font-semibold">{new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</p>
               </div>
             </div>
           </div>
 
-          {/* Quick Stats */}
+          {/* Quick Stats with Real Data */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+                  <Calendar className="w-6 h-6 text-primary" />
                 </div>
                 <div className="ml-4">
-                  <h3 className="text-lg font-semibold text-gray-900">3</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">{upcomingMeetings}</h3>
                   <p className="text-sm text-gray-500">Upcoming Meetings</p>
                 </div>
               </div>
@@ -74,12 +119,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentModule = 'dashboard
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <Check className="w-6 h-6 text-success" />
                 </div>
                 <div className="ml-4">
-                  <h3 className="text-lg font-semibold text-gray-900">2</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">{pollsCount}</h3>
                   <p className="text-sm text-gray-500">Active Polls</p>
                 </div>
               </div>
@@ -88,12 +131,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentModule = 'dashboard
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+                  <FileText className="w-6 h-6 text-warning" />
                 </div>
                 <div className="ml-4">
-                  <h3 className="text-lg font-semibold text-gray-900">15</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">{newDocuments}</h3>
                   <p className="text-sm text-gray-500">New Documents</p>
                 </div>
               </div>
@@ -102,61 +143,68 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentModule = 'dashboard
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-error/10 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z" />
-                  </svg>
+                  <Mail className="w-6 h-6 text-error" />
                 </div>
                 <div className="ml-4">
-                  <h3 className="text-lg font-semibold text-gray-900">7</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">{unreadEmailsCount}</h3>
                   <p className="text-sm text-gray-500">Unread Emails</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Recent Activity */}
+          {/* Recent Activity with Real Data */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900">Recent Meetings</h2>
               </div>
               <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium text-gray-900">Monthly Bureau Meeting</h3>
-                    <p className="text-sm text-gray-500">Jan 20, 2024 • 10:00 AM</p>
-                  </div>
-                  <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">Upcoming</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium text-gray-900">Emergency Committee</h3>
-                    <p className="text-sm text-gray-500">Jan 18, 2024 • 2:00 PM</p>
-                  </div>
-                  <span className="px-2 py-1 bg-success/10 text-success text-xs rounded-full">Completed</span>
-                </div>
+                {meetings.slice(0, 2).map((meeting) => {
+                  const isUpcoming = new Date(meeting.start_time) > new Date();
+                  return (
+                    <div key={meeting.id} className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium text-gray-900">{meeting.title}</h3>
+                        <p className="text-sm text-gray-500">
+                          {new Date(meeting.start_time).toLocaleDateString()} • {new Date(meeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        isUpcoming ? 'bg-primary/10 text-primary' : 'bg-success/10 text-success'
+                      }`}>
+                        {isUpcoming ? 'Upcoming' : 'Completed'}
+                      </span>
+                    </div>
+                  );
+                })}
+                {meetings.length === 0 && (
+                  <p className="text-sm text-gray-500">No meetings scheduled</p>
+                )}
               </div>
             </div>
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-900">Active Voting</h2>
+                <h2 className="text-xl font-semibold text-gray-900">Recent Documents</h2>
               </div>
               <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium text-gray-900">Temple Expansion Budget</h3>
-                    <p className="text-sm text-gray-500">8/12 votes cast</p>
+                {documents.slice(0, 2).map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium text-gray-900">{doc.name}</h3>
+                      <p className="text-sm text-gray-500">
+                        {new Date(doc.created_at).toLocaleDateString()} • {doc.folder || 'General'}
+                      </p>
+                    </div>
+                    <span className="px-2 py-1 bg-blue/10 text-blue text-xs rounded-full">
+                      {doc.mime_type?.includes('pdf') ? 'PDF' : 'Document'}
+                    </span>
                   </div>
-                  <span className="px-2 py-1 bg-warning/10 text-warning text-xs rounded-full">Active</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium text-gray-900">Festival Committee</h3>
-                    <p className="text-sm text-gray-500">5/12 votes cast</p>
-                  </div>
-                  <span className="px-2 py-1 bg-warning/10 text-warning text-xs rounded-full">Active</span>
-                </div>
+                ))}
+                {documents.length === 0 && (
+                  <p className="text-sm text-gray-500">No documents uploaded</p>
+                )}
               </div>
             </div>
           </div>
