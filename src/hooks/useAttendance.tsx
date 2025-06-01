@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -30,6 +31,45 @@ export const useAttendance = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Set up real-time subscription for attendance updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('attendance-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'attendance_records'
+        },
+        (payload) => {
+          console.log('Real-time attendance update:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            // Refresh attendance data when new record is added
+            fetchAttendanceForMeeting(payload.new.meeting_id);
+          } else if (payload.eventType === 'UPDATE') {
+            // Update existing record
+            setAttendanceRecords(prev => 
+              prev.map(record => 
+                record.id === payload.new.id ? { ...record, ...payload.new } : record
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            // Remove deleted record
+            setAttendanceRecords(prev => 
+              prev.filter(record => record.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const fetchAttendanceForMeeting = async (meetingId: string) => {
     if (!meetingId) return [];
     
@@ -50,6 +90,7 @@ export const useAttendance = () => {
       }
 
       console.log('Fetched attendance records:', data);
+      setAttendanceRecords(data || []);
       return data || [];
     } catch (error: any) {
       console.error('Error fetching attendance:', error);

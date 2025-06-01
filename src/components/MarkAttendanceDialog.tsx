@@ -11,6 +11,7 @@ import { useAttendance } from '@/hooks/useAttendance';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useMembers } from '@/hooks/useMembers';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { format } from 'date-fns';
 
 interface MarkAttendanceDialogProps {
@@ -30,6 +31,7 @@ export const MarkAttendanceDialog: React.FC<MarkAttendanceDialogProps> = ({ open
   const { meetings } = useMeetings();
   const { members } = useMembers();
   const { user } = useAuth();
+  const { canManageMembers } = useUserRole();
 
   // Filter meetings to show today's and recent meetings
   const availableMeetings = meetings.filter(meeting => {
@@ -45,15 +47,22 @@ export const MarkAttendanceDialog: React.FC<MarkAttendanceDialogProps> = ({ open
     if (open) {
       // Reset form when dialog opens
       setSelectedMeeting('');
-      setSelectedMember('');
+      setSelectedMember(user?.id || ''); // Auto-select current user for members
       setAttendanceStatus('present');
       setAttendanceType('physical');
       setNotes('');
     }
-  }, [open]);
+  }, [open, user?.id]);
 
   const handleMarkAttendance = async () => {
-    if (!selectedMeeting || !selectedMember) {
+    if (!selectedMeeting) {
+      return;
+    }
+
+    // For members, always use their own ID
+    const memberIdToUse = canManageMembers ? selectedMember : user?.id;
+    
+    if (!memberIdToUse) {
       return;
     }
 
@@ -61,7 +70,7 @@ export const MarkAttendanceDialog: React.FC<MarkAttendanceDialogProps> = ({ open
     try {
       const success = await markAttendance({
         meetingId: selectedMeeting,
-        userId: selectedMember,
+        userId: memberIdToUse,
         status: attendanceStatus,
         type: attendanceType,
         joinTime: attendanceStatus !== 'absent' ? new Date() : undefined,
@@ -109,7 +118,9 @@ export const MarkAttendanceDialog: React.FC<MarkAttendanceDialogProps> = ({ open
             <UserCheck className="h-5 w-5" />
             <span>Mark Attendance</span>
           </DialogTitle>
-          <DialogDescription>Record attendance for a meeting</DialogDescription>
+          <DialogDescription>
+            {canManageMembers ? 'Record attendance for a meeting' : 'Mark your attendance for a meeting'}
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6">
@@ -160,27 +171,40 @@ export const MarkAttendanceDialog: React.FC<MarkAttendanceDialogProps> = ({ open
             )}
           </div>
 
-          {/* Member Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="member">Select Member</Label>
-            <Select value={selectedMember} onValueChange={setSelectedMember}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a member" />
-              </SelectTrigger>
-              <SelectContent>
-                {members.map((member) => (
-                  <SelectItem key={member.id} value={member.id}>
-                    <div>
-                      <div className="font-medium">
-                        {member.first_name} {member.last_name}
+          {/* Member Selection - Only show for admins */}
+          {canManageMembers && (
+            <div className="space-y-2">
+              <Label htmlFor="member">Select Member</Label>
+              <Select value={selectedMember} onValueChange={setSelectedMember}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {members.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      <div>
+                        <div className="font-medium">
+                          {member.first_name} {member.last_name}
+                        </div>
+                        <div className="text-sm text-gray-500">{member.email}</div>
                       </div>
-                      <div className="text-sm text-gray-500">{member.email}</div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </div>
+            )}
+
+          {/* Show current user info for members */}
+          {!canManageMembers && user && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center space-x-2">
+                <UserCheck className="h-4 w-4 text-blue-600" />
+                <span className="text-sm text-blue-700">
+                  Marking attendance for: <strong>{user.email}</strong>
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Attendance Type (only for hybrid meetings) */}
           {selectedMeetingData && selectedMeetingData.meeting_type === 'hybrid' && (
@@ -256,7 +280,7 @@ export const MarkAttendanceDialog: React.FC<MarkAttendanceDialogProps> = ({ open
             </Button>
             <Button 
               onClick={handleMarkAttendance} 
-              disabled={loading || !selectedMeeting || !selectedMember}
+              disabled={loading || !selectedMeeting || (canManageMembers && !selectedMember)}
               className="bg-primary hover:bg-primary/90"
             >
               <UserCheck className="h-4 w-4 mr-2" />
