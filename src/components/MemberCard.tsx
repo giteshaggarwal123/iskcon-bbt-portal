@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MemberSettingsDialog } from './MemberSettingsDialog';
 import { MemberMessageDialog } from './MemberMessageDialog';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface Member {
   id: string;
@@ -44,15 +45,19 @@ interface MemberCardProps {
 export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, onDeleteMember }) => {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
+  const userRole = useUserRole();
 
   const getRoleBadge = (role: string) => {
     const roleColors: { [key: string]: string } = {
-      'admin': 'bg-red-500 text-white',
-      'secretary': 'bg-blue-500 text-white',
-      'treasurer': 'bg-green-500 text-white',
+      'super_admin': 'bg-red-500 text-white',
+      'admin': 'bg-blue-500 text-white',
+      'secretary': 'bg-green-500 text-white',
+      'treasurer': 'bg-yellow-500 text-white',
       'member': 'bg-gray-500 text-white'
     };
-    return <Badge className={roleColors[role] || 'bg-gray-500 text-white'}>{role}</Badge>;
+    return <Badge className={roleColors[role] || 'bg-gray-500 text-white'}>
+      {role.replace('_', ' ')}
+    </Badge>;
   };
 
   const primaryRole = member.roles[0] || 'member';
@@ -61,6 +66,9 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
   const handleDeleteMember = () => {
     onDeleteMember(member.id);
   };
+
+  const canChangeRole = userRole.isSuperAdmin || (userRole.isAdmin && primaryRole !== 'super_admin');
+  const canDeleteMember = userRole.isSuperAdmin || (userRole.isAdmin && primaryRole !== 'super_admin');
 
   return (
     <>
@@ -97,11 +105,18 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
             <div className="text-right space-y-3">
               <div>
                 <label className="text-sm text-gray-500">Role</label>
-                <Select value={primaryRole} onValueChange={(value) => onRoleChange(member.id, value)}>
+                <Select 
+                  value={primaryRole} 
+                  onValueChange={(value) => onRoleChange(member.id, value)}
+                  disabled={!canChangeRole}
+                >
                   <SelectTrigger className="w-32">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    {userRole.isSuperAdmin && (
+                      <SelectItem value="super_admin">Super Admin</SelectItem>
+                    )}
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="secretary">Secretary</SelectItem>
                     <SelectItem value="treasurer">Treasurer</SelectItem>
@@ -138,31 +153,33 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
                   <MessageCircle className="h-4 w-4" />
                 </Button>
 
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Member</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete {member.first_name} {member.last_name}? 
-                        This action cannot be undone and will permanently remove their account and all associated data.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction 
-                        onClick={handleDeleteMember}
-                        className="bg-red-600 hover:bg-red-700"
-                      >
-                        Delete Member
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                {canDeleteMember && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Member</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete {member.first_name} {member.last_name}? 
+                          This action cannot be undone and will permanently remove their account and all associated data.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={handleDeleteMember}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Delete Member
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
             </div>
           </div>

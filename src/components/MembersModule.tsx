@@ -8,11 +8,13 @@ import { User, Users, Mail, Phone, Shield, Settings, Search, Plus, Activity, Dow
 import { AddMemberDialog } from './AddMemberDialog';
 import { MemberCard } from './MemberCard';
 import { useMembers } from '@/hooks/useMembers';
+import { useUserRole } from '@/hooks/useUserRole';
 
 export const MembersModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
   const { members, activityLogs, loading, addMember, updateMemberRole, deleteMember, searchMembers } = useMembers();
+  const userRole = useUserRole();
 
   // Use the search function from the hook
   const filteredMembers = useMemo(() => {
@@ -21,9 +23,15 @@ export const MembersModule: React.FC = () => {
 
   const roles = [
     {
+      name: 'Super Admin',
+      description: 'Full system access and super administration',
+      permissions: ['All Permissions', 'Manage Super Admins'],
+      memberCount: members.filter(m => m.roles.includes('super_admin')).length
+    },
+    {
       name: 'Admin',
       description: 'Full system access and administration',
-      permissions: ['All Permissions'],
+      permissions: ['All Permissions except Super Admin Management'],
       memberCount: members.filter(m => m.roles.includes('admin')).length
     },
     {
@@ -66,6 +74,18 @@ export const MembersModule: React.FC = () => {
     a.click();
     window.URL.revokeObjectURL(url);
   };
+
+  // Check if user has permission to access members module
+  if (!userRole.canManageMembers) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Access Restricted</h3>
+          <p className="text-gray-500">You don't have permission to access the Members module.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -178,10 +198,12 @@ export const MembersModule: React.FC = () => {
                           ))}
                         </div>
                       </div>
-                      <div className="flex space-x-2 pt-4 border-t">
-                        <Button variant="outline" size="sm">Edit Permissions</Button>
-                        <Button variant="outline" size="sm">Manage Members</Button>
-                      </div>
+                      {userRole.isSuperAdmin && (
+                        <div className="flex space-x-2 pt-4 border-t">
+                          <Button variant="outline" size="sm">Edit Permissions</Button>
+                          <Button variant="outline" size="sm">Manage Members</Button>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

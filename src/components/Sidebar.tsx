@@ -9,11 +9,10 @@ import {
   Clock,
   User,
   Check,
-  Folder,
-  FileSearch,
   BarChart3
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -22,20 +21,27 @@ interface SidebarProps {
   onModuleChange: (module: string) => void;
 }
 
-const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: Calendar },
-  { id: 'meetings', label: 'Meetings', icon: Calendar },
-  { id: 'documents', label: 'Documents', icon: File },
-  { id: 'voting', label: 'Voting', icon: Check },
-  { id: 'attendance', label: 'Attendance', icon: Clock },
-  { id: 'email', label: 'Email', icon: Mail },
-  { id: 'members', label: 'Members', icon: Users },
-  { id: 'reports', label: 'Reports', icon: BarChart3 },
-  { id: 'settings', label: 'Settings', icon: Settings },
+const allMenuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: Calendar, requiredPermission: null },
+  { id: 'meetings', label: 'Meetings', icon: Calendar, requiredPermission: 'canManageMeetings' },
+  { id: 'documents', label: 'Documents', icon: File, requiredPermission: 'canManageDocuments' },
+  { id: 'voting', label: 'Voting', icon: Check, requiredPermission: null },
+  { id: 'attendance', label: 'Attendance', icon: Clock, requiredPermission: 'canManageMeetings' },
+  { id: 'email', label: 'Email', icon: Mail, requiredPermission: 'canManageMeetings' },
+  { id: 'members', label: 'Members', icon: Users, requiredPermission: 'canManageMembers' },
+  { id: 'reports', label: 'Reports', icon: BarChart3, requiredPermission: 'canViewReports' },
+  { id: 'settings', label: 'Settings', icon: Settings, requiredPermission: 'canManageSettings' },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModuleChange }) => {
   const { user } = useAuth();
+  const userRole = useUserRole();
+
+  // Filter menu items based on user permissions
+  const menuItems = allMenuItems.filter(item => {
+    if (!item.requiredPermission) return true;
+    return userRole[item.requiredPermission as keyof typeof userRole];
+  });
 
   // Extract user info from the authenticated user
   const userName = user?.user_metadata?.first_name 
@@ -92,9 +98,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModul
               <p className="text-sm font-medium text-gray-900 truncate">
                 {userName}
               </p>
-              <p className="text-xs text-gray-500 truncate">
-                {userEmail}
-              </p>
+              <div className="flex items-center space-x-2">
+                <p className="text-xs text-gray-500 truncate">
+                  {userEmail}
+                </p>
+                {userRole.userRole && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                    userRole.isSuperAdmin ? 'bg-red-100 text-red-700' :
+                    userRole.isAdmin ? 'bg-blue-100 text-blue-700' :
+                    userRole.isSecretary ? 'bg-green-100 text-green-700' :
+                    userRole.isTreasurer ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    {userRole.userRole.replace('_', ' ')}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>

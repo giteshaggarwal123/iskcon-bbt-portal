@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -182,7 +181,7 @@ export const useMembers = () => {
         console.error('Failed to send invitation email:', emailError);
       }
 
-      await logActivity('Added new member', `Added ${memberData.firstName} ${memberData.lastName} as ${memberData.role}`);
+      await logActivity('Added new member', `Added ${memberData.firstName} ${memberData.lastName} as ${memberData.role.replace('_', ' ')}`);
 
       toast({
         title: "Member Added Successfully!",
