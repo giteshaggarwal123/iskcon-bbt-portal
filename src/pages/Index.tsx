@@ -1,21 +1,29 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import { Dashboard } from '@/components/Dashboard';
-import { AuthPage } from '@/components/AuthPage';
+import { RealAuthPage } from '@/components/RealAuthPage';
+import { AuthProvider, useAuth } from '@/hooks/useAuth';
 
-const Index = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [currentModule, setCurrentModule] = useState('dashboard');
+const AppContent = () => {
+  const { user, loading } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const [currentModule, setCurrentModule] = React.useState('dashboard');
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
-  if (!isAuthenticated) {
-    return <AuthPage onLogin={handleLogin} />;
+  if (!user) {
+    return <RealAuthPage />;
   }
 
   return (
@@ -33,6 +41,14 @@ const Index = () => {
         </main>
       </div>
     </div>
+  );
+};
+
+const Index = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 

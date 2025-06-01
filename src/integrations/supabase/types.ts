@@ -9,16 +9,351 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      document_views: {
+        Row: {
+          completion_percentage: number | null
+          document_id: string
+          id: string
+          last_page_viewed: number | null
+          time_spent_seconds: number | null
+          user_id: string
+          view_ended_at: string | null
+          view_started_at: string | null
+        }
+        Insert: {
+          completion_percentage?: number | null
+          document_id: string
+          id?: string
+          last_page_viewed?: number | null
+          time_spent_seconds?: number | null
+          user_id: string
+          view_ended_at?: string | null
+          view_started_at?: string | null
+        }
+        Update: {
+          completion_percentage?: number | null
+          document_id?: string
+          id?: string
+          last_page_viewed?: number | null
+          time_spent_seconds?: number | null
+          user_id?: string
+          view_ended_at?: string | null
+          view_started_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_views_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          created_at: string | null
+          file_path: string
+          file_size: number | null
+          folder: string | null
+          id: string
+          is_shared: boolean | null
+          mime_type: string | null
+          name: string
+          sharepoint_drive_id: string | null
+          sharepoint_file_id: string | null
+          updated_at: string | null
+          uploaded_by: string
+          version: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_path: string
+          file_size?: number | null
+          folder?: string | null
+          id?: string
+          is_shared?: boolean | null
+          mime_type?: string | null
+          name: string
+          sharepoint_drive_id?: string | null
+          sharepoint_file_id?: string | null
+          updated_at?: string | null
+          uploaded_by: string
+          version?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          file_path?: string
+          file_size?: number | null
+          folder?: string | null
+          id?: string
+          is_shared?: boolean | null
+          mime_type?: string | null
+          name?: string
+          sharepoint_drive_id?: string | null
+          sharepoint_file_id?: string | null
+          updated_at?: string | null
+          uploaded_by?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
+      emails: {
+        Row: {
+          body: string | null
+          created_at: string | null
+          id: string
+          outlook_message_id: string | null
+          recipients: string[]
+          sender_id: string
+          sent_at: string | null
+          status: string | null
+          subject: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string | null
+          id?: string
+          outlook_message_id?: string | null
+          recipients: string[]
+          sender_id: string
+          sent_at?: string | null
+          status?: string | null
+          subject: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string | null
+          id?: string
+          outlook_message_id?: string | null
+          recipients?: string[]
+          sender_id?: string
+          sent_at?: string | null
+          status?: string | null
+          subject?: string
+        }
+        Relationships: []
+      }
+      meeting_attendees: {
+        Row: {
+          id: string
+          meeting_id: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          meeting_id: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          meeting_id?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_attendees_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          description: string | null
+          end_time: string
+          id: string
+          location: string | null
+          meeting_type: string | null
+          outlook_event_id: string | null
+          start_time: string
+          status: string | null
+          teams_join_url: string | null
+          teams_meeting_id: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          end_time: string
+          id?: string
+          location?: string | null
+          meeting_type?: string | null
+          outlook_event_id?: string | null
+          start_time: string
+          status?: string | null
+          teams_join_url?: string | null
+          teams_meeting_id?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          end_time?: string
+          id?: string
+          location?: string | null
+          meeting_type?: string | null
+          outlook_event_id?: string | null
+          start_time?: string
+          status?: string | null
+          teams_join_url?: string | null
+          teams_meeting_id?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      poll_votes: {
+        Row: {
+          id: string
+          poll_id: string
+          user_id: string
+          vote: string
+          voted_at: string | null
+        }
+        Insert: {
+          id?: string
+          poll_id: string
+          user_id: string
+          vote: string
+          voted_at?: string | null
+        }
+        Update: {
+          id?: string
+          poll_id?: string
+          user_id?: string
+          vote?: string
+          voted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      polls: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          deadline: string
+          description: string | null
+          id: string
+          is_secret: boolean | null
+          notify_members: boolean | null
+          status: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          deadline: string
+          description?: string | null
+          id?: string
+          is_secret?: boolean | null
+          notify_members?: boolean | null
+          status?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          deadline?: string
+          description?: string | null
+          id?: string
+          is_secret?: boolean | null
+          notify_members?: boolean | null
+          status?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          microsoft_access_token: string | null
+          microsoft_refresh_token: string | null
+          microsoft_user_id: string | null
+          phone: string | null
+          token_expires_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          microsoft_access_token?: string | null
+          microsoft_refresh_token?: string | null
+          microsoft_user_id?: string | null
+          phone?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          microsoft_access_token?: string | null
+          microsoft_refresh_token?: string | null
+          microsoft_user_id?: string | null
+          phone?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "member" | "secretary" | "treasurer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +468,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "member", "secretary", "treasurer"],
+    },
   },
 } as const
