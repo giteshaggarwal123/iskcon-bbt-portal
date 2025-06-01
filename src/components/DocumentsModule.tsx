@@ -8,6 +8,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { 
   ContextMenu, 
   ContextMenuContent, 
   ContextMenuItem, 
@@ -28,6 +39,7 @@ import {
 import { FileText, Upload, Search, Filter, Download, Trash2, Eye, Plus, Folder, FolderOpen, Move, Edit, Copy, ArrowLeft, Home } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentAnalytics } from './DocumentAnalytics';
 import { CreateFolderDialog } from './CreateFolderDialog';
@@ -36,6 +48,7 @@ import { supabase } from '@/integrations/supabase/client';
 export const DocumentsModule: React.FC = () => {
   const { documents, folders, loading, uploadDocument, deleteDocument, moveDocument, createFolder, searchDocuments, fetchDocuments } = useDocuments();
   const { user } = useAuth();
+  const { canDeleteContent } = useUserRole();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFolder, setSelectedFolder] = useState('all');
@@ -95,6 +108,22 @@ export const DocumentsModule: React.FC = () => {
       title: "Document Opened",
       description: "Document view has been tracked"
     });
+  };
+
+  const handleDeleteDocument = async (documentId: string, documentName: string) => {
+    try {
+      await deleteDocument(documentId);
+      toast({
+        title: "Document Deleted",
+        description: `"${documentName}" has been permanently deleted`
+      });
+    } catch (error: any) {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete document",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleFolderCreated = async (folderName: string) => {
@@ -179,7 +208,6 @@ export const DocumentsModule: React.FC = () => {
       return;
     }
 
-    // Since folders are virtual, we just need to refresh the view
     toast({
       title: "Folder Deleted",
       description: "Folder has been removed"
@@ -202,28 +230,26 @@ export const DocumentsModule: React.FC = () => {
     setSelectedFolder('all');
   };
 
+  // Check if user can delete a specific document
+  const canDeleteDocument = (document: any) => {
+    return canDeleteContent || user?.id === document.uploaded_by;
+  };
+
   // Fixed filtering logic to properly separate documents by folder
   const filteredDocuments = documents.filter(doc => {
     const documentFolder = doc.folder || 'general';
     const matchesSearch = !searchTerm || doc.name.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (currentFolder) {
-      // When viewing a specific folder, ONLY show documents in that exact folder
       return matchesSearch && documentFolder === currentFolder;
     } else {
-      // When in main view (not viewing a specific folder)
       if (selectedFolder === 'all') {
-        // Show only documents in 'general' folder when showing "all"
         return matchesSearch && documentFolder === 'general';
       } else {
-        // When filtering by dropdown, show documents in that specific folder
         return matchesSearch && documentFolder === selectedFolder;
       }
     }
   });
-
-  // Define documents not in folders for when not viewing a specific folder
-  const documentsNotInFolders = currentFolder ? [] : filteredDocuments;
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return 'Unknown';
@@ -514,15 +540,35 @@ export const DocumentsModule: React.FC = () => {
                           documentName={document.name}
                         />
                       </div>
-                      {user?.id === document.uploaded_by && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 px-2 text-red-600 hover:bg-red-50"
-                          onClick={() => deleteDocument(document.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                      {canDeleteDocument(document) && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 px-2 text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Document</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{document.name}"? This action cannot be undone and the document will be permanently removed from the system.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDeleteDocument(document.id, document.name)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Delete Document
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       )}
                     </div>
                   </CardContent>
@@ -561,9 +607,9 @@ export const DocumentsModule: React.FC = () => {
                   </ContextMenuSubContent>
                 </ContextMenuSub>
                 <ContextMenuSeparator />
-                {user?.id === document.uploaded_by && (
+                {canDeleteDocument(document) && (
                   <ContextMenuItem 
-                    onClick={() => deleteDocument(document.id)}
+                    onClick={() => handleDeleteDocument(document.id, document.name)}
                     className="text-red-600"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
