@@ -23,14 +23,18 @@ serve(async (req) => {
 
     console.log('Processing Microsoft auth for user:', user_id)
 
+    // Use the specific tenant ID instead of 'common'
+    const tenantId = Deno.env.get('MICROSOFT_TENANT_ID') || 'b2333ef6-3378-4d02-b9b9-d8e66d9dfa3d'
+    
     // Determine the correct redirect URI based on the site URL
     const siteUrl = Deno.env.get('SITE_URL') || 'https://bhakti-bureau-nexus.lovable.app'
     const redirectUri = `${siteUrl}/microsoft-callback`
     
     console.log('Using redirect URI:', redirectUri)
+    console.log('Using tenant ID:', tenantId)
 
-    // Exchange authorization code for access token
-    const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+    // Exchange authorization code for access token using tenant-specific endpoint
+    const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
