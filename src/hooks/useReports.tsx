@@ -10,6 +10,7 @@ interface ReportData {
   polls: any[];
   attendance: any[];
   members: any[];
+  document_analytics: any[];
 }
 
 export const useReports = () => {
@@ -48,6 +49,18 @@ export const useReports = () => {
           data = documents || [];
           break;
 
+        case 'document_analytics':
+          const { data: documentAnalytics } = await supabase
+            .from('document_views')
+            .select(`
+              *,
+              documents(name, folder),
+              profiles!document_views_user_id_fkey(first_name, last_name, email)
+            `)
+            .order('view_started_at', { ascending: false });
+          data = documentAnalytics || [];
+          break;
+
         case 'voting':
           const { data: polls } = await supabase
             .from('polls')
@@ -61,16 +74,22 @@ export const useReports = () => {
           break;
 
         case 'comprehensive':
-          const [meetingsRes, documentsRes, pollsRes] = await Promise.all([
+          const [meetingsRes, documentsRes, pollsRes, analyticsRes] = await Promise.all([
             supabase.from('meetings').select('*').order('start_time', { ascending: false }),
             supabase.from('documents').select('*').order('created_at', { ascending: false }),
-            supabase.from('polls').select('*').order('created_at', { ascending: false })
+            supabase.from('polls').select('*').order('created_at', { ascending: false }),
+            supabase.from('document_views').select(`
+              *,
+              documents(name, folder),
+              profiles!document_views_user_id_fkey(first_name, last_name, email)
+            `).order('view_started_at', { ascending: false })
           ]);
           
           data = {
             meetings: meetingsRes.data || [],
             documents: documentsRes.data || [],
-            polls: pollsRes.data || []
+            polls: pollsRes.data || [],
+            document_analytics: analyticsRes.data || []
           };
           break;
       }

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,10 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { FileText, Upload, Search, Filter, Download, Trash2, Eye, Plus } from 'lucide-react';
+import { FileText, Upload, Search, Filter, Download, Trash2, Eye, Plus, Folder } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { DocumentAnalytics } from './DocumentAnalytics';
+import { CreateFolderDialog } from './CreateFolderDialog';
+import { supabase } from '@/integrations/supabase/client';
 
 export const DocumentsModule: React.FC = () => {
   const { documents, loading, uploadDocument, deleteDocument } = useDocuments();
@@ -21,6 +24,27 @@ export const DocumentsModule: React.FC = () => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadFolder, setUploadFolder] = useState('general');
+
+  // Track document views
+  const trackDocumentView = async (documentId: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('document_views')
+        .insert({
+          document_id: documentId,
+          user_id: user.id,
+          view_started_at: new Date().toISOString(),
+          completion_percentage: 0,
+          last_page_viewed: 1
+        });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error tracking document view:', error);
+    }
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -42,6 +66,20 @@ export const DocumentsModule: React.FC = () => {
     await uploadDocument(selectedFile, uploadFolder);
     setSelectedFile(null);
     setUploadDialogOpen(false);
+  };
+
+  const handleViewDocument = (documentId: string) => {
+    trackDocumentView(documentId);
+    // Here you would typically open the document viewer
+    toast({
+      title: "Document Opened",
+      description: "Document view has been tracked"
+    });
+  };
+
+  const handleFolderCreated = (folderName: string) => {
+    // The folder will be available when uploading documents
+    setUploadFolder(folderName);
   };
 
   const filteredDocuments = documents.filter(doc => {
@@ -85,62 +123,73 @@ export const DocumentsModule: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Documents</h1>
           <p className="text-gray-600">Manage bureau documents and files</p>
         </div>
-        <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center space-x-2">
-              <Plus className="h-4 w-4" />
-              <span>Upload Document</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Upload New Document</DialogTitle>
-              <DialogDescription>
-                Select a file to upload to the bureau document library
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="file">Select File</Label>
-                <Input
-                  id="file"
-                  type="file"
-                  onChange={handleFileSelect}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
-                />
-                {selectedFile && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
-                  </p>
-                )}
+        <div className="flex space-x-2">
+          <CreateFolderDialog 
+            onFolderCreated={handleFolderCreated}
+            existingFolders={folders}
+          />
+          <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center space-x-2">
+                <Plus className="h-4 w-4" />
+                <span>Upload Document</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Upload New Document</DialogTitle>
+                <DialogDescription>
+                  Select a file to upload to the bureau document library
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="file">Select File</Label>
+                  <Input
+                    id="file"
+                    type="file"
+                    onChange={handleFileSelect}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                  />
+                  {selectedFile && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="folder">Folder</Label>
+                  <Select value={uploadFolder} onValueChange={setUploadFolder}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select folder" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="general">General</SelectItem>
+                      <SelectItem value="meetings">Meetings</SelectItem>
+                      <SelectItem value="financial">Financial</SelectItem>
+                      <SelectItem value="policies">Policies</SelectItem>
+                      <SelectItem value="reports">Reports</SelectItem>
+                      {folders.filter(f => !['general', 'meetings', 'financial', 'policies', 'reports'].includes(f || '')).map(folder => (
+                        <SelectItem key={folder} value={folder || 'general'}>
+                          {folder || 'General'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleUpload} disabled={!selectedFile}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload
+                  </Button>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="folder">Folder</Label>
-                <Select value={uploadFolder} onValueChange={setUploadFolder}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select folder" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">General</SelectItem>
-                    <SelectItem value="meetings">Meetings</SelectItem>
-                    <SelectItem value="financial">Financial</SelectItem>
-                    <SelectItem value="policies">Policies</SelectItem>
-                    <SelectItem value="reports">Reports</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleUpload} disabled={!selectedFile}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Search and Filter */}
@@ -200,21 +249,30 @@ export const DocumentsModule: React.FC = () => {
                 <div>Uploaded: {formatDate(document.created_at)}</div>
               </div>
               <div className="flex justify-between items-center mt-4">
-                <div className="flex space-x-2">
-                  <Button size="sm" variant="outline" className="h-8 px-3">
+                <div className="flex space-x-1">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="h-8 px-2"
+                    onClick={() => handleViewDocument(document.id)}
+                  >
                     <Eye className="h-3 w-3 mr-1" />
                     View
                   </Button>
-                  <Button size="sm" variant="outline" className="h-8 px-3">
+                  <Button size="sm" variant="outline" className="h-8 px-2">
                     <Download className="h-3 w-3 mr-1" />
                     Download
                   </Button>
+                  <DocumentAnalytics 
+                    documentId={document.id}
+                    documentName={document.name}
+                  />
                 </div>
                 {user?.id === document.uploaded_by && (
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 px-3 text-red-600 hover:bg-red-50"
+                    className="h-8 px-2 text-red-600 hover:bg-red-50"
                     onClick={() => deleteDocument(document.id)}
                   >
                     <Trash2 className="h-3 w-3" />

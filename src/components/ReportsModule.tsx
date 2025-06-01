@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Download, FileText, BarChart3, Users, Calendar as CalendarIconLucide } from 'lucide-react';
+import { CalendarIcon, Download, FileText, BarChart3, Users, Calendar as CalendarIconLucide, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { useReports } from '@/hooks/useReports';
 
@@ -19,6 +19,7 @@ export const ReportsModule = () => {
   const reportTypes = [
     { value: 'meetings', label: 'Meetings Report', icon: CalendarIconLucide },
     { value: 'documents', label: 'Documents Report', icon: FileText },
+    { value: 'document_analytics', label: 'Document Analytics Report', icon: Eye },
     { value: 'voting', label: 'Voting Report', icon: BarChart3 },
     { value: 'members', label: 'Members Report', icon: Users },
     { value: 'comprehensive', label: 'Comprehensive Report', icon: FileText }
@@ -184,10 +185,10 @@ export const ReportsModule = () => {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
-              <BarChart3 className="h-8 w-8 text-purple-600" />
+              <Eye className="h-8 w-8 text-purple-600" />
               <div>
-                <p className="text-sm font-medium text-gray-600">Active Polls</p>
-                <p className="text-2xl font-bold">7</p>
+                <p className="text-sm font-medium text-gray-600">Document Views</p>
+                <p className="text-2xl font-bold">1,024</p>
               </div>
             </div>
           </CardContent>
