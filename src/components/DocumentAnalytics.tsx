@@ -58,7 +58,7 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ documentId
         time_spent_seconds: item.time_spent_seconds,
         completion_percentage: item.completion_percentage,
         last_page_viewed: item.last_page_viewed,
-        profiles: item.profiles && typeof item.profiles === 'object' && !('error' in item.profiles) 
+        profiles: item.profiles && typeof item.profiles === 'object' && item.profiles !== null && !('error' in item.profiles) 
           ? item.profiles as { first_name: string | null; last_name: string | null; email: string | null }
           : null
       }));
