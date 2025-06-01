@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,36 +13,43 @@ export const VotingModule: React.FC = () => {
   const [showVotingDialog, setShowVotingDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedPoll, setSelectedPoll] = useState<any>(null);
-  const [voteType, setVoteType] = useState<'favor' | 'against' | 'abstain'>('favor');
 
-  const handleVoteClick = (poll: any, type: 'favor' | 'against' | 'abstain') => {
+  const handleVoteClick = (poll: any) => {
     setSelectedPoll(poll);
-    setVoteType(type);
     setShowVotingDialog(true);
   };
 
   const activePolls = [
     {
       id: 1,
-      title: 'Temple Expansion Budget Approval',
-      description: 'Approval for additional ₹50 lakhs for temple expansion project',
+      title: 'Temple Expansion Project Decisions',
+      description: 'Multiple decisions required for the temple expansion project',
       deadline: '2024-01-25 5:00 PM',
       totalVoters: 12,
       votedCount: 8,
-      votes: { favor: 6, against: 1, abstain: 1 },
       status: 'active',
-      isSecret: true
+      isSecret: true,
+      questionCount: 3,
+      subPolls: [
+        { id: '1', title: 'Approve budget increase', description: 'Increase temple expansion budget by ₹20 lakhs' },
+        { id: '2', title: 'Approve timeline extension', description: 'Extend project completion deadline by 3 months' },
+        { id: '3', title: 'Approve contractor selection', description: 'Select the recommended contractor for the project' }
+      ]
     },
     {
       id: 2,
-      title: 'New Festival Committee Formation',
-      description: 'Proposal to form a dedicated festival planning committee',
+      title: 'Festival Committee Formation',
+      description: 'Decisions about new festival planning committee',
       deadline: '2024-01-30 12:00 PM',
       totalVoters: 12,
       votedCount: 5,
-      votes: { favor: 4, against: 0, abstain: 1 },
       status: 'active',
-      isSecret: false
+      isSecret: false,
+      questionCount: 2,
+      subPolls: [
+        { id: '1', title: 'Create festival committee', description: 'Form a dedicated festival planning committee' },
+        { id: '2', title: 'Assign committee budget', description: 'Allocate ₹5 lakhs annual budget for festival activities' }
+      ]
     }
   ];
 
@@ -53,21 +61,13 @@ export const VotingModule: React.FC = () => {
       totalVoters: 12,
       votes: { favor: 10, against: 1, abstain: 1 },
       result: 'Approved',
-      turnout: 100
+      turnout: 100,
+      questionCount: 1
     }
   ];
 
   const getProgressPercentage = (poll: any) => {
     return (poll.votedCount / poll.totalVoters) * 100;
-  };
-
-  const getResultPercentages = (votes: any) => {
-    const total = votes.favor + votes.against + votes.abstain;
-    return {
-      favor: total > 0 ? (votes.favor / total) * 100 : 0,
-      against: total > 0 ? (votes.against / total) * 100 : 0,
-      abstain: total > 0 ? (votes.abstain / total) * 100 : 0
-    };
   };
 
   return (
@@ -97,141 +97,95 @@ export const VotingModule: React.FC = () => {
 
           <TabsContent value="active" className="space-y-6">
             <div className="grid gap-6">
-              {activePolls.map((poll) => {
-                const percentages = getResultPercentages(poll.votes);
-                return (
-                  <Card key={poll.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-xl">{poll.title}</CardTitle>
-                          <CardDescription className="mt-2">{poll.description}</CardDescription>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Badge className="bg-success text-white">{poll.status}</Badge>
+              {activePolls.map((poll) => (
+                <Card key={poll.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-xl">{poll.title}</CardTitle>
+                        <CardDescription className="mt-2">{poll.description}</CardDescription>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <Badge variant="secondary">{poll.questionCount} question{poll.questionCount !== 1 ? 's' : ''}</Badge>
                           {poll.isSecret && <Badge variant="secondary">Secret Ballot</Badge>}
                         </div>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center space-x-2">
-                            <Clock className="h-4 w-4 text-gray-500" />
-                            <span>Deadline: {poll.deadline}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Users className="h-4 w-4 text-gray-500" />
-                            <span>{poll.votedCount}/{poll.totalVoters} voted</span>
-                          </div>
+                      <Badge className="bg-success text-white">{poll.status}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="h-4 w-4 text-gray-500" />
+                          <span>Deadline: {poll.deadline}</span>
                         </div>
-
-                        <div>
-                          <div className="flex justify-between text-sm mb-2">
-                            <span>Participation</span>
-                            <span>{Math.round(getProgressPercentage(poll))}%</span>
-                          </div>
-                          <Progress value={getProgressPercentage(poll)} className="h-2" />
-                        </div>
-
-                        {!poll.isSecret && (
-                          <div className="grid grid-cols-3 gap-4">
-                            <div className="text-center">
-                              <div className="flex items-center justify-center space-x-2 mb-2">
-                                <CheckCircle className="h-5 w-5 text-success" />
-                                <span className="font-semibold">Favor</span>
-                              </div>
-                              <div className="text-2xl font-bold text-success">{poll.votes.favor}</div>
-                              <div className="text-sm text-gray-500">{Math.round(percentages.favor)}%</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="flex items-center justify-center space-x-2 mb-2">
-                                <XCircle className="h-5 w-5 text-error" />
-                                <span className="font-semibold">Against</span>
-                              </div>
-                              <div className="text-2xl font-bold text-error">{poll.votes.against}</div>
-                              <div className="text-sm text-gray-500">{Math.round(percentages.against)}%</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="flex items-center justify-center space-x-2 mb-2">
-                                <MinusCircle className="h-5 w-5 text-warning" />
-                                <span className="font-semibold">Abstain</span>
-                              </div>
-                              <div className="text-2xl font-bold text-warning">{poll.votes.abstain}</div>
-                              <div className="text-sm text-gray-500">{Math.round(percentages.abstain)}%</div>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex space-x-2 pt-4 border-t">
-                          <Button 
-                            className="bg-success hover:bg-success/90 text-white"
-                            onClick={() => handleVoteClick(poll, 'favor')}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Vote Favor
-                          </Button>
-                          <Button 
-                            className="bg-error hover:bg-error/90 text-white"
-                            onClick={() => handleVoteClick(poll, 'against')}
-                          >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Vote Against
-                          </Button>
-                          <Button 
-                            variant="outline"
-                            onClick={() => handleVoteClick(poll, 'abstain')}
-                          >
-                            <MinusCircle className="h-4 w-4 mr-2" />
-                            Abstain
-                          </Button>
+                        <div className="flex items-center space-x-2">
+                          <Users className="h-4 w-4 text-gray-500" />
+                          <span>{poll.votedCount}/{poll.totalVoters} voted</span>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+
+                      <div>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span>Participation</span>
+                          <span>{Math.round(getProgressPercentage(poll))}%</span>
+                        </div>
+                        <Progress value={getProgressPercentage(poll)} className="h-2" />
+                      </div>
+
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-medium text-gray-900 mb-2">Questions in this poll:</h4>
+                        <div className="space-y-2">
+                          {poll.subPolls?.map((subPoll: any, index: number) => (
+                            <div key={subPoll.id} className="text-sm">
+                              <span className="font-medium">{index + 1}.</span> {subPoll.title}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex space-x-2 pt-4 border-t">
+                        <Button 
+                          className="bg-primary hover:bg-primary/90 text-white"
+                          onClick={() => handleVoteClick(poll)}
+                        >
+                          <Vote className="h-4 w-4 mr-2" />
+                          Vote on All Questions
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </TabsContent>
 
           <TabsContent value="completed" className="space-y-6">
             <div className="grid gap-6">
-              {completedPolls.map((poll) => {
-                const percentages = getResultPercentages(poll.votes);
-                return (
-                  <Card key={poll.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
+              {completedPolls.map((poll) => (
+                <Card key={poll.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
                         <CardTitle className="text-xl">{poll.title}</CardTitle>
-                        <Badge className={poll.result === 'Approved' ? 'bg-success text-white' : 'bg-error text-white'}>
-                          {poll.result}
-                        </Badge>
-                      </div>
-                      <CardDescription>Completed on {poll.completedDate}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-3 gap-4 mb-4">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-success">{poll.votes.favor}</div>
-                          <div className="text-sm text-gray-500">Favor ({Math.round(percentages.favor)}%)</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-error">{poll.votes.against}</div>
-                          <div className="text-sm text-gray-500">Against ({Math.round(percentages.against)}%)</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-warning">{poll.votes.abstain}</div>
-                          <div className="text-sm text-gray-500">Abstain ({Math.round(percentages.abstain)}%)</div>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <Badge variant="secondary">{poll.questionCount} question{poll.questionCount !== 1 ? 's' : ''}</Badge>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center text-sm text-gray-500">
-                        <span>Turnout: {poll.turnout}%</span>
-                        <span>{poll.totalVoters} total voters</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                      <Badge className={poll.result === 'Approved' ? 'bg-success text-white' : 'bg-error text-white'}>
+                        {poll.result}
+                      </Badge>
+                    </div>
+                    <CardDescription>Completed on {poll.completedDate}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex justify-between items-center text-sm text-gray-500">
+                      <span>Turnout: {poll.turnout}%</span>
+                      <span>{poll.totalVoters} total voters</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </TabsContent>
 
@@ -306,6 +260,10 @@ export const VotingModule: React.FC = () => {
                       <span>Secret ballot by default</span>
                       <span className="text-gray-500">Yes</span>
                     </div>
+                    <div className="flex justify-between items-center">
+                      <span>Multi-question polls allowed</span>
+                      <span className="text-gray-500">Yes</span>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -318,7 +276,6 @@ export const VotingModule: React.FC = () => {
         open={showVotingDialog} 
         onOpenChange={setShowVotingDialog}
         poll={selectedPoll}
-        voteType={voteType}
       />
       <CreatePollDialog 
         open={showCreateDialog} 
