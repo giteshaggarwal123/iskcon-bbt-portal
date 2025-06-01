@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,12 +10,15 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { User, Bell, Shield, Mail, Save, MessageCircle, Settings } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { MicrosoftOAuthButton } from './MicrosoftOAuthButton';
+import { MemberSettingsModule } from './MemberSettingsModule';
 
 export const SettingsModule: React.FC = () => {
   const { user } = useAuth();
+  const { canManageSettings } = useUserRole();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
@@ -37,6 +39,11 @@ export const SettingsModule: React.FC = () => {
     documentUpdates: false,
     voteNotifications: true
   });
+
+  // If user doesn't have manage settings permission, show member settings
+  if (!canManageSettings) {
+    return <MemberSettingsModule />;
+  }
 
   useEffect(() => {
     if (user) {
