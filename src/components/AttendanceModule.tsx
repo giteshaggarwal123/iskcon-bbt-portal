@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,11 +9,34 @@ import { CheckCircle, Clock, Users, Calendar, MapPin, Video, Download, UserCheck
 import { MarkAttendanceDialog } from './MarkAttendanceDialog';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useMeetings } from '@/hooks/useMeetings';
+import { format } from 'date-fns';
 
 export const AttendanceModule: React.FC = () => {
   const [showMarkAttendanceDialog, setShowMarkAttendanceDialog] = useState(false);
-  const { generateAttendanceReport } = useAttendance();
+  const [attendanceData, setAttendanceData] = useState<any>({});
+  const { generateAttendanceReport, fetchAttendanceForMeeting } = useAttendance();
   const { meetings } = useMeetings();
+
+  // Fetch attendance data for each meeting
+  useEffect(() => {
+    const fetchAllAttendance = async () => {
+      const data: any = {};
+      for (const meeting of meetings) {
+        const records = await fetchAttendanceForMeeting(meeting.id);
+        data[meeting.id] = {
+          present: records.filter((r: any) => r.attendance_status === 'present').length,
+          late: records.filter((r: any) => r.attendance_status === 'late').length,
+          absent: records.filter((r: any) => r.attendance_status === 'absent').length,
+          totalMembers: records.length || 0
+        };
+      }
+      setAttendanceData(data);
+    };
+
+    if (meetings.length > 0) {
+      fetchAllAttendance();
+    }
+  }, [meetings, fetchAttendanceForMeeting]);
 
   const handleDownloadReport = async (type: string) => {
     const data = await generateAttendanceReport();
@@ -26,6 +50,11 @@ export const AttendanceModule: React.FC = () => {
         break;
       case 'meeting':
         csvContent = 'Meeting,Date,Type,Total Attendees,Present,Late,Absent,Attendance Rate\n';
+        meetings.forEach((meeting: any) => {
+          const attendance = attendanceData[meeting.id] || { present: 0, late: 0, absent: 0, totalMembers: 0 };
+          const rate = attendance.totalMembers > 0 ? Math.round((attendance.present / attendance.totalMembers) * 100) : 0;
+          csvContent += `${meeting.title},${format(new Date(meeting.start_time), 'yyyy-MM-dd')},${meeting.meeting_type},${attendance.totalMembers},${attendance.present},${attendance.late},${attendance.absent},${rate}%\n`;
+        });
         break;
       case 'detailed':
         csvContent = 'Date,Meeting,Member,Email,Status,Type,Join Time,Leave Time,Duration (min)\n';
@@ -45,23 +74,6 @@ export const AttendanceModule: React.FC = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-
-  // Sample data - in real app, this would come from attendance hooks
-  const meetings_sample = [
-    {
-      id: 1,
-      title: 'Monthly Bureau Meeting',
-      date: '2024-01-20',
-      time: '10:00 AM',
-      type: 'Physical',
-      location: 'Main Conference Room',
-      totalMembers: 12,
-      present: 10,
-      late: 1,
-      absent: 1,
-      status: 'ongoing'
-    }
-  ];
 
   const memberAttendance = [
     { name: 'Radha Krishna Das', role: 'General Secretary', present: 11, total: 12, percentage: 92, lastMeeting: 'Present' },
@@ -90,20 +102,40 @@ export const AttendanceModule: React.FC = () => {
   ];
 
   const getAttendanceColor = (percentage: number) => {
-    if (percentage >= 90) return 'text-success';
-    if (percentage >= 75) return 'text-warning';
-    return 'text-error';
+    if (percentage >= 90) return 'text-green-600';
+    if (percentage >= 75) return 'text-yellow-600';
+    return 'text-red-600';
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'ongoing':
-        return <Badge className="bg-success text-white">Live</Badge>;
-      case 'upcoming':
-        return <Badge className="bg-primary text-white">Upcoming</Badge>;
-      default:
-        return <Badge variant="secondary">Completed</Badge>;
+  const getStatusBadge = (meeting: any) => {
+    const now = new Date();
+    const start = new Date(meeting.start_time);
+    const end = new Date(meeting.end_time);
+    
+    if (now >= start && now <= end) {
+      return <Badge className="bg-green-500 text-white">Live</Badge>;
+    } else if (now < start) {
+      return <Badge className="bg-blue-500 text-white">Upcoming</Badge>;
+    } else {
+      return <Badge variant="secondary">Completed</Badge>;
     }
+  };
+
+  const formatMeetingInfo = (meeting: any) => {
+    const start = new Date(meeting.start_time);
+    return {
+      date: format(start, 'MMM dd, yyyy'),
+      time: format(start, 'h:mm a'),
+      type: meeting.meeting_type || 'online',
+      location: meeting.location || 'Online Meeting'
+    };
+  };
+
+  const isOngoingMeeting = (meeting: any) => {
+    const now = new Date();
+    const start = new Date(meeting.start_time);
+    const end = new Date(meeting.end_time);
+    return now >= start && now <= end;
   };
 
   return (
@@ -133,92 +165,97 @@ export const AttendanceModule: React.FC = () => {
 
           <TabsContent value="current" className="space-y-6">
             <div className="grid gap-6">
-              {meetings.map((meeting) => (
-                <Card key={meeting.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-xl">{meeting.title}</CardTitle>
-                        <CardDescription className="flex items-center space-x-4 mt-2">
-                          <span className="flex items-center space-x-1">
-                            <Calendar className="h-4 w-4" />
-                            <span>{meeting.date}</span>
-                          </span>
-                          <span className="flex items-center space-x-1">
-                            <Clock className="h-4 w-4" />
-                            <span>{meeting.time}</span>
-                          </span>
-                          <span className="flex items-center space-x-1">
-                            {meeting.type === 'Online' ? (
-                              <Video className="h-4 w-4" />
-                            ) : (
-                              <MapPin className="h-4 w-4" />
-                            )}
-                            <span>{meeting.location}</span>
-                          </span>
-                        </CardDescription>
-                      </div>
-                      {getStatusBadge(meeting.status)}
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {meeting.status === 'ongoing' && (
+              {meetings.map((meeting) => {
+                const meetingInfo = formatMeetingInfo(meeting);
+                const attendance = attendanceData[meeting.id] || { present: 0, late: 0, absent: 0, totalMembers: 0 };
+                
+                return (
+                  <Card key={meeting.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
                         <div>
-                          <div className="flex justify-between text-sm mb-2">
-                            <span>Current Attendance</span>
-                            <span>{Math.round((meeting.present / meeting.totalMembers) * 100)}%</span>
-                          </div>
-                          <Progress 
-                            value={(meeting.present / meeting.totalMembers) * 100} 
-                            className="h-3"
-                          />
+                          <CardTitle className="text-xl">{meeting.title}</CardTitle>
+                          <CardDescription className="flex items-center space-x-4 mt-2">
+                            <span className="flex items-center space-x-1">
+                              <Calendar className="h-4 w-4" />
+                              <span>{meetingInfo.date}</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <Clock className="h-4 w-4" />
+                              <span>{meetingInfo.time}</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              {meetingInfo.type === 'online' ? (
+                                <Video className="h-4 w-4" />
+                              ) : (
+                                <MapPin className="h-4 w-4" />
+                              )}
+                              <span>{meetingInfo.location}</span>
+                            </span>
+                          </CardDescription>
                         </div>
-                      )}
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-success">{meeting.present}</div>
-                          <div className="text-sm text-gray-500">Present</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-warning">{meeting.late}</div>
-                          <div className="text-sm text-gray-500">Late</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-error">{meeting.absent}</div>
-                          <div className="text-sm text-gray-500">Absent</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-primary">{meeting.totalMembers}</div>
-                          <div className="text-sm text-gray-500">Total</div>
-                        </div>
+                        {getStatusBadge(meeting)}
                       </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {isOngoingMeeting(meeting) && attendance.totalMembers > 0 && (
+                          <div>
+                            <div className="flex justify-between text-sm mb-2">
+                              <span>Current Attendance</span>
+                              <span>{Math.round((attendance.present / attendance.totalMembers) * 100)}%</span>
+                            </div>
+                            <Progress 
+                              value={(attendance.present / attendance.totalMembers) * 100} 
+                              className="h-3"
+                            />
+                          </div>
+                        )}
 
-                      {meeting.status === 'ongoing' && (
-                        <div className="flex space-x-2 pt-4 border-t">
-                          <Button 
-                            size="sm" 
-                            className="bg-success hover:bg-success/90"
-                            onClick={() => setShowMarkAttendanceDialog(true)}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Quick Check-in
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Users className="h-4 w-4 mr-2" />
-                            View Details
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Clock className="h-4 w-4 mr-2" />
-                            Late Arrivals
-                          </Button>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-green-600">{attendance.present}</div>
+                            <div className="text-sm text-gray-500">Present</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-yellow-600">{attendance.late}</div>
+                            <div className="text-sm text-gray-500">Late</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-red-600">{attendance.absent}</div>
+                            <div className="text-sm text-gray-500">Absent</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-blue-600">{attendance.totalMembers}</div>
+                            <div className="text-sm text-gray-500">Total</div>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+
+                        {isOngoingMeeting(meeting) && (
+                          <div className="flex space-x-2 pt-4 border-t">
+                            <Button 
+                              size="sm" 
+                              className="bg-green-500 hover:bg-green-600"
+                              onClick={() => setShowMarkAttendanceDialog(true)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Quick Check-in
+                            </Button>
+                            <Button variant="outline" size="sm">
+                              <Users className="h-4 w-4 mr-2" />
+                              View Details
+                            </Button>
+                            <Button variant="outline" size="sm">
+                              <Clock className="h-4 w-4 mr-2" />
+                              Late Arrivals
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </TabsContent>
 
@@ -252,9 +289,9 @@ export const AttendanceModule: React.FC = () => {
                           <div className="text-center">
                             <Badge 
                               className={
-                                member.lastMeeting === 'Present' ? 'bg-success text-white' :
-                                member.lastMeeting === 'Late' ? 'bg-warning text-white' :
-                                'bg-error text-white'
+                                member.lastMeeting === 'Present' ? 'bg-green-500 text-white' :
+                                member.lastMeeting === 'Late' ? 'bg-yellow-500 text-white' :
+                                'bg-red-500 text-white'
                               }
                             >
                               {member.lastMeeting}
@@ -289,11 +326,11 @@ export const AttendanceModule: React.FC = () => {
                         <div className="text-sm text-gray-500">Attendance</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-success">{record.attendance}%</div>
+                        <div className="text-2xl font-bold text-green-600">{record.attendance}%</div>
                         <div className="text-sm text-gray-500">Rate</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-warning">{record.avgDuration}</div>
+                        <div className="text-2xl font-bold text-yellow-600">{record.avgDuration}</div>
                         <div className="text-sm text-gray-500">Avg Duration</div>
                       </div>
                     </div>
@@ -347,7 +384,7 @@ export const AttendanceModule: React.FC = () => {
                   <div className="space-y-4">
                     <div className="flex justify-between">
                       <span>Overall Attendance</span>
-                      <span className="font-semibold text-success">87%</span>
+                      <span className="font-semibold text-green-600">87%</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Most Attended Meeting</span>

@@ -3,13 +3,17 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Search, MessageSquare, Settings, LogOut, User } from 'lucide-react';
+import { Bell, Search, MessageSquare, Settings, LogOut, User, Menu } from 'lucide-react';
 import { NotificationsDialog } from './NotificationsDialog';
 import { MessagesDialog } from './MessagesDialog';
 import { GlobalSearch } from './GlobalSearch';
 import { useAuth } from '@/hooks/useAuth';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
@@ -36,6 +40,16 @@ export const Header: React.FC = () => {
       <header className="bg-white border-b border-gray-200 px-6 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
+            {onMenuClick && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onMenuClick}
+                className="lg:hidden"
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+            )}
             <h1 className="text-xl font-semibold text-gray-900">ISKCON Bureau Management</h1>
           </div>
 
