@@ -44,12 +44,12 @@ export const RealAuthPage: React.FC = () => {
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <div className="w-4 h-4 bg-white rounded-full"></div>
-              </div>
-            </div>
+          <div className="w-20 h-20 flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <img 
+              src="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" 
+              alt="ISKCON Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">ISKCON Bureau</h1>
           <p className="text-gray-600">Management Platform</p>
