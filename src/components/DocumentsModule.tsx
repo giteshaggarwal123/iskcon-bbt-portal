@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -201,22 +202,22 @@ export const DocumentsModule: React.FC = () => {
     setSelectedFolder('all');
   };
 
-  // Updated filtering logic to properly separate documents by folder
+  // Fixed filtering logic to properly separate documents by folder
   const filteredDocuments = documents.filter(doc => {
+    const documentFolder = doc.folder || 'general';
     const matchesSearch = !searchTerm || doc.name.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (currentFolder) {
-      // When viewing a specific folder, ONLY show documents in that folder
-      return matchesSearch && (doc.folder || 'general') === currentFolder;
+      // When viewing a specific folder, ONLY show documents in that exact folder
+      return matchesSearch && documentFolder === currentFolder;
     } else {
-      // When in main view, ONLY show documents that are NOT in any folder (i.e., in 'general' folder)
-      // or if filtering by dropdown, show documents in that specific folder
+      // When in main view (not viewing a specific folder)
       if (selectedFolder === 'all') {
         // Show only documents in 'general' folder when showing "all"
-        return matchesSearch && (doc.folder || 'general') === 'general';
+        return matchesSearch && documentFolder === 'general';
       } else {
-        // When filtering by folder dropdown, show documents in that folder
-        return matchesSearch && (doc.folder || 'general') === selectedFolder;
+        // When filtering by dropdown, show documents in that specific folder
+        return matchesSearch && documentFolder === selectedFolder;
       }
     }
   });
