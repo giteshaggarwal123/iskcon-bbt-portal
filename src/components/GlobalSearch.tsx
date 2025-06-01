@@ -1,39 +1,22 @@
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, FileText, Calendar, Users, Mail, Clock } from 'lucide-react';
+import { Search, FileText, Users, Mail, Calendar, Clock } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useEmails } from '@/hooks/useEmails';
 import { useMembers } from '@/hooks/useMembers';
 
-interface SearchResult {
-  id: string;
-  type: 'document' | 'meeting' | 'email' | 'member';
-  title: string;
-  description: string;
-  date?: string;
-  metadata?: any;
-}
-
 interface GlobalSearchProps {
-  trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
 
-export const GlobalSearch: React.FC<GlobalSearchProps> = ({ 
-  trigger, 
-  open: controlledOpen, 
-  onOpenChange: controlledOnOpenChange 
-}) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
+export const GlobalSearch: React.FC<GlobalSearchProps> = ({ open, onOpenChange }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   const { documents } = useDocuments();
@@ -41,121 +24,78 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
   const { emails } = useEmails();
   const { members } = useMembers();
 
-  const isControlled = controlledOpen !== undefined;
-  const isOpen = isControlled ? controlledOpen : open;
-  const setIsOpen = isControlled ? controlledOnOpenChange : setOpen;
-
-  const performSearch = async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
+  const performSearch = async (query: string) => {
+    if (!query.trim()) {
       setResults([]);
       return;
     }
 
     setLoading(true);
-    const searchResults: SearchResult[] = [];
-    const queryLower = searchQuery.toLowerCase();
+    const searchResults: any[] = [];
 
     // Search documents
-    documents.forEach(doc => {
-      if (
-        doc.name.toLowerCase().includes(queryLower) ||
-        doc.folder?.toLowerCase().includes(queryLower)
-      ) {
-        searchResults.push({
-          id: doc.id,
-          type: 'document',
-          title: doc.name,
-          description: `Document in ${doc.folder || 'General'} folder`,
-          date: doc.created_at || undefined,
-          metadata: doc
-        });
-      }
-    });
+    const documentMatches = documents.filter(doc =>
+      doc.name.toLowerCase().includes(query.toLowerCase())
+    ).map(doc => ({
+      id: doc.id,
+      type: 'document',
+      title: doc.name,
+      subtitle: `${doc.folder || 'general'} folder`,
+      date: new Date(doc.created_at).toLocaleDateString(),
+      icon: FileText
+    }));
 
     // Search meetings
-    meetings.forEach(meeting => {
-      if (
-        meeting.title.toLowerCase().includes(queryLower) ||
-        meeting.description?.toLowerCase().includes(queryLower) ||
-        meeting.location?.toLowerCase().includes(queryLower)
-      ) {
-        searchResults.push({
-          id: meeting.id,
-          type: 'meeting',
-          title: meeting.title,
-          description: meeting.description || `Meeting on ${new Date(meeting.start_time).toLocaleDateString()}`,
-          date: meeting.start_time,
-          metadata: meeting
-        });
-      }
-    });
+    const meetingMatches = meetings.filter(meeting =>
+      meeting.title.toLowerCase().includes(query.toLowerCase()) ||
+      meeting.description?.toLowerCase().includes(query.toLowerCase())
+    ).map(meeting => ({
+      id: meeting.id,
+      type: 'meeting',
+      title: meeting.title,
+      subtitle: meeting.description || '',
+      date: new Date(meeting.start_time).toLocaleDateString(),
+      icon: Calendar
+    }));
 
     // Search emails
-    emails.forEach(email => {
-      if (
-        email.subject.toLowerCase().includes(queryLower) ||
-        email.body.toLowerCase().includes(queryLower) ||
-        email.from.name.toLowerCase().includes(queryLower)
-      ) {
-        searchResults.push({
-          id: email.id,
-          type: 'email',
-          title: email.subject,
-          description: `From ${email.from.name}`,
-          date: email.receivedDateTime,
-          metadata: email
-        });
-      }
-    });
+    const emailMatches = emails.filter(email =>
+      email.subject.toLowerCase().includes(query.toLowerCase()) ||
+      email.from.name.toLowerCase().includes(query.toLowerCase())
+    ).map(email => ({
+      id: email.id,
+      type: 'email',
+      title: email.subject,
+      subtitle: `From ${email.from.name}`,
+      date: new Date(email.receivedDateTime).toLocaleDateString(),
+      icon: Mail
+    }));
 
     // Search members
-    members.forEach(member => {
-      const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim();
-      if (
-        fullName.toLowerCase().includes(queryLower) ||
-        member.email?.toLowerCase().includes(queryLower) ||
-        member.phone?.toLowerCase().includes(queryLower)
-      ) {
-        searchResults.push({
-          id: member.id,
-          type: 'member',
-          title: fullName || 'Unknown Member',
-          description: member.email || 'No email provided',
-          metadata: member
-        });
-      }
-    });
+    const memberMatches = members.filter(member =>
+      `${member.first_name} ${member.last_name}`.toLowerCase().includes(query.toLowerCase()) ||
+      member.email.toLowerCase().includes(query.toLowerCase())
+    ).map(member => ({
+      id: member.id,
+      type: 'member',
+      title: `${member.first_name} ${member.last_name}`,
+      subtitle: member.email,
+      date: new Date(member.created_at).toLocaleDateString(),
+      icon: Users
+    }));
 
-    // Sort by relevance (exact matches first, then partial)
-    searchResults.sort((a, b) => {
-      const aExact = a.title.toLowerCase() === queryLower;
-      const bExact = b.title.toLowerCase() === queryLower;
-      if (aExact && !bExact) return -1;
-      if (!aExact && bExact) return 1;
-      return a.title.localeCompare(b.title);
-    });
-
-    setResults(searchResults.slice(0, 20)); // Limit results
+    searchResults.push(...documentMatches, ...meetingMatches, ...emailMatches, ...memberMatches);
+    setResults(searchResults);
     setLoading(false);
   };
 
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
-      performSearch(query);
+      performSearch(searchQuery);
     }, 300);
 
     return () => clearTimeout(debounceTimer);
-  }, [query, documents, meetings, emails, members]);
-
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'document': return <FileText className="h-4 w-4" />;
-      case 'meeting': return <Calendar className="h-4 w-4" />;
-      case 'email': return <Mail className="h-4 w-4" />;
-      case 'member': return <Users className="h-4 w-4" />;
-      default: return <Search className="h-4 w-4" />;
-    }
-  };
+  }, [searchQuery, documents, meetings, emails, members]);
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -167,116 +107,79 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
     }
   };
 
-  const handleResultClick = (result: SearchResult) => {
-    // Navigate to the appropriate module/view based on result type
-    console.log('Navigate to:', result.type, result.id);
-    setIsOpen?.(false);
-    setQuery('');
-  };
-
-  const defaultTrigger = (
-    <Button variant="outline" className="w-full justify-start text-muted-foreground">
-      <Search className="h-4 w-4 mr-2" />
-      Search everything...
-    </Button>
-  );
-
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      {!isControlled && (
-        <DialogTrigger asChild>
-          {trigger || defaultTrigger}
-        </DialogTrigger>
-      )}
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh]">
-        <DialogHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[80vh] p-0">
+        <DialogHeader className="p-6 pb-2">
           <DialogTitle className="flex items-center space-x-2">
             <Search className="h-5 w-5" />
             <span>Global Search</span>
           </DialogTitle>
-          <DialogDescription>
-            Search across all documents, meetings, emails, and members
-          </DialogDescription>
+          <p className="text-sm text-gray-600">Search across all documents, meetings, emails, and members</p>
         </DialogHeader>
         
-        <div className="space-y-4">
+        <div className="px-6 pb-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
               placeholder="Type to search..."
-              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-2"
               autoFocus
             />
           </div>
+        </div>
 
+        <div className="flex-1 overflow-y-auto max-h-96 px-6 pb-6">
           {loading && (
-            <div className="text-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
             </div>
           )}
 
-          {!loading && query && results.length === 0 && (
+          {!loading && results.length === 0 && searchQuery && (
             <div className="text-center py-8 text-gray-500">
-              <Search className="h-12 w-12 mx-auto mb-4 opacity-20" />
-              <p>No results found for "{query}"</p>
+              <Search className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>No results found for "{searchQuery}"</p>
             </div>
           )}
 
-          {results.length > 0 && (
-            <ScrollArea className="max-h-[400px]">
-              <div className="space-y-2">
-                {results.map((result) => (
-                  <div
-                    key={`${result.type}-${result.id}`}
-                    onClick={() => handleResultClick(result)}
-                    className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-3 flex-1">
-                        <div className="mt-1">
-                          {getIcon(result.type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-gray-900 truncate">
-                            {result.title}
-                          </h4>
-                          <p className="text-sm text-gray-500 line-clamp-2">
-                            {result.description}
-                          </p>
-                          {result.date && (
-                            <div className="flex items-center space-x-1 mt-1">
-                              <Clock className="h-3 w-3 text-gray-400" />
-                              <span className="text-xs text-gray-400">
-                                {new Date(result.date).toLocaleDateString()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className={getTypeColor(result.type)}>
+          {!loading && results.length === 0 && !searchQuery && (
+            <div className="text-center py-8 text-gray-500">
+              <Search className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>Start typing to search across all content</p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {results.map((result) => {
+              const IconComponent = result.icon;
+              return (
+                <div
+                  key={`${result.type}-${result.id}`}
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer border border-gray-100"
+                >
+                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <IconComponent className="h-5 w-5 text-gray-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <h3 className="font-medium text-gray-900 truncate">{result.title}</h3>
+                      <Badge className={`text-xs px-2 py-0 ${getTypeColor(result.type)}`}>
                         {result.type}
                       </Badge>
                     </div>
+                    <p className="text-sm text-gray-500 truncate">{result.subtitle}</p>
+                    <div className="flex items-center space-x-1 mt-1">
+                      <Clock className="h-3 w-3 text-gray-400" />
+                      <span className="text-xs text-gray-400">{result.date}</span>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
-
-          {!query && (
-            <div className="text-center py-8 text-gray-500">
-              <Search className="h-12 w-12 mx-auto mb-4 opacity-20" />
-              <p>Start typing to search across all content</p>
-              <div className="flex justify-center space-x-2 mt-4">
-                <Badge variant="outline">Documents</Badge>
-                <Badge variant="outline">Meetings</Badge>
-                <Badge variant="outline">Emails</Badge>
-                <Badge variant="outline">Members</Badge>
-              </div>
-            </div>
-          )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

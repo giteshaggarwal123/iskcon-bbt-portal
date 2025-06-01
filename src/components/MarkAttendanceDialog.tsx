@@ -1,10 +1,17 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { UserCheck, Clock, Users, MapPin } from 'lucide-react';
+import { UserCheck, Calendar, Clock, MapPin, Video } from 'lucide-react';
+import { useAttendance } from '@/hooks/useAttendance';
+import { useMeetings } from '@/hooks/useMeetings';
+import { useMembers } from '@/hooks/useMembers';
+import { useAuth } from '@/hooks/useAuth';
+import { format } from 'date-fns';
 
 interface MarkAttendanceDialogProps {
   open: boolean;
@@ -12,46 +19,86 @@ interface MarkAttendanceDialogProps {
 }
 
 export const MarkAttendanceDialog: React.FC<MarkAttendanceDialogProps> = ({ open, onOpenChange }) => {
-  const [attendance, setAttendance] = useState<Record<string, 'present' | 'late' | 'absent'>>({});
+  const [selectedMeeting, setSelectedMeeting] = useState<string>('');
+  const [selectedMember, setSelectedMember] = useState<string>('');
+  const [attendanceStatus, setAttendanceStatus] = useState<'present' | 'late' | 'absent'>('present');
+  const [attendanceType, setAttendanceType] = useState<'physical' | 'online'>('physical');
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const members = [
-    { id: '1', name: 'Radha Krishna Das', role: 'General Secretary', status: 'present' },
-    { id: '2', name: 'Govinda Maharaj', role: 'Bureau Member', status: '' },
-    { id: '3', name: 'Gauranga Prabhu', role: 'Bureau Member', status: 'late' },
-    { id: '4', name: 'Nitai Das', role: 'Bureau Member', status: '' }
-  ];
+  const { markAttendance } = useAttendance();
+  const { meetings } = useMeetings();
+  const { members } = useMembers();
+  const { user } = useAuth();
 
-  const meeting = {
-    title: 'Monthly Bureau Meeting',
-    date: '2024-01-20',
-    time: '10:00 AM',
-    location: 'Main Conference Room'
-  };
+  // Filter meetings to show today's and recent meetings
+  const availableMeetings = meetings.filter(meeting => {
+    const meetingDate = new Date(meeting.start_time);
+    const today = new Date();
+    const daysDiff = Math.abs((today.getTime() - meetingDate.getTime()) / (1000 * 60 * 60 * 24));
+    return daysDiff <= 7; // Show meetings from last 7 days
+  });
 
-  const handleAttendanceChange = (memberId: string, status: 'present' | 'late' | 'absent') => {
-    setAttendance(prev => ({
-      ...prev,
-      [memberId]: status
-    }));
-  };
+  const selectedMeetingData = meetings.find(m => m.id === selectedMeeting);
 
-  const handleSubmit = () => {
-    console.log('Attendance marked:', attendance);
-    // Save attendance logic here
-    onOpenChange(false);
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'present':
-        return <Badge className="bg-success text-white">Present</Badge>;
-      case 'late':
-        return <Badge className="bg-warning text-white">Late</Badge>;
-      case 'absent':
-        return <Badge className="bg-error text-white">Absent</Badge>;
-      default:
-        return <Badge variant="secondary">Not Marked</Badge>;
+  useEffect(() => {
+    if (open) {
+      // Reset form when dialog opens
+      setSelectedMeeting('');
+      setSelectedMember('');
+      setAttendanceStatus('present');
+      setAttendanceType('physical');
+      setNotes('');
     }
+  }, [open]);
+
+  const handleMarkAttendance = async () => {
+    if (!selectedMeeting || !selectedMember) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const success = await markAttendance({
+        meetingId: selectedMeeting,
+        userId: selectedMember,
+        status: attendanceStatus,
+        type: attendanceType,
+        joinTime: attendanceStatus !== 'absent' ? new Date() : undefined,
+        notes
+      });
+
+      if (success) {
+        onOpenChange(false);
+      }
+    } catch (error) {
+      console.error('Error marking attendance:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMeetingBadge = (meeting: any) => {
+    const now = new Date();
+    const start = new Date(meeting.start_time);
+    const end = new Date(meeting.end_time);
+    
+    if (now >= start && now <= end) {
+      return <Badge className="bg-green-500 text-white">Live</Badge>;
+    } else if (now < start) {
+      return <Badge className="bg-blue-500 text-white">Upcoming</Badge>;
+    } else {
+      return <Badge variant="secondary">Completed</Badge>;
+    }
+  };
+
+  const formatMeetingDisplay = (meeting: any) => {
+    const start = new Date(meeting.start_time);
+    return {
+      date: format(start, 'MMM dd, yyyy'),
+      time: format(start, 'h:mm a'),
+      isOnline: meeting.meeting_type === 'online' || meeting.teams_join_url
+    };
   };
 
   return (
@@ -62,99 +109,158 @@ export const MarkAttendanceDialog: React.FC<MarkAttendanceDialogProps> = ({ open
             <UserCheck className="h-5 w-5" />
             <span>Mark Attendance</span>
           </DialogTitle>
-          <DialogDescription className="flex items-center space-x-4">
-            <span className="flex items-center space-x-1">
-              <Clock className="h-4 w-4" />
-              <span>{meeting.date} at {meeting.time}</span>
-            </span>
-            <span className="flex items-center space-x-1">
-              <MapPin className="h-4 w-4" />
-              <span>{meeting.location}</span>
-            </span>
-          </DialogDescription>
+          <DialogDescription>Record attendance for a meeting</DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-2">{meeting.title}</h3>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-success">
-                  {members.filter(m => m.status === 'present' || attendance[m.id] === 'present').length}
-                </div>
-                <div className="text-sm text-gray-500">Present</div>
+        <div className="space-y-6">
+          {/* Meeting Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="meeting">Select Meeting</Label>
+            <Select value={selectedMeeting} onValueChange={setSelectedMeeting}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a meeting" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableMeetings.map((meeting) => {
+                  const displayInfo = formatMeetingDisplay(meeting);
+                  return (
+                    <SelectItem key={meeting.id} value={meeting.id}>
+                      <div className="flex items-center justify-between w-full">
+                        <div>
+                          <div className="font-medium">{meeting.title}</div>
+                          <div className="text-sm text-gray-500 flex items-center space-x-2">
+                            <span className="flex items-center space-x-1">
+                              <Calendar className="h-3 w-3" />
+                              <span>{displayInfo.date}</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <Clock className="h-3 w-3" />
+                              <span>{displayInfo.time}</span>
+                            </span>
+                            {displayInfo.isOnline ? (
+                              <Video className="h-3 w-3" />
+                            ) : (
+                              <MapPin className="h-3 w-3" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            {selectedMeetingData && (
+              <div className="flex items-center space-x-2 mt-2">
+                {getMeetingBadge(selectedMeetingData)}
+                <span className="text-sm text-gray-500">
+                  {selectedMeetingData.location || 'Online Meeting'}
+                </span>
               </div>
-              <div>
-                <div className="text-2xl font-bold text-warning">
-                  {members.filter(m => m.status === 'late' || attendance[m.id] === 'late').length}
-                </div>
-                <div className="text-sm text-gray-500">Late</div>
+            )}
+          </div>
+
+          {/* Member Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="member">Select Member</Label>
+            <Select value={selectedMember} onValueChange={setSelectedMember}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a member" />
+              </SelectTrigger>
+              <SelectContent>
+                {members.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    <div>
+                      <div className="font-medium">
+                        {member.first_name} {member.last_name}
+                      </div>
+                      <div className="text-sm text-gray-500">{member.email}</div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Attendance Type (only for hybrid meetings) */}
+          {selectedMeetingData && selectedMeetingData.meeting_type === 'hybrid' && (
+            <div className="space-y-2">
+              <Label>Attendance Type</Label>
+              <div className="flex space-x-2">
+                <Button
+                  variant={attendanceType === 'physical' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setAttendanceType('physical')}
+                >
+                  <MapPin className="h-4 w-4 mr-2" />
+                  In Person
+                </Button>
+                <Button
+                  variant={attendanceType === 'online' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setAttendanceType('online')}
+                >
+                  <Video className="h-4 w-4 mr-2" />
+                  Online
+                </Button>
               </div>
-              <div>
-                <div className="text-2xl font-bold text-error">
-                  {members.filter(m => attendance[m.id] === 'absent').length}
-                </div>
-                <div className="text-sm text-gray-500">Absent</div>
-              </div>
+            </div>
+          )}
+
+          {/* Attendance Status */}
+          <div className="space-y-2">
+            <Label>Attendance Status</Label>
+            <div className="flex space-x-2">
+              <Button
+                variant={attendanceStatus === 'present' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAttendanceStatus('present')}
+                className={attendanceStatus === 'present' ? 'bg-green-500 hover:bg-green-600' : ''}
+              >
+                Present
+              </Button>
+              <Button
+                variant={attendanceStatus === 'late' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAttendanceStatus('late')}
+                className={attendanceStatus === 'late' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+              >
+                Late
+              </Button>
+              <Button
+                variant={attendanceStatus === 'absent' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAttendanceStatus('absent')}
+                className={attendanceStatus === 'absent' ? 'bg-red-500 hover:bg-red-600' : ''}
+              >
+                Absent
+              </Button>
             </div>
           </div>
 
-          <div className="space-y-3 max-h-80 overflow-y-auto">
-            {members.map((member) => {
-              const currentStatus = attendance[member.id] || member.status;
-              return (
-                <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Users className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">{member.name}</h4>
-                      <p className="text-sm text-gray-500">{member.role}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    {getStatusBadge(currentStatus)}
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant={currentStatus === 'present' ? 'default' : 'outline'}
-                        className={currentStatus === 'present' ? 'bg-success hover:bg-success/90' : ''}
-                        onClick={() => handleAttendanceChange(member.id, 'present')}
-                      >
-                        Present
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={currentStatus === 'late' ? 'default' : 'outline'}
-                        className={currentStatus === 'late' ? 'bg-warning hover:bg-warning/90' : ''}
-                        onClick={() => handleAttendanceChange(member.id, 'late')}
-                      >
-                        Late
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={currentStatus === 'absent' ? 'default' : 'outline'}
-                        className={currentStatus === 'absent' ? 'bg-error hover:bg-error/90' : ''}
-                        onClick={() => handleAttendanceChange(member.id, 'absent')}
-                      >
-                        Absent
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          {/* Notes */}
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any additional notes about the attendance..."
+              rows={3}
+            />
           </div>
 
           <div className="flex justify-end space-x-2 pt-4 border-t">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} className="bg-primary hover:bg-primary/90">
+            <Button 
+              onClick={handleMarkAttendance} 
+              disabled={loading || !selectedMeeting || !selectedMember}
+              className="bg-primary hover:bg-primary/90"
+            >
               <UserCheck className="h-4 w-4 mr-2" />
-              Save Attendance
+              {loading ? 'Recording...' : 'Mark Attendance'}
             </Button>
           </div>
         </div>

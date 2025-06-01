@@ -17,7 +17,7 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger
 } from '@/components/ui/context-menu';
-import { FileText, Upload, Search, Filter, Download, Trash2, Eye, Plus, Folder, FolderOpen, Move, Edit } from 'lucide-react';
+import { FileText, Upload, Search, Filter, Download, Trash2, Eye, Plus, Folder, FolderOpen, Move, Edit, Copy } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -26,7 +26,7 @@ import { CreateFolderDialog } from './CreateFolderDialog';
 import { supabase } from '@/integrations/supabase/client';
 
 export const DocumentsModule: React.FC = () => {
-  const { documents, folders, loading, uploadDocument, deleteDocument, moveDocument, createFolder, searchDocuments } = useDocuments();
+  const { documents, folders, loading, uploadDocument, deleteDocument, moveDocument, createFolder, searchDocuments, fetchDocuments } = useDocuments();
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,6 +35,7 @@ export const DocumentsModule: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadFolder, setUploadFolder] = useState('general');
   const [draggedDocument, setDraggedDocument] = useState<string | null>(null);
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
 
   // Track document views
   const trackDocumentView = async (documentId: string) => {
@@ -74,7 +75,8 @@ export const DocumentsModule: React.FC = () => {
       return;
     }
 
-    await uploadDocument(selectedFile, uploadFolder);
+    const targetFolder = currentFolder || uploadFolder;
+    await uploadDocument(selectedFile, targetFolder);
     setSelectedFile(null);
     setUploadDialogOpen(false);
   };
@@ -94,6 +96,10 @@ export const DocumentsModule: React.FC = () => {
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
+    if (!term.trim()) {
+      setCurrentFolder(null);
+      setSelectedFolder('all');
+    }
     searchDocuments(term);
   };
 
@@ -119,12 +125,90 @@ export const DocumentsModule: React.FC = () => {
     moveDocument(documentId, newFolder);
   };
 
-  // Filter documents based on search and folder
+  const handleCopyDocument = async (documentId: string) => {
+    const document = documents.find(doc => doc.id === documentId);
+    if (!document) return;
+
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .insert({
+          name: `Copy of ${document.name}`,
+          file_path: document.file_path,
+          file_size: document.file_size,
+          mime_type: document.mime_type,
+          folder: document.folder,
+          uploaded_by: user?.id || document.uploaded_by,
+          version: '1.0'
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Document Copied",
+        description: "Document has been copied successfully"
+      });
+
+      fetchDocuments();
+    } catch (error: any) {
+      toast({
+        title: "Copy Failed",
+        description: error.message || "Failed to copy document",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteFolder = async (folderName: string) => {
+    const folderDocuments = documents.filter(doc => (doc.folder || 'general') === folderName);
+    
+    if (folderDocuments.length > 0) {
+      toast({
+        title: "Cannot Delete Folder",
+        description: "Please move or delete all documents in this folder first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Since folders are virtual, we just need to refresh the view
+    toast({
+      title: "Folder Deleted",
+      description: "Folder has been removed"
+    });
+    
+    if (currentFolder === folderName) {
+      setCurrentFolder(null);
+    }
+    fetchDocuments();
+  };
+
+  const openFolder = (folderName: string) => {
+    setCurrentFolder(folderName);
+    setSelectedFolder(folderName);
+    setSearchTerm('');
+  };
+
+  const goBackToRoot = () => {
+    setCurrentFolder(null);
+    setSelectedFolder('all');
+  };
+
+  // Filter documents based on search, folder, and current view
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = !searchTerm || doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFolder = selectedFolder === 'all' || doc.folder === selectedFolder || 
-                         (selectedFolder === 'general' && !doc.folder);
-    return matchesSearch && matchesFolder;
+    
+    if (currentFolder) {
+      // When viewing a specific folder, only show documents in that folder
+      return matchesSearch && (doc.folder || 'general') === currentFolder;
+    } else if (selectedFolder === 'all') {
+      // When showing all documents, include all documents
+      return matchesSearch;
+    } else {
+      // When filtering by folder dropdown, show documents in that folder
+      const matchesFolder = (doc.folder || 'general') === selectedFolder;
+      return matchesSearch && matchesFolder;
+    }
   });
 
   const formatFileSize = (bytes: number | null) => {
@@ -160,8 +244,22 @@ export const DocumentsModule: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Documents</h1>
-          <p className="text-gray-600">Manage bureau documents and files</p>
+          <div className="flex items-center space-x-2">
+            <h1 className="text-3xl font-bold text-gray-900">Documents</h1>
+            {currentFolder && (
+              <>
+                <span className="text-gray-400">/</span>
+                <Button variant="link" onClick={goBackToRoot} className="p-0 h-auto text-gray-600">
+                  All Documents
+                </Button>
+                <span className="text-gray-400">/</span>
+                <span className="text-gray-900 font-medium capitalize">{currentFolder}</span>
+              </>
+            )}
+          </div>
+          <p className="text-gray-600">
+            {currentFolder ? `Viewing ${currentFolder} folder` : 'Manage bureau documents and files'}
+          </p>
         </div>
         <div className="flex space-x-2">
           <CreateFolderDialog 
@@ -199,7 +297,7 @@ export const DocumentsModule: React.FC = () => {
                 </div>
                 <div>
                   <Label htmlFor="folder">Folder</Label>
-                  <Select value={uploadFolder} onValueChange={setUploadFolder}>
+                  <Select value={currentFolder || uploadFolder} onValueChange={setUploadFolder}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select folder" />
                     </SelectTrigger>
@@ -228,53 +326,76 @@ export const DocumentsModule: React.FC = () => {
       </div>
 
       {/* Search and Filter */}
-      <div className="flex space-x-4">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search documents..."
-            value={searchTerm}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={selectedFolder} onValueChange={setSelectedFolder}>
-          <SelectTrigger className="w-48">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="All folders" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Folders</SelectItem>
-            {allFolders.map(folder => (
-              <SelectItem key={folder} value={folder}>
-                {folder.charAt(0).toUpperCase() + folder.slice(1)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Folders Row */}
-      <div className="flex space-x-4 overflow-x-auto pb-2">
-        {allFolders.map((folder) => (
-          <div
-            key={folder}
-            className="flex-shrink-0 min-w-[120px] p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary/50 transition-colors"
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, folder)}
-          >
-            <div className="text-center">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-                <Folder className="h-6 w-6 text-primary" />
-              </div>
-              <p className="text-sm font-medium">{folder.charAt(0).toUpperCase() + folder.slice(1)}</p>
-              <p className="text-xs text-gray-500">
-                {documents.filter(doc => (doc.folder || 'general') === folder).length} files
-              </p>
-            </div>
+      {!currentFolder && (
+        <div className="flex space-x-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search documents..."
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="pl-10"
+            />
           </div>
-        ))}
-      </div>
+          <Select value={selectedFolder} onValueChange={setSelectedFolder}>
+            <SelectTrigger className="w-48">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="All folders" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Folders</SelectItem>
+              {allFolders.map(folder => (
+                <SelectItem key={folder} value={folder}>
+                  {folder.charAt(0).toUpperCase() + folder.slice(1)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Folders Row - only show when not in a specific folder */}
+      {!currentFolder && (
+        <div className="flex space-x-4 overflow-x-auto pb-2">
+          {allFolders.map((folder) => (
+            <ContextMenu key={folder}>
+              <ContextMenuTrigger>
+                <div
+                  className="flex-shrink-0 min-w-[120px] p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary/50 transition-colors cursor-pointer"
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, folder)}
+                  onClick={() => openFolder(folder)}
+                >
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
+                      <Folder className="h-6 w-6 text-primary" />
+                    </div>
+                    <p className="text-sm font-medium">{folder.charAt(0).toUpperCase() + folder.slice(1)}</p>
+                    <p className="text-xs text-gray-500">
+                      {documents.filter(doc => (doc.folder || 'general') === folder).length} files
+                    </p>
+                  </div>
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onClick={() => openFolder(folder)}>
+                  <FolderOpen className="h-4 w-4 mr-2" />
+                  Open Folder
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem 
+                  onClick={() => handleDeleteFolder(folder)}
+                  className="text-red-600"
+                  disabled={['general', 'meetings', 'financial', 'policies', 'reports'].includes(folder)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Folder
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          ))}
+        </div>
+      )}
 
       {/* Documents Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -356,6 +477,10 @@ export const DocumentsModule: React.FC = () => {
                 Download
               </ContextMenuItem>
               <ContextMenuSeparator />
+              <ContextMenuItem onClick={() => handleCopyDocument(document.id)}>
+                <Copy className="h-4 w-4 mr-2" />
+                Copy Document
+              </ContextMenuItem>
               <ContextMenuSub>
                 <ContextMenuSubTrigger>
                   <Move className="h-4 w-4 mr-2" />
@@ -393,11 +518,11 @@ export const DocumentsModule: React.FC = () => {
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
           <p className="text-gray-500 mb-4">
-            {searchTerm || selectedFolder !== 'all' 
+            {searchTerm || (currentFolder && selectedFolder !== 'all')
               ? 'Try adjusting your search or filter criteria'
               : 'Get started by uploading your first document'}
           </p>
-          {!searchTerm && selectedFolder === 'all' && (
+          {!searchTerm && (!currentFolder || selectedFolder === 'all') && (
             <Button onClick={() => setUploadDialogOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />
               Upload Document
