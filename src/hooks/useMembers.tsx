@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -107,31 +108,53 @@ export const useMembers = () => {
     try {
       console.log('Adding member:', memberData);
 
-      // Generate a UUID for the new profile since it's required
-      const newUserId = crypto.randomUUID();
+      // First, sign up the user using Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: memberData.email,
+        password: memberData.password,
+        options: {
+          data: {
+            first_name: memberData.firstName,
+            last_name: memberData.lastName,
+            phone: memberData.phone || ''
+          }
+        }
+      });
 
-      // For now, we'll just create the profile directly since we can't use admin functions
-      // In a real implementation, you'd need proper admin access
-      const { data: newProfile, error: profileError } = await supabase
+      if (authError) {
+        console.error('Auth signup error:', authError);
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error('Failed to create user');
+      }
+
+      console.log('User created via auth:', authData.user);
+
+      // The profile should be created automatically via trigger
+      // But let's also manually create it to be sure
+      const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
-          id: newUserId,
+        .upsert({
+          id: authData.user.id,
           email: memberData.email,
           first_name: memberData.firstName,
           last_name: memberData.lastName,
           phone: memberData.phone || ''
-        })
-        .select()
-        .single();
+        });
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        // Don't throw error here as the trigger might have already created it
+      }
 
       // Add role if specified
-      if (memberData.role && newProfile) {
+      if (memberData.role && authData.user) {
         const { error: roleError } = await supabase
           .from('user_roles')
           .insert({
-            user_id: newProfile.id,
+            user_id: authData.user.id,
             role: memberData.role as any
           });
 
@@ -167,7 +190,7 @@ export const useMembers = () => {
       });
 
       fetchMembers();
-      return newProfile;
+      return authData.user;
     } catch (error: any) {
       console.error('Error adding member:', error);
       toast({
@@ -325,11 +348,11 @@ export const useMembers = () => {
     activityLogs,
     loading,
     addMember,
-    updateMemberRole: async () => {}, // Placeholder
-    deleteMember: async () => {}, // Placeholder
+    updateMemberRole,
+    deleteMember,
     exportMembers,
     fetchMembers,
-    logActivity: async () => {}, // Placeholder
+    logActivity,
     searchMembers
   };
 };
