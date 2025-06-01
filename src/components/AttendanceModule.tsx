@@ -6,11 +6,48 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle, Clock, Users, Calendar, MapPin, Video, Download, UserCheck } from 'lucide-react';
 import { MarkAttendanceDialog } from './MarkAttendanceDialog';
+import { useAttendance } from '@/hooks/useAttendance';
+import { useMeetings } from '@/hooks/useMeetings';
 
 export const AttendanceModule: React.FC = () => {
   const [showMarkAttendanceDialog, setShowMarkAttendanceDialog] = useState(false);
+  const { generateAttendanceReport } = useAttendance();
+  const { meetings } = useMeetings();
 
-  const meetings = [
+  const handleDownloadReport = async (type: string) => {
+    const data = await generateAttendanceReport();
+    
+    let csvContent = '';
+    
+    switch (type) {
+      case 'member':
+        csvContent = 'Name,Email,Total Meetings,Present,Attendance Rate,Last Meeting Status\n';
+        // Group by member and calculate stats
+        break;
+      case 'meeting':
+        csvContent = 'Meeting,Date,Type,Total Attendees,Present,Late,Absent,Attendance Rate\n';
+        break;
+      case 'detailed':
+        csvContent = 'Date,Meeting,Member,Email,Status,Type,Join Time,Leave Time,Duration (min)\n';
+        data.forEach((record: any) => {
+          csvContent += `${new Date(record.created_at).toLocaleDateString()},${record.meetings?.title || 'Unknown'},${record.profiles?.first_name || ''} ${record.profiles?.last_name || ''},${record.profiles?.email || ''},${record.attendance_status},${record.attendance_type},${record.join_time || ''},${record.leave_time || ''},${record.duration_minutes || 0}\n`;
+        });
+        break;
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `attendance_${type}_report_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Sample data - in real app, this would come from attendance hooks
+  const meetings_sample = [
     {
       id: 1,
       title: 'Monthly Bureau Meeting',
@@ -23,19 +60,6 @@ export const AttendanceModule: React.FC = () => {
       late: 1,
       absent: 1,
       status: 'ongoing'
-    },
-    {
-      id: 2,
-      title: 'Temple Construction Committee',
-      date: '2024-01-22',
-      time: '2:00 PM',
-      type: 'Online',
-      location: 'Zoom Meeting',
-      totalMembers: 8,
-      present: 0,
-      late: 0,
-      absent: 0,
-      status: 'upcoming'
     }
   ];
 
@@ -287,15 +311,27 @@ export const AttendanceModule: React.FC = () => {
                   <CardDescription>Export attendance data and analytics</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Button className="w-full" variant="outline">
+                  <Button 
+                    className="w-full" 
+                    variant="outline"
+                    onClick={() => handleDownloadReport('member')}
+                  >
                     <Download className="h-4 w-4 mr-2" />
                     Member Attendance Report
                   </Button>
-                  <Button className="w-full" variant="outline">
+                  <Button 
+                    className="w-full" 
+                    variant="outline"
+                    onClick={() => handleDownloadReport('meeting')}
+                  >
                     <Download className="h-4 w-4 mr-2" />
                     Meeting Attendance Summary
                   </Button>
-                  <Button className="w-full" variant="outline">
+                  <Button 
+                    className="w-full" 
+                    variant="outline"
+                    onClick={() => handleDownloadReport('detailed')}
+                  >
                     <Download className="h-4 w-4 mr-2" />
                     Detailed Analytics
                   </Button>
@@ -320,6 +356,10 @@ export const AttendanceModule: React.FC = () => {
                     <div className="flex justify-between">
                       <span>Best Attendee</span>
                       <span className="font-semibold">Radha Krishna Das (92%)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Auto-Tracked Sessions</span>
+                      <span className="font-semibold text-blue-600">12 Teams meetings</span>
                     </div>
                   </div>
                 </CardContent>

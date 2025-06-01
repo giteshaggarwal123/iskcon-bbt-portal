@@ -1,14 +1,18 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, Users, Video, FileText, Plus, Settings, Mic, Trash2 } from 'lucide-react';
+import { Calendar, Clock, Users, Video, FileText, Plus, Mic, Trash2, UserCheck } from 'lucide-react';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 import { ViewAgendaDialog } from './ViewAgendaDialog';
 import { ManageAttendeesDialog } from './ManageAttendeesDialog';
 import { MeetingSettingsDialog } from './MeetingSettingsDialog';
+import { CheckInDialog } from './CheckInDialog';
+import { PostMeetingDialog } from './PostMeetingDialog';
+import { MeetingTranscriptDialog } from './MeetingTranscriptDialog';
+import { CalendarView } from './CalendarView';
 import { useMeetings } from '@/hooks/useMeetings';
 import { format } from 'date-fns';
 
@@ -17,6 +21,9 @@ export const MeetingsModule: React.FC = () => {
   const [showAgendaDialog, setShowAgendaDialog] = useState(false);
   const [showAttendeesDialog, setShowAttendeesDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showCheckInDialog, setShowCheckInDialog] = useState(false);
+  const [showPostMeetingDialog, setShowPostMeetingDialog] = useState(false);
+  const [showTranscriptDialog, setShowTranscriptDialog] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
   
   const { meetings, loading, deleteMeeting } = useMeetings();
@@ -31,14 +38,19 @@ export const MeetingsModule: React.FC = () => {
     setShowAgendaDialog(true);
   };
 
-  const handleManageAttendees = (meeting: any) => {
+  const handleCheckIn = (meeting: any) => {
     setSelectedMeeting(meeting);
-    setShowAttendeesDialog(true);
+    setShowCheckInDialog(true);
   };
 
-  const handleMeetingSettings = (meeting: any) => {
+  const handlePostMeeting = (meeting: any) => {
     setSelectedMeeting(meeting);
-    setShowSettingsDialog(true);
+    setShowPostMeetingDialog(true);
+  };
+
+  const handleViewTranscript = (meeting: any) => {
+    setSelectedMeeting(meeting);
+    setShowTranscriptDialog(true);
   };
 
   const handleDeleteMeeting = async (meetingId: string) => {
@@ -63,6 +75,20 @@ export const MeetingsModule: React.FC = () => {
       time: format(start, 'h:mm a'),
       duration: durationText.trim() || '0m'
     };
+  };
+
+  const isLiveMeeting = (meeting: any) => {
+    const now = new Date();
+    const start = new Date(meeting.start_time);
+    const end = new Date(meeting.end_time);
+    return now >= start && now <= end;
+  };
+
+  const canCheckIn = (meeting: any) => {
+    const now = new Date();
+    const start = new Date(meeting.start_time);
+    const hourBeforeStart = new Date(start.getTime() - 60 * 60 * 1000);
+    return now >= hourBeforeStart && now <= start;
   };
 
   if (loading) {
@@ -111,12 +137,22 @@ export const MeetingsModule: React.FC = () => {
               <div className="grid gap-6">
                 {upcomingMeetings.map((meeting) => {
                   const timeInfo = formatMeetingTime(meeting.start_time, meeting.end_time);
+                  const isLive = isLiveMeeting(meeting);
+                  const canDoCheckIn = canCheckIn(meeting);
+                  
                   return (
                     <Card key={meeting.id} className="hover:shadow-md transition-shadow">
                       <CardHeader>
                         <div className="flex justify-between items-start">
                           <div>
-                            <CardTitle className="text-xl">{meeting.title}</CardTitle>
+                            <CardTitle className="text-xl flex items-center space-x-2">
+                              <span>{meeting.title}</span>
+                              {isLive && (
+                                <Badge className="bg-red-500 text-white animate-pulse">
+                                  LIVE
+                                </Badge>
+                              )}
+                            </CardTitle>
                             <CardDescription className="mt-2">{meeting.description || 'No description provided'}</CardDescription>
                           </div>
                           <div className="flex items-center space-x-2">
@@ -150,7 +186,7 @@ export const MeetingsModule: React.FC = () => {
                             <span className="text-sm">{meeting.location || 'No location'}</span>
                           </div>
                         </div>
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-2">
                           {meeting.teams_join_url && (
                             <Button 
                               variant="outline" 
@@ -162,6 +198,19 @@ export const MeetingsModule: React.FC = () => {
                               Join Teams
                             </Button>
                           )}
+                          
+                          {canDoCheckIn && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleCheckIn(meeting)}
+                              className="bg-green-50 hover:bg-green-100 text-green-700"
+                            >
+                              <UserCheck className="h-4 w-4 mr-2" />
+                              Check In
+                            </Button>
+                          )}
+                          
                           <Button 
                             variant="outline" 
                             size="sm"
@@ -170,14 +219,16 @@ export const MeetingsModule: React.FC = () => {
                             <FileText className="h-4 w-4 mr-2" />
                             View Details
                           </Button>
+                          
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleManageAttendees(meeting)}
+                            onClick={() => handleViewTranscript(meeting)}
                           >
-                            <Users className="h-4 w-4 mr-2" />
-                            Attendees
+                            <Mic className="h-4 w-4 mr-2" />
+                            Transcript
                           </Button>
+                          
                           <Button 
                             variant="outline" 
                             size="sm"
@@ -211,25 +262,16 @@ export const MeetingsModule: React.FC = () => {
                   return (
                     <Card key={meeting.id} className="hover:shadow-md transition-shadow">
                       <CardHeader>
-                        <CardTitle className="text-xl">{meeting.title}</CardTitle>
-                        <CardDescription>{timeInfo.date} • {timeInfo.duration}</CardDescription>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-xl">{meeting.title}</CardTitle>
+                            <CardDescription>{timeInfo.date} • {timeInfo.duration}</CardDescription>
+                          </div>
+                          <Badge variant="secondary">Completed</Badge>
+                        </div>
                       </CardHeader>
                       <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-primary">{meeting.attendees?.length || 0}</div>
-                            <div className="text-sm text-gray-500">Total Attendees</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-success">100%</div>
-                            <div className="text-sm text-gray-500">Attendance Rate</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-warning">✓</div>
-                            <div className="text-sm text-gray-500">Completed</div>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-2 mb-4">
                           <Button 
                             variant="outline" 
                             size="sm"
@@ -238,16 +280,25 @@ export const MeetingsModule: React.FC = () => {
                             <FileText className="h-4 w-4 mr-2" />
                             View Details
                           </Button>
-                          {meeting.teams_join_url && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => alert('Recording feature coming soon')}
-                            >
-                              <Video className="h-4 w-4 mr-2" />
-                              Recording
-                            </Button>
-                          )}
+                          
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleViewTranscript(meeting)}
+                          >
+                            <Mic className="h-4 w-4 mr-2" />
+                            Transcript & Notes
+                          </Button>
+                          
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handlePostMeeting(meeting)}
+                            className="bg-orange-50 hover:bg-orange-100 text-orange-700"
+                          >
+                            <UserCheck className="h-4 w-4 mr-2" />
+                            Update Attendance
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -258,19 +309,10 @@ export const MeetingsModule: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="calendar" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Meeting Calendar</CardTitle>
-                <CardDescription>View all meetings in calendar format</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-secondary/50 rounded-lg p-8 text-center">
-                  <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">Calendar view will be integrated here</p>
-                  <p className="text-sm text-gray-500 mt-2">Full calendar integration with Google Calendar, Outlook</p>
-                </div>
-              </CardContent>
-            </Card>
+            <CalendarView 
+              meetings={meetings} 
+              onMeetingClick={handleViewAgenda}
+            />
           </TabsContent>
 
           <TabsContent value="templates" className="space-y-6">
@@ -321,6 +363,21 @@ export const MeetingsModule: React.FC = () => {
       <MeetingSettingsDialog 
         open={showSettingsDialog} 
         onOpenChange={setShowSettingsDialog}
+        meeting={selectedMeeting}
+      />
+      <CheckInDialog
+        open={showCheckInDialog}
+        onOpenChange={setShowCheckInDialog}
+        meeting={selectedMeeting}
+      />
+      <PostMeetingDialog
+        open={showPostMeetingDialog}
+        onOpenChange={setShowPostMeetingDialog}
+        meeting={selectedMeeting}
+      />
+      <MeetingTranscriptDialog
+        open={showTranscriptDialog}
+        onOpenChange={setShowTranscriptDialog}
         meeting={selectedMeeting}
       />
     </>

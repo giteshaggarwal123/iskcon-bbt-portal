@@ -9,6 +9,62 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      attendance_records: {
+        Row: {
+          attendance_status: string
+          attendance_type: string
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          is_verified: boolean | null
+          join_time: string | null
+          leave_time: string | null
+          meeting_id: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+          verified_by: string | null
+        }
+        Insert: {
+          attendance_status: string
+          attendance_type: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          is_verified?: boolean | null
+          join_time?: string | null
+          leave_time?: string | null
+          meeting_id: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+          verified_by?: string | null
+        }
+        Update: {
+          attendance_status?: string
+          attendance_type?: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          is_verified?: boolean | null
+          join_time?: string | null
+          leave_time?: string | null
+          meeting_id?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_views: {
         Row: {
           completion_percentage: number | null
@@ -156,6 +212,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "meeting_attendees_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_transcripts: {
+        Row: {
+          action_items: Json | null
+          created_at: string
+          id: string
+          meeting_id: string
+          participants: Json | null
+          summary: string | null
+          teams_transcript_id: string | null
+          transcript_content: string | null
+          updated_at: string
+        }
+        Insert: {
+          action_items?: Json | null
+          created_at?: string
+          id?: string
+          meeting_id: string
+          participants?: Json | null
+          summary?: string | null
+          teams_transcript_id?: string | null
+          transcript_content?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action_items?: Json | null
+          created_at?: string
+          id?: string
+          meeting_id?: string
+          participants?: Json | null
+          summary?: string | null
+          teams_transcript_id?: string | null
+          transcript_content?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_transcripts_meeting_id_fkey"
             columns: ["meeting_id"]
             isOneToOne: false
             referencedRelation: "meetings"
