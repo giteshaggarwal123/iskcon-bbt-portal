@@ -125,29 +125,29 @@ export const MicrosoftConnectionStatus: React.FC = () => {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-shrink-0">
             <Badge 
               variant="outline" 
-              className={`${config.color} border flex items-center space-x-1 px-2 py-1`}
+              className={`${config.color} border flex items-center space-x-1 px-2 py-1 max-w-xs`}
             >
               <IconComponent 
-                className={`h-3 w-3 ${connectionStatus === 'checking' ? 'animate-spin' : ''}`} 
+                className={`h-3 w-3 flex-shrink-0 ${connectionStatus === 'checking' ? 'animate-spin' : ''}`} 
               />
-              <span className="text-xs font-medium">{config.text}</span>
+              <span className="text-xs font-medium truncate">{config.text}</span>
             </Badge>
             {connectionStatus !== 'checking' && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleRefresh}
-                className="h-6 w-6 p-0"
+                className="h-6 w-6 p-0 flex-shrink-0"
               >
                 <RefreshCw className="h-3 w-3" />
               </Button>
             )}
           </div>
         </TooltipTrigger>
-        <TooltipContent>
+        <TooltipContent side="bottom" className="max-w-xs">
           <p className="text-sm">{config.description}</p>
           {connectionStatus !== 'connected' && (
             <p className="text-xs text-muted-foreground mt-1">
