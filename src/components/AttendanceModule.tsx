@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -152,14 +153,11 @@ export const AttendanceModule: React.FC = () => {
         </div>
 
         <Tabs defaultValue="current" className="space-y-6">
-          <TabsList className={`grid w-full ${canManageMembers ? 'grid-cols-4' : 'grid-cols-2'}`}>
+          <TabsList className={`grid w-full ${canManageMembers ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <TabsTrigger value="current">Current Meetings</TabsTrigger>
             <TabsTrigger value="history">My Attendance</TabsTrigger>
             {canManageMembers && (
-              <>
-                <TabsTrigger value="members">Member Records</TabsTrigger>
-                <TabsTrigger value="reports">Reports</TabsTrigger>
-              </>
+              <TabsTrigger value="reports">Reports</TabsTrigger>
             )}
           </TabsList>
 
@@ -322,118 +320,69 @@ export const AttendanceModule: React.FC = () => {
           </TabsContent>
 
           {canManageMembers && (
-            <>
-              <TabsContent value="members" className="space-y-6">
-                <div className="grid gap-4">
-                  {memberAttendance.map((member, index) => (
-                    <Card key={index} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                              <Users className="h-6 w-6 text-primary" />
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                              <p className="text-sm text-gray-500">{member.role}</p>
-                            </div>
-                          </div>
-                          <div className="text-right space-y-2">
-                            <div className="flex items-center space-x-4">
-                              <div className="text-center">
-                                <div className={`text-2xl font-bold ${getAttendanceColor(member.percentage)}`}>
-                                  {member.percentage}%
-                                </div>
-                                <div className="text-sm text-gray-500">Attendance</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-lg font-semibold">{member.present}/{member.total}</div>
-                                <div className="text-sm text-gray-500">Meetings</div>
-                              </div>
-                              <div className="text-center">
-                                <Badge 
-                                  className={
-                                    member.lastMeeting === 'Present' ? 'bg-green-500 text-white' :
-                                    member.lastMeeting === 'Late' ? 'bg-yellow-500 text-white' :
-                                    'bg-red-500 text-white'
-                                  }
-                                >
-                                  {member.lastMeeting}
-                                </Badge>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </TabsContent>
+            <TabsContent value="reports" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Generate Reports</CardTitle>
+                    <CardDescription>Export attendance data and analytics</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Button 
+                      className="w-full" 
+                      variant="outline"
+                      onClick={() => handleDownloadReport('member')}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Member Attendance Report
+                    </Button>
+                    <Button 
+                      className="w-full" 
+                      variant="outline"
+                      onClick={() => handleDownloadReport('meeting')}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Meeting Attendance Summary
+                    </Button>
+                    <Button 
+                      className="w-full" 
+                      variant="outline"
+                      onClick={() => handleDownloadReport('detailed')}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Detailed Analytics
+                    </Button>
+                  </CardContent>
+                </Card>
 
-              <TabsContent value="reports" className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Generate Reports</CardTitle>
-                      <CardDescription>Export attendance data and analytics</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <Button 
-                        className="w-full" 
-                        variant="outline"
-                        onClick={() => handleDownloadReport('member')}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Member Attendance Report
-                      </Button>
-                      <Button 
-                        className="w-full" 
-                        variant="outline"
-                        onClick={() => handleDownloadReport('meeting')}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Meeting Attendance Summary
-                      </Button>
-                      <Button 
-                        className="w-full" 
-                        variant="outline"
-                        onClick={() => handleDownloadReport('detailed')}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Detailed Analytics
-                      </Button>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Quick Stats</CardTitle>
-                      <CardDescription>Overall attendance overview</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="flex justify-between">
-                          <span>Overall Attendance</span>
-                          <span className="font-semibold text-green-600">87%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Most Attended Meeting</span>
-                          <span className="font-semibold">Monthly Bureau (93%)</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Best Attendee</span>
-                          <span className="font-semibold">Radha Krishna Das (92%)</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Auto-Tracked Sessions</span>
-                          <span className="font-semibold text-blue-600">12 Teams meetings</span>
-                        </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Quick Stats</CardTitle>
+                    <CardDescription>Overall attendance overview</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex justify-between">
+                        <span>Overall Attendance</span>
+                        <span className="font-semibold text-green-600">87%</span>
                       </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-            </>
+                      <div className="flex justify-between">
+                        <span>Most Attended Meeting</span>
+                        <span className="font-semibold">Monthly Bureau (93%)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Best Attendee</span>
+                        <span className="font-semibold">Radha Krishna Das (92%)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Auto-Tracked Sessions</span>
+                        <span className="font-semibold text-blue-600">12 Teams meetings</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
           )}
         </Tabs>
       </div>

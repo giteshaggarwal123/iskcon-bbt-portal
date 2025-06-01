@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -90,8 +89,15 @@ export const useAttendance = () => {
       }
 
       console.log('Fetched attendance records:', data);
-      setAttendanceRecords(data || []);
-      return data || [];
+      // Cast the data to the correct type
+      const typedData = (data || []).map(record => ({
+        ...record,
+        attendance_status: record.attendance_status as 'present' | 'late' | 'absent' | 'left_early',
+        attendance_type: record.attendance_type as 'physical' | 'online'
+      })) as AttendanceRecord[];
+      
+      setAttendanceRecords(typedData);
+      return typedData;
     } catch (error: any) {
       console.error('Error fetching attendance:', error);
       return [];
