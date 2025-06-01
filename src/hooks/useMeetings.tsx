@@ -15,6 +15,8 @@ interface Meeting {
   status: string | null;
   created_by: string;
   created_at: string;
+  teams_join_url: string | null;
+  outlook_event_id: string | null;
   attendees?: { user_id: string; status: string }[];
 }
 
@@ -30,11 +32,12 @@ export const useMeetings = () => {
         .from('meetings')
         .select(`
           *,
-          meeting_attendees!inner(user_id, status)
+          meeting_attendees(user_id, status)
         `)
         .order('start_time', { ascending: true });
 
       if (error) throw error;
+      console.log('Fetched meetings:', data);
       setMeetings(data || []);
     } catch (error: any) {
       console.error('Error fetching meetings:', error);
@@ -73,33 +76,79 @@ export const useMeetings = () => {
       const durationMinutes = parseInt(meetingData.duration.replace(/\D/g, '')) * (meetingData.duration.includes('hour') ? 60 : 1);
       const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000);
 
-      const { data: meeting, error } = await supabase
-        .from('meetings')
-        .insert({
-          title: meetingData.title,
-          description: meetingData.description,
-          start_time: startDateTime.toISOString(),
-          end_time: endDateTime.toISOString(),
-          location: meetingData.location,
-          meeting_type: meetingData.type,
-          created_by: user.id
-        })
-        .select()
+      console.log('Creating meeting with data:', {
+        title: meetingData.title,
+        description: meetingData.description,
+        start_time: startDateTime.toISOString(),
+        end_time: endDateTime.toISOString(),
+        location: meetingData.location,
+        meeting_type: meetingData.type,
+        created_by: user.id
+      });
+
+      // Check if user has Microsoft connection for Teams meetings
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('microsoft_access_token')
+        .eq('id', user.id)
         .single();
 
-      if (error) throw error;
+      let meeting;
 
-      // Add attendees if provided
-      if (meetingData.attendees) {
-        const emails = meetingData.attendees.split(',').map(email => email.trim());
-        // For now, we'll just log the attendees. In production, you'd look up user IDs by email
-        console.log('Meeting attendees:', emails);
+      if (profile?.microsoft_access_token && meetingData.type === 'online') {
+        // Create Teams meeting using edge function
+        const { data: teamsData, error: teamsError } = await supabase.functions.invoke('create-teams-meeting', {
+          body: {
+            title: meetingData.title,
+            description: meetingData.description,
+            startTime: startDateTime.toISOString(),
+            endTime: endDateTime.toISOString(),
+            attendees: meetingData.attendees ? meetingData.attendees.split(',').map(email => email.trim()) : []
+          }
+        });
+
+        if (teamsError) {
+          console.error('Teams meeting creation failed:', teamsError);
+          throw new Error('Failed to create Teams meeting: ' + teamsError.message);
+        }
+
+        meeting = teamsData.meeting;
+        
+        toast({
+          title: "Success",
+          description: `Teams meeting "${meetingData.title}" created successfully`,
+        });
+      } else {
+        // Create regular meeting in database
+        const { data: meetingResult, error } = await supabase
+          .from('meetings')
+          .insert({
+            title: meetingData.title,
+            description: meetingData.description,
+            start_time: startDateTime.toISOString(),
+            end_time: endDateTime.toISOString(),
+            location: meetingData.location,
+            meeting_type: meetingData.type,
+            created_by: user.id
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        meeting = meetingResult;
+
+        toast({
+          title: "Success",
+          description: `Meeting "${meetingData.title}" created successfully`
+        });
       }
 
-      toast({
-        title: "Success",
-        description: `Meeting "${meetingData.title}" created successfully`
-      });
+      // Add attendees if provided
+      if (meetingData.attendees && meeting) {
+        const emails = meetingData.attendees.split(',').map(email => email.trim());
+        console.log('Meeting attendees:', emails);
+        // For now, we'll just log the attendees. In production, you'd look up user IDs by email
+      }
 
       fetchMeetings();
       return meeting;
@@ -139,8 +188,10 @@ export const useMeetings = () => {
   };
 
   useEffect(() => {
-    fetchMeetings();
-  }, []);
+    if (user) {
+      fetchMeetings();
+    }
+  }, [user]);
 
   return {
     meetings,
