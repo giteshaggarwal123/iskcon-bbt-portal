@@ -9,6 +9,7 @@ import { MessagesDialog } from './MessagesDialog';
 import { GlobalSearch } from './GlobalSearch';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -20,6 +21,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   // Mock data for unread counts
   const unreadNotifications = 3;
@@ -30,6 +32,19 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
       fetchUserAvatar();
     }
   }, [user]);
+
+  useEffect(() => {
+    // Listen for avatar updates
+    const handleAvatarUpdate = (event: CustomEvent) => {
+      setAvatarUrl(event.detail);
+    };
+
+    window.addEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
+    };
+  }, []);
 
   const fetchUserAvatar = async () => {
     if (!user) return;
@@ -79,6 +94,10 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
       return user.email[0].toUpperCase();
     }
     return 'U';
+  };
+
+  const handleSettingsClick = () => {
+    navigate('/settings');
   };
 
   return (
@@ -159,7 +178,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                 </AvatarFallback>
               </Avatar>
               <div className="flex items-center space-x-1">
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" onClick={handleSettingsClick}>
                   <Settings className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" size="icon" onClick={signOut}>
