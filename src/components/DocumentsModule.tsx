@@ -1,293 +1,248 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Search, Folder, File, Download, Eye, Share2, MessageSquare, Clock, User } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { FileText, Upload, Search, Filter, Download, Trash2, Eye, Plus } from 'lucide-react';
+import { useDocuments } from '@/hooks/useDocuments';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 export const DocumentsModule: React.FC = () => {
+  const { documents, loading, uploadDocument, deleteDocument } = useDocuments();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFolder, setSelectedFolder] = useState('all');
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadFolder, setUploadFolder] = useState('general');
 
-  const folders = [
-    { id: 'all', name: 'All Documents', count: 45 },
-    { id: 'meetings', name: 'Meeting Materials', count: 12 },
-    { id: 'resolutions', name: 'Resolutions', count: 8 },
-    { id: 'policies', name: 'Policies', count: 15 },
-    { id: 'reports', name: 'Reports', count: 10 }
-  ];
-
-  const documents = [
-    {
-      id: 1,
-      name: 'Annual Meeting Agenda 2024.pdf',
-      type: 'PDF',
-      size: '2.4 MB',
-      folder: 'meetings',
-      uploadedBy: 'General Secretary',
-      uploadedAt: '2024-01-15',
-      version: '1.2',
-      views: 23,
-      comments: 5,
-      shared: true
-    },
-    {
-      id: 2,
-      name: 'Temple Construction Policy.docx',
-      type: 'DOCX',
-      size: '1.8 MB',
-      folder: 'policies',
-      uploadedBy: 'Building Committee',
-      uploadedAt: '2024-01-14',
-      version: '2.0',
-      views: 67,
-      comments: 12,
-      shared: false
-    },
-    {
-      id: 3,
-      name: 'Financial Report Q4.xlsx',
-      type: 'XLSX',
-      size: '856 KB',
-      folder: 'reports',
-      uploadedBy: 'Finance Team',
-      uploadedAt: '2024-01-13',
-      version: '1.0',
-      views: 34,
-      comments: 8,
-      shared: true
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
     }
-  ];
+  };
 
-  const analytics = [
-    { 
-      document: 'Annual Meeting Agenda 2024.pdf', 
-      views: 23, 
-      avgTime: '5:30', 
-      completion: 85,
-      viewers: [
-        { name: 'Temple President', email: 'president@iskcon.org', viewTime: '8:45', lastViewed: '2024-01-16', completion: 100 },
-        { name: 'General Secretary', email: 'secretary@iskcon.org', viewTime: '12:30', lastViewed: '2024-01-15', completion: 95 },
-        { name: 'Treasurer', email: 'treasurer@iskcon.org', viewTime: '6:15', lastViewed: '2024-01-16', completion: 80 },
-        { name: 'Head Pujari', email: 'pujari@iskcon.org', viewTime: '4:20', lastViewed: '2024-01-14', completion: 60 },
-        { name: 'Building Committee Head', email: 'building@iskcon.org', viewTime: '15:45', lastViewed: '2024-01-16', completion: 100 }
-      ]
-    },
-    { 
-      document: 'Temple Construction Policy.docx', 
-      views: 67, 
-      avgTime: '12:45', 
-      completion: 78,
-      viewers: [
-        { name: 'Building Committee Head', email: 'building@iskcon.org', viewTime: '25:30', lastViewed: '2024-01-15', completion: 100 },
-        { name: 'Temple President', email: 'president@iskcon.org', viewTime: '18:20', lastViewed: '2024-01-14', completion: 90 },
-        { name: 'Facilities Manager', email: 'facilities@iskcon.org', viewTime: '22:15', lastViewed: '2024-01-16', completion: 85 },
-        { name: 'Legal Advisor', email: 'legal@iskcon.org', viewTime: '35:40', lastViewed: '2024-01-15', completion: 100 }
-      ]
-    },
-    { 
-      document: 'Financial Report Q4.xlsx', 
-      views: 34, 
-      avgTime: '8:15', 
-      completion: 92,
-      viewers: [
-        { name: 'Treasurer', email: 'treasurer@iskcon.org', viewTime: '15:30', lastViewed: '2024-01-13', completion: 100 },
-        { name: 'Temple President', email: 'president@iskcon.org', viewTime: '12:45', lastViewed: '2024-01-14', completion: 95 },
-        { name: 'Audit Committee Chair', email: 'audit@iskcon.org', viewTime: '20:10', lastViewed: '2024-01-15', completion: 100 },
-        { name: 'Finance Committee Member', email: 'finance@iskcon.org', viewTime: '8:25', lastViewed: '2024-01-13', completion: 80 }
-      ]
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      toast({
+        title: "No File Selected",
+        description: "Please select a file to upload",
+        variant: "destructive"
+      });
+      return;
     }
-  ];
+
+    await uploadDocument(selectedFile, uploadFolder);
+    setSelectedFile(null);
+    setUploadDialogOpen(false);
+  };
+
+  const filteredDocuments = documents.filter(doc => {
+    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFolder = selectedFolder === 'all' || doc.folder === selectedFolder;
+    return matchesSearch && matchesFolder;
+  });
+
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return 'Unknown';
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const folders = [...new Set(documents.map(doc => doc.folder).filter(Boolean))];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Document Management</h1>
-          <p className="text-gray-600">Organize, share, and track all ISKCON documents</p>
+          <h1 className="text-3xl font-bold text-gray-900">Documents</h1>
+          <p className="text-gray-600">Manage bureau documents and files</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
-          <Upload className="h-4 w-4 mr-2" />
-          Upload Document
-        </Button>
-      </div>
-
-      <Tabs defaultValue="documents" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="folders">Folders</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="documents" className="space-y-6">
-          <div className="flex space-x-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="flex items-center space-x-2">
+              <Plus className="h-4 w-4" />
+              <span>Upload Document</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Upload New Document</DialogTitle>
+              <DialogDescription>
+                Select a file to upload to the bureau document library
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="file">Select File</Label>
                 <Input
-                  placeholder="Search documents, keywords, content..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  id="file"
+                  type="file"
+                  onChange={handleFileSelect}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
                 />
+                {selectedFile && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="folder">Folder</Label>
+                <Select value={uploadFolder} onValueChange={setUploadFolder}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select folder" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="meetings">Meetings</SelectItem>
+                    <SelectItem value="financial">Financial</SelectItem>
+                    <SelectItem value="policies">Policies</SelectItem>
+                    <SelectItem value="reports">Reports</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpload} disabled={!selectedFile}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload
+                </Button>
               </div>
             </div>
-            <select 
-              value={selectedFolder}
-              onChange={(e) => setSelectedFolder(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md"
-            >
-              {folders.map(folder => (
-                <option key={folder.id} value={folder.id}>{folder.name}</option>
-              ))}
-            </select>
-          </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-          <div className="grid gap-4">
-            {documents.map((doc) => (
-              <Card key={doc.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <File className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{doc.name}</h3>
-                        <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
-                          <span>{doc.size}</span>
-                          <span>v{doc.version}</span>
-                          <span>by {doc.uploadedBy}</span>
-                          <span>{doc.uploadedAt}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="secondary">
-                        <Eye className="h-3 w-3 mr-1" />
-                        {doc.views}
-                      </Badge>
-                      <Badge variant="secondary">
-                        <MessageSquare className="h-3 w-3 mr-1" />
-                        {doc.comments}
-                      </Badge>
-                      {doc.shared && <Badge className="bg-success text-white">Shared</Badge>}
-                      <Button variant="ghost" size="sm">
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Share2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+      {/* Search and Filter */}
+      <div className="flex space-x-4">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Search documents..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select value={selectedFolder} onValueChange={setSelectedFolder}>
+          <SelectTrigger className="w-48">
+            <Filter className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="All folders" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Folders</SelectItem>
+            {folders.map(folder => (
+              <SelectItem key={folder} value={folder || 'general'}>
+                {folder || 'General'}
+              </SelectItem>
             ))}
-          </div>
-        </TabsContent>
+          </SelectContent>
+        </Select>
+      </div>
 
-        <TabsContent value="folders" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {folders.map((folder) => (
-              <Card key={folder.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center">
-                      <Folder className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{folder.name}</h3>
-                      <p className="text-sm text-gray-500">{folder.count} documents</p>
-                    </div>
+      {/* Documents Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {filteredDocuments.map((document) => (
+          <Card key={document.id} className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-primary" />
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-sm font-medium truncate">
+                      {document.name}
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      {document.folder || 'General'}
+                    </CardDescription>
+                  </div>
+                </div>
+                <Badge variant="secondary" className="text-xs">
+                  {document.mime_type?.split('/')[1] || 'file'}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-2 text-xs text-gray-500">
+                <div>Size: {formatFileSize(document.file_size)}</div>
+                <div>Uploaded: {formatDate(document.created_at)}</div>
+              </div>
+              <div className="flex justify-between items-center mt-4">
+                <div className="flex space-x-2">
+                  <Button size="sm" variant="outline" className="h-8 px-3">
+                    <Eye className="h-3 w-3 mr-1" />
+                    View
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8 px-3">
+                    <Download className="h-3 w-3 mr-1" />
+                    Download
+                  </Button>
+                </div>
+                {user?.id === document.uploaded_by && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-3 text-red-600 hover:bg-red-50"
+                    onClick={() => deleteDocument(document.id)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-        <TabsContent value="analytics" className="space-y-6">
-          <div className="grid gap-6">
-            {analytics.map((item, index) => (
-              <Card key={index}>
-                <CardHeader>
-                  <CardTitle className="text-lg">{item.document}</CardTitle>
-                  <CardDescription>Document engagement analytics with detailed viewer information</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-primary">{item.views}</div>
-                      <div className="text-sm text-gray-500">Total Views</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-success">{item.avgTime}</div>
-                      <div className="text-sm text-gray-500">Avg. Reading Time</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-warning">{item.completion}%</div>
-                      <div className="text-sm text-gray-500">Completion Rate</div>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <h4 className="font-semibold mb-4 flex items-center">
-                      <User className="h-4 w-4 mr-2" />
-                      Individual Viewer Analytics
-                    </h4>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="text-left py-2">Viewer</th>
-                            <th className="text-left py-2">Time Spent</th>
-                            <th className="text-left py-2">Last Viewed</th>
-                            <th className="text-left py-2">Completion</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {item.viewers.map((viewer, viewerIndex) => (
-                            <tr key={viewerIndex} className="border-b">
-                              <td className="py-3">
-                                <div>
-                                  <div className="font-medium">{viewer.name}</div>
-                                  <div className="text-gray-500 text-xs">{viewer.email}</div>
-                                </div>
-                              </td>
-                              <td className="py-3">
-                                <div className="flex items-center">
-                                  <Clock className="h-3 w-3 mr-1 text-gray-400" />
-                                  {viewer.viewTime}
-                                </div>
-                              </td>
-                              <td className="py-3 text-gray-600">{viewer.lastViewed}</td>
-                              <td className="py-3">
-                                <div className="flex items-center space-x-2">
-                                  <div className="w-16 bg-gray-200 rounded-full h-2">
-                                    <div 
-                                      className={`h-2 rounded-full ${
-                                        viewer.completion >= 90 ? 'bg-success' : 
-                                        viewer.completion >= 70 ? 'bg-warning' : 'bg-error'
-                                      }`}
-                                      style={{ width: `${viewer.completion}%` }}
-                                    ></div>
-                                  </div>
-                                  <span className="text-xs font-medium">{viewer.completion}%</span>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+      {filteredDocuments.length === 0 && (
+        <div className="text-center py-12">
+          <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
+          <p className="text-gray-500 mb-4">
+            {searchTerm || selectedFolder !== 'all' 
+              ? 'Try adjusting your search or filter criteria'
+              : 'Get started by uploading your first document'}
+          </p>
+          {!searchTerm && selectedFolder === 'all' && (
+            <Button onClick={() => setUploadDialogOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Document
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

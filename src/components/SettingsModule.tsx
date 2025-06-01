@@ -1,13 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Settings, User, Mail, Calendar, FileText, Shield, CheckCircle, AlertCircle } from 'lucide-react';
 import { MicrosoftOAuthButton } from './MicrosoftOAuthButton';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { CheckCircle, XCircle, LogOut, User, Mail, Shield } from 'lucide-react';
 
 export const SettingsModule: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -19,243 +23,234 @@ export const SettingsModule: React.FC = () => {
     const fetchProfile = async () => {
       if (!user) return;
       
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error && error.code !== 'PGRST116') {
-          console.error('Profile fetch error:', error);
-          return;
-        }
-
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching profile:', error);
+      } else {
         setProfile(data);
-      } catch (error) {
-        console.error('Profile fetch error:', error);
-      } finally {
-        setLoading(false);
       }
+      setLoading(false);
     };
 
     fetchProfile();
   }, [user]);
 
-  const handleSignOut = async () => {
+  const handleLogout = async () => {
     await signOut();
   };
 
-  const isMicrosoftConnected = profile?.microsoft_access_token && profile?.token_expires_at && new Date(profile.token_expires_at) > new Date();
-
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-600">Loading your account settings...</p>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-600">Manage your account and integration settings</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+          <p className="text-gray-600">Manage your account and application preferences</p>
+        </div>
+        <Button 
+          onClick={handleLogout}
+          variant="outline"
+          className="flex items-center space-x-2 text-red-600 border-red-600 hover:bg-red-50"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Logout</span>
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Profile Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <User className="h-5 w-5" />
-              <span>Profile Information</span>
-            </CardTitle>
-            <CardDescription>Your account details and preferences</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+      {/* Profile Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <User className="h-5 w-5" />
+            <span>Profile Information</span>
+          </CardTitle>
+          <CardDescription>
+            Your basic account information
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-500">Email Address</label>
-              <p className="text-gray-900">{user?.email}</p>
+              <Label htmlFor="firstName">First Name</Label>
+              <Input
+                id="firstName"
+                value={profile?.first_name || ''}
+                readOnly
+                className="bg-gray-50"
+              />
             </div>
-            
-            {profile?.first_name && (
-              <div>
-                <label className="text-sm font-medium text-gray-500">Name</label>
-                <p className="text-gray-900">{profile.first_name} {profile.last_name}</p>
-              </div>
-            )}
-            
-            {profile?.phone && (
-              <div>
-                <label className="text-sm font-medium text-gray-500">Phone</label>
-                <p className="text-gray-900">{profile.phone}</p>
-              </div>
-            )}
-
-            <div className="pt-4 border-t">
-              <Button variant="outline" onClick={handleSignOut}>
-                Sign Out
-              </Button>
+            <div>
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                value={profile?.last_name || ''}
+                readOnly
+                className="bg-gray-50"
+              />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div>
+            <Label htmlFor="email">Email Address</Label>
+            <div className="flex items-center space-x-2">
+              <Mail className="h-4 w-4 text-gray-400" />
+              <Input
+                id="email"
+                value={user?.email || ''}
+                readOnly
+                className="bg-gray-50"
+              />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="phone">Phone Number</Label>
+            <Input
+              id="phone"
+              value={profile?.phone || 'Not provided'}
+              readOnly
+              className="bg-gray-50"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Microsoft 365 Integration */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Mail className="h-5 w-5" />
-              <span>Microsoft 365 Integration</span>
-            </CardTitle>
-            <CardDescription>
-              Connect your Microsoft account to access Outlook, Teams, and SharePoint
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+      {/* Microsoft Integration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/>
+            </svg>
+            <span>Microsoft 365 Integration</span>
+          </CardTitle>
+          <CardDescription>
+            Connect your Microsoft account to access Outlook, Teams, and SharePoint features
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
-                {isMicrosoftConnected ? (
+                {profile?.microsoft_access_token ? (
                   <>
                     <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span className="text-sm font-medium">Connected</span>
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      Active
-                    </Badge>
+                    <span className="font-medium">Connected</span>
                   </>
                 ) : (
                   <>
-                    <AlertCircle className="h-5 w-5 text-orange-500" />
-                    <span className="text-sm font-medium">Not Connected</span>
-                    <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-                      Inactive
-                    </Badge>
+                    <XCircle className="h-5 w-5 text-red-500" />
+                    <span className="font-medium">Not Connected</span>
                   </>
                 )}
               </div>
+              {profile?.microsoft_access_token && (
+                <Badge variant="secondary">Active</Badge>
+              )}
             </div>
+          </div>
 
-            {isMicrosoftConnected ? (
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600">
-                  Your Microsoft account is connected and ready to use.
-                </p>
-                
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex items-center space-x-1 text-green-600">
-                    <CheckCircle className="h-3 w-3" />
-                    <span>Outlook Email</span>
-                  </div>
-                  <div className="flex items-center space-x-1 text-green-600">
-                    <CheckCircle className="h-3 w-3" />
-                    <span>Teams Meetings</span>
-                  </div>
-                  <div className="flex items-center space-x-1 text-green-600">
-                    <CheckCircle className="h-3 w-3" />
-                    <span>Calendar Events</span>
-                  </div>
-                  <div className="flex items-center space-x-1 text-green-600">
-                    <CheckCircle className="h-3 w-3" />
-                    <span>SharePoint Docs</span>
-                  </div>
-                </div>
+          {!profile?.microsoft_access_token && (
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-800 mb-3">
+                Connect your Microsoft account to enable:
+              </p>
+              <ul className="text-sm text-blue-700 space-y-1 mb-4">
+                <li>• Send emails through Outlook</li>
+                <li>• Create and join Teams meetings</li>
+                <li>• Access SharePoint documents</li>
+                <li>• Sync calendar events</li>
+              </ul>
+              <MicrosoftOAuthButton onSuccess={() => window.location.reload()} />
+            </div>
+          )}
 
-                <p className="text-xs text-gray-500">
-                  Token expires: {new Date(profile.token_expires_at).toLocaleDateString()}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600">
-                  Connect your Microsoft 365 account to unlock:
-                </p>
-                <ul className="text-xs text-gray-600 space-y-1">
-                  <li>• Send emails through Outlook</li>
-                  <li>• Create Teams meetings automatically</li>
-                  <li>• Sync calendar events</li>
-                  <li>• Access SharePoint documents</li>
-                </ul>
-                <MicrosoftOAuthButton />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Security Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Shield className="h-5 w-5" />
-              <span>Security</span>
-            </CardTitle>
-            <CardDescription>Account security and access controls</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-500">Account Created</label>
-              <p className="text-gray-900">
-                {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
+          {profile?.microsoft_access_token && (
+            <div className="p-4 bg-green-50 rounded-lg">
+              <p className="text-sm text-green-800">
+                Your Microsoft account is successfully connected. You can now use all integrated features.
               </p>
             </div>
-            
-            <div>
-              <label className="text-sm font-medium text-gray-500">Last Sign In</label>
-              <p className="text-gray-900">
-                {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'First time'}
-              </p>
-            </div>
+          )}
+        </CardContent>
+      </Card>
 
+      {/* Notification Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Notification Preferences</CardTitle>
+          <CardDescription>
+            Configure how you want to receive notifications
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
             <div>
-              <label className="text-sm font-medium text-gray-500">Email Verified</label>
-              <div className="flex items-center space-x-2">
-                {user?.email_confirmed_at ? (
-                  <>
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span className="text-sm text-green-600">Verified</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle className="h-4 w-4 text-orange-500" />
-                    <span className="text-sm text-orange-600">Pending</span>
-                  </>
-                )}
-              </div>
+              <Label htmlFor="email-notifications">Email Notifications</Label>
+              <p className="text-sm text-gray-500">Receive notifications via email</p>
             </div>
-          </CardContent>
-        </Card>
+            <Switch id="email-notifications" defaultChecked />
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <div>
+              <Label htmlFor="meeting-reminders">Meeting Reminders</Label>
+              <p className="text-sm text-gray-500">Get reminded about upcoming meetings</p>
+            </div>
+            <Switch id="meeting-reminders" defaultChecked />
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <div>
+              <Label htmlFor="document-updates">Document Updates</Label>
+              <p className="text-sm text-gray-500">Notifications when documents are shared</p>
+            </div>
+            <Switch id="document-updates" defaultChecked />
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <div>
+              <Label htmlFor="voting-alerts">Voting Alerts</Label>
+              <p className="text-sm text-gray-500">Alerts for new polls and voting deadlines</p>
+            </div>
+            <Switch id="voting-alerts" defaultChecked />
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* App Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Settings className="h-5 w-5" />
-              <span>Application Info</span>
-            </CardTitle>
-            <CardDescription>Platform version and support information</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-500">Platform Version</label>
-              <p className="text-gray-900">ISKCON Bureau v1.0</p>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium text-gray-500">Support Contact</label>
-              <p className="text-gray-900">bureau-support@iskcon.org</p>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-500">Privacy Policy</label>
-              <p className="text-sm text-blue-600 hover:underline cursor-pointer">
-                View Privacy Policy
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Security Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Shield className="h-5 w-5" />
+            <span>Security Settings</span>
+          </CardTitle>
+          <CardDescription>
+            Manage your account security and access
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="p-4 bg-yellow-50 rounded-lg">
+            <h4 className="font-medium text-yellow-800 mb-2">Account Security</h4>
+            <p className="text-sm text-yellow-700 mb-3">
+              Your account is secured with email/password authentication. Contact an administrator to update your credentials.
+            </p>
+            <Button variant="outline" size="sm">
+              Contact Administrator
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

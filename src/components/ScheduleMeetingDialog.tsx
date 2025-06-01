@@ -11,6 +11,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
+import { useMeetings } from '@/hooks/useMeetings';
 
 interface ScheduleMeetingDialogProps {
   open: boolean;
@@ -20,7 +21,6 @@ interface ScheduleMeetingDialogProps {
 interface MeetingFormData {
   title: string;
   description: string;
-  date: Date;
   time: string;
   duration: string;
   type: string;
@@ -29,17 +29,27 @@ interface MeetingFormData {
 }
 
 export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ open, onOpenChange }) => {
-  const { register, handleSubmit, setValue, watch, reset } = useForm<MeetingFormData>();
+  const { register, handleSubmit, setValue, reset, formState: { isSubmitting } } = useForm<MeetingFormData>();
   const [selectedDate, setSelectedDate] = React.useState<Date>();
   const [showCalendar, setShowCalendar] = React.useState(false);
+  const { createMeeting } = useMeetings();
 
-  const onSubmit = (data: MeetingFormData) => {
-    console.log('Meeting scheduled:', { ...data, date: selectedDate });
-    // Here you would typically send to backend
-    alert('Meeting scheduled successfully!');
-    reset();
-    setSelectedDate(undefined);
-    onOpenChange(false);
+  const onSubmit = async (data: MeetingFormData) => {
+    if (!selectedDate) {
+      alert('Please select a date');
+      return;
+    }
+
+    const meeting = await createMeeting({
+      ...data,
+      date: selectedDate
+    });
+
+    if (meeting) {
+      reset();
+      setSelectedDate(undefined);
+      onOpenChange(false);
+    }
   };
 
   return (
@@ -166,8 +176,8 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90">
-              Schedule Meeting
+            <Button type="submit" disabled={isSubmitting} className="bg-primary hover:bg-primary/90">
+              {isSubmitting ? 'Creating...' : 'Schedule Meeting'}
             </Button>
           </DialogFooter>
         </form>
