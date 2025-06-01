@@ -37,6 +37,32 @@ export const useUserRole = (): UseUserRoleReturn => {
       }
 
       try {
+        console.log('Fetching role for user:', user.email);
+        
+        // First check if this is the super admin by email
+        if (user.email === 'cs@iskconbureau.in') {
+          console.log('Super admin detected by email');
+          
+          // Ensure super admin role exists in database
+          const { error: upsertError } = await supabase
+            .from('user_roles')
+            .upsert({ 
+              user_id: user.id, 
+              role: 'super_admin' 
+            }, { 
+              onConflict: 'user_id,role' 
+            });
+          
+          if (upsertError) {
+            console.error('Error upserting super admin role:', upsertError);
+          }
+          
+          setUserRole('super_admin');
+          setLoading(false);
+          return;
+        }
+
+        // For other users, fetch their role from the database
         const { data, error } = await supabase
           .from('user_roles')
           .select('role')
@@ -66,14 +92,14 @@ export const useUserRole = (): UseUserRoleReturn => {
   const isTreasurer = userRole === 'treasurer' || isAdmin;
   const isMember = userRole === 'member' || isSecretary || isTreasurer || isAdmin || isSuperAdmin;
 
-  // Permission calculations - everyone can view, but editing/deleting is restricted
+  // Super Admin has access to everything
   const canManageMembers = isSuperAdmin || isAdmin;
   const canManageMeetings = isSuperAdmin || isAdmin || isSecretary;
   const canManageDocuments = isSuperAdmin || isAdmin || isSecretary;
   const canViewReports = isSuperAdmin || isAdmin || isTreasurer;
   const canManageSettings = isSuperAdmin || isAdmin;
   
-  // New granular permissions
+  // Content permissions - Super Admin can do everything
   const canCreateContent = isSuperAdmin || isAdmin || isSecretary;
   const canDeleteContent = isSuperAdmin || isAdmin;
   const canEditContent = isSuperAdmin || isAdmin || isSecretary;

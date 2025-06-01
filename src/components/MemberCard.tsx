@@ -56,19 +56,24 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
       'member': 'bg-gray-500 text-white'
     };
     return <Badge className={roleColors[role] || 'bg-gray-500 text-white'}>
-      {role.replace('_', ' ')}
+      {role === 'super_admin' ? 'Super Admin' : role.replace('_', ' ')}
     </Badge>;
   };
 
-  const primaryRole = member.roles[0] || 'member';
+  // For super admin detection, check email first
+  const actualRole = member.email === 'cs@iskconbureau.in' ? 'super_admin' : (member.roles[0] || 'member');
   const joinDate = new Date(member.created_at).toLocaleDateString();
 
   const handleDeleteMember = () => {
     onDeleteMember(member.id);
   };
 
-  const canChangeRole = userRole.isSuperAdmin || (userRole.isAdmin && primaryRole !== 'super_admin');
-  const canDeleteMember = userRole.isSuperAdmin || (userRole.isAdmin && primaryRole !== 'super_admin');
+  // Role change permissions
+  const canChangeRole = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin');
+  const canDeleteMember = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin');
+  
+  // Super admin can never be deleted or have role changed by others
+  const isSuperAdminMember = actualRole === 'super_admin';
 
   return (
     <>
@@ -96,8 +101,11 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
                   )}
                 </div>
                 <div className="flex items-center space-x-2 mt-2">
-                  {getRoleBadge(primaryRole)}
+                  {getRoleBadge(actualRole)}
                   <Badge variant="outline">Joined {joinDate}</Badge>
+                  {isSuperAdminMember && (
+                    <Badge className="bg-gold-500 text-white">System Admin</Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -106,9 +114,9 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
               <div>
                 <label className="text-sm text-gray-500">Role</label>
                 <Select 
-                  value={primaryRole} 
+                  value={actualRole} 
                   onValueChange={(value) => onRoleChange(member.id, value)}
-                  disabled={!canChangeRole}
+                  disabled={!canChangeRole || isSuperAdminMember}
                 >
                   <SelectTrigger className="w-32">
                     <SelectValue />
@@ -139,9 +147,11 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
                     <DropdownMenuItem>
                       View Activity
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      Reset Password
-                    </DropdownMenuItem>
+                    {!isSuperAdminMember && (
+                      <DropdownMenuItem>
+                        Reset Password
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -153,7 +163,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
                   <MessageCircle className="h-4 w-4" />
                 </Button>
 
-                {canDeleteMember && (
+                {canDeleteMember && !isSuperAdminMember && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">

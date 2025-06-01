@@ -60,7 +60,17 @@ export const useMembers = () => {
 
       // Combine the data
       const membersData = profiles?.map(profile => {
-        const memberRoles = userRoles?.filter(role => role.user_id === profile.id) || [];
+        let memberRoles = userRoles?.filter(role => role.user_id === profile.id) || [];
+        
+        // Special handling for super admin
+        if (profile.email === 'cs@iskconbureau.in') {
+          // Ensure super admin role is present
+          const hasSuperAdminRole = memberRoles.some(role => role.role === 'super_admin');
+          if (!hasSuperAdminRole) {
+            memberRoles = [{ user_id: profile.id, role: 'super_admin' }, ...memberRoles];
+          }
+        }
+        
         return {
           id: profile.id,
           email: profile.email || '',
@@ -202,16 +212,29 @@ export const useMembers = () => {
 
   const updateMemberRole = async (memberId: string, newRole: string) => {
     try {
-      // Remove existing roles
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', memberId);
+      // Check if this is trying to modify super admin
+      const member = members.find(m => m.id === memberId);
+      if (member?.email === 'cs@iskconbureau.in' && newRole !== 'super_admin') {
+        toast({
+          title: "Access Denied",
+          description: "Cannot change the role of the system super admin",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Remove existing roles (except for super admin)
+      if (newRole !== 'super_admin') {
+        await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', memberId);
+      }
 
       // Add new role
       const { error } = await supabase
         .from('user_roles')
-        .insert({
+        .upsert({
           user_id: memberId,
           role: newRole as any
         });
@@ -238,6 +261,17 @@ export const useMembers = () => {
 
   const deleteMember = async (memberId: string) => {
     try {
+      // Check if this is trying to delete super admin
+      const member = members.find(m => m.id === memberId);
+      if (member?.email === 'cs@iskconbureau.in') {
+        toast({
+          title: "Access Denied",
+          description: "Cannot delete the system super admin",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Delete user roles first
       await supabase
         .from('user_roles')
