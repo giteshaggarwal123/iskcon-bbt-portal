@@ -8,7 +8,6 @@ import {
   Mail, 
   Clock,
   User,
-  Search,
   Check,
   Folder,
   FileSearch,
@@ -32,7 +31,6 @@ const menuItems = [
   { id: 'email', label: 'Email', icon: Mail },
   { id: 'members', label: 'Members', icon: Users },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
-  { id: 'search', label: 'Search', icon: Search },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 

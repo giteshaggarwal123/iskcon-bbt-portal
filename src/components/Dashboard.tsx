@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Calendar, FileText, Users, Mail, Clock, Check, TrendingUp, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +13,6 @@ import { EmailModule } from './EmailModule';
 import { MembersModule } from './MembersModule';
 import { SettingsModule } from './SettingsModule';
 import { ReportsModule } from './ReportsModule';
-import { GlobalSearch } from './GlobalSearch';
 
 interface DashboardProps {
   currentModule?: string;
@@ -37,8 +37,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentModule = 'dashboard
       return <SettingsModule />;
     case 'reports':
       return <ReportsModule />;
-    case 'search':
-      return <GlobalSearch />;
     default:
       // Default dashboard content
       return (
