@@ -1,339 +1,261 @@
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
-import { Settings, Shield, Bell, Mail, Users, Database, Smartphone } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Settings, User, Mail, Calendar, FileText, Shield, CheckCircle, AlertCircle } from 'lucide-react';
+import { MicrosoftOAuthButton } from './MicrosoftOAuthButton';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export const SettingsModule: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Profile fetch error:', error);
+          return;
+        }
+
+        setProfile(data);
+      } catch (error) {
+        console.error('Profile fetch error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [user]);
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
+  const isMicrosoftConnected = profile?.microsoft_access_token && profile?.token_expires_at && new Date(profile.token_expires_at) > new Date();
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">System Settings</h1>
-          <p className="text-gray-600">Configure platform settings and preferences</p>
+          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+          <p className="text-gray-600">Loading your account settings...</p>
         </div>
       </div>
+    );
+  }
 
-      <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="email">Email</TabsTrigger>
-          <TabsTrigger value="backup">Backup</TabsTrigger>
-          <TabsTrigger value="mobile">Mobile App</TabsTrigger>
-        </TabsList>
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+        <p className="text-gray-600">Manage your account and integration settings</p>
+      </div>
 
-        <TabsContent value="general" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Settings className="h-5 w-5 mr-2" />
-                General Settings
-              </CardTitle>
-              <CardDescription>Basic platform configuration</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Organization Name</label>
-                  <Input defaultValue="ISKCON Bureau" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Time Zone</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                    <option>Asia/Kolkata (UTC+5:30)</option>
-                    <option>America/New_York (UTC-5:00)</option>
-                    <option>Europe/London (UTC+0:00)</option>
-                  </select>
-                </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Profile Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <User className="h-5 w-5" />
+              <span>Profile Information</span>
+            </CardTitle>
+            <CardDescription>Your account details and preferences</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-500">Email Address</label>
+              <p className="text-gray-900">{user?.email}</p>
+            </div>
+            
+            {profile?.first_name && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Name</label>
+                <p className="text-gray-900">{profile.first_name} {profile.last_name}</p>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Default Language</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                    <option>English</option>
-                    <option>Hindi</option>
-                    <option>Bengali</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Date Format</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                    <option>DD/MM/YYYY</option>
-                    <option>MM/DD/YYYY</option>
-                    <option>YYYY-MM-DD</option>
-                  </select>
-                </div>
+            )}
+            
+            {profile?.phone && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Phone</label>
+                <p className="text-gray-900">{profile.phone}</p>
               </div>
+            )}
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Maintenance Mode</p>
-                  <p className="text-sm text-gray-500">Temporarily disable access for maintenance</p>
-                </div>
-                <Switch />
+            <div className="pt-4 border-t">
+              <Button variant="outline" onClick={handleSignOut}>
+                Sign Out
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Microsoft 365 Integration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Mail className="h-5 w-5" />
+              <span>Microsoft 365 Integration</span>
+            </CardTitle>
+            <CardDescription>
+              Connect your Microsoft account to access Outlook, Teams, and SharePoint
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                {isMicrosoftConnected ? (
+                  <>
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="text-sm font-medium">Connected</span>
+                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                      Active
+                    </Badge>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="h-5 w-5 text-orange-500" />
+                    <span className="text-sm font-medium">Not Connected</span>
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                      Inactive
+                    </Badge>
+                  </>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
 
-        <TabsContent value="security" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Shield className="h-5 w-5 mr-2" />
-                Security Settings
-              </CardTitle>
-              <CardDescription>Configure authentication and security policies</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Two-Factor Authentication</p>
-                    <p className="text-sm text-gray-500">Require 2FA for all members</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
+            {isMicrosoftConnected ? (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  Your Microsoft account is connected and ready to use.
+                </p>
                 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Session Timeout</p>
-                    <p className="text-sm text-gray-500">Auto-logout inactive users</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center space-x-1 text-green-600">
+                    <CheckCircle className="h-3 w-3" />
+                    <span>Outlook Email</span>
                   </div>
-                  <select className="px-3 py-2 border border-gray-300 rounded-md">
-                    <option>30 minutes</option>
-                    <option>1 hour</option>
-                    <option>2 hours</option>
-                    <option>4 hours</option>
-                  </select>
+                  <div className="flex items-center space-x-1 text-green-600">
+                    <CheckCircle className="h-3 w-3" />
+                    <span>Teams Meetings</span>
+                  </div>
+                  <div className="flex items-center space-x-1 text-green-600">
+                    <CheckCircle className="h-3 w-3" />
+                    <span>Calendar Events</span>
+                  </div>
+                  <div className="flex items-center space-x-1 text-green-600">
+                    <CheckCircle className="h-3 w-3" />
+                    <span>SharePoint Docs</span>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Password Policy</p>
-                    <p className="text-sm text-gray-500">Enforce strong passwords</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Login Attempts</p>
-                    <p className="text-sm text-gray-500">Maximum failed login attempts</p>
-                  </div>
-                  <select className="px-3 py-2 border border-gray-300 rounded-md">
-                    <option>3 attempts</option>
-                    <option>5 attempts</option>
-                    <option>10 attempts</option>
-                  </select>
-                </div>
+                <p className="text-xs text-gray-500">
+                  Token expires: {new Date(profile.token_expires_at).toLocaleDateString()}
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="notifications" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Bell className="h-5 w-5 mr-2" />
-                Notification Settings
-              </CardTitle>
-              <CardDescription>Configure system notifications and alerts</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Meeting Reminders</p>
-                    <p className="text-sm text-gray-500">Send meeting reminders to members</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Document Updates</p>
-                    <p className="text-sm text-gray-500">Notify when documents are updated</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Voting Notifications</p>
-                    <p className="text-sm text-gray-500">Alert members about new polls</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Email Notifications</p>
-                    <p className="text-sm text-gray-500">Send email notifications</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">SMS Notifications</p>
-                    <p className="text-sm text-gray-500">Send SMS for urgent matters</p>
-                  </div>
-                  <Switch />
-                </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  Connect your Microsoft 365 account to unlock:
+                </p>
+                <ul className="text-xs text-gray-600 space-y-1">
+                  <li>• Send emails through Outlook</li>
+                  <li>• Create Teams meetings automatically</li>
+                  <li>• Sync calendar events</li>
+                  <li>• Access SharePoint documents</li>
+                </ul>
+                <MicrosoftOAuthButton />
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            )}
+          </CardContent>
+        </Card>
 
-        <TabsContent value="email" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Mail className="h-5 w-5 mr-2" />
-                Email Configuration
-              </CardTitle>
-              <CardDescription>Configure email server and templates</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">SMTP Server</label>
-                  <Input placeholder="smtp.gmail.com" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Port</label>
-                  <Input placeholder="587" />
-                </div>
+        {/* Security Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Shield className="h-5 w-5" />
+              <span>Security</span>
+            </CardTitle>
+            <CardDescription>Account security and access controls</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-500">Account Created</label>
+              <p className="text-gray-900">
+                {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
+              </p>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-500">Last Sign In</label>
+              <p className="text-gray-900">
+                {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'First time'}
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-500">Email Verified</label>
+              <div className="flex items-center space-x-2">
+                {user?.email_confirmed_at ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span className="text-sm text-green-600">Verified</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="h-4 w-4 text-orange-500" />
+                    <span className="text-sm text-orange-600">Pending</span>
+                  </>
+                )}
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Username</label>
-                  <Input placeholder="admin@iskcon.org" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Password</label>
-                  <Input type="password" placeholder="••••••••" />
-                </div>
-              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Use SSL/TLS</p>
-                  <p className="text-sm text-gray-500">Secure email transmission</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
+        {/* App Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Settings className="h-5 w-5" />
+              <span>Application Info</span>
+            </CardTitle>
+            <CardDescription>Platform version and support information</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-500">Platform Version</label>
+              <p className="text-gray-900">ISKCON Bureau v1.0</p>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-500">Support Contact</label>
+              <p className="text-gray-900">bureau-support@iskcon.org</p>
+            </div>
 
-              <Button className="w-full bg-primary hover:bg-primary/90">Test Email Configuration</Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="backup" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Database className="h-5 w-5 mr-2" />
-                Backup & Recovery
-              </CardTitle>
-              <CardDescription>Configure data backup and recovery options</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Automatic Backups</p>
-                    <p className="text-sm text-gray-500">Enable scheduled backups</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Backup Frequency</p>
-                    <p className="text-sm text-gray-500">How often to create backups</p>
-                  </div>
-                  <select className="px-3 py-2 border border-gray-300 rounded-md">
-                    <option>Daily</option>
-                    <option>Weekly</option>
-                    <option>Monthly</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Backup Retention</p>
-                    <p className="text-sm text-gray-500">Keep backups for</p>
-                  </div>
-                  <select className="px-3 py-2 border border-gray-300 rounded-md">
-                    <option>30 days</option>
-                    <option>90 days</option>
-                    <option>1 year</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex space-x-2">
-                <Button className="flex-1 bg-primary hover:bg-primary/90">Create Backup Now</Button>
-                <Button variant="outline" className="flex-1">Restore from Backup</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="mobile" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Smartphone className="h-5 w-5 mr-2" />
-                Mobile App Settings
-              </CardTitle>
-              <CardDescription>Configure mobile application features</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Push Notifications</p>
-                    <p className="text-sm text-gray-500">Enable mobile push notifications</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Biometric Login</p>
-                    <p className="text-sm text-gray-500">Allow fingerprint/face unlock</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Offline Mode</p>
-                    <p className="text-sm text-gray-500">Enable offline document access</p>
-                  </div>
-                  <Switch />
-                </div>
-              </div>
-
-              <div className="bg-secondary/50 rounded-lg p-6">
-                <h3 className="font-semibold mb-2">Mobile App Status</h3>
-                <p className="text-sm text-gray-600">Mobile application will be available soon for iOS and Android platforms.</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            <div>
+              <label className="text-sm font-medium text-gray-500">Privacy Policy</label>
+              <p className="text-sm text-blue-600 hover:underline cursor-pointer">
+                View Privacy Policy
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
