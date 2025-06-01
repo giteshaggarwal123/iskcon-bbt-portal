@@ -191,8 +191,9 @@ export const MarkAttendanceDialog: React.FC<MarkAttendanceDialogProps> = ({ open
                     </SelectItem>
                   ))}
                 </SelectContent>
-              </div>
-            )}
+              </Select>
+            </div>
+          )}
 
           {/* Show current user info for members */}
           {!canManageMembers && user && (
