@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -248,30 +247,55 @@ export const DocumentsModule: React.FC = () => {
     return canDelete;
   };
 
-  // Clean up test documents on load
+  // Clean up test documents on load - improved logic
   useEffect(() => {
     const cleanupTestDocuments = async () => {
+      if (!user || documents.length === 0) return;
+      
+      // Find documents that match the test patterns
       const testDocuments = documents.filter(doc => 
         doc.name.includes('GST Certificate') || 
-        doc.name.includes('Litmus Industries')
+        doc.name.includes('Litmus Industries') ||
+        doc.name.toLowerCase().includes('test') ||
+        doc.name.includes('Haryana') ||
+        doc.name.includes('Pvt. Ltd.')
       );
       
-      console.log('Found test documents to cleanup:', testDocuments);
+      console.log('Found test documents to cleanup:', testDocuments.map(d => d.name));
       
-      for (const doc of testDocuments) {
-        try {
-          console.log('Deleting test document:', doc.name);
-          await deleteDocument(doc.id);
-        } catch (error) {
-          console.error('Failed to delete test document:', doc.name, error);
+      if (testDocuments.length > 0) {
+        for (const doc of testDocuments) {
+          try {
+            console.log('Deleting test document:', doc.name, 'ID:', doc.id);
+            
+            // Direct delete from Supabase
+            const { error } = await supabase
+              .from('documents')
+              .delete()
+              .eq('id', doc.id);
+
+            if (error) {
+              console.error('Failed to delete document:', doc.name, error);
+            } else {
+              console.log('Successfully deleted:', doc.name);
+            }
+          } catch (error) {
+            console.error('Error deleting test document:', doc.name, error);
+          }
         }
+        
+        // Force refresh after cleanup
+        setTimeout(() => {
+          fetchDocuments();
+        }, 1000);
       }
     };
 
-    if (documents.length > 0) {
+    // Only run cleanup if we have documents and user is authenticated
+    if (documents.length > 0 && user) {
       cleanupTestDocuments();
     }
-  }, [documents.length]);
+  }, [documents.length, user?.id]); // Dependencies to trigger cleanup
 
   // Fixed filtering logic to properly separate documents by folder
   const filteredDocuments = documents.filter(doc => {

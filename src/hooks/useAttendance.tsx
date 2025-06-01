@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -7,17 +8,17 @@ interface AttendanceRecord {
   id: string;
   meeting_id: string;
   user_id: string;
+  join_time: string | null;
+  leave_time: string | null;
+  duration_minutes: number | null;
   attendance_status: 'present' | 'late' | 'absent' | 'left_early';
   attendance_type: 'physical' | 'online';
-  join_time?: string;
-  leave_time?: string;
-  duration_minutes?: number;
-  is_verified: boolean;
-  verified_by?: string;
-  notes?: string;
+  is_verified: boolean | null;
+  verified_by: string | null;
+  notes: string | null;
   created_at: string;
   updated_at: string;
-  profiles?: {
+  profiles: {
     first_name: string;
     last_name: string;
     email: string;
@@ -26,132 +27,99 @@ interface AttendanceRecord {
 
 export const useAttendance = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Set up real-time subscription for attendance updates
-  useEffect(() => {
-    const channel = supabase
-      .channel('attendance-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'attendance_records'
-        },
-        (payload) => {
-          console.log('Real-time attendance update:', payload);
-          
-          if (payload.eventType === 'INSERT') {
-            // Refresh attendance data when new record is added
-            fetchAttendanceForMeeting(payload.new.meeting_id);
-          } else if (payload.eventType === 'UPDATE') {
-            // Update existing record
-            setAttendanceRecords(prev => 
-              prev.map(record => 
-                record.id === payload.new.id ? { ...record, ...payload.new } : record
-              )
-            );
-          } else if (payload.eventType === 'DELETE') {
-            // Remove deleted record
-            setAttendanceRecords(prev => 
-              prev.filter(record => record.id !== payload.old.id)
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const fetchAttendanceForMeeting = async (meetingId: string) => {
-    if (!meetingId) return [];
-    
+  const fetchAttendanceRecords = async () => {
     try {
-      console.log('Fetching attendance for meeting:', meetingId);
-      
       const { data, error } = await supabase
         .from('attendance_records')
         .select(`
           *,
-          profiles!attendance_records_user_id_fkey(first_name, last_name, email)
+          profiles:user_id (
+            first_name,
+            last_name,
+            email
+          )
         `)
-        .eq('meeting_id', meetingId);
+        .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Attendance fetch error:', error);
-        return [];
-      }
+      if (error) throw error;
 
-      console.log('Fetched attendance records:', data);
-      // Cast the data to the correct type
-      const typedData = (data || []).map(record => ({
+      // Transform the data to match our interface
+      const transformedData = (data || []).map(record => ({
         ...record,
         attendance_status: record.attendance_status as 'present' | 'late' | 'absent' | 'left_early',
-        attendance_type: record.attendance_type as 'physical' | 'online'
-      })) as AttendanceRecord[];
-      
-      setAttendanceRecords(typedData);
-      return typedData;
+        attendance_type: record.attendance_type as 'physical' | 'online',
+        profiles: record.profiles || { first_name: '', last_name: '', email: '' }
+      }));
+
+      setAttendanceRecords(transformedData);
     } catch (error: any) {
-      console.error('Error fetching attendance:', error);
-      return [];
+      console.error('Error fetching attendance records:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load attendance records",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const markAttendance = async (attendanceData: {
-    meetingId: string;
-    userId: string;
-    status: 'present' | 'late' | 'absent' | 'left_early';
-    type: 'physical' | 'online';
-    joinTime?: Date;
-    leaveTime?: Date;
-    notes?: string;
-  }) => {
+  const markAttendance = async (
+    meetingId: string,
+    userId: string,
+    status: 'present' | 'late' | 'absent' | 'left_early',
+    type: 'physical' | 'online',
+    joinTime?: string,
+    leaveTime?: string,
+    notes?: string
+  ) => {
     if (!user) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to mark attendance",
         variant: "destructive"
       });
-      return false;
+      return;
     }
 
     try {
-      console.log('Marking attendance:', attendanceData);
+      const attendanceData = {
+        meeting_id: meetingId,
+        user_id: userId,
+        attendance_status: status,
+        attendance_type: type,
+        join_time: joinTime || null,
+        leave_time: leaveTime || null,
+        notes: notes || null,
+        is_verified: false
+      };
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('attendance_records')
-        .upsert({
-          meeting_id: attendanceData.meetingId,
-          user_id: attendanceData.userId,
-          attendance_status: attendanceData.status,
-          attendance_type: attendanceData.type,
-          join_time: attendanceData.joinTime?.toISOString(),
-          leave_time: attendanceData.leaveTime?.toISOString(),
-          notes: attendanceData.notes,
-          verified_by: user.id,
-          is_verified: true
-        }, {
-          onConflict: 'meeting_id,user_id'
-        });
+        .insert(attendanceData)
+        .select(`
+          *,
+          profiles:user_id (
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .single();
 
-      if (error) {
-        console.error('Attendance marking error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: "Success",
         description: "Attendance marked successfully"
       });
 
-      return true;
+      fetchAttendanceRecords();
+      return data;
     } catch (error: any) {
       console.error('Error marking attendance:', error);
       toast({
@@ -159,112 +127,72 @@ export const useAttendance = () => {
         description: error.message || "Failed to mark attendance",
         variant: "destructive"
       });
-      return false;
     }
   };
 
-  const autoTrackOnlineAttendance = async (meetingId: string, teamsData: any) => {
-    if (!teamsData?.attendees) return;
-
+  const updateAttendance = async (
+    recordId: string,
+    updates: Partial<AttendanceRecord>
+  ) => {
     try {
-      const attendancePromises = teamsData.attendees.map(async (attendee: any) => {
-        // Try to match attendee email with user profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', attendee.emailAddress)
-          .single();
+      const { error } = await supabase
+        .from('attendance_records')
+        .update(updates)
+        .eq('id', recordId);
 
-        if (!profile) return null;
+      if (error) throw error;
 
-        const joinTime = attendee.joinDateTime ? new Date(attendee.joinDateTime) : null;
-        const leaveTime = attendee.leaveDateTime ? new Date(attendee.leaveDateTime) : null;
-        
-        let status: 'present' | 'late' | 'absent' | 'left_early' = 'present';
-        
-        // Determine status based on join/leave times
-        if (!joinTime) {
-          status = 'absent';
-        } else if (leaveTime && joinTime) {
-          const duration = (leaveTime.getTime() - joinTime.getTime()) / (1000 * 60);
-          if (duration < 15) { // Left within 15 minutes
-            status = 'left_early';
-          }
-        }
-
-        return {
-          meeting_id: meetingId,
-          user_id: profile.id,
-          attendance_status: status,
-          attendance_type: 'online' as const,
-          join_time: joinTime?.toISOString(),
-          leave_time: leaveTime?.toISOString(),
-          is_verified: true
-        };
+      toast({
+        title: "Success",
+        description: "Attendance updated successfully"
       });
 
-      const attendanceRecords = (await Promise.all(attendancePromises)).filter(Boolean);
-
-      if (attendanceRecords.length > 0) {
-        const { error } = await supabase
-          .from('attendance_records')
-          .upsert(attendanceRecords);
-
-        if (error) throw error;
-
-        toast({
-          title: "Success",
-          description: `Auto-tracked attendance for ${attendanceRecords.length} participants`
-        });
-      }
+      fetchAttendanceRecords();
     } catch (error: any) {
-      console.error('Error auto-tracking attendance:', error);
+      console.error('Error updating attendance:', error);
       toast({
-        title: "Warning",
-        description: "Failed to auto-track some attendance records",
+        title: "Error",
+        description: error.message || "Failed to update attendance",
         variant: "destructive"
       });
     }
   };
 
-  const generateAttendanceReport = async (meetingId?: string, startDate?: Date, endDate?: Date) => {
+  const deleteAttendance = async (recordId: string) => {
     try {
-      let query = supabase
+      const { error } = await supabase
         .from('attendance_records')
-        .select(`
-          *,
-          profiles!attendance_records_user_id_fkey(first_name, last_name, email),
-          meetings!attendance_records_meeting_id_fkey(title, start_time, meeting_type)
-        `);
+        .delete()
+        .eq('id', recordId);
 
-      if (meetingId) {
-        query = query.eq('meeting_id', meetingId);
-      }
+      if (error) throw error;
 
-      if (startDate && endDate) {
-        query = query.gte('created_at', startDate.toISOString())
-                     .lte('created_at', endDate.toISOString());
-      }
+      toast({
+        title: "Success",
+        description: "Attendance record deleted successfully"
+      });
 
-      const { data, error } = await query;
-      if (error) {
-        console.error('Report generation error:', error);
-        return [];
-      }
-
-      return data || [];
+      fetchAttendanceRecords();
     } catch (error: any) {
-      console.error('Error generating report:', error);
-      return [];
+      console.error('Error deleting attendance:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete attendance record",
+        variant: "destructive"
+      });
     }
   };
+
+  useEffect(() => {
+    fetchAttendanceRecords();
+  }, []);
 
   return {
     attendanceRecords,
     loading,
-    fetchAttendanceForMeeting,
     markAttendance,
-    autoTrackOnlineAttendance,
-    generateAttendanceReport
+    updateAttendance,
+    deleteAttendance,
+    fetchAttendanceRecords
   };
 };
