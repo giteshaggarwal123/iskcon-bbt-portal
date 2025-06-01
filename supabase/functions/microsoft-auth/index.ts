@@ -21,6 +21,14 @@ serve(async (req) => {
       )
     }
 
+    console.log('Processing Microsoft auth for user:', user_id)
+
+    // Determine the correct redirect URI based on the site URL
+    const siteUrl = Deno.env.get('SITE_URL') || 'https://bhakti-bureau-nexus.lovable.app'
+    const redirectUri = `${siteUrl}/microsoft-callback`
+    
+    console.log('Using redirect URI:', redirectUri)
+
     // Exchange authorization code for access token
     const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
       method: 'POST',
@@ -31,9 +39,9 @@ serve(async (req) => {
         client_id: Deno.env.get('MICROSOFT_CLIENT_ID') || '',
         client_secret: Deno.env.get('MICROSOFT_CLIENT_SECRET') || '',
         code: code,
-        redirect_uri: `${Deno.env.get('SITE_URL')}/microsoft-callback`,
+        redirect_uri: redirectUri,
         grant_type: 'authorization_code',
-        scope: 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All https://graph.microsoft.com/Sites.ReadWrite.All'
+        scope: 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All https://graph.microsoft.com/Sites.ReadWrite.All https://graph.microsoft.com/OnlineMeetings.ReadWrite'
       })
     })
 
@@ -46,6 +54,8 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    console.log('Token exchange successful')
 
     // Get user info from Microsoft Graph
     const userResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
@@ -63,6 +73,8 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    console.log('User info retrieved:', userData.displayName || userData.mail)
 
     // Store tokens in Supabase
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
@@ -88,6 +100,8 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    console.log('Microsoft tokens stored successfully')
 
     return new Response(
       JSON.stringify({ 
