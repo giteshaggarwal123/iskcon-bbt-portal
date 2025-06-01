@@ -37,7 +37,7 @@ export const useAttendance = () => {
         .from('attendance_records')
         .select(`
           *,
-          profiles:user_id (
+          profiles!attendance_records_user_id_fkey (
             first_name,
             last_name,
             email
@@ -65,6 +65,34 @@ export const useAttendance = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAttendanceForMeeting = async (meetingId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select(`
+          *,
+          profiles!attendance_records_user_id_fkey (
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .eq('meeting_id', meetingId);
+
+      if (error) throw error;
+
+      return (data || []).map(record => ({
+        ...record,
+        attendance_status: record.attendance_status as 'present' | 'late' | 'absent' | 'left_early',
+        attendance_type: record.attendance_type as 'physical' | 'online',
+        profiles: record.profiles || { first_name: '', last_name: '', email: '' }
+      }));
+    } catch (error: any) {
+      console.error('Error fetching meeting attendance:', error);
+      return [];
     }
   };
 
@@ -103,7 +131,7 @@ export const useAttendance = () => {
         .insert(attendanceData)
         .select(`
           *,
-          profiles:user_id (
+          profiles!attendance_records_user_id_fkey (
             first_name,
             last_name,
             email
@@ -128,6 +156,27 @@ export const useAttendance = () => {
         variant: "destructive"
       });
     }
+  };
+
+  // New function for simplified attendance marking with object parameter
+  const markAttendanceSimple = async (params: {
+    meetingId: string;
+    userId: string;
+    status: 'present' | 'late' | 'absent' | 'left_early';
+    type: 'physical' | 'online';
+    joinTime?: Date;
+    leaveTime?: Date;
+    notes?: string;
+  }) => {
+    return markAttendance(
+      params.meetingId,
+      params.userId,
+      params.status,
+      params.type,
+      params.joinTime?.toISOString(),
+      params.leaveTime?.toISOString(),
+      params.notes
+    );
   };
 
   const updateAttendance = async (
@@ -183,6 +232,66 @@ export const useAttendance = () => {
     }
   };
 
+  const generateAttendanceReport = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select(`
+          *,
+          profiles!attendance_records_user_id_fkey (
+            first_name,
+            last_name,
+            email
+          ),
+          meetings (
+            title,
+            start_time,
+            meeting_type
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error: any) {
+      console.error('Error generating attendance report:', error);
+      return [];
+    }
+  };
+
+  const autoTrackOnlineAttendance = async (meetingId: string, teamsData: any) => {
+    try {
+      if (!teamsData.attendees) return;
+
+      const attendancePromises = teamsData.attendees.map(async (attendee: any) => {
+        // Check if attendance already exists
+        const { data: existing } = await supabase
+          .from('attendance_records')
+          .select('id')
+          .eq('meeting_id', meetingId)
+          .eq('user_id', attendee.id)
+          .single();
+
+        if (existing) return;
+
+        // Auto-mark attendance based on Teams data
+        return markAttendance(
+          meetingId,
+          attendee.id,
+          'present',
+          'online',
+          attendee.joinTime,
+          attendee.leaveTime,
+          `Auto-tracked from Teams meeting`
+        );
+      });
+
+      await Promise.all(attendancePromises);
+    } catch (error: any) {
+      console.error('Error auto-tracking attendance:', error);
+    }
+  };
+
   useEffect(() => {
     fetchAttendanceRecords();
   }, []);
@@ -190,9 +299,12 @@ export const useAttendance = () => {
   return {
     attendanceRecords,
     loading,
-    markAttendance,
+    markAttendance: markAttendanceSimple,
     updateAttendance,
     deleteAttendance,
-    fetchAttendanceRecords
+    fetchAttendanceRecords,
+    fetchAttendanceForMeeting,
+    generateAttendanceReport,
+    autoTrackOnlineAttendance
   };
 };
