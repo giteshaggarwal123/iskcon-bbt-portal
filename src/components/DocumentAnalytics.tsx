@@ -26,7 +26,7 @@ interface DocumentView {
     first_name: string | null;
     last_name: string | null;
     email: string | null;
-  };
+  } | null;
 }
 
 export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ documentId, documentName }) => {
@@ -42,13 +42,28 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ documentId
         .from('document_views')
         .select(`
           *,
-          profiles!inner(first_name, last_name, email)
+          profiles!document_views_user_id_fkey(first_name, last_name, email)
         `)
         .eq('document_id', documentId)
         .order('view_started_at', { ascending: false });
 
       if (error) throw error;
-      setViews(data || []);
+      
+      // Type guard to ensure we have the correct data structure
+      const typedData = (data || []).map(item => ({
+        id: item.id,
+        user_id: item.user_id,
+        view_started_at: item.view_started_at,
+        view_ended_at: item.view_ended_at,
+        time_spent_seconds: item.time_spent_seconds,
+        completion_percentage: item.completion_percentage,
+        last_page_viewed: item.last_page_viewed,
+        profiles: item.profiles && typeof item.profiles === 'object' && !('error' in item.profiles) 
+          ? item.profiles as { first_name: string | null; last_name: string | null; email: string | null }
+          : null
+      }));
+      
+      setViews(typedData);
     } catch (error: any) {
       console.error('Error fetching document analytics:', error);
       toast({
