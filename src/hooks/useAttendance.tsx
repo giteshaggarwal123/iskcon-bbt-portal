@@ -33,27 +33,35 @@ export const useAttendance = () => {
 
   const fetchAttendanceRecords = async () => {
     try {
-      const { data, error } = await supabase
+      // First fetch attendance records
+      const { data: attendanceData, error: attendanceError } = await supabase
         .from('attendance_records')
-        .select(`
-          *,
-          profiles!attendance_records_user_id_fkey (
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (attendanceError) throw attendanceError;
 
-      // Transform the data to match our interface
-      const transformedData = (data || []).map(record => ({
-        ...record,
-        attendance_status: record.attendance_status as 'present' | 'late' | 'absent' | 'left_early',
-        attendance_type: record.attendance_type as 'physical' | 'online',
-        profiles: record.profiles || { first_name: '', last_name: '', email: '' }
-      }));
+      // Then fetch profiles separately
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email');
+
+      if (profilesError) throw profilesError;
+
+      // Combine the data
+      const transformedData = (attendanceData || []).map(record => {
+        const profile = profilesData?.find(p => p.id === record.user_id);
+        return {
+          ...record,
+          attendance_status: record.attendance_status as 'present' | 'late' | 'absent' | 'left_early',
+          attendance_type: record.attendance_type as 'physical' | 'online',
+          profiles: profile ? {
+            first_name: profile.first_name || '',
+            last_name: profile.last_name || '',
+            email: profile.email || ''
+          } : { first_name: '', last_name: '', email: '' }
+        };
+      });
 
       setAttendanceRecords(transformedData);
     } catch (error: any) {
@@ -70,26 +78,35 @@ export const useAttendance = () => {
 
   const fetchAttendanceForMeeting = async (meetingId: string) => {
     try {
-      const { data, error } = await supabase
+      // First fetch attendance records for the meeting
+      const { data: attendanceData, error: attendanceError } = await supabase
         .from('attendance_records')
-        .select(`
-          *,
-          profiles!attendance_records_user_id_fkey (
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('*')
         .eq('meeting_id', meetingId);
 
-      if (error) throw error;
+      if (attendanceError) throw attendanceError;
 
-      return (data || []).map(record => ({
-        ...record,
-        attendance_status: record.attendance_status as 'present' | 'late' | 'absent' | 'left_early',
-        attendance_type: record.attendance_type as 'physical' | 'online',
-        profiles: record.profiles || { first_name: '', last_name: '', email: '' }
-      }));
+      // Then fetch profiles separately
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email');
+
+      if (profilesError) throw profilesError;
+
+      // Combine the data
+      return (attendanceData || []).map(record => {
+        const profile = profilesData?.find(p => p.id === record.user_id);
+        return {
+          ...record,
+          attendance_status: record.attendance_status as 'present' | 'late' | 'absent' | 'left_early',
+          attendance_type: record.attendance_type as 'physical' | 'online',
+          profiles: profile ? {
+            first_name: profile.first_name || '',
+            last_name: profile.last_name || '',
+            email: profile.email || ''
+          } : { first_name: '', last_name: '', email: '' }
+        };
+      });
     } catch (error: any) {
       console.error('Error fetching meeting attendance:', error);
       return [];
@@ -129,14 +146,7 @@ export const useAttendance = () => {
       const { data, error } = await supabase
         .from('attendance_records')
         .insert(attendanceData)
-        .select(`
-          *,
-          profiles!attendance_records_user_id_fkey (
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('*')
         .single();
 
       if (error) throw error;
@@ -234,25 +244,40 @@ export const useAttendance = () => {
 
   const generateAttendanceReport = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch attendance records
+      const { data: attendanceData, error: attendanceError } = await supabase
         .from('attendance_records')
-        .select(`
-          *,
-          profiles!attendance_records_user_id_fkey (
-            first_name,
-            last_name,
-            email
-          ),
-          meetings (
-            title,
-            start_time,
-            meeting_type
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data || [];
+      if (attendanceError) throw attendanceError;
+
+      // Fetch profiles
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email');
+
+      if (profilesError) throw profilesError;
+
+      // Fetch meetings
+      const { data: meetingsData, error: meetingsError } = await supabase
+        .from('meetings')
+        .select('id, title, start_time, meeting_type');
+
+      if (meetingsError) throw meetingsError;
+
+      // Combine the data
+      const combinedData = (attendanceData || []).map(record => {
+        const profile = profilesData?.find(p => p.id === record.user_id);
+        const meeting = meetingsData?.find(m => m.id === record.meeting_id);
+        return {
+          ...record,
+          profiles: profile || { first_name: '', last_name: '', email: '' },
+          meetings: meeting || { title: 'Unknown', start_time: '', meeting_type: '' }
+        };
+      });
+
+      return combinedData;
     } catch (error: any) {
       console.error('Error generating attendance report:', error);
       return [];
