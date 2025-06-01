@@ -11,21 +11,16 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { User, Bell, Shield, Mail, Save, MessageCircle, Settings } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { MicrosoftOAuthButton } from './MicrosoftOAuthButton';
-import { MemberSettingsModule } from './MemberSettingsModule';
-import { AvatarUpload } from './AvatarUpload';
 
 export const SettingsModule: React.FC = () => {
   const { user } = useAuth();
-  const { canManageSettings } = useUserRole();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
-  const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null);
   
   // Personal Information State
   const [personalInfo, setPersonalInfo] = useState({
@@ -43,11 +38,6 @@ export const SettingsModule: React.FC = () => {
     voteNotifications: true
   });
 
-  // If user doesn't have manage settings permission, show member settings
-  if (!canManageSettings) {
-    return <MemberSettingsModule />;
-  }
-
   useEffect(() => {
     if (user) {
       fetchUserProfile();
@@ -64,10 +54,7 @@ export const SettingsModule: React.FC = () => {
         .eq('id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
-        return;
-      }
+      if (error) throw error;
 
       if (data) {
         setPersonalInfo({
@@ -76,13 +63,6 @@ export const SettingsModule: React.FC = () => {
           email: data.email || user.email || '',
           phone: data.phone || ''
         });
-
-        if (data.avatar_url) {
-          const { data: { publicUrl } } = supabase.storage
-            .from('avatars')
-            .getPublicUrl(data.avatar_url);
-          setCurrentAvatarUrl(publicUrl);
-        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -165,12 +145,6 @@ export const SettingsModule: React.FC = () => {
     }
   };
 
-  const handleAvatarUpdate = (url: string) => {
-    setCurrentAvatarUrl(url);
-    // Trigger a refresh of the header avatar by dispatching a custom event
-    window.dispatchEvent(new CustomEvent('avatarUpdated', { detail: url }));
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -234,16 +208,7 @@ export const SettingsModule: React.FC = () => {
               </CardTitle>
               <CardDescription>Update your personal details and contact information</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Avatar Upload Section */}
-              <div className="flex justify-center">
-                <AvatarUpload 
-                  currentAvatarUrl={currentAvatarUrl}
-                  onAvatarUpdate={handleAvatarUpdate}
-                />
-              </div>
-              
-              {/* Personal Information Form */}
+            <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="firstName">First Name</Label>
