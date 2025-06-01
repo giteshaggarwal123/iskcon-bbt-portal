@@ -1,10 +1,29 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Mail, Phone, Settings, MessageCircle } from 'lucide-react';
+import { User, Mail, Phone, Settings, MessageCircle, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MemberSettingsDialog } from './MemberSettingsDialog';
+import { MemberMessageDialog } from './MemberMessageDialog';
 
 interface Member {
   id: string;
@@ -19,9 +38,13 @@ interface Member {
 interface MemberCardProps {
   member: Member;
   onRoleChange: (memberId: string, newRole: string) => void;
+  onDeleteMember: (memberId: string) => void;
 }
 
-export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange }) => {
+export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, onDeleteMember }) => {
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showMessageDialog, setShowMessageDialog] = useState(false);
+
   const getRoleBadge = (role: string) => {
     const roleColors: { [key: string]: string } = {
       'admin': 'bg-red-500 text-white',
@@ -35,64 +58,128 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange }) 
   const primaryRole = member.roles[0] || 'member';
   const joinDate = new Date(member.created_at).toLocaleDateString();
 
+  const handleDeleteMember = () => {
+    onDeleteMember(member.id);
+  };
+
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-              <User className="h-8 w-8 text-primary" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                {member.first_name} {member.last_name}
-              </h3>
-              <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
-                <span className="flex items-center space-x-1">
-                  <Mail className="h-4 w-4" />
-                  <span>{member.email}</span>
-                </span>
-                {member.phone && (
+    <>
+      <Card className="hover:shadow-md transition-shadow">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <User className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {member.first_name} {member.last_name}
+                </h3>
+                <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
                   <span className="flex items-center space-x-1">
-                    <Phone className="h-4 w-4" />
-                    <span>{member.phone}</span>
+                    <Mail className="h-4 w-4" />
+                    <span>{member.email}</span>
                   </span>
-                )}
+                  {member.phone && (
+                    <span className="flex items-center space-x-1">
+                      <Phone className="h-4 w-4" />
+                      <span>{member.phone}</span>
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-2 mt-2">
+                  {getRoleBadge(primaryRole)}
+                  <Badge variant="outline">Joined {joinDate}</Badge>
+                </div>
               </div>
-              <div className="flex items-center space-x-2 mt-2">
-                {getRoleBadge(primaryRole)}
-                <Badge variant="outline">Joined {joinDate}</Badge>
-              </div>
-            </div>
-          </div>
-          
-          <div className="text-right space-y-3">
-            <div>
-              <label className="text-sm text-gray-500">Role</label>
-              <Select value={primaryRole} onValueChange={(value) => onRoleChange(member.id, value)}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="secretary">Secretary</SelectItem>
-                  <SelectItem value="treasurer">Treasurer</SelectItem>
-                  <SelectItem value="member">Member</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm">
-                <MessageCircle className="h-4 w-4" />
-              </Button>
+            <div className="text-right space-y-3">
+              <div>
+                <label className="text-sm text-gray-500">Role</label>
+                <Select value={primaryRole} onValueChange={(value) => onRoleChange(member.id, value)}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="secretary">Secretary</SelectItem>
+                    <SelectItem value="treasurer">Treasurer</SelectItem>
+                    <SelectItem value="member">Member</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex space-x-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => setShowSettingsDialog(true)}>
+                      Member Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      View Activity
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      Reset Password
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowMessageDialog(true)}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </Button>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Member</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete {member.first_name} {member.last_name}? 
+                        This action cannot be undone and will permanently remove their account and all associated data.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={handleDeleteMember}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        Delete Member
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      <MemberSettingsDialog 
+        open={showSettingsDialog}
+        onOpenChange={setShowSettingsDialog}
+        member={member}
+      />
+
+      <MemberMessageDialog 
+        open={showMessageDialog}
+        onOpenChange={setShowMessageDialog}
+        member={member}
+      />
+    </>
   );
 };

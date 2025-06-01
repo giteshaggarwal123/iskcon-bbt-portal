@@ -12,7 +12,7 @@ import { useMembers } from '@/hooks/useMembers';
 export const MembersModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
-  const { members, activityLogs, loading, addMember, updateMemberRole, searchMembers } = useMembers();
+  const { members, activityLogs, loading, addMember, updateMemberRole, deleteMember, searchMembers } = useMembers();
 
   // Use the search function from the hook
   const filteredMembers = useMemo(() => {
@@ -125,6 +125,7 @@ export const MembersModule: React.FC = () => {
                   key={member.id} 
                   member={member} 
                   onRoleChange={updateMemberRole}
+                  onDeleteMember={deleteMember}
                 />
               ))}
             </div>
