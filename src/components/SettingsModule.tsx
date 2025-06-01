@@ -21,27 +21,49 @@ export const SettingsModule: React.FC = () => {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!user) return;
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching profile:', error);
-      } else {
-        setProfile(data);
+      if (!user) {
+        console.log('No user found, skipping profile fetch');
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+      
+      console.log('Fetching profile for user:', user.id);
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching profile:', error);
+          toast({
+            title: "Profile Error",
+            description: "Could not load profile data",
+            variant: "destructive"
+          });
+        } else {
+          console.log('Profile data loaded:', data);
+          setProfile(data);
+        }
+      } catch (error) {
+        console.error('Profile fetch exception:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchProfile();
-  }, [user]);
+  }, [user, toast]);
 
   const handleLogout = async () => {
-    await signOut();
+    console.log('Logout initiated');
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   if (loading) {
@@ -51,6 +73,15 @@ export const SettingsModule: React.FC = () => {
       </div>
     );
   }
+
+  const hasMicrosoftConnection = profile?.microsoft_access_token && profile?.token_expires_at;
+  const isTokenValid = hasMicrosoftConnection && new Date(profile.token_expires_at) > new Date();
+
+  console.log('Microsoft connection status:', {
+    hasMicrosoftConnection,
+    isTokenValid,
+    tokenExpiresAt: profile?.token_expires_at
+  });
 
   return (
     <div className="space-y-6">
@@ -86,7 +117,7 @@ export const SettingsModule: React.FC = () => {
               <Label htmlFor="firstName">First Name</Label>
               <Input
                 id="firstName"
-                value={profile?.first_name || ''}
+                value={profile?.first_name || user?.user_metadata?.first_name || ''}
                 readOnly
                 className="bg-gray-50"
               />
@@ -95,7 +126,7 @@ export const SettingsModule: React.FC = () => {
               <Label htmlFor="lastName">Last Name</Label>
               <Input
                 id="lastName"
-                value={profile?.last_name || ''}
+                value={profile?.last_name || user?.user_metadata?.last_name || ''}
                 readOnly
                 className="bg-gray-50"
               />
@@ -117,7 +148,7 @@ export const SettingsModule: React.FC = () => {
             <Label htmlFor="phone">Phone Number</Label>
             <Input
               id="phone"
-              value={profile?.phone || 'Not provided'}
+              value={profile?.phone || user?.user_metadata?.phone || 'Not provided'}
               readOnly
               className="bg-gray-50"
             />
@@ -142,7 +173,7 @@ export const SettingsModule: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
-                {profile?.microsoft_access_token ? (
+                {isTokenValid ? (
                   <>
                     <CheckCircle className="h-5 w-5 text-green-500" />
                     <span className="font-medium">Connected</span>
@@ -154,13 +185,13 @@ export const SettingsModule: React.FC = () => {
                   </>
                 )}
               </div>
-              {profile?.microsoft_access_token && (
+              {isTokenValid && (
                 <Badge variant="secondary">Active</Badge>
               )}
             </div>
           </div>
 
-          {!profile?.microsoft_access_token && (
+          {!isTokenValid && (
             <div className="p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-800 mb-3">
                 Connect your Microsoft account to enable:
@@ -175,11 +206,16 @@ export const SettingsModule: React.FC = () => {
             </div>
           )}
 
-          {profile?.microsoft_access_token && (
+          {isTokenValid && (
             <div className="p-4 bg-green-50 rounded-lg">
               <p className="text-sm text-green-800">
                 Your Microsoft account is successfully connected. You can now use all integrated features.
               </p>
+              {profile?.token_expires_at && (
+                <p className="text-xs text-green-600 mt-1">
+                  Token expires: {new Date(profile.token_expires_at).toLocaleDateString()}
+                </p>
+              )}
             </div>
           )}
         </CardContent>

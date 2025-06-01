@@ -32,10 +32,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+        }
+        setSession(session);
+        setUser(session?.user ?? null);
+      } catch (error) {
+        console.error('Error in getInitialSession:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     getInitialSession();
@@ -128,17 +136,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast({
-        title: "Sign Out Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    } else {
+    try {
+      // Check if we have a valid session before attempting logout
+      if (!session) {
+        console.log('No active session found, clearing local state');
+        setSession(null);
+        setUser(null);
+        toast({
+          title: "Signed out",
+          description: "You have been signed out successfully."
+        });
+        return;
+      }
+
+      const { error } = await supabase.auth.signOut();
+      
+      // Clear local state regardless of error
+      setSession(null);
+      setUser(null);
+      
+      if (error) {
+        console.error('Logout error:', error);
+        toast({
+          title: "Logout Notice",
+          description: "You have been signed out locally."
+        });
+      } else {
+        toast({
+          title: "Signed out",
+          description: "You have been signed out successfully."
+        });
+      }
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      // Always clear local state even if logout fails
+      setSession(null);
+      setUser(null);
       toast({
         title: "Signed out",
-        description: "You have been signed out successfully."
+        description: "You have been signed out locally."
       });
     }
   };
