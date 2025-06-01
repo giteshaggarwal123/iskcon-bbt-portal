@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -8,17 +7,17 @@ interface AttendanceRecord {
   id: string;
   meeting_id: string;
   user_id: string;
-  join_time: string | null;
-  leave_time: string | null;
-  duration_minutes: number | null;
   attendance_status: 'present' | 'late' | 'absent' | 'left_early';
   attendance_type: 'physical' | 'online';
-  is_verified: boolean | null;
-  verified_by: string | null;
-  notes: string | null;
+  join_time?: string;
+  leave_time?: string;
+  duration_minutes?: number;
+  is_verified: boolean;
+  verified_by?: string;
+  notes?: string;
   created_at: string;
   updated_at: string;
-  profiles: {
+  profiles?: {
     first_name: string;
     last_name: string;
     email: string;
@@ -27,149 +26,38 @@ interface AttendanceRecord {
 
 export const useAttendance = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const fetchAttendanceRecords = async () => {
-    try {
-      // First fetch attendance records
-      const { data: attendanceData, error: attendanceError } = await supabase
-        .from('attendance_records')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (attendanceError) throw attendanceError;
-
-      // Then fetch profiles separately
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, email');
-
-      if (profilesError) throw profilesError;
-
-      // Combine the data
-      const transformedData = (attendanceData || []).map(record => {
-        const profile = profilesData?.find(p => p.id === record.user_id);
-        return {
-          ...record,
-          attendance_status: record.attendance_status as 'present' | 'late' | 'absent' | 'left_early',
-          attendance_type: record.attendance_type as 'physical' | 'online',
-          profiles: profile ? {
-            first_name: profile.first_name || '',
-            last_name: profile.last_name || '',
-            email: profile.email || ''
-          } : { first_name: '', last_name: '', email: '' }
-        };
-      });
-
-      setAttendanceRecords(transformedData);
-    } catch (error: any) {
-      console.error('Error fetching attendance records:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load attendance records",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const fetchAttendanceForMeeting = async (meetingId: string) => {
+    if (!meetingId) return [];
+    
     try {
-      // First fetch attendance records for the meeting
-      const { data: attendanceData, error: attendanceError } = await supabase
+      console.log('Fetching attendance for meeting:', meetingId);
+      
+      const { data, error } = await supabase
         .from('attendance_records')
-        .select('*')
+        .select(`
+          *,
+          profiles!attendance_records_user_id_fkey(first_name, last_name, email)
+        `)
         .eq('meeting_id', meetingId);
 
-      if (attendanceError) throw attendanceError;
+      if (error) {
+        console.error('Attendance fetch error:', error);
+        return [];
+      }
 
-      // Then fetch profiles separately
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, email');
-
-      if (profilesError) throw profilesError;
-
-      // Combine the data
-      return (attendanceData || []).map(record => {
-        const profile = profilesData?.find(p => p.id === record.user_id);
-        return {
-          ...record,
-          attendance_status: record.attendance_status as 'present' | 'late' | 'absent' | 'left_early',
-          attendance_type: record.attendance_type as 'physical' | 'online',
-          profiles: profile ? {
-            first_name: profile.first_name || '',
-            last_name: profile.last_name || '',
-            email: profile.email || ''
-          } : { first_name: '', last_name: '', email: '' }
-        };
-      });
+      console.log('Fetched attendance records:', data);
+      return data || [];
     } catch (error: any) {
-      console.error('Error fetching meeting attendance:', error);
+      console.error('Error fetching attendance:', error);
       return [];
     }
   };
 
-  const markAttendance = async (
-    meetingId: string,
-    userId: string,
-    status: 'present' | 'late' | 'absent' | 'left_early',
-    type: 'physical' | 'online',
-    joinTime?: string,
-    leaveTime?: string,
-    notes?: string
-  ) => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to mark attendance",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const attendanceData = {
-        meeting_id: meetingId,
-        user_id: userId,
-        attendance_status: status,
-        attendance_type: type,
-        join_time: joinTime || null,
-        leave_time: leaveTime || null,
-        notes: notes || null,
-        is_verified: false
-      };
-
-      const { data, error } = await supabase
-        .from('attendance_records')
-        .insert(attendanceData)
-        .select('*')
-        .single();
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Attendance marked successfully"
-      });
-
-      fetchAttendanceRecords();
-      return data;
-    } catch (error: any) {
-      console.error('Error marking attendance:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to mark attendance",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // New function for simplified attendance marking with object parameter
-  const markAttendanceSimple = async (params: {
+  const markAttendance = async (attendanceData: {
     meetingId: string;
     userId: string;
     status: 'present' | 'late' | 'absent' | 'left_early';
@@ -178,158 +66,158 @@ export const useAttendance = () => {
     leaveTime?: Date;
     notes?: string;
   }) => {
-    return markAttendance(
-      params.meetingId,
-      params.userId,
-      params.status,
-      params.type,
-      params.joinTime?.toISOString(),
-      params.leaveTime?.toISOString(),
-      params.notes
-    );
-  };
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to mark attendance",
+        variant: "destructive"
+      });
+      return false;
+    }
 
-  const updateAttendance = async (
-    recordId: string,
-    updates: Partial<AttendanceRecord>
-  ) => {
     try {
+      console.log('Marking attendance:', attendanceData);
+
       const { error } = await supabase
         .from('attendance_records')
-        .update(updates)
-        .eq('id', recordId);
+        .upsert({
+          meeting_id: attendanceData.meetingId,
+          user_id: attendanceData.userId,
+          attendance_status: attendanceData.status,
+          attendance_type: attendanceData.type,
+          join_time: attendanceData.joinTime?.toISOString(),
+          leave_time: attendanceData.leaveTime?.toISOString(),
+          notes: attendanceData.notes,
+          verified_by: user.id,
+          is_verified: true
+        }, {
+          onConflict: 'meeting_id,user_id'
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Attendance marking error:', error);
+        throw error;
+      }
 
       toast({
         title: "Success",
-        description: "Attendance updated successfully"
+        description: "Attendance marked successfully"
       });
 
-      fetchAttendanceRecords();
+      return true;
     } catch (error: any) {
-      console.error('Error updating attendance:', error);
+      console.error('Error marking attendance:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update attendance",
+        description: error.message || "Failed to mark attendance",
         variant: "destructive"
       });
-    }
-  };
-
-  const deleteAttendance = async (recordId: string) => {
-    try {
-      const { error } = await supabase
-        .from('attendance_records')
-        .delete()
-        .eq('id', recordId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Attendance record deleted successfully"
-      });
-
-      fetchAttendanceRecords();
-    } catch (error: any) {
-      console.error('Error deleting attendance:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete attendance record",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const generateAttendanceReport = async () => {
-    try {
-      // Fetch attendance records
-      const { data: attendanceData, error: attendanceError } = await supabase
-        .from('attendance_records')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (attendanceError) throw attendanceError;
-
-      // Fetch profiles
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, email');
-
-      if (profilesError) throw profilesError;
-
-      // Fetch meetings
-      const { data: meetingsData, error: meetingsError } = await supabase
-        .from('meetings')
-        .select('id, title, start_time, meeting_type');
-
-      if (meetingsError) throw meetingsError;
-
-      // Combine the data
-      const combinedData = (attendanceData || []).map(record => {
-        const profile = profilesData?.find(p => p.id === record.user_id);
-        const meeting = meetingsData?.find(m => m.id === record.meeting_id);
-        return {
-          ...record,
-          profiles: profile || { first_name: '', last_name: '', email: '' },
-          meetings: meeting || { title: 'Unknown', start_time: '', meeting_type: '' }
-        };
-      });
-
-      return combinedData;
-    } catch (error: any) {
-      console.error('Error generating attendance report:', error);
-      return [];
+      return false;
     }
   };
 
   const autoTrackOnlineAttendance = async (meetingId: string, teamsData: any) => {
-    try {
-      if (!teamsData.attendees) return;
+    if (!teamsData?.attendees) return;
 
+    try {
       const attendancePromises = teamsData.attendees.map(async (attendee: any) => {
-        // Check if attendance already exists
-        const { data: existing } = await supabase
-          .from('attendance_records')
+        // Try to match attendee email with user profile
+        const { data: profile } = await supabase
+          .from('profiles')
           .select('id')
-          .eq('meeting_id', meetingId)
-          .eq('user_id', attendee.id)
+          .eq('email', attendee.emailAddress)
           .single();
 
-        if (existing) return;
+        if (!profile) return null;
 
-        // Auto-mark attendance based on Teams data
-        return markAttendance(
-          meetingId,
-          attendee.id,
-          'present',
-          'online',
-          attendee.joinTime,
-          attendee.leaveTime,
-          `Auto-tracked from Teams meeting`
-        );
+        const joinTime = attendee.joinDateTime ? new Date(attendee.joinDateTime) : null;
+        const leaveTime = attendee.leaveDateTime ? new Date(attendee.leaveDateTime) : null;
+        
+        let status: 'present' | 'late' | 'absent' | 'left_early' = 'present';
+        
+        // Determine status based on join/leave times
+        if (!joinTime) {
+          status = 'absent';
+        } else if (leaveTime && joinTime) {
+          const duration = (leaveTime.getTime() - joinTime.getTime()) / (1000 * 60);
+          if (duration < 15) { // Left within 15 minutes
+            status = 'left_early';
+          }
+        }
+
+        return {
+          meeting_id: meetingId,
+          user_id: profile.id,
+          attendance_status: status,
+          attendance_type: 'online' as const,
+          join_time: joinTime?.toISOString(),
+          leave_time: leaveTime?.toISOString(),
+          is_verified: true
+        };
       });
 
-      await Promise.all(attendancePromises);
+      const attendanceRecords = (await Promise.all(attendancePromises)).filter(Boolean);
+
+      if (attendanceRecords.length > 0) {
+        const { error } = await supabase
+          .from('attendance_records')
+          .upsert(attendanceRecords);
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: `Auto-tracked attendance for ${attendanceRecords.length} participants`
+        });
+      }
     } catch (error: any) {
       console.error('Error auto-tracking attendance:', error);
+      toast({
+        title: "Warning",
+        description: "Failed to auto-track some attendance records",
+        variant: "destructive"
+      });
     }
   };
 
-  useEffect(() => {
-    fetchAttendanceRecords();
-  }, []);
+  const generateAttendanceReport = async (meetingId?: string, startDate?: Date, endDate?: Date) => {
+    try {
+      let query = supabase
+        .from('attendance_records')
+        .select(`
+          *,
+          profiles!attendance_records_user_id_fkey(first_name, last_name, email),
+          meetings!attendance_records_meeting_id_fkey(title, start_time, meeting_type)
+        `);
+
+      if (meetingId) {
+        query = query.eq('meeting_id', meetingId);
+      }
+
+      if (startDate && endDate) {
+        query = query.gte('created_at', startDate.toISOString())
+                     .lte('created_at', endDate.toISOString());
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error('Report generation error:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error: any) {
+      console.error('Error generating report:', error);
+      return [];
+    }
+  };
 
   return {
     attendanceRecords,
     loading,
-    markAttendance: markAttendanceSimple,
-    updateAttendance,
-    deleteAttendance,
-    fetchAttendanceRecords,
     fetchAttendanceForMeeting,
-    generateAttendanceReport,
-    autoTrackOnlineAttendance
+    markAttendance,
+    autoTrackOnlineAttendance,
+    generateAttendanceReport
   };
 };

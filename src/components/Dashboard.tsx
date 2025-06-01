@@ -153,20 +153,18 @@ export const Dashboard: React.FC = () => {
   const unreadEmailsCount = emails.filter(email => !email.isRead).length;
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header with Connection Status - Fixed positioning */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex-1">
+    <div className="space-y-6">
+      {/* Header with Connection Status */}
+      <div className="flex justify-between items-center">
+        <div>
           <h1 className="text-3xl font-bold text-gray-900">Bureau Dashboard</h1>
-          <p className="text-gray-600 mt-1">Welcome back! Here's what's happening today.</p>
+          <p className="text-gray-600">Welcome back! Here's what's happening today.</p>
         </div>
-        <div className="flex-shrink-0">
-          <MicrosoftConnectionStatus />
-        </div>
+        <MicrosoftConnectionStatus />
       </div>
 
-      {/* Stats Cards - Improved responsive grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Members</CardTitle>
@@ -225,14 +223,14 @@ export const Dashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Quick Stats with Real Data - Improved responsive grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Quick Stats with Real Data */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
               <CalendarDays className="w-6 h-6 text-primary" />
             </div>
-            <div className="ml-4 min-w-0">
+            <div className="ml-4">
               <h3 className="text-lg font-semibold text-gray-900">{stats.activeMeetings}</h3>
               <p className="text-sm text-gray-500">Today's Meetings</p>
             </div>
@@ -241,10 +239,10 @@ export const Dashboard: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
               <CheckCircle className="w-6 h-6 text-green-500" />
             </div>
-            <div className="ml-4 min-w-0">
+            <div className="ml-4">
               <h3 className="text-lg font-semibold text-gray-900">{stats.pollsCount}</h3>
               <p className="text-sm text-gray-500">Active Polls</p>
             </div>
@@ -253,10 +251,10 @@ export const Dashboard: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="w-12 h-12 bg-yellow-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 bg-yellow-500/10 rounded-lg flex items-center justify-center">
               <FileText className="w-6 h-6 text-yellow-500" />
             </div>
-            <div className="ml-4 min-w-0">
+            <div className="ml-4">
               <h3 className="text-lg font-semibold text-gray-900">{stats.documentsCount}</h3>
               <p className="text-sm text-gray-500">Documents</p>
             </div>
@@ -265,12 +263,12 @@ export const Dashboard: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center">
               <Mail className="w-6 h-6 text-red-500" />
             </div>
-            <div className="ml-4 min-w-0">
+            <div className="ml-4">
               <h3 className="text-lg font-semibold text-gray-900">{stats.inboxEmailsCount}</h3>
-              <p className="text-sm text-gray-500 truncate">
+              <p className="text-sm text-gray-500">
                 Inbox ({unreadEmailsCount} unread)
               </p>
             </div>
@@ -278,7 +276,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Recent Activity with Real Data - Improved responsive grid */}
+      {/* Recent Activity with Real Data */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="p-6 border-b border-gray-200">
@@ -289,13 +287,13 @@ export const Dashboard: React.FC = () => {
               const isUpcoming = new Date(meeting.start_time) > new Date();
               return (
                 <div key={meeting.id} className="flex items-center justify-between">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-medium text-gray-900 truncate">{meeting.title}</h3>
+                  <div>
+                    <h3 className="font-medium text-gray-900">{meeting.title}</h3>
                     <p className="text-sm text-gray-500">
                       {new Date(meeting.start_time).toLocaleDateString()} • {new Date(meeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
-                  <span className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ml-2 ${
+                  <span className={`px-2 py-1 text-xs rounded-full ${
                     isUpcoming ? 'bg-primary/10 text-primary' : 'bg-green-500/10 text-green-500'
                   }`}>
                     {isUpcoming ? 'Upcoming' : 'Completed'}
@@ -316,13 +314,13 @@ export const Dashboard: React.FC = () => {
           <div className="p-6 space-y-4">
             {recentDocuments.map((doc) => (
               <div key={doc.id} className="flex items-center justify-between">
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-medium text-gray-900 truncate">{doc.name}</h3>
+                <div>
+                  <h3 className="font-medium text-gray-900">{doc.name}</h3>
                   <p className="text-sm text-gray-500">
                     {new Date(doc.created_at).toLocaleDateString()} • {doc.folder || 'General'}
                   </p>
                 </div>
-                <span className="px-2 py-1 bg-blue-500/10 text-blue-500 text-xs rounded-full flex-shrink-0 ml-2">
+                <span className="px-2 py-1 bg-blue-500/10 text-blue-500 text-xs rounded-full">
                   {doc.mime_type?.includes('pdf') ? 'PDF' : 'Document'}
                 </span>
               </div>
@@ -340,13 +338,13 @@ export const Dashboard: React.FC = () => {
           <div className="p-6 space-y-4">
             {recentEmails.map((email) => (
               <div key={email.id} className="flex items-center justify-between">
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-medium text-gray-900 truncate">{email.subject}</h3>
-                  <p className="text-sm text-gray-500 truncate">
+                <div>
+                  <h3 className="font-medium text-gray-900">{email.subject}</h3>
+                  <p className="text-sm text-gray-500">
                     {email.from.name} • {new Date(email.receivedDateTime).toLocaleDateString()}
                   </p>
                 </div>
-                <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+                <div className="flex items-center space-x-2">
                   {!email.isRead && (
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                   )}

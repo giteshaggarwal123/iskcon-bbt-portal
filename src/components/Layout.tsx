@@ -9,18 +9,19 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [currentModule, setCurrentModule] = useState('dashboard');
 
   return (
-    <div className="min-h-screen bg-gray-50 flex w-full">
+    <div className="min-h-screen bg-gray-50 flex">
       <Sidebar 
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)}
+        currentModule={currentModule}
+        onModuleChange={setCurrentModule}
       />
-      <div className={`flex-1 flex flex-col transition-all duration-300 min-w-0 ${
-        sidebarOpen ? 'lg:ml-64' : 'ml-0'
-      }`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 overflow-auto">
+        <main className="p-6">
           {children}
         </main>
       </div>

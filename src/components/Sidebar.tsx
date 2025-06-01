@@ -1,161 +1,123 @@
 
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { 
-  LayoutDashboard, 
   Calendar, 
-  FileText, 
-  Vote, 
+  File, 
   Users, 
+  Settings, 
   Mail, 
-  UserCheck, 
-  BarChart3, 
-  Settings,
-  X
+  Clock,
+  User,
+  Check,
+  BarChart3
 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  currentModule: string;
+  onModuleChange: (module: string) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const location = useLocation();
-  const { canManageMembers, canManageMeetings, canManageDocuments, canViewReports, canManageSettings } = useUserRole();
+const allMenuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: Calendar, requiredPermission: null },
+  { id: 'meetings', label: 'Meetings', icon: Calendar, requiredPermission: null }, // All users can view meetings
+  { id: 'documents', label: 'Documents', icon: File, requiredPermission: null }, // All users can view documents
+  { id: 'voting', label: 'Voting', icon: Check, requiredPermission: null },
+  { id: 'attendance', label: 'Attendance', icon: Clock, requiredPermission: null }, // All users can view attendance
+  { id: 'email', label: 'Email', icon: Mail, requiredPermission: null }, // All users can access email
+  { id: 'members', label: 'Members', icon: Users, requiredPermission: null }, // All users can view members
+  { id: 'reports', label: 'Reports', icon: BarChart3, requiredPermission: 'canViewReports' },
+  { id: 'settings', label: 'Settings', icon: Settings, requiredPermission: null }, // All users can access settings (but content varies by role)
+];
 
-  const menuItems = [
-    {
-      name: 'Dashboard',
-      icon: LayoutDashboard,
-      path: '/',
-      show: true
-    },
-    {
-      name: 'Meetings',
-      icon: Calendar,
-      path: '/meetings',
-      show: canManageMeetings,
-      badge: 'New'
-    },
-    {
-      name: 'Documents',
-      icon: FileText,
-      path: '/documents',
-      show: canManageDocuments
-    },
-    {
-      name: 'Voting',
-      icon: Vote,
-      path: '/voting',
-      show: true
-    },
-    {
-      name: 'Attendance',
-      icon: UserCheck,
-      path: '/attendance',
-      show: true
-    },
-    {
-      name: 'Email',
-      icon: Mail,
-      path: '/email',
-      show: true
-    },
-    {
-      name: 'Members',
-      icon: Users,
-      path: '/members',
-      show: canManageMembers
-    },
-    {
-      name: 'Reports',
-      icon: BarChart3,
-      path: '/reports',
-      show: canViewReports
-    },
-    {
-      name: 'Settings',
-      icon: Settings,
-      path: '/settings',
-      show: true // Always show settings - useUserRole hook will handle what's shown inside
-    }
-  ];
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModuleChange }) => {
+  const { user } = useAuth();
+  const userRole = useUserRole();
 
-  const isActivePath = (path: string) => {
-    if (path === '/') {
-      return location.pathname === '/';
-    }
-    return location.pathname.startsWith(path);
-  };
+  // Filter menu items based on user permissions
+  const menuItems = allMenuItems.filter(item => {
+    if (!item.requiredPermission) return true;
+    return userRole[item.requiredPermission as keyof typeof userRole];
+  });
+
+  // Extract user info from the authenticated user
+  const userName = user?.user_metadata?.first_name 
+    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim()
+    : user?.email?.split('@')[0] || 'User';
+  
+  const userEmail = user?.email || 'user@iskcon.org';
 
   return (
-    <>
-      {/* Mobile backdrop */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={onClose}
-        />
-      )}
-      
-      {/* Sidebar */}
-      <div className={cn(
-        "fixed top-0 left-0 z-50 h-full w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out",
-        isOpen ? "translate-x-0" : "-translate-x-full",
-        "lg:translate-x-0 lg:static lg:inset-0"
-      )}>
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-gray-900">ISKCON Bureau</h1>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="lg:hidden"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        
-        <nav className="mt-6 px-3">
-          <div className="space-y-1">
-            {menuItems.filter(item => item.show).map((item) => {
-              const isActive = isActivePath(item.path);
-              return (
-                <Link
-                  key={item.name}
-                  to={item.path}
-                  onClick={() => {
-                    // Close sidebar on mobile when item is clicked
-                    if (window.innerWidth < 1024) {
-                      onClose();
-                    }
-                  }}
-                  className={cn(
-                    "flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  )}
-                >
-                  <div className="flex items-center space-x-3">
-                    <item.icon className="h-5 w-5" />
-                    <span>{item.name}</span>
-                  </div>
-                  {item.badge && (
-                    <Badge variant="secondary" className="text-xs">
-                      {item.badge}
-                    </Badge>
-                  )}
-                </Link>
-              );
-            })}
+    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className="flex flex-col h-full">
+        {/* Logo Section */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 flex items-center justify-center">
+              <img 
+                src="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" 
+                alt="ISKCON Logo" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">ISKCON</h1>
+              <p className="text-sm text-gray-500">Bureau Management</p>
+            </div>
           </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 space-y-1">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onModuleChange(item.id)}
+              className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                currentModule === item.id
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-secondary hover:text-gray-900'
+              }`}
+            >
+              <item.icon className="mr-3 h-5 w-5" />
+              {item.label}
+            </button>
+          ))}
         </nav>
+
+        {/* User Profile Section */}
+        <div className="border-t border-gray-200 p-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+              <User className="h-4 w-4 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {userName}
+              </p>
+              <div className="flex items-center space-x-2">
+                <p className="text-xs text-gray-500 truncate">
+                  {userEmail}
+                </p>
+                {userRole.userRole && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                    userRole.isSuperAdmin ? 'bg-red-100 text-red-700' :
+                    userRole.isAdmin ? 'bg-blue-100 text-blue-700' :
+                    userRole.isSecretary ? 'bg-green-100 text-green-700' :
+                    userRole.isTreasurer ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    {userRole.userRole.replace('_', ' ')}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </>
+    </div>
   );
 };
