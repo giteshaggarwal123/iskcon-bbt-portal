@@ -32,31 +32,34 @@ export const useMembers = () => {
 
   const fetchMembers = async () => {
     try {
-      // Fetch profiles with roles
+      // First fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          id,
-          email,
-          first_name,
-          last_name,
-          phone,
-          created_at,
-          user_roles(role)
-        `);
+        .select('*');
 
       if (profilesError) throw profilesError;
 
-      const membersData = profiles?.map(profile => ({
-        id: profile.id,
-        email: profile.email || '',
-        first_name: profile.first_name || '',
-        last_name: profile.last_name || '',
-        phone: profile.phone || '',
-        created_at: profile.created_at,
-        last_sign_in_at: null,
-        roles: profile.user_roles?.map((ur: any) => ur.role) || []
-      })) || [];
+      // Then fetch all user roles
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) throw rolesError;
+
+      // Combine the data
+      const membersData = profiles?.map(profile => {
+        const memberRoles = userRoles?.filter(role => role.user_id === profile.id) || [];
+        return {
+          id: profile.id,
+          email: profile.email || '',
+          first_name: profile.first_name || '',
+          last_name: profile.last_name || '',
+          phone: profile.phone || '',
+          created_at: profile.created_at,
+          last_sign_in_at: null,
+          roles: memberRoles.map(role => role.role)
+        };
+      }) || [];
 
       setMembers(membersData);
     } catch (error: any) {
@@ -173,6 +176,66 @@ export const useMembers = () => {
     }
   };
 
+  const deleteMember = async (memberId: string) => {
+    try {
+      // Delete user roles first
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', memberId);
+
+      // Delete profile
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', memberId);
+
+      if (error) throw error;
+
+      await logActivity('Deleted member', `Removed member from bureau`);
+
+      toast({
+        title: "Member Deleted",
+        description: "Member has been removed successfully"
+      });
+
+      fetchMembers();
+    } catch (error: any) {
+      console.error('Error deleting member:', error);
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete member",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const exportMembers = () => {
+    const csvContent = [
+      ['Name', 'Email', 'Phone', 'Role', 'Join Date'],
+      ...members.map(member => [
+        `${member.first_name} ${member.last_name}`,
+        member.email,
+        member.phone || '',
+        member.roles[0] || 'member',
+        new Date(member.created_at).toLocaleDateString()
+      ])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'members-export.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export Complete",
+      description: "Members list has been exported successfully"
+    });
+  };
+
   const logActivity = async (action: string, details?: string) => {
     if (!user) return;
 
@@ -213,6 +276,8 @@ export const useMembers = () => {
     loading,
     addMember,
     updateMemberRole,
+    deleteMember,
+    exportMembers,
     fetchMembers,
     logActivity
   };
