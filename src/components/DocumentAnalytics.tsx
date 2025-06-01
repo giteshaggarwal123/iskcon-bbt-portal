@@ -50,7 +50,19 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ documentId
       
       // Type guard to ensure we have the correct data structure
       const typedData = (data || []).map(item => {
-        const profiles = item.profiles;
+        const rawProfiles = item.profiles;
+        let processedProfiles: { first_name: string | null; last_name: string | null; email: string | null } | null = null;
+        
+        if (rawProfiles && typeof rawProfiles === 'object' && !Array.isArray(rawProfiles)) {
+          // Check if it's not an error object
+          if (!('error' in rawProfiles)) {
+            processedProfiles = {
+              first_name: (rawProfiles as any).first_name || null,
+              last_name: (rawProfiles as any).last_name || null,
+              email: (rawProfiles as any).email || null
+            };
+          }
+        }
         
         return {
           id: item.id,
@@ -60,9 +72,7 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ documentId
           time_spent_seconds: item.time_spent_seconds,
           completion_percentage: item.completion_percentage,
           last_page_viewed: item.last_page_viewed,
-          profiles: profiles && typeof profiles === 'object' && profiles !== null && !('error' in profiles)
-            ? profiles as { first_name: string | null; last_name: string | null; email: string | null }
-            : null
+          profiles: processedProfiles
         };
       });
       
