@@ -11,8 +11,10 @@ import {
   Search,
   Check,
   Folder,
-  FileSearch
+  FileSearch,
+  BarChart3
 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -29,21 +31,33 @@ const menuItems = [
   { id: 'attendance', label: 'Attendance', icon: Clock },
   { id: 'email', label: 'Email', icon: Mail },
   { id: 'members', label: 'Members', icon: Users },
+  { id: 'reports', label: 'Reports', icon: BarChart3 },
   { id: 'search', label: 'Search', icon: Search },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModuleChange }) => {
+  const { user } = useAuth();
+
+  // Extract user info from the authenticated user
+  const userName = user?.user_metadata?.first_name 
+    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim()
+    : user?.email?.split('@')[0] || 'User';
+  
+  const userEmail = user?.email || 'user@iskcon.org';
+
   return (
     <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="flex flex-col h-full">
         {/* Logo Section */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-              <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-                <div className="w-3 h-3 bg-primary rounded-full"></div>
-              </div>
+            <div className="w-12 h-12 flex items-center justify-center">
+              <img 
+                src="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" 
+                alt="ISKCON Logo" 
+                className="w-full h-full object-contain"
+              />
             </div>
             <div>
               <h1 className="text-lg font-semibold text-gray-900">ISKCON</h1>
@@ -78,10 +92,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModul
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
-                General Secretary
+                {userName}
               </p>
               <p className="text-xs text-gray-500 truncate">
-                admin@iskcon.org
+                {userEmail}
               </p>
             </div>
           </div>

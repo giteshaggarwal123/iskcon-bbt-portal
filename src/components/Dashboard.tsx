@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Calendar, FileText, Users, Mail, Clock, Check, TrendingUp, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +12,7 @@ import { AttendanceModule } from './AttendanceModule';
 import { EmailModule } from './EmailModule';
 import { MembersModule } from './MembersModule';
 import { SettingsModule } from './SettingsModule';
+import { ReportsModule } from './ReportsModule';
 
 interface DashboardProps {
   currentModule?: string;
@@ -33,6 +35,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentModule = 'dashboard
       return <MembersModule />;
     case 'settings':
       return <SettingsModule />;
+    case 'reports':
+      return <ReportsModule />;
     case 'search':
       return (
         <div className="space-y-6">
@@ -111,7 +115,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentModule = 'dashboard
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-error/10 rounded-lg flex items-center justify-center">
                   <svg className="w-6 h-6 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
                 <div className="ml-4">
