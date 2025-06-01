@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Send, Paperclip, Users, Mail } from 'lucide-react';
+import { useEmails } from '@/hooks/useEmails';
 
 interface ComposeEmailDialogProps {
   open: boolean;
@@ -22,10 +23,32 @@ export const ComposeEmailDialog: React.FC<ComposeEmailDialogProps> = ({ open, on
     attachments: [] as File[]
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { sendEmail, sending } = useEmails();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Sending email:', formData);
-    // Send email logic here
+    
+    if (!formData.to.trim() || !formData.subject.trim() || !formData.message.trim()) {
+      return;
+    }
+
+    const recipients = formData.to.split(',').map(email => email.trim()).filter(Boolean);
+    
+    await sendEmail({
+      subject: formData.subject,
+      body: formData.message,
+      recipients,
+      attachments: []
+    });
+
+    // Reset form and close dialog
+    setFormData({
+      to: '',
+      template: '',
+      subject: '',
+      message: '',
+      attachments: []
+    });
     onOpenChange(false);
   };
 
@@ -52,7 +75,7 @@ export const ComposeEmailDialog: React.FC<ComposeEmailDialogProps> = ({ open, on
                   id="to"
                   value={formData.to}
                   onChange={(e) => setFormData({...formData, to: e.target.value})}
-                  placeholder="Select recipients or enter emails"
+                  placeholder="Enter email addresses (comma separated)"
                   className="pl-10"
                   required
                 />
@@ -104,11 +127,11 @@ export const ComposeEmailDialog: React.FC<ComposeEmailDialogProps> = ({ open, on
             </Button>
             <div className="flex space-x-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Save Draft
+                Cancel
               </Button>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={sending}>
                 <Send className="h-4 w-4 mr-2" />
-                Send Email
+                {sending ? 'Sending...' : 'Send Email'}
               </Button>
             </div>
           </div>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -5,37 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { Mail, Send, Paperclip, Users, Eye, Clock, CheckCircle, Plus, Search } from 'lucide-react';
+import { Mail, Send, Paperclip, Users, Eye, Clock, CheckCircle, Plus, Search, RefreshCw } from 'lucide-react';
 import { ComposeEmailDialog } from './ComposeEmailDialog';
+import { useEmails } from '@/hooks/useEmails';
 
 export const EmailModule: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [showComposeDialog, setShowComposeDialog] = useState(false);
-
-  const emails = [
-    {
-      id: 1,
-      subject: 'Meeting Agenda - Monthly Bureau Meeting',
-      recipients: ['All Bureau Members'],
-      sentDate: '2024-01-18 2:30 PM',
-      status: 'delivered',
-      openRate: 85,
-      readCount: 10,
-      totalRecipients: 12,
-      hasAttachments: true
-    },
-    {
-      id: 2,
-      subject: 'Document Review: Temple Construction Policy',
-      recipients: ['Building Committee'],
-      sentDate: '2024-01-17 10:15 AM',
-      status: 'sent',
-      openRate: 75,
-      readCount: 6,
-      totalRecipients: 8,
-      hasAttachments: true
-    }
-  ];
+  const [searchTerm, setSearchTerm] = useState('');
+  const { emails, loading, fetchEmails, markAsRead } = useEmails();
 
   const templates = [
     { id: 1, name: 'Meeting Invitation', category: 'Meetings' },
@@ -50,17 +29,26 @@ export const EmailModule: React.FC = () => {
     { name: 'Gauranga Prabhu', email: 'gauranga@iskcon.org', role: 'Bureau Member' }
   ];
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'delivered':
-        return <Badge className="bg-success text-white">Delivered</Badge>;
-      case 'sent':
-        return <Badge className="bg-primary text-white">Sent</Badge>;
-      case 'draft':
-        return <Badge variant="secondary">Draft</Badge>;
-      default:
-        return <Badge variant="secondary">Unknown</Badge>;
+  const filteredEmails = emails.filter(email => 
+    email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    email.from.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    email.from.address.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getImportanceBadge = (importance: string) => {
+    if (importance === 'high') {
+      return <Badge className="bg-red-500 text-white">High</Badge>;
     }
+    return null;
   };
 
   return (
@@ -97,20 +85,80 @@ export const EmailModule: React.FC = () => {
                   <Input
                     placeholder="Search emails..."
                     className="pl-10"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
               </div>
-              <Button variant="outline">
-                <Mail className="h-4 w-4 mr-2" />
+              <Button variant="outline" onClick={fetchEmails} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
             </div>
 
-            <div className="bg-secondary/50 rounded-lg p-8 text-center">
-              <Mail className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">Email integration will be configured here</p>
-              <p className="text-sm text-gray-500 mt-2">Connect your existing email accounts to manage all communications</p>
-            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : filteredEmails.length > 0 ? (
+              <div className="space-y-4">
+                {filteredEmails.map((email) => (
+                  <Card 
+                    key={email.id} 
+                    className={`hover:shadow-md transition-shadow cursor-pointer ${
+                      !email.isRead ? 'bg-blue-50 border-blue-200' : ''
+                    }`}
+                    onClick={() => markAsRead(email.id)}
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <h3 className={`font-medium ${!email.isRead ? 'font-semibold' : ''}`}>
+                              {email.from.name}
+                            </h3>
+                            <span className="text-sm text-gray-500">&lt;{email.from.address}&gt;</span>
+                            {!email.isRead && (
+                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                            )}
+                          </div>
+                          <h4 className={`text-sm ${!email.isRead ? 'font-semibold' : ''} text-gray-900 mb-2`}>
+                            {email.subject}
+                          </h4>
+                          <p className="text-sm text-gray-600 line-clamp-2">
+                            {email.body.replace(/<[^>]*>/g, '').substring(0, 150)}...
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end space-y-2">
+                          <span className="text-xs text-gray-500">
+                            {formatDate(email.receivedDateTime)}
+                          </span>
+                          <div className="flex items-center space-x-2">
+                            {email.hasAttachments && (
+                              <Badge variant="secondary">
+                                <Paperclip className="h-3 w-3 mr-1" />
+                                Attachment
+                              </Badge>
+                            )}
+                            {getImportanceBadge(email.importance)}
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Mail className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">
+                  {searchTerm ? 'No emails found matching your search' : 'No emails found'}
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {emails.length === 0 ? 'Make sure your Microsoft account is connected in Settings' : ''}
+                </p>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="compose" className="space-y-6">
@@ -173,63 +221,10 @@ export const EmailModule: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="sent" className="space-y-6">
-            <div className="grid gap-6">
-              {emails.map((email) => (
-                <Card key={email.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-lg">{email.subject}</CardTitle>
-                        <CardDescription className="flex items-center space-x-4 mt-2">
-                          <span className="flex items-center space-x-1">
-                            <Users className="h-4 w-4" />
-                            <span>{email.recipients.join(', ')}</span>
-                          </span>
-                          <span className="flex items-center space-x-1">
-                            <Clock className="h-4 w-4" />
-                            <span>{email.sentDate}</span>
-                          </span>
-                        </CardDescription>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {email.hasAttachments && (
-                          <Badge variant="secondary">
-                            <Paperclip className="h-3 w-3 mr-1" />
-                            Attachments
-                          </Badge>
-                        )}
-                        {getStatusBadge(email.status)}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-primary">{email.totalRecipients}</div>
-                        <div className="text-sm text-gray-500">Recipients</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-success">{email.readCount}</div>
-                        <div className="text-sm text-gray-500">Read</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-warning">{email.openRate}%</div>
-                        <div className="text-sm text-gray-500">Open Rate</div>
-                      </div>
-                    </div>
-                    <div className="flex space-x-2 mt-4 pt-4 border-t">
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Details
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Read Receipts
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="text-center py-12">
+              <Mail className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">Sent emails will appear here</p>
+              <p className="text-sm text-gray-500 mt-2">Track delivery and read receipts for sent messages</p>
             </div>
           </TabsContent>
 
