@@ -201,20 +201,23 @@ export const DocumentsModule: React.FC = () => {
     setSelectedFolder('all');
   };
 
-  // Filter documents based on search, folder, and current view
+  // Updated filtering logic to properly separate documents by folder
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = !searchTerm || doc.name.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (currentFolder) {
       // When viewing a specific folder, ONLY show documents in that folder
       return matchesSearch && (doc.folder || 'general') === currentFolder;
-    } else if (selectedFolder === 'all') {
-      // When showing all documents, include all documents
-      return matchesSearch;
     } else {
-      // When filtering by folder dropdown, show documents in that folder
-      const matchesFolder = (doc.folder || 'general') === selectedFolder;
-      return matchesSearch && matchesFolder;
+      // When in main view, ONLY show documents that are NOT in any folder (i.e., in 'general' folder)
+      // or if filtering by dropdown, show documents in that specific folder
+      if (selectedFolder === 'all') {
+        // Show only documents in 'general' folder when showing "all"
+        return matchesSearch && (doc.folder || 'general') === 'general';
+      } else {
+        // When filtering by folder dropdown, show documents in that folder
+        return matchesSearch && (doc.folder || 'general') === selectedFolder;
+      }
     }
   });
 
@@ -278,10 +281,10 @@ export const DocumentsModule: React.FC = () => {
                   className="flex items-center space-x-1 cursor-pointer hover:text-primary"
                 >
                   <Home className="h-4 w-4" />
-                  <span>All Documents</span>
+                  <span>General Documents</span>
                 </BreadcrumbLink>
               </BreadcrumbItem>
-              {currentFolder && (
+              {currentFolder && currentFolder !== 'general' && (
                 <>
                   <BreadcrumbSeparator />
                   <BreadcrumbItem>
@@ -296,8 +299,8 @@ export const DocumentsModule: React.FC = () => {
           
           <p className="text-gray-600">
             {currentFolder 
-              ? `Viewing ${currentFolder} folder • ${filteredDocuments.length} documents`
-              : `Manage bureau documents and files • ${documents.length} total documents`
+              ? `Viewing ${currentFolder === 'general' ? 'general documents' : `${currentFolder} folder`} • ${filteredDocuments.length} documents`
+              : `Manage bureau documents and files • ${documents.filter(d => (d.folder || 'general') === 'general').length} general documents`
             }
           </p>
         </div>
@@ -384,8 +387,8 @@ export const DocumentsModule: React.FC = () => {
               <SelectValue placeholder="All folders" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Folders</SelectItem>
-              {allFolders.map(folder => (
+              <SelectItem value="all">General Documents</SelectItem>
+              {allFolders.filter(f => f !== 'general').map(folder => (
                 <SelectItem key={folder} value={folder}>
                   {folder.charAt(0).toUpperCase() + folder.slice(1)}
                 </SelectItem>
@@ -403,7 +406,7 @@ export const DocumentsModule: React.FC = () => {
             <span>Folders</span>
           </h2>
           <div className="flex space-x-4 overflow-x-auto pb-2">
-            {allFolders.map((folder) => (
+            {allFolders.filter(f => f !== 'general').map((folder) => (
               <ContextMenu key={folder}>
                 <ContextMenuTrigger>
                   <div
@@ -455,9 +458,9 @@ export const DocumentsModule: React.FC = () => {
           </h2>
         )}
         
-        {/* Documents Grid - Show filtered documents based on current view */}
+        {/* Documents Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {(currentFolder ? filteredDocuments : documentsNotInFolders).map((document) => (
+          {filteredDocuments.map((document) => (
             <ContextMenu key={document.id}>
               <ContextMenuTrigger>
                 <Card 
@@ -571,7 +574,7 @@ export const DocumentsModule: React.FC = () => {
           ))}
         </div>
 
-        {(currentFolder ? filteredDocuments : documentsNotInFolders).length === 0 && (
+        {filteredDocuments.length === 0 && (
           <div className="text-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
