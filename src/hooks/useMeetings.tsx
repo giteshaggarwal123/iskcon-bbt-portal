@@ -164,6 +164,19 @@ export const useMeetings = () => {
 
   const deleteMeeting = async (meetingId: string) => {
     try {
+      // Delete related attendance records first
+      await supabase
+        .from('attendance_records')
+        .delete()
+        .eq('meeting_id', meetingId);
+
+      // Delete meeting attendees
+      await supabase
+        .from('meeting_attendees')
+        .delete()
+        .eq('meeting_id', meetingId);
+
+      // Delete the meeting
       const { error } = await supabase
         .from('meetings')
         .delete()
@@ -171,12 +184,14 @@ export const useMeetings = () => {
 
       if (error) throw error;
 
+      // Update local state immediately
+      setMeetings(prev => prev.filter(meeting => meeting.id !== meetingId));
+
       toast({
         title: "Success",
         description: "Meeting deleted successfully"
       });
 
-      fetchMeetings();
     } catch (error: any) {
       console.error('Error deleting meeting:', error);
       toast({
@@ -185,6 +200,25 @@ export const useMeetings = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const deletePastMeeting = async (meetingId: string) => {
+    const meeting = meetings.find(m => m.id === meetingId);
+    if (!meeting) return;
+
+    const now = new Date();
+    const endTime = new Date(meeting.end_time);
+
+    if (endTime > now) {
+      toast({
+        title: "Cannot Delete",
+        description: "Can only delete past meetings",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await deleteMeeting(meetingId);
   };
 
   useEffect(() => {
@@ -198,6 +232,7 @@ export const useMeetings = () => {
     loading,
     createMeeting,
     deleteMeeting,
+    deletePastMeeting,
     fetchMeetings
   };
 };

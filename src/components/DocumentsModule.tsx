@@ -206,7 +206,7 @@ export const DocumentsModule: React.FC = () => {
     const matchesSearch = !searchTerm || doc.name.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (currentFolder) {
-      // When viewing a specific folder, only show documents in that folder
+      // When viewing a specific folder, ONLY show documents in that folder
       return matchesSearch && (doc.folder || 'general') === currentFolder;
     } else if (selectedFolder === 'all') {
       // When showing all documents, include all documents
@@ -452,9 +452,9 @@ export const DocumentsModule: React.FC = () => {
           </h2>
         )}
         
-        {/* Documents Grid */}
+        {/* Documents Grid - Show filtered documents based on current view */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredDocuments.map((document) => (
+          {(currentFolder ? filteredDocuments : documentsNotInFolders).map((document) => (
             <ContextMenu key={document.id}>
               <ContextMenuTrigger>
                 <Card 
@@ -568,16 +568,18 @@ export const DocumentsModule: React.FC = () => {
           ))}
         </div>
 
-        {filteredDocuments.length === 0 && (
+        {(currentFolder ? filteredDocuments : documentsNotInFolders).length === 0 && (
           <div className="text-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
             <p className="text-gray-500 mb-4">
               {searchTerm || (currentFolder && selectedFolder !== 'all')
                 ? 'Try adjusting your search or filter criteria'
-                : 'Get started by uploading your first document'}
+                : currentFolder 
+                  ? `No documents in ${currentFolder} folder yet`
+                  : 'Get started by uploading your first document'}
             </p>
-            {!searchTerm && (!currentFolder || selectedFolder === 'all') && (
+            {!searchTerm && (
               <Button onClick={() => setUploadDialogOpen(true)}>
                 <Upload className="h-4 w-4 mr-2" />
                 Upload Document

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -18,6 +17,11 @@ interface AttendanceRecord {
   notes?: string;
   created_at: string;
   updated_at: string;
+  profiles?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
 }
 
 export const useAttendance = () => {
@@ -27,7 +31,11 @@ export const useAttendance = () => {
   const { toast } = useToast();
 
   const fetchAttendanceForMeeting = async (meetingId: string) => {
+    if (!meetingId) return [];
+    
     try {
+      console.log('Fetching attendance for meeting:', meetingId);
+      
       const { data, error } = await supabase
         .from('attendance_records')
         .select(`
@@ -36,15 +44,15 @@ export const useAttendance = () => {
         `)
         .eq('meeting_id', meetingId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Attendance fetch error:', error);
+        return [];
+      }
+
+      console.log('Fetched attendance records:', data);
       return data || [];
     } catch (error: any) {
       console.error('Error fetching attendance:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch attendance records",
-        variant: "destructive"
-      });
       return [];
     }
   };
@@ -58,9 +66,18 @@ export const useAttendance = () => {
     leaveTime?: Date;
     notes?: string;
   }) => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to mark attendance",
+        variant: "destructive"
+      });
+      return false;
+    }
 
     try {
+      console.log('Marking attendance:', attendanceData);
+
       const { error } = await supabase
         .from('attendance_records')
         .upsert({
@@ -73,9 +90,14 @@ export const useAttendance = () => {
           notes: attendanceData.notes,
           verified_by: user.id,
           is_verified: true
+        }, {
+          onConflict: 'meeting_id,user_id'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Attendance marking error:', error);
+        throw error;
+      }
 
       toast({
         title: "Success",
@@ -178,16 +200,14 @@ export const useAttendance = () => {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('Report generation error:', error);
+        return [];
+      }
 
       return data || [];
     } catch (error: any) {
       console.error('Error generating report:', error);
-      toast({
-        title: "Error",
-        description: "Failed to generate attendance report",
-        variant: "destructive"
-      });
       return [];
     }
   };

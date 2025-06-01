@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,13 +12,12 @@ import { useMembers } from '@/hooks/useMembers';
 export const MembersModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
-  const { members, activityLogs, loading, addMember, updateMemberRole } = useMembers();
+  const { members, activityLogs, loading, addMember, updateMemberRole, searchMembers } = useMembers();
 
-  const filteredMembers = members.filter(member =>
-    `${member.first_name} ${member.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.roles.some(role => role.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Use the search function from the hook
+  const filteredMembers = useMemo(() => {
+    return searchMembers(searchTerm);
+  }, [members, searchTerm, searchMembers]);
 
   const roles = [
     {
@@ -108,7 +106,7 @@ export const MembersModule: React.FC = () => {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Search members by name, email, or role..."
+                    placeholder="Search members by name, email, phone, or role..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -130,6 +128,27 @@ export const MembersModule: React.FC = () => {
                 />
               ))}
             </div>
+
+            {filteredMembers.length === 0 && (
+              <div className="text-center py-12">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {searchTerm ? 'No members found' : 'No members yet'}
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  {searchTerm 
+                    ? 'Try adjusting your search criteria'
+                    : 'Get started by adding your first member'
+                  }
+                </p>
+                {!searchTerm && (
+                  <Button onClick={() => setShowAddMemberDialog(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Member
+                  </Button>
+                )}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="roles" className="space-y-6">
