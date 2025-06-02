@@ -23,11 +23,12 @@ serve(async (req) => {
 
     console.log('Processing Microsoft auth for user:', user_id)
 
-    // Use the specific tenant ID instead of 'common'
+    // Use the specific tenant ID
     const tenantId = Deno.env.get('MICROSOFT_TENANT_ID') || 'b2333ef6-3378-4d02-b9b9-d8e66d9dfa3d'
     
-    // Determine the correct redirect URI based on the site URL
-    const siteUrl = Deno.env.get('SITE_URL') || 'https://bhakti-bureau-nexus.lovable.app'
+    // Determine the correct redirect URI based on the request origin or site URL
+    const requestOrigin = req.headers.get('origin') || req.headers.get('referer')?.split('/')[0] + '//' + req.headers.get('referer')?.split('/')[2]
+    const siteUrl = Deno.env.get('SITE_URL') || requestOrigin || 'https://iskconbureau.in'
     const redirectUri = `${siteUrl}/microsoft-callback`
     
     console.log('Using redirect URI:', redirectUri)

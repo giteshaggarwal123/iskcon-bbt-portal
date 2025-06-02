@@ -52,8 +52,8 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       
       // Show instructions to user
       toast({
-        title: "Redirect URI Configuration Needed",
-        description: `Please add this redirect URI to your Azure app: ${redirectUri}`,
+        title: "Azure Configuration Required",
+        description: `Add this redirect URI to your Azure app: ${redirectUri}`,
         duration: 10000
       });
       
@@ -78,6 +78,9 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         <p className="text-sm text-blue-700 mb-2">
           Before connecting, add these redirect URIs to your Azure app registration:
         </p>
+        <div className="bg-white p-2 rounded border text-xs font-mono text-gray-800 mb-2">
+          https://iskconbureau.in/microsoft-callback
+        </div>
         <div className="bg-white p-2 rounded border text-xs font-mono text-gray-800 mb-2">
           https://bhakti-bureau-nexus.lovable.app/microsoft-callback
         </div>
