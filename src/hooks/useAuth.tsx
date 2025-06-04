@@ -33,6 +33,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Check if session should be persisted based on remember me setting
+    const shouldPersist = localStorage.getItem('rememberMe') === 'true';
+    const rememberMeExpiry = localStorage.getItem('rememberMeExpiry');
+    
+    // If remember me was not checked or has expired, clear session storage
+    if (!shouldPersist || (rememberMeExpiry && Date.now() > parseInt(rememberMeExpiry))) {
+      localStorage.removeItem('rememberMe');
+      localStorage.removeItem('rememberMeExpiry');
+      // Clear any stored session
+      localStorage.removeItem('sb-daiimiznlkffbbadhodw-auth-token');
+      sessionStorage.removeItem('sb-daiimiznlkffbbadhodw-auth-token');
+    }
+
     // Get initial session
     const getInitialSession = async () => {
       try {
@@ -40,8 +53,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (error) {
           console.error('Error getting session:', error);
         }
-        setSession(session);
-        setUser(session?.user ?? null);
+        
+        // Only set session if remember me is enabled or session is fresh
+        if (session && (shouldPersist || isSessionFresh(session))) {
+          setSession(session);
+          setUser(session?.user ?? null);
+        } else {
+          // Clear session if remember me is not enabled
+          if (session && !shouldPersist) {
+            await supabase.auth.signOut();
+          }
+          setSession(null);
+          setUser(null);
+        }
       } catch (error) {
         console.error('Error in getInitialSession:', error);
       } finally {
@@ -55,14 +79,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
-        setSession(session);
-        setUser(session?.user ?? null);
+        
+        if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+        } else if (session) {
+          const shouldPersist = localStorage.getItem('rememberMe') === 'true';
+          
+          if (shouldPersist || isSessionFresh(session)) {
+            setSession(session);
+            setUser(session?.user ?? null);
+          } else {
+            // If remember me is not enabled and session is not fresh, sign out
+            await supabase.auth.signOut();
+          }
+        }
         setLoading(false);
       }
     );
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Helper function to check if session is fresh (less than 1 hour old)
+  const isSessionFresh = (session: Session): boolean => {
+    if (!session.expires_at) return false;
+    const sessionAge = Date.now() - (session.expires_at * 1000 - session.expires_in! * 1000);
+    return sessionAge < 60 * 60 * 1000; // 1 hour
+  };
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string, phone?: string) => {
     try {
@@ -108,6 +152,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
+      // Clear any existing remember me settings first
+      localStorage.removeItem('rememberMe');
+      localStorage.removeItem('rememberMeExpiry');
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -124,12 +172,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Handle remember me functionality
       if (rememberMe) {
-        // Set longer session duration (30 days)
         localStorage.setItem('rememberMe', 'true');
         localStorage.setItem('rememberMeExpiry', (Date.now() + 30 * 24 * 60 * 60 * 1000).toString());
-      } else {
-        localStorage.removeItem('rememberMe');
-        localStorage.removeItem('rememberMeExpiry');
       }
 
       toast({
