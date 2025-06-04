@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { User } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { SettingsModule } from './SettingsModule';
