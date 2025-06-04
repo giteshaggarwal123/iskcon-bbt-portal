@@ -59,10 +59,12 @@ serve(async (req) => {
       .select('*')
       .eq('identifier', identifier)
       .eq('type', type)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single();
 
     if (fetchError || !otpRecord) {
-      console.log(`OTP not found for identifier: ${identifier}, type: ${type}`);
+      console.log(`OTP not found for identifier: ${identifier}, type: ${type}. Error:`, fetchError);
       return new Response(
         JSON.stringify({ error: 'OTP not found or expired. Please request a new OTP.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

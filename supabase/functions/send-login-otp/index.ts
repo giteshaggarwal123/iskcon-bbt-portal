@@ -63,6 +63,7 @@ serve(async (req) => {
       .single();
 
     if (profileError || !profile) {
+      console.log('Profile lookup error:', profileError);
       return new Response(
         JSON.stringify({ 
           error: 'User not found in the system.',
@@ -112,8 +113,10 @@ serve(async (req) => {
       .eq('identifier', email)
       .eq('type', 'login');
 
+    console.log('Storing OTP for email:', email, 'OTP:', otp);
+
     // Store new OTP in database
-    const { error: otpError } = await supabase
+    const { data: otpData, error: otpError } = await supabase
       .from('otp_codes')
       .insert({
         identifier: email,
@@ -121,17 +124,22 @@ serve(async (req) => {
         type: 'login',
         expires_at: expiresAt.toISOString(),
         attempts: 0
-      });
+      })
+      .select()
+      .single();
 
     if (otpError) {
       console.error('Error storing OTP:', otpError);
       return new Response(
-        JSON.stringify({ error: 'Failed to generate OTP' }),
+        JSON.stringify({ 
+          error: 'Failed to generate OTP',
+          details: 'Database error occurred while storing verification code.'
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Stored login OTP in database for email: ${email}, OTP: ${otp}`);
+    console.log('OTP stored successfully:', otpData);
 
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');

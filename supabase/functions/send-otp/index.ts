@@ -64,8 +64,10 @@ serve(async (req) => {
       .eq('identifier', phoneNumber)
       .eq('type', 'reset');
 
+    console.log('Storing reset OTP for phone:', phoneNumber, 'OTP:', otp);
+
     // Store new OTP in database
-    const { error: otpError } = await supabase
+    const { data: otpData, error: otpError } = await supabase
       .from('otp_codes')
       .insert({
         identifier: phoneNumber,
@@ -73,17 +75,22 @@ serve(async (req) => {
         type: 'reset',
         expires_at: expiresAt.toISOString(),
         attempts: 0
-      });
+      })
+      .select()
+      .single();
 
     if (otpError) {
       console.error('Error storing OTP:', otpError);
       return new Response(
-        JSON.stringify({ error: 'Failed to generate OTP' }),
+        JSON.stringify({ 
+          error: 'Failed to generate OTP',
+          details: 'Database error occurred while storing verification code.'
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Stored reset OTP in database for phone: ${phoneNumber}, OTP: ${otp}`);
+    console.log('Reset OTP stored successfully:', otpData);
     
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
