@@ -35,6 +35,7 @@ serve(async (req) => {
     console.log('Using tenant ID:', tenantId)
 
     // Exchange authorization code for access token using tenant-specific endpoint
+    // Include offline_access scope to get refresh token
     const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
       method: 'POST',
       headers: {
@@ -46,7 +47,7 @@ serve(async (req) => {
         code: code,
         redirect_uri: redirectUri,
         grant_type: 'authorization_code',
-        scope: 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All https://graph.microsoft.com/Sites.ReadWrite.All https://graph.microsoft.com/OnlineMeetings.ReadWrite'
+        scope: 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All https://graph.microsoft.com/Sites.ReadWrite.All https://graph.microsoft.com/OnlineMeetings.ReadWrite offline_access'
       })
     })
 
@@ -88,13 +89,16 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    // Calculate expiration time with some buffer
+    const expiresAt = new Date(Date.now() + (tokenData.expires_in - 300) * 1000).toISOString() // 5 minutes buffer
+
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
         microsoft_user_id: userData.id,
         microsoft_access_token: tokenData.access_token,
         microsoft_refresh_token: tokenData.refresh_token,
-        token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+        token_expires_at: expiresAt
       })
       .eq('id', user_id)
 
@@ -112,7 +116,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         user: userData,
-        expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+        expires_at: expiresAt
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

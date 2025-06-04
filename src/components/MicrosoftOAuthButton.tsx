@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
+import { MicrosoftConnectionStatus } from './MicrosoftConnectionStatus';
 
 interface MicrosoftOAuthButtonProps {
   onSuccess?: () => void;
@@ -13,6 +14,7 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isConnected, disconnectMicrosoft } = useMicrosoftAuth();
 
   const handleMicrosoftLogin = async () => {
     if (!user) {
@@ -37,7 +39,7 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       
       console.log('Microsoft OAuth redirect URI:', redirectUri);
       
-      const scope = 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All https://graph.microsoft.com/Sites.ReadWrite.All https://graph.microsoft.com/OnlineMeetings.ReadWrite';
+      const scope = 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All https://graph.microsoft.com/Sites.ReadWrite.All https://graph.microsoft.com/OnlineMeetings.ReadWrite offline_access';
       
       const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?` +
         `client_id=${clientId}&` +
@@ -49,13 +51,6 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       
       // Store user ID in session storage for callback
       sessionStorage.setItem('microsoft_auth_user_id', user.id);
-      
-      // Show instructions to user
-      toast({
-        title: "Azure Configuration Required",
-        description: `Add this redirect URI to your Azure app: ${redirectUri}`,
-        duration: 10000
-      });
       
       // Redirect to Microsoft OAuth
       window.location.href = authUrl;
@@ -71,25 +66,45 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
     }
   };
 
+  if (isConnected) {
+    return (
+      <div className="space-y-4">
+        <MicrosoftConnectionStatus />
+        <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+          <h4 className="font-medium text-green-800 mb-2">Microsoft 365 Connected</h4>
+          <p className="text-sm text-green-700 mb-3">
+            Your Microsoft account is connected and tokens are automatically refreshed. You can now use Outlook, Teams, and SharePoint features.
+          </p>
+          <Button 
+            onClick={disconnectMicrosoft}
+            variant="outline"
+            className="text-red-600 border-red-200 hover:bg-red-50"
+          >
+            Disconnect Microsoft Account
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
+      <MicrosoftConnectionStatus />
+      
       <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <h4 className="font-medium text-blue-800 mb-2">Azure Configuration Required</h4>
+        <h4 className="font-medium text-blue-800 mb-2">Enhanced Microsoft Integration</h4>
         <p className="text-sm text-blue-700 mb-2">
-          Before connecting, add these redirect URIs to your Azure app registration:
+          This integration now includes automatic token refresh to keep your connection persistent. Once connected, you won't need to reconnect frequently.
         </p>
         <div className="bg-white p-2 rounded border text-xs font-mono text-gray-800 mb-2">
-          https://iskconbureau.in/microsoft-callback
+          ✓ Automatic token refresh every 30 minutes
         </div>
         <div className="bg-white p-2 rounded border text-xs font-mono text-gray-800 mb-2">
-          https://bhakti-bureau-nexus.lovable.app/microsoft-callback
+          ✓ Persistent connection until manually disconnected
         </div>
         <div className="bg-white p-2 rounded border text-xs font-mono text-gray-800 mb-2">
-          http://localhost:3000/microsoft-callback
+          ✓ Enhanced error handling and recovery
         </div>
-        <p className="text-xs text-blue-600">
-          Go to Azure Portal → App registrations → Authentication → Add platform → Web → Add these URIs
-        </p>
       </div>
       
       <Button 

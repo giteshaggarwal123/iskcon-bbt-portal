@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { useMicrosoftAuth } from './useMicrosoftAuth';
 
 export interface Email {
   id: string;
@@ -24,20 +25,14 @@ export const useEmails = () => {
   const [sending, setSending] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isConnected, isExpired, accessToken, checkAndRefreshToken } = useMicrosoftAuth();
 
   const fetchEmails = async () => {
     if (!user) return;
     
     setLoading(true);
     try {
-      // Check if user has Microsoft tokens
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('microsoft_access_token, token_expires_at')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.microsoft_access_token) {
+      if (!isConnected) {
         toast({
           title: "Microsoft Account Required",
           description: "Please connect your Microsoft account in Settings to view emails",
@@ -46,11 +41,16 @@ export const useEmails = () => {
         return;
       }
 
-      // Check if token is still valid
-      if (new Date(profile.token_expires_at) <= new Date()) {
+      if (isExpired) {
+        // Try to refresh the token
+        await checkAndRefreshToken();
+        return;
+      }
+
+      if (!accessToken) {
         toast({
-          title: "Token Expired",
-          description: "Your Microsoft token has expired. Please reconnect your account in Settings",
+          title: "Authentication Error",
+          description: "Microsoft access token not available. Please reconnect your account.",
           variant: "destructive"
         });
         return;
@@ -59,12 +59,17 @@ export const useEmails = () => {
       // Fetch emails from Microsoft Graph
       const response = await fetch('https://graph.microsoft.com/v1.0/me/messages?$top=50&$orderby=receivedDateTime desc', {
         headers: {
-          'Authorization': `Bearer ${profile.microsoft_access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          // Token might be expired, try to refresh
+          await checkAndRefreshToken();
+          return;
+        }
         throw new Error('Failed to fetch emails from Microsoft Graph');
       }
 
@@ -133,21 +138,13 @@ export const useEmails = () => {
   };
 
   const markAsRead = async (emailId: string) => {
-    if (!user) return;
+    if (!user || !accessToken) return;
 
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('microsoft_access_token')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.microsoft_access_token) return;
-
       const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${emailId}`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${profile.microsoft_access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -159,6 +156,9 @@ export const useEmails = () => {
         setEmails(prev => prev.map(email => 
           email.id === emailId ? { ...email, isRead: true } : email
         ));
+      } else if (response.status === 401) {
+        // Token expired, refresh it
+        await checkAndRefreshToken();
       }
     } catch (error) {
       console.error('Error marking email as read:', error);
@@ -166,10 +166,10 @@ export const useEmails = () => {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && isConnected && !isExpired) {
       fetchEmails();
     }
-  }, [user]);
+  }, [user, isConnected, isExpired, accessToken]);
 
   return {
     emails,
