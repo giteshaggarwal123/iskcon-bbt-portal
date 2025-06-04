@@ -114,6 +114,16 @@ export const useMembers = () => {
       return;
     }
 
+    // Validate that phone number is provided
+    if (!memberData.phone || memberData.phone.trim() === '') {
+      toast({
+        title: "Phone Number Required",
+        description: "Phone number is required for OTP login functionality",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       console.log('Adding member:', memberData);
 
@@ -125,7 +135,7 @@ export const useMembers = () => {
           data: {
             first_name: memberData.firstName,
             last_name: memberData.lastName,
-            phone: memberData.phone || ''
+            phone: memberData.phone
           }
         }
       });
@@ -144,7 +154,7 @@ export const useMembers = () => {
       // Wait a moment for the trigger to complete, then ensure profile exists
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Ensure the profile is created with all required data
+      // Ensure the profile is created with all required data including phone
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -152,7 +162,7 @@ export const useMembers = () => {
           email: memberData.email,
           first_name: memberData.firstName,
           last_name: memberData.lastName,
-          phone: memberData.phone || ''
+          phone: memberData.phone
         }, {
           onConflict: 'id'
         });
@@ -205,7 +215,7 @@ export const useMembers = () => {
 
       toast({
         title: "Member Added Successfully!",
-        description: `${memberData.firstName} ${memberData.lastName} has been added and can now login with OTP.`
+        description: `${memberData.firstName} ${memberData.lastName} has been added with phone number ${memberData.phone} and can now login with OTP.`
       });
 
       // Wait a moment before refreshing to ensure all operations complete

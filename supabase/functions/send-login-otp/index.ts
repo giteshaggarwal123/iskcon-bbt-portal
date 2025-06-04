@@ -64,8 +64,8 @@ serve(async (req) => {
       console.error('Profile error:', profileError);
       return new Response(
         JSON.stringify({ 
-          error: 'User not found. Please ensure the member has been properly added to the system.',
-          details: 'The email address is not registered in our system or the profile data is incomplete.'
+          error: 'User not found in the system.',
+          details: 'This email address is not registered as a bureau member. Please contact the administrator to get added to the system.'
         }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -75,8 +75,8 @@ serve(async (req) => {
       console.error('No profile found for email:', email);
       return new Response(
         JSON.stringify({ 
-          error: 'User profile not found. Please contact the administrator.',
-          details: 'This user exists in authentication but not in the profiles table.'
+          error: 'User profile not found.',
+          details: 'Please contact the administrator to set up your profile.'
         }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -86,8 +86,8 @@ serve(async (req) => {
       console.error('No phone number for user:', email);
       return new Response(
         JSON.stringify({ 
-          error: 'Phone number not registered. Please contact the administrator to update your phone number.',
-          details: 'OTP can only be sent to registered mobile numbers.'
+          error: 'Phone number not registered.',
+          details: 'Your account does not have a registered phone number. Please contact the administrator to add your phone number to your profile before using OTP login.'
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -136,8 +136,8 @@ serve(async (req) => {
       console.error('Twilio error:', error);
       return new Response(
         JSON.stringify({ 
-          error: 'Failed to send verification code. Please check if your phone number is correct or contact the administrator.',
-          details: 'SMS delivery failed. This could be due to network issues or invalid phone number format.'
+          error: 'Failed to send verification code.',
+          details: 'Unable to send SMS to your registered phone number. Please check if your phone number is correct or contact the administrator.'
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -158,8 +158,8 @@ serve(async (req) => {
     console.error('Error in send-login-otp function:', error);
     return new Response(
       JSON.stringify({ 
-        error: 'Internal server error. Please try again later.',
-        details: 'An unexpected error occurred while processing your request.'
+        error: 'Internal server error.',
+        details: 'An unexpected error occurred while processing your request. Please try again later.'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
