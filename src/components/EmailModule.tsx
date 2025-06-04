@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { Mail, Send, Paperclip, Users, Eye, Clock, CheckCircle, Plus, Search, RefreshCw } from 'lucide-react';
+import { Mail, Send, Paperclip, Users, Eye, Clock, CheckCircle, Plus, Search, RefreshCw, ExternalLink } from 'lucide-react';
 import { ComposeEmailDialog } from './ComposeEmailDialog';
 import { useEmails } from '@/hooks/useEmails';
 
@@ -49,6 +48,12 @@ export const EmailModule: React.FC = () => {
       return <Badge className="bg-red-500 text-white">High</Badge>;
     }
     return null;
+  };
+
+  const handleOpenInOutlook = (email: any) => {
+    // Construct Outlook web URL to open the specific email
+    const outlookUrl = `https://outlook.office.com/mail/inbox/id/${email.id}`;
+    window.open(outlookUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -141,6 +146,18 @@ export const EmailModule: React.FC = () => {
                               </Badge>
                             )}
                             {getImportanceBadge(email.importance)}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenInOutlook(email);
+                              }}
+                              className="h-6 px-2 text-blue-600 hover:bg-blue-100"
+                            >
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              Outlook
+                            </Button>
                           </div>
                         </div>
                       </div>

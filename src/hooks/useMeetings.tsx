@@ -146,6 +146,7 @@ export const useMeetings = () => {
           end_time: endDateTime.toISOString(),
           location: meetingData.location,
           meeting_type: meetingData.type,
+          status: 'scheduled',
           created_by: user.id
         })
         .select()

@@ -26,10 +26,16 @@ export const MeetingsModule: React.FC = () => {
   const { meetings, loading, deleteMeeting } = useMeetings();
   const { toast } = useToast();
 
-  // Filter meetings by date
+  // Filter meetings by date - including ALL scheduled meetings
   const now = new Date();
-  const upcomingMeetings = meetings.filter(meeting => new Date(meeting.start_time) >= now);
-  const pastMeetings = meetings.filter(meeting => new Date(meeting.start_time) < now);
+  const upcomingMeetings = meetings.filter(meeting => {
+    const startTime = new Date(meeting.start_time);
+    return startTime >= now || meeting.status === 'scheduled';
+  });
+  const pastMeetings = meetings.filter(meeting => {
+    const startTime = new Date(meeting.start_time);
+    return startTime < now && meeting.status !== 'scheduled';
+  });
 
   const handleViewAgenda = (meeting: any) => {
     setSelectedMeeting(meeting);
@@ -58,6 +64,18 @@ export const MeetingsModule: React.FC = () => {
       title: "Link Copied",
       description: "Teams meeting link copied to clipboard"
     });
+  };
+
+  const handleJoinNow = (meeting: any) => {
+    if (meeting.teams_join_url) {
+      window.open(meeting.teams_join_url, '_blank', 'noopener,noreferrer');
+    } else {
+      toast({
+        title: "No Join Link",
+        description: "This meeting doesn't have a Teams join link",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleAttachFiles = (meeting: any) => {
@@ -210,7 +228,7 @@ export const MeetingsModule: React.FC = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => window.open(meeting.teams_join_url, '_blank')}
+                                  onClick={() => handleJoinNow(meeting)}
                                   className="h-7 px-2 text-blue-600 hover:bg-blue-100"
                                 >
                                   <ExternalLink className="h-3 w-3 mr-1" />
@@ -229,11 +247,11 @@ export const MeetingsModule: React.FC = () => {
                             <Button 
                               variant="default" 
                               size="sm"
-                              onClick={() => window.open(meeting.teams_join_url, '_blank')}
+                              onClick={() => handleJoinNow(meeting)}
                               className="bg-blue-600 hover:bg-blue-700 text-white"
                             >
                               <Video className="h-4 w-4 mr-2" />
-                              Join Teams Meeting
+                              Join Now
                             </Button>
                           )}
                           
