@@ -4,13 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BarChart3, Eye, Clock, Download } from 'lucide-react';
+import { BarChart3, Clock, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface DocumentAnalyticsProps {
   documentId: string;
   documentName: string;
+}
+
+interface ViewData {
+  user_id: string;
+  view_started_at: string;
+  view_ended_at: string | null;
+  time_spent_seconds: number;
+  completion_percentage: number;
 }
 
 export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ 
@@ -24,26 +32,45 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      // Get view count and recent activity
+      // Get detailed view data with time spent information
       const { data: views, error: viewsError } = await supabase
         .from('document_views')
         .select('*')
-        .eq('document_id', documentId);
+        .eq('document_id', documentId)
+        .order('view_started_at', { ascending: false });
 
       if (viewsError) throw viewsError;
 
-      const totalViews = views?.length || 0;
-      const recentViews = views?.filter(view => {
+      const viewData: ViewData[] = views || [];
+      
+      // Calculate analytics focused on time spent
+      const totalTimeSpent = viewData.reduce((total, view) => total + (view.time_spent_seconds || 0), 0);
+      const totalViews = viewData.length;
+      const averageTimeSpent = totalViews > 0 ? totalTimeSpent / totalViews : 0;
+      
+      // Get unique users who viewed the document
+      const uniqueUsers = [...new Set(viewData.map(view => view.user_id))];
+      
+      // Get recent activity (last 7 days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      const recentViews = viewData.filter(view => {
         const viewDate = new Date(view.view_started_at);
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         return viewDate >= sevenDaysAgo;
-      }).length || 0;
+      });
+      
+      const recentTimeSpent = recentViews.reduce((total, view) => total + (view.time_spent_seconds || 0), 0);
 
       setAnalytics({
         totalViews,
-        recentViews,
-        lastViewed: views && views.length > 0 ? views[views.length - 1].view_started_at : null
+        totalTimeSpent,
+        averageTimeSpent,
+        recentViews: recentViews.length,
+        recentTimeSpent,
+        uniqueViewers: uniqueUsers.length,
+        lastViewed: viewData.length > 0 ? viewData[0].view_started_at : null,
+        viewDetails: viewData.slice(0, 5) // Show last 5 views
       });
     } catch (error: any) {
       console.error('Error fetching analytics:', error);
@@ -55,6 +82,16 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatDuration = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
   };
 
   return (
@@ -70,14 +107,14 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           Analytics
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <BarChart3 className="h-5 w-5" />
-            <span>Document Analytics</span>
+            <span>Time Analytics</span>
           </DialogTitle>
           <DialogDescription>
-            Analytics for "{documentName}"
+            Time spent analysis for "{documentName}"
           </DialogDescription>
         </DialogHeader>
         
@@ -91,10 +128,10 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
               <Card>
                 <CardHeader className="pb-3">
                   <CardDescription className="flex items-center space-x-2">
-                    <Eye className="h-4 w-4" />
-                    <span>Total Views</span>
+                    <Clock className="h-4 w-4" />
+                    <span>Total Time</span>
                   </CardDescription>
-                  <CardTitle className="text-2xl">{analytics.totalViews}</CardTitle>
+                  <CardTitle className="text-xl">{formatDuration(analytics.totalTimeSpent)}</CardTitle>
                 </CardHeader>
               </Card>
               
@@ -102,13 +139,44 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
                 <CardHeader className="pb-3">
                   <CardDescription className="flex items-center space-x-2">
                     <Clock className="h-4 w-4" />
-                    <span>Recent Views</span>
+                    <span>Avg. Time</span>
                   </CardDescription>
-                  <CardTitle className="text-2xl">{analytics.recentViews}</CardTitle>
-                  <CardDescription className="text-xs">Last 7 days</CardDescription>
+                  <CardTitle className="text-xl">{formatDuration(Math.round(analytics.averageTimeSpent))}</CardTitle>
                 </CardHeader>
               </Card>
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardDescription className="flex items-center space-x-2">
+                    <User className="h-4 w-4" />
+                    <span>Total Views</span>
+                  </CardDescription>
+                  <CardTitle className="text-xl">{analytics.totalViews}</CardTitle>
+                </CardHeader>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardDescription className="flex items-center space-x-2">
+                    <User className="h-4 w-4" />
+                    <span>Unique Viewers</span>
+                  </CardDescription>
+                  <CardTitle className="text-xl">{analytics.uniqueViewers}</CardTitle>
+                </CardHeader>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription>Recent Activity (7 days)</CardDescription>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">{analytics.recentViews} views</div>
+                  <div className="text-sm text-gray-600">{formatDuration(analytics.recentTimeSpent)} total time</div>
+                </div>
+              </CardHeader>
+            </Card>
             
             {analytics.lastViewed && (
               <Card>
@@ -129,7 +197,7 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
             
             <div className="pt-2">
               <Badge variant="outline" className="text-xs">
-                {analytics.totalViews > 0 ? 'Active document' : 'No views yet'}
+                {analytics.totalViews > 0 ? `Active document - ${analytics.uniqueViewers} unique viewers` : 'No views yet'}
               </Badge>
             </div>
           </div>
