@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -395,41 +394,62 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error: error || data };
       }
 
-      // After successful OTP verification, sign in with magic link method
-      // This creates a session without requiring a password
-      const { error: signInError } = await supabase.auth.signInWithOtp({
+      // After successful OTP verification, get the user and create a session
+      // First, check if the user exists in the auth.users table by email
+      const { data: { users }, error: userError } = await supabase.auth.admin.listUsers();
+      
+      if (userError) {
+        toast({
+          title: "Authentication Error",
+          description: "Failed to authenticate user. Please try again.",
+          variant: "destructive"
+        });
+        return { error: userError };
+      }
+
+      const existingUser = users?.find(u => u.email === email);
+      
+      if (!existingUser) {
+        toast({
+          title: "Authentication Error",
+          description: "User account not found. Please contact administrator.",
+          variant: "destructive"
+        });
+        return { error: { message: "User not found" } };
+      }
+
+      // Create a temporary password and sign in the user
+      const tempPassword = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      
+      // Update user password temporarily
+      const { error: updateError } = await supabase.auth.admin.updateUserById(existingUser.id, {
+        password: tempPassword
+      });
+
+      if (updateError) {
+        console.error('Failed to update temporary password:', updateError);
+        toast({
+          title: "Authentication Error",
+          description: "Failed to complete authentication. Please try again.",
+          variant: "destructive"
+        });
+        return { error: updateError };
+      }
+
+      // Sign in with the temporary password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: SecurityService.sanitizeInput(email),
-        options: {
-          shouldCreateUser: false // Don't create user, just sign in existing one
-        }
+        password: tempPassword
       });
 
       if (signInError) {
-        // If magic link fails, try to get the user and create session manually
-        console.log('Magic link failed, attempting manual session creation');
-        
-        // Get user by email from profiles table
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', email)
-          .single();
-
-        if (profileError || !profile) {
-          toast({
-            title: "Authentication Error",
-            description: "User account not found. Please contact administrator.",
-            variant: "destructive"
-          });
-          return { error: { message: "User not found" } };
-        }
-
+        console.error('Failed to sign in with temporary password:', signInError);
         toast({
-          title: "Success",
-          description: "OTP verified successfully! You are now logged in.",
+          title: "Authentication Error", 
+          description: "Failed to complete authentication. Please try again.",
+          variant: "destructive"
         });
-
-        return { error: null };
+        return { error: signInError };
       }
 
       toast({
