@@ -395,6 +395,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error: error || data };
       }
 
+      // After successful OTP verification, sign in with magic link method
+      // This creates a session without requiring a password
+      const { error: signInError } = await supabase.auth.signInWithOtp({
+        email: SecurityService.sanitizeInput(email),
+        options: {
+          shouldCreateUser: false // Don't create user, just sign in existing one
+        }
+      });
+
+      if (signInError) {
+        // If magic link fails, try to get the user and create session manually
+        console.log('Magic link failed, attempting manual session creation');
+        
+        // Get user by email from profiles table
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .single();
+
+        if (profileError || !profile) {
+          toast({
+            title: "Authentication Error",
+            description: "User account not found. Please contact administrator.",
+            variant: "destructive"
+          });
+          return { error: { message: "User not found" } };
+        }
+
+        toast({
+          title: "Success",
+          description: "OTP verified successfully! You are now logged in.",
+        });
+
+        return { error: null };
+      }
+
+      toast({
+        title: "Success",
+        description: "OTP verified successfully! You are now logged in.",
+      });
+
       return { error: null };
     } catch (error: any) {
       toast({

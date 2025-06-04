@@ -18,7 +18,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [maskedPhone, setMaskedPhone] = useState('');
 
   const { sendLoginOTP, verifyLoginOTP } = useAuth();
   const { toast } = useToast();
