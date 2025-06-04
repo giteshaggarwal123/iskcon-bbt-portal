@@ -44,8 +44,8 @@ export const useUserRole = (): UseUserRoleReturn => {
       try {
         console.log('Fetching role for user:', user.email);
         
-        // First check if this is the super admin by email
-        if (user.email === 'cs@iskconbureau.in') {
+        // Check if this is a super admin by email
+        if (user.email === 'cs@iskconbureau.in' || user.email === 'admin@iskconbureau.in') {
           console.log('Super admin detected by email');
           
           // Ensure super admin role exists in database
