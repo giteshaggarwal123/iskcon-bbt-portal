@@ -1,13 +1,13 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Mail, Shield, Lock, Phone, ArrowLeft, Clock } from 'lucide-react';
+import { Mail, Shield, Lock, Phone, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import { SecurityService } from '@/services/securityService';
 
 export const RealAuthPage: React.FC = () => {
   const { signIn, sendLoginOTP, verifyLoginOTP, sendOTP, verifyOTP, loading } = useAuth();
@@ -22,28 +22,11 @@ export const RealAuthPage: React.FC = () => {
     confirmPassword: ''
   });
   const [forgotPassword, setForgotPassword] = useState(false);
+  const [storedOTP, setStoredOTP] = useState('');
   const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '', rememberMe: false });
-  const [cooldownTime, setCooldownTime] = useState(0);
-  const [isResending, setIsResending] = useState(false);
-
-  // Cooldown timer effect
-  React.useEffect(() => {
-    if (cooldownTime > 0) {
-      const timer = setTimeout(() => {
-        setCooldownTime(cooldownTime - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [cooldownTime]);
 
   const handleInitialLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Input validation
-    if (!SecurityService.validateEmail(formData.email)) {
-      return;
-    }
-
     if (forgotPassword) {
       setStep('forgot-phone');
     } else {
@@ -54,44 +37,39 @@ export const RealAuthPage: React.FC = () => {
         rememberMe: formData.rememberMe
       });
       
-      const { error } = await sendLoginOTP(formData.email);
-      if (!error) {
+      const { error, otp } = await sendLoginOTP(formData.email);
+      if (!error && otp) {
+        setStoredOTP(otp);
         setStep('otp-verification');
-        setCooldownTime(60); // Set 60 second cooldown
       }
     }
   };
 
   const handleOTPVerification = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const { error } = await verifyLoginOTP(loginCredentials.email, formData.otp);
-    if (!error) {
+    if (formData.otp === storedOTP) {
       // OTP verified, now complete the login
       await signIn(loginCredentials.email, loginCredentials.password, loginCredentials.rememberMe);
+    } else {
+      alert('Invalid OTP. Please try again.');
     }
   };
 
   const handleSendForgotOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!SecurityService.validatePhoneNumber(formData.phoneNumber)) {
-      return;
-    }
-
-    const { error } = await sendOTP(formData.phoneNumber);
-    if (!error) {
+    const { error, otp } = await sendOTP(formData.phoneNumber);
+    if (!error && otp) {
+      setStoredOTP(otp);
       setStep('forgot-otp');
-      setCooldownTime(60); // Set 60 second cooldown
     }
   };
 
   const handleVerifyForgotOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const { error } = await verifyOTP(formData.email, formData.otp, formData.newPassword);
-    if (!error) {
+    if (formData.otp === storedOTP) {
       setStep('forgot-newPassword');
+    } else {
+      alert('Invalid OTP. Please try again.');
     }
   };
 
@@ -111,10 +89,6 @@ export const RealAuthPage: React.FC = () => {
   };
 
   const updateFormData = (field: string, value: string | boolean) => {
-    // Sanitize string inputs
-    if (typeof value === 'string' && field !== 'password' && field !== 'newPassword' && field !== 'confirmPassword') {
-      value = SecurityService.sanitizeInput(value);
-    }
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -122,27 +96,19 @@ export const RealAuthPage: React.FC = () => {
     setStep('login');
     setForgotPassword(false);
     setFormData(prev => ({ ...prev, otp: '', phoneNumber: '', newPassword: '', confirmPassword: '' }));
-    setCooldownTime(0);
   };
 
   const handleResendOTP = async () => {
-    if (cooldownTime > 0 || isResending) return;
-    
-    setIsResending(true);
-    try {
-      if (step === 'otp-verification') {
-        const { error } = await sendLoginOTP(loginCredentials.email);
-        if (!error) {
-          setCooldownTime(60);
-        }
-      } else if (step === 'forgot-otp') {
-        const { error } = await sendOTP(formData.phoneNumber);
-        if (!error) {
-          setCooldownTime(60);
-        }
+    if (step === 'otp-verification') {
+      const { error, otp } = await sendLoginOTP(loginCredentials.email);
+      if (!error && otp) {
+        setStoredOTP(otp);
       }
-    } finally {
-      setIsResending(false);
+    } else if (step === 'forgot-otp') {
+      const { error, otp } = await sendOTP(formData.phoneNumber);
+      if (!error && otp) {
+        setStoredOTP(otp);
+      }
     }
   };
 
@@ -191,7 +157,7 @@ export const RealAuthPage: React.FC = () => {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="your.email@iskconbureau.in"
+                      placeholder="your.email@iskcon.org"
                       value={formData.email}
                       onChange={(e) => updateFormData('email', e.target.value)}
                       className="pl-10"
@@ -298,20 +264,9 @@ export const RealAuthPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleResendOTP}
-                    disabled={cooldownTime > 0 || isResending}
-                    className={`flex items-center gap-1 ${
-                      cooldownTime > 0 || isResending 
-                        ? 'text-gray-400 cursor-not-allowed' 
-                        : 'text-primary hover:underline'
-                    }`}
+                    className="text-primary hover:underline"
                   >
-                    {cooldownTime > 0 && <Clock className="h-3 w-3" />}
-                    {cooldownTime > 0 
-                      ? `Resend in ${cooldownTime}s` 
-                      : isResending 
-                        ? 'Sending...' 
-                        : 'Resend OTP'
-                    }
+                    Resend OTP
                   </button>
                 </div>
               </form>
@@ -403,20 +358,9 @@ export const RealAuthPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleResendOTP}
-                    disabled={cooldownTime > 0 || isResending}
-                    className={`flex items-center gap-1 ${
-                      cooldownTime > 0 || isResending 
-                        ? 'text-gray-400 cursor-not-allowed' 
-                        : 'text-primary hover:underline'
-                    }`}
+                    className="text-primary hover:underline"
                   >
-                    {cooldownTime > 0 && <Clock className="h-3 w-3" />}
-                    {cooldownTime > 0 
-                      ? `Resend in ${cooldownTime}s` 
-                      : isResending 
-                        ? 'Sending...' 
-                        : 'Resend OTP'
-                    }
+                    Resend OTP
                   </button>
                 </div>
               </form>

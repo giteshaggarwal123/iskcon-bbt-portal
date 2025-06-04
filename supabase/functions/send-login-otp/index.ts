@@ -9,20 +9,25 @@ const corsHeaders = {
 
 // Function to format phone number to international format
 const formatPhoneNumber = (phone: string): string => {
+  // Remove all non-digit characters
   let cleaned = phone.replace(/\D/g, '');
   
+  // If it starts with 91 (India country code), add +
   if (cleaned.startsWith('91') && cleaned.length === 12) {
     return '+' + cleaned;
   }
   
+  // If it's a 10-digit Indian number, add +91
   if (cleaned.length === 10 && cleaned.startsWith('9')) {
     return '+91' + cleaned;
   }
   
+  // If it already has + at the beginning, use as is
   if (phone.startsWith('+')) {
     return phone;
   }
   
+  // Default: assume it's an Indian number and add +91
   return '+91' + cleaned;
 };
 
@@ -41,117 +46,72 @@ serve(async (req) => {
       );
     }
 
-    // Input validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid email format' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
+    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log('Looking for user with email:', email);
 
+    // Get user's phone number from profiles table
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('phone, first_name, last_name')
       .eq('email', email)
       .single();
 
-    if (profileError || !profile) {
-      console.log('Profile lookup error:', profileError);
+    if (profileError) {
+      console.error('Profile error:', profileError);
       return new Response(
         JSON.stringify({ 
           error: 'User not found in the system.',
-          details: 'This email address is not registered as a bureau member.'
+          details: 'This email address is not registered as a bureau member. Please contact the administrator to get added to the system.'
+        }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!profile) {
+      console.error('No profile found for email:', email);
+      return new Response(
+        JSON.stringify({ 
+          error: 'User profile not found.',
+          details: 'Please contact the administrator to set up your profile.'
         }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!profile.phone) {
+      console.error('No phone number for user:', email);
       return new Response(
         JSON.stringify({ 
           error: 'Phone number not registered.',
-          details: 'Your account does not have a registered phone number.'
+          details: 'Your account does not have a registered phone number. Please contact the administrator to add your phone number to your profile before using OTP login.'
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check for recent OTP (within 60 seconds)
-    const { data: recentOtp } = await supabase
-      .from('otp_codes')
-      .select('created_at')
-      .eq('identifier', email)
-      .eq('type', 'login')
-      .gte('created_at', new Date(Date.now() - 60 * 1000).toISOString())
-      .single();
-
-    if (recentOtp) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'OTP was recently sent. Please wait 60 seconds before requesting again.',
-          details: 'Duplicate request prevention.'
-        }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
+    // Format the phone number properly
     const formattedPhone = formatPhoneNumber(profile.phone);
+    console.log('Original phone:', profile.phone, 'Formatted phone:', formattedPhone);
+
+    // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
-    // Delete any existing OTP for this email and type
-    await supabase
-      .from('otp_codes')
-      .delete()
-      .eq('identifier', email)
-      .eq('type', 'login');
-
-    console.log('Storing OTP for email:', email, 'OTP:', otp);
-
-    // Store new OTP in database
-    const { data: otpData, error: otpError } = await supabase
-      .from('otp_codes')
-      .insert({
-        identifier: email,
-        otp_code: otp,
-        type: 'login',
-        expires_at: expiresAt.toISOString(),
-        attempts: 0
-      })
-      .select()
-      .single();
-
-    if (otpError) {
-      console.error('Error storing OTP:', otpError);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to generate OTP',
-          details: 'Database error occurred while storing verification code.'
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('OTP stored successfully:', otpData);
-
+    
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
     const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
 
     if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
       return new Response(
-        JSON.stringify({ error: 'SMS service not configured.' }),
+        JSON.stringify({ error: 'SMS service not configured. Please contact the administrator.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Send SMS via Twilio
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
     const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
 
@@ -174,18 +134,10 @@ serve(async (req) => {
     if (!response.ok) {
       const error = await response.text();
       console.error('Twilio error:', error);
-      
-      // Remove OTP from database if SMS failed
-      await supabase
-        .from('otp_codes')
-        .delete()
-        .eq('identifier', email)
-        .eq('type', 'login');
-      
       return new Response(
         JSON.stringify({ 
           error: 'Failed to send verification code.',
-          details: 'Unable to send SMS to your registered phone number.'
+          details: 'Unable to send SMS to your registered phone number. Please check if your phone number is correct or contact the administrator.'
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -197,7 +149,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: `Verification code sent to ${formattedPhone.replace(/(\+91)(\d{5})(\d{5})/, '$1*****$3')}`,
-        cooldown: 60
+        otp: otp // In production, store this securely instead of returning it
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -207,7 +159,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error.',
-        details: 'An unexpected error occurred.'
+        details: 'An unexpected error occurred while processing your request. Please try again later.'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

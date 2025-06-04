@@ -311,36 +311,6 @@ export type Database = {
         }
         Relationships: []
       }
-      otp_codes: {
-        Row: {
-          attempts: number | null
-          created_at: string | null
-          expires_at: string
-          id: string
-          identifier: string
-          otp_code: string
-          type: string
-        }
-        Insert: {
-          attempts?: number | null
-          created_at?: string | null
-          expires_at: string
-          id?: string
-          identifier: string
-          otp_code: string
-          type: string
-        }
-        Update: {
-          attempts?: number | null
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          identifier?: string
-          otp_code?: string
-          type?: string
-        }
-        Relationships: []
-      }
       poll_votes: {
         Row: {
           id: string
