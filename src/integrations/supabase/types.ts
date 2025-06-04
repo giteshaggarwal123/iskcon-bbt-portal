@@ -113,6 +113,8 @@ export type Database = {
           file_size: number | null
           folder: string | null
           id: string
+          is_hidden: boolean | null
+          is_important: boolean | null
           is_shared: boolean | null
           mime_type: string | null
           name: string
@@ -128,6 +130,8 @@ export type Database = {
           file_size?: number | null
           folder?: string | null
           id?: string
+          is_hidden?: boolean | null
+          is_important?: boolean | null
           is_shared?: boolean | null
           mime_type?: string | null
           name: string
@@ -143,6 +147,8 @@ export type Database = {
           file_size?: number | null
           folder?: string | null
           id?: string
+          is_hidden?: boolean | null
+          is_important?: boolean | null
           is_shared?: boolean | null
           mime_type?: string | null
           name?: string

@@ -14,8 +14,8 @@ interface Document {
   uploaded_by: string;
   created_at: string;
   updated_at: string;
-  is_important?: boolean;
-  is_hidden?: boolean;
+  is_important: boolean;
+  is_hidden: boolean;
 }
 
 export const useDocuments = () => {
