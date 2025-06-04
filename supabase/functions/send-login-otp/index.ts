@@ -7,27 +7,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// In-memory OTP store - in production, use Redis or secure database
+const otpStore = new Map<string, { otp: string; expiresAt: number; attempts: number }>();
+
 // Function to format phone number to international format
 const formatPhoneNumber = (phone: string): string => {
-  // Remove all non-digit characters
   let cleaned = phone.replace(/\D/g, '');
   
-  // If it starts with 91 (India country code), add +
   if (cleaned.startsWith('91') && cleaned.length === 12) {
     return '+' + cleaned;
   }
   
-  // If it's a 10-digit Indian number, add +91
   if (cleaned.length === 10 && cleaned.startsWith('9')) {
     return '+91' + cleaned;
   }
   
-  // If it already has + at the beginning, use as is
   if (phone.startsWith('+')) {
     return phone;
   }
   
-  // Default: assume it's an Indian number and add +91
   return '+91' + cleaned;
 };
 
@@ -46,72 +44,69 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client
+    // Input validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid email format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log('Looking for user with email:', email);
 
-    // Get user's phone number from profiles table
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('phone, first_name, last_name')
       .eq('email', email)
       .single();
 
-    if (profileError) {
-      console.error('Profile error:', profileError);
+    if (profileError || !profile) {
       return new Response(
         JSON.stringify({ 
           error: 'User not found in the system.',
-          details: 'This email address is not registered as a bureau member. Please contact the administrator to get added to the system.'
-        }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!profile) {
-      console.error('No profile found for email:', email);
-      return new Response(
-        JSON.stringify({ 
-          error: 'User profile not found.',
-          details: 'Please contact the administrator to set up your profile.'
+          details: 'This email address is not registered as a bureau member.'
         }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!profile.phone) {
-      console.error('No phone number for user:', email);
       return new Response(
         JSON.stringify({ 
           error: 'Phone number not registered.',
-          details: 'Your account does not have a registered phone number. Please contact the administrator to add your phone number to your profile before using OTP login.'
+          details: 'Your account does not have a registered phone number.'
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Format the phone number properly
     const formattedPhone = formatPhoneNumber(profile.phone);
-    console.log('Original phone:', profile.phone, 'Formatted phone:', formattedPhone);
-
-    // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
+    // Store OTP securely with 5-minute expiration
+    const key = `login_${email}`;
+    otpStore.set(key, {
+      otp,
+      expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
+      attempts: 0
+    });
+
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
     const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
 
     if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
       return new Response(
-        JSON.stringify({ error: 'SMS service not configured. Please contact the administrator.' }),
+        JSON.stringify({ error: 'SMS service not configured.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Send SMS via Twilio
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
     const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
 
@@ -137,7 +132,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: 'Failed to send verification code.',
-          details: 'Unable to send SMS to your registered phone number. Please check if your phone number is correct or contact the administrator.'
+          details: 'Unable to send SMS to your registered phone number.'
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -148,8 +143,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Verification code sent to ${formattedPhone.replace(/(\+91)(\d{5})(\d{5})/, '$1*****$3')}`,
-        otp: otp // In production, store this securely instead of returning it
+        message: `Verification code sent to ${formattedPhone.replace(/(\+91)(\d{5})(\d{5})/, '$1*****$3')}`
+        // OTP is NO LONGER returned in the response for security
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -159,7 +154,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error.',
-        details: 'An unexpected error occurred while processing your request. Please try again later.'
+        details: 'An unexpected error occurred.'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

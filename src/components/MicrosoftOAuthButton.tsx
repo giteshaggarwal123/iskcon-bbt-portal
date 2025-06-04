@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 import { MicrosoftConnectionStatus } from './MicrosoftConnectionStatus';
+import { SecurityService } from '@/services/securityService';
 
 interface MicrosoftOAuthButtonProps {
   onSuccess?: () => void;
@@ -13,11 +14,11 @@ interface MicrosoftOAuthButtonProps {
 export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { isConnected, disconnectMicrosoft } = useMicrosoftAuth();
 
   const handleMicrosoftLogin = async () => {
-    if (!user) {
+    if (!user || !session) {
       toast({
         title: "Authentication Required",
         description: "Please sign in first before connecting your Microsoft account.",
@@ -29,28 +30,29 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
     setLoading(true);
     
     try {
-      // Generate Microsoft OAuth URL
-      const clientId = '44391516-babe-4072-8422-a4fc8a79fbde';
-      const tenantId = 'b2333ef6-3378-4d02-b9b9-d8e66d9dfa3d';
+      // Get OAuth configuration securely from backend
+      const config = await SecurityService.getMicrosoftOAuthConfig();
       
-      // Use the exact domain from your current deployment
-      const currentDomain = window.location.origin;
-      const redirectUri = `${currentDomain}/microsoft-callback`;
+      if (!config) {
+        throw new Error('Failed to get OAuth configuration');
+      }
       
-      console.log('Microsoft OAuth redirect URI:', redirectUri);
+      console.log('Microsoft OAuth redirect URI:', config.redirectUri);
       
       const scope = 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All https://graph.microsoft.com/Sites.ReadWrite.All https://graph.microsoft.com/OnlineMeetings.ReadWrite offline_access';
       
-      const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?` +
-        `client_id=${clientId}&` +
+      const authUrl = `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/authorize?` +
+        `client_id=${config.clientId}&` +
         `response_type=code&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `redirect_uri=${encodeURIComponent(config.redirectUri)}&` +
         `scope=${encodeURIComponent(scope)}&` +
         `response_mode=query&` +
         `state=${user.id}`;
       
-      // Store user ID in session storage for callback
+      // Use secure session storage key
+      const sessionKey = SecurityService.generateSessionKey();
       sessionStorage.setItem('microsoft_auth_user_id', user.id);
+      sessionStorage.setItem('auth_session_key', sessionKey);
       
       // Redirect to Microsoft OAuth
       window.location.href = authUrl;

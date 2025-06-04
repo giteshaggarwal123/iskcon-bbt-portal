@@ -1,7 +1,9 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { SecurityService } from '@/services/securityService';
 
 interface AuthContextType {
   user: User | null;
@@ -9,8 +11,8 @@ interface AuthContextType {
   signUp: (email: string, password: string, firstName: string, lastName: string, phone?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
-  sendOTP: (phoneNumber: string) => Promise<{ error: any; otp?: string }>;
-  sendLoginOTP: (email: string) => Promise<{ error: any; otp?: string }>;
+  sendOTP: (phoneNumber: string) => Promise<{ error: any }>;
+  sendLoginOTP: (email: string) => Promise<{ error: any }>;
   verifyOTP: (email: string, otp: string, newPassword: string) => Promise<{ error: any }>;
   verifyLoginOTP: (email: string, otp: string) => Promise<{ error: any }>;
   loading: boolean;
@@ -41,9 +43,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (!shouldPersist || (rememberMeExpiry && Date.now() > parseInt(rememberMeExpiry))) {
       localStorage.removeItem('rememberMe');
       localStorage.removeItem('rememberMeExpiry');
-      // Clear any stored session
-      localStorage.removeItem('sb-daiimiznlkffbbadhodw-auth-token');
-      sessionStorage.removeItem('sb-daiimiznlkffbbadhodw-auth-token');
+      // Clear any stored session using dynamic key
+      const sessionKey = SecurityService.generateSessionKey();
+      localStorage.removeItem(sessionKey);
+      sessionStorage.removeItem(sessionKey);
     }
 
     // Get initial session
@@ -52,6 +55,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Error getting session:', error);
+        }
+        
+        // Validate session token if present
+        if (session?.access_token && !SecurityService.validateSessionToken(session.access_token)) {
+          console.warn('Invalid session token detected');
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
         }
         
         // Only set session if remember me is enabled or session is fresh
@@ -84,6 +97,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(null);
           setUser(null);
         } else if (session) {
+          // Validate session token
+          if (session.access_token && !SecurityService.validateSessionToken(session.access_token)) {
+            console.warn('Invalid session token in auth state change');
+            await supabase.auth.signOut();
+            return;
+          }
+          
           const shouldPersist = localStorage.getItem('rememberMe') === 'true';
           
           if (shouldPersist || isSessionFresh(session)) {
@@ -110,17 +130,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string, phone?: string) => {
     try {
+      // Input validation
+      if (!SecurityService.validateEmail(email)) {
+        const error = { message: 'Invalid email format' };
+        toast({
+          title: "Sign Up Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return { error };
+      }
+
+      if (phone && !SecurityService.validatePhoneNumber(phone)) {
+        const error = { message: 'Invalid phone number format' };
+        toast({
+          title: "Sign Up Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return { error };
+      }
+
       const redirectUrl = `${window.location.origin}/`;
       
       const { error } = await supabase.auth.signUp({
-        email,
+        email: SecurityService.sanitizeInput(email),
         password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            first_name: firstName,
-            last_name: lastName,
-            phone: phone
+            first_name: SecurityService.sanitizeInput(firstName),
+            last_name: SecurityService.sanitizeInput(lastName),
+            phone: phone ? SecurityService.sanitizeInput(phone) : undefined
           }
         }
       });
@@ -152,12 +193,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
+      // Input validation
+      if (!SecurityService.validateEmail(email)) {
+        const error = { message: 'Invalid email format' };
+        toast({
+          title: "Sign In Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return { error };
+      }
+
       // Clear any existing remember me settings first
       localStorage.removeItem('rememberMe');
       localStorage.removeItem('rememberMeExpiry');
 
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: SecurityService.sanitizeInput(email),
         password
       });
 
@@ -194,8 +246,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const sendOTP = async (phoneNumber: string) => {
     try {
+      if (!SecurityService.validatePhoneNumber(phoneNumber)) {
+        const error = { message: 'Invalid phone number format' };
+        toast({
+          title: "OTP Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return { error };
+      }
+
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { phoneNumber }
+        body: { phoneNumber: SecurityService.sanitizeInput(phoneNumber) }
       });
 
       if (error) {
@@ -212,7 +274,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: "Please check your phone for the verification code."
       });
 
-      return { error: null, otp: data.otp };
+      return { error: null };
     } catch (error: any) {
       toast({
         title: "OTP Error",
@@ -225,8 +287,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const sendLoginOTP = async (email: string) => {
     try {
+      if (!SecurityService.validateEmail(email)) {
+        const error = { message: 'Invalid email format' };
+        toast({
+          title: "OTP Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return { error };
+      }
+
       const { data, error } = await supabase.functions.invoke('send-login-otp', {
-        body: { email }
+        body: { email: SecurityService.sanitizeInput(email) }
       });
 
       if (error) {
@@ -243,7 +315,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: "Please check your phone for the verification code."
       });
 
-      return { error: null, otp: data.otp };
+      return { error: null };
     } catch (error: any) {
       toast({
         title: "OTP Error",
@@ -256,8 +328,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const verifyOTP = async (email: string, otp: string, newPassword: string) => {
     try {
-      // In a real implementation, you would verify the OTP against stored values
-      // For now, we'll simulate OTP verification and reset the password
+      // Verify OTP using secure backend
+      const { data, error: verifyError } = await supabase.functions.invoke('verify-otp', {
+        body: { 
+          email: SecurityService.sanitizeInput(email), 
+          otp: SecurityService.sanitizeInput(otp), 
+          type: 'reset' 
+        }
+      });
+
+      if (verifyError || data.error) {
+        toast({
+          title: "OTP Verification Error",
+          description: data?.error || "Invalid or expired OTP",
+          variant: "destructive"
+        });
+        return { error: verifyError || data };
+      }
+
+      // If OTP is verified, update password
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
@@ -289,8 +378,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const verifyLoginOTP = async (email: string, otp: string) => {
     try {
-      // In a real implementation, you would verify the OTP against stored values
-      // For now, we'll just return success since OTP verification is handled on frontend
+      const { data, error } = await supabase.functions.invoke('verify-otp', {
+        body: { 
+          email: SecurityService.sanitizeInput(email), 
+          otp: SecurityService.sanitizeInput(otp), 
+          type: 'login' 
+        }
+      });
+
+      if (error || data.error) {
+        toast({
+          title: "Verification Error",
+          description: data?.error || "Invalid or expired OTP",
+          variant: "destructive"
+        });
+        return { error: error || data };
+      }
+
       return { error: null };
     } catch (error: any) {
       toast({

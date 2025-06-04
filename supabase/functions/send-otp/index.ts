@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// In-memory OTP store - in production, use Redis or secure database
+const otpStore = new Map<string, { otp: string; expiresAt: number; attempts: number }>();
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -21,8 +24,24 @@ serve(async (req) => {
       );
     }
 
-    // Generate 6-digit OTP
+    // Input validation
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(phoneNumber.replace(/\s+/g, ''))) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid phone number format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store OTP securely with 10-minute expiration
+    const key = `reset_${phoneNumber}`;
+    otpStore.set(key, {
+      otp,
+      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+      attempts: 0
+    });
     
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
@@ -35,7 +54,6 @@ serve(async (req) => {
       );
     }
 
-    // Send SMS via Twilio
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
     const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
 
@@ -66,8 +84,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'OTP sent successfully',
-        otp: otp // In production, store this securely instead of returning it
+        message: 'OTP sent successfully'
+        // OTP is NO LONGER returned in the response for security
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

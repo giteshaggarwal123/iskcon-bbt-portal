@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Mail, Shield, Lock, Phone, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { SecurityService } from '@/services/securityService';
 
 export const RealAuthPage: React.FC = () => {
   const { signIn, sendLoginOTP, verifyLoginOTP, sendOTP, verifyOTP, loading } = useAuth();
@@ -22,11 +23,16 @@ export const RealAuthPage: React.FC = () => {
     confirmPassword: ''
   });
   const [forgotPassword, setForgotPassword] = useState(false);
-  const [storedOTP, setStoredOTP] = useState('');
   const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '', rememberMe: false });
 
   const handleInitialLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Input validation
+    if (!SecurityService.validateEmail(formData.email)) {
+      return;
+    }
+
     if (forgotPassword) {
       setStep('forgot-phone');
     } else {
@@ -37,9 +43,8 @@ export const RealAuthPage: React.FC = () => {
         rememberMe: formData.rememberMe
       });
       
-      const { error, otp } = await sendLoginOTP(formData.email);
-      if (!error && otp) {
-        setStoredOTP(otp);
+      const { error } = await sendLoginOTP(formData.email);
+      if (!error) {
         setStep('otp-verification');
       }
     }
@@ -47,29 +52,33 @@ export const RealAuthPage: React.FC = () => {
 
   const handleOTPVerification = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.otp === storedOTP) {
+    
+    const { error } = await verifyLoginOTP(loginCredentials.email, formData.otp);
+    if (!error) {
       // OTP verified, now complete the login
       await signIn(loginCredentials.email, loginCredentials.password, loginCredentials.rememberMe);
-    } else {
-      alert('Invalid OTP. Please try again.');
     }
   };
 
   const handleSendForgotOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error, otp } = await sendOTP(formData.phoneNumber);
-    if (!error && otp) {
-      setStoredOTP(otp);
+    
+    if (!SecurityService.validatePhoneNumber(formData.phoneNumber)) {
+      return;
+    }
+
+    const { error } = await sendOTP(formData.phoneNumber);
+    if (!error) {
       setStep('forgot-otp');
     }
   };
 
   const handleVerifyForgotOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.otp === storedOTP) {
+    
+    const { error } = await verifyOTP(formData.email, formData.otp, formData.newPassword);
+    if (!error) {
       setStep('forgot-newPassword');
-    } else {
-      alert('Invalid OTP. Please try again.');
     }
   };
 
@@ -89,6 +98,10 @@ export const RealAuthPage: React.FC = () => {
   };
 
   const updateFormData = (field: string, value: string | boolean) => {
+    // Sanitize string inputs
+    if (typeof value === 'string' && field !== 'password' && field !== 'newPassword' && field !== 'confirmPassword') {
+      value = SecurityService.sanitizeInput(value);
+    }
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -100,15 +113,9 @@ export const RealAuthPage: React.FC = () => {
 
   const handleResendOTP = async () => {
     if (step === 'otp-verification') {
-      const { error, otp } = await sendLoginOTP(loginCredentials.email);
-      if (!error && otp) {
-        setStoredOTP(otp);
-      }
+      const { error } = await sendLoginOTP(loginCredentials.email);
     } else if (step === 'forgot-otp') {
-      const { error, otp } = await sendOTP(formData.phoneNumber);
-      if (!error && otp) {
-        setStoredOTP(otp);
-      }
+      const { error } = await sendOTP(formData.phoneNumber);
     }
   };
 
