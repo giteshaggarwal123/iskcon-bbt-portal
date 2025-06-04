@@ -4,34 +4,127 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Phone, Shield, Clock } from 'lucide-react';
+import { Phone, Shield, Clock, Mail } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthPageProps {
   onLogin: () => void;
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [step, setStep] = useState<'email' | 'otp'>('email');
+  const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [maskedPhone, setMaskedPhone] = useState('');
+
+  const { sendLoginOTP, verifyLoginOTP } = useAuth();
+  const { toast } = useToast();
 
   const handleSendOTP = async () => {
+    if (!email) {
+      toast({
+        title: "Error",
+        description: "Please enter your email address",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const { error } = await sendLoginOTP(email);
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to send verification code",
+          variant: "destructive"
+        });
+        return;
+      }
+
       setStep('otp');
-    }, 1500);
+      setCountdown(60);
+      
+      // Start countdown timer
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      toast({
+        title: "Verification Code Sent",
+        description: "Please check your phone for the verification code"
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerifyOTP = async () => {
+    if (!otp || otp.length !== 6) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid 6-digit verification code",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const { error } = await verifyLoginOTP(email, otp);
+      
+      if (error) {
+        toast({
+          title: "Verification Failed",
+          description: error.message || "Invalid verification code",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Verification successful! Logging you in...",
+      });
+
+      // Call the onLogin callback to trigger navigation
+      setTimeout(() => {
+        onLogin();
+      }, 1000);
+
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Verification failed",
+        variant: "destructive"
+      });
+    } finally {
       setLoading(false);
-      onLogin();
-    }, 1500);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (countdown > 0) return;
+    
+    setOtp('');
+    await handleSendOTP();
   };
 
   return (
@@ -57,61 +150,64 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
               <span>Secure Login</span>
             </CardTitle>
             <CardDescription>
-              {step === 'phone' 
-                ? 'Enter your registered mobile number to receive OTP'
-                : 'Enter the 6-digit OTP sent to your mobile'
+              {step === 'email' 
+                ? 'Enter your registered email address to receive verification code'
+                : 'Enter the 6-digit verification code sent to your phone'
               }
             </CardDescription>
           </CardHeader>
           
           <CardContent className="space-y-6">
-            {step === 'phone' ? (
+            {step === 'email' ? (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Mobile Number</Label>
+                  <Label htmlFor="email">Email Address</Label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+91 98765 43210"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      id="email"
+                      type="email"
+                      placeholder="your.email@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       className="pl-10"
+                      disabled={loading}
                     />
                   </div>
                 </div>
                 
                 <Button 
                   onClick={handleSendOTP}
-                  disabled={!phoneNumber || loading}
+                  disabled={!email || loading}
                   className="w-full bg-primary hover:bg-primary/90"
                 >
-                  {loading ? 'Sending OTP...' : 'Send OTP'}
+                  {loading ? 'Sending...' : 'Send Verification Code'}
                 </Button>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="otp">Enter OTP</Label>
+                  <Label htmlFor="otp">Enter Verification Code</Label>
                   <Input
                     id="otp"
                     type="text"
                     placeholder="123456"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     maxLength={6}
                     className="text-center text-lg tracking-widest"
+                    disabled={loading}
                   />
                 </div>
                 
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">OTP sent to {phoneNumber}</span>
+                  <span className="text-gray-600">Code sent to your phone</span>
                   <button 
-                    onClick={() => setStep('phone')}
+                    onClick={() => setStep('email')}
                     className="text-primary hover:underline"
+                    disabled={loading}
                   >
-                    Change number
+                    Change email
                   </button>
                 </div>
                 
@@ -124,8 +220,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                 </Button>
                 
                 <div className="text-center">
-                  <button className="text-sm text-gray-600 hover:text-primary">
-                    Resend OTP in <span className="font-medium">30s</span>
+                  <button 
+                    onClick={handleResendOTP}
+                    disabled={countdown > 0 || loading}
+                    className="text-sm text-gray-600 hover:text-primary disabled:opacity-50"
+                  >
+                    {countdown > 0 
+                      ? `Resend code in ${countdown}s` 
+                      : 'Resend verification code'
+                    }
                   </button>
                 </div>
               </div>
@@ -137,7 +240,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                 <Clock className="h-4 w-4 text-gray-500 mt-0.5" />
                 <div className="text-xs text-gray-600">
                   <p className="font-medium mb-1">Security Notice</p>
-                  <p>OTP expires in 5 minutes. For security reasons, only authorized bureau members can access this platform.</p>
+                  <p>Verification code expires in 5 minutes. Only authorized bureau members can access this platform.</p>
                 </div>
               </div>
             </div>
