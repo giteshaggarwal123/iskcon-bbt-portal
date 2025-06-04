@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,10 +46,27 @@ export const RealAuthPage: React.FC = () => {
 
   const handleOTPVerification = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('OTP Verification - Input OTP:', formData.otp);
+    console.log('OTP Verification - Stored OTP:', storedOTP);
+    
     if (formData.otp === storedOTP) {
+      console.log('OTP verified successfully, proceeding with login');
+      console.log('Login credentials:', { 
+        email: loginCredentials.email, 
+        password: loginCredentials.password ? '***' : 'NO PASSWORD',
+        rememberMe: loginCredentials.rememberMe 
+      });
+      
       // OTP verified, now complete the login
-      await signIn(loginCredentials.email, loginCredentials.password, loginCredentials.rememberMe);
+      const { error } = await signIn(loginCredentials.email, loginCredentials.password, loginCredentials.rememberMe);
+      
+      if (error) {
+        console.error('Login error after OTP verification:', error);
+        alert(`Login failed: ${error.message || 'Invalid credentials'}`);
+      }
     } else {
+      console.error('OTP mismatch - Input:', formData.otp, 'Expected:', storedOTP);
       alert('Invalid OTP. Please try again.');
     }
   };
