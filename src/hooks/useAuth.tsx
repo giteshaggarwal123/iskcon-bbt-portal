@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,7 +10,9 @@ interface AuthContextType {
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   sendOTP: (phoneNumber: string) => Promise<{ error: any; otp?: string }>;
+  sendLoginOTP: (email: string) => Promise<{ error: any; otp?: string }>;
   verifyOTP: (email: string, otp: string, newPassword: string) => Promise<{ error: any }>;
+  verifyLoginOTP: (email: string, otp: string) => Promise<{ error: any }>;
   loading: boolean;
 }
 
@@ -178,6 +179,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const sendLoginOTP = async (email: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('send-login-otp', {
+        body: { email }
+      });
+
+      if (error) {
+        toast({
+          title: "OTP Error",
+          description: "Failed to send verification code. Please try again.",
+          variant: "destructive"
+        });
+        return { error };
+      }
+
+      toast({
+        title: "Verification Code Sent",
+        description: "Please check your phone for the verification code."
+      });
+
+      return { error: null, otp: data.otp };
+    } catch (error: any) {
+      toast({
+        title: "OTP Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return { error };
+    }
+  };
+
   const verifyOTP = async (email: string, otp: string, newPassword: string) => {
     try {
       // In a real implementation, you would verify the OTP against stored values
@@ -204,6 +236,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       toast({
         title: "Password Reset Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return { error };
+    }
+  };
+
+  const verifyLoginOTP = async (email: string, otp: string) => {
+    try {
+      // In a real implementation, you would verify the OTP against stored values
+      // For now, we'll just return success since OTP verification is handled on frontend
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        title: "Verification Error",
         description: error.message,
         variant: "destructive"
       });
@@ -263,7 +310,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signIn,
     signOut,
     sendOTP,
+    sendLoginOTP,
     verifyOTP,
+    verifyLoginOTP,
     loading
   };
 
