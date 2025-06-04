@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,8 +21,9 @@ export const MeetingsModule: React.FC = () => {
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [showPostMeetingDialog, setShowPostMeetingDialog] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
+  const [preselectedDate, setPreselectedDate] = useState<Date | undefined>(undefined);
   
-  const { meetings, loading, deleteMeeting } = useMeetings();
+  const { meetings, loading, deleteMeeting, fetchMeetings } = useMeetings();
   const { toast } = useToast();
 
   // Filter and sort meetings properly by date and time
@@ -89,6 +89,21 @@ export const MeetingsModule: React.FC = () => {
   const handleAttachFiles = (meeting: any) => {
     // This will be implemented with file attachment functionality
     alert(`Attach files to ${meeting.title}`);
+  };
+
+  const handleScheduleMeetingClose = (meetingCreated: boolean) => {
+    setShowScheduleDialog(false);
+    setPreselectedDate(undefined);
+    
+    // Auto-refresh if a meeting was created
+    if (meetingCreated) {
+      fetchMeetings();
+    }
+  };
+
+  const handleCalendarDateClick = (date: Date) => {
+    setPreselectedDate(date);
+    setShowScheduleDialog(true);
   };
 
   const formatMeetingTime = (startTime: string, endTime: string) => {
@@ -391,6 +406,7 @@ export const MeetingsModule: React.FC = () => {
             <CalendarView 
               meetings={meetings} 
               onMeetingClick={handleViewAgenda}
+              onDateClick={handleCalendarDateClick}
             />
           </TabsContent>
         </Tabs>
@@ -399,7 +415,8 @@ export const MeetingsModule: React.FC = () => {
       {/* Dialogs */}
       <ScheduleMeetingDialog 
         open={showScheduleDialog} 
-        onOpenChange={setShowScheduleDialog} 
+        onOpenChange={handleScheduleMeetingClose}
+        preselectedDate={preselectedDate}
       />
       <ViewAgendaDialog 
         open={showAgendaDialog} 

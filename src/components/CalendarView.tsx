@@ -3,15 +3,16 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Calendar, Clock, Users, Video } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Clock, Users, Video, Plus } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
 
 interface CalendarViewProps {
   meetings: any[];
   onMeetingClick: (meeting: any) => void;
+  onDateClick?: (date: Date) => void;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingClick }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingClick, onDateClick }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const monthStart = startOfMonth(currentDate);
@@ -34,6 +35,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
       }
       return newDate;
     });
+  };
+
+  const handleDateClick = (day: Date) => {
+    const isCurrentMonth = isSameMonth(day, currentDate);
+    if (isCurrentMonth && onDateClick) {
+      onDateClick(day);
+    }
   };
 
   return (
@@ -76,10 +84,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
               <div
                 key={day.toISOString()}
                 className={`
-                  min-h-[100px] p-1 border border-gray-200 
+                  min-h-[100px] p-1 border border-gray-200 relative group
                   ${isCurrentMonth ? 'bg-white' : 'bg-gray-50'}
                   ${isDayToday ? 'ring-2 ring-primary' : ''}
+                  ${isCurrentMonth ? 'cursor-pointer hover:bg-gray-50' : ''}
                 `}
+                onClick={() => handleDateClick(day)}
               >
                 <div className={`
                   text-sm font-medium mb-1
@@ -88,12 +98,32 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
                 `}>
                   {format(day, 'd')}
                 </div>
+
+                {/* Add meeting button - shows on hover for current month dates */}
+                {isCurrentMonth && onDateClick && (
+                  <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 bg-primary text-white hover:bg-primary/90"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDateClick(day);
+                      }}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
                 
                 <div className="space-y-1">
                   {dayMeetings.slice(0, 2).map(meeting => (
                     <div
                       key={meeting.id}
-                      onClick={() => onMeetingClick(meeting)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMeetingClick(meeting);
+                      }}
                       className="text-xs p-1 rounded cursor-pointer hover:opacity-80 transition-opacity bg-primary/10 text-primary border border-primary/20"
                     >
                       <div className="flex items-center space-x-1">
@@ -122,6 +152,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-4 text-sm text-gray-500 text-center">
+          Click on any date to create a meeting, or click on existing meetings to view details
         </div>
       </CardContent>
     </Card>

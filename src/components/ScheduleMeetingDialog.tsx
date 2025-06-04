@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +18,8 @@ import { cn } from '@/lib/utils';
 
 interface ScheduleMeetingDialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (open: boolean, meetingCreated?: boolean) => void;
+  preselectedDate?: Date;
 }
 
 interface MeetingFormData {
@@ -37,7 +37,11 @@ interface AttachedFile {
   size: number;
 }
 
-export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ open, onOpenChange }) => {
+export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ 
+  open, 
+  onOpenChange, 
+  preselectedDate 
+}) => {
   const { register, handleSubmit, setValue, watch, reset, formState: { isSubmitting } } = useForm<MeetingFormData>();
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [showCalendar, setShowCalendar] = useState(false);
@@ -50,6 +54,13 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
   const { toast } = useToast();
   
   const watchType = watch('type');
+
+  // Set preselected date when dialog opens
+  useEffect(() => {
+    if (open && preselectedDate) {
+      setSelectedDate(preselectedDate);
+    }
+  }, [open, preselectedDate]);
 
   // File upload constraints
   const MAX_FILES = 5;
@@ -189,7 +200,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
       setSelectedAttendees([]);
       setAttachedFiles([]);
       setRsvpEnabled(true);
-      onOpenChange(false);
+      onOpenChange(false, true); // Pass true to indicate meeting was created
     }
   };
 
@@ -199,7 +210,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
     setSelectedAttendees([]);
     setAttachedFiles([]);
     setRsvpEnabled(true);
-    onOpenChange(false);
+    onOpenChange(false, false); // Pass false to indicate no meeting was created
   };
 
   return (
@@ -209,6 +220,11 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
           <DialogTitle>Schedule New Meeting</DialogTitle>
           <DialogDescription>
             Create a new meeting with Teams integration, attendee management, and file attachments.
+            {preselectedDate && (
+              <span className="block mt-2 text-primary text-sm font-medium">
+                Creating meeting for {format(preselectedDate, 'MMMM dd, yyyy')}
+              </span>
+            )}
             {!isConnected && watchType === 'online' && (
               <span className="block mt-2 text-orange-600 text-sm">
                 Connect your Microsoft account in Settings to create Teams meetings automatically.
