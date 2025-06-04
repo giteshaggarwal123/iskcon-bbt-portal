@@ -15,6 +15,7 @@ import { useMeetings } from '@/hooks/useMeetings';
 import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 import { AttendeeSelector } from './AttendeeSelector';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface ScheduleMeetingDialogProps {
   open: boolean;
@@ -62,6 +63,12 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
     'image/jpeg',
     'image/png'
   ];
+
+  const handleDateSelect = (date: Date | undefined) => {
+    console.log('Date selected:', date);
+    setSelectedDate(date);
+    setShowCalendar(false);
+  };
 
   const handleFileAttachment = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -125,10 +132,23 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
   };
 
   const onSubmit = async (data: MeetingFormData) => {
+    console.log('Form submission started');
+    console.log('Selected date:', selectedDate);
+    console.log('Form data:', data);
+
     if (!selectedDate) {
       toast({
         title: "Date Required",
         description: "Please select a meeting date",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!data.time) {
+      toast({
+        title: "Time Required",
+        description: "Please select a meeting time",
         variant: "destructive"
       });
       return;
@@ -143,14 +163,23 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
       return;
     }
 
+    // Create a proper date object with the selected date and time
+    const meetingDate = new Date(selectedDate);
+    const [hours, minutes] = data.time.split(':').map(Number);
+    meetingDate.setHours(hours, minutes, 0, 0);
+
+    console.log('Final meeting date/time:', meetingDate);
+
     const meetingData = {
       ...data,
-      date: selectedDate,
+      date: meetingDate,
       location: data.type === 'online' ? 'Microsoft Teams Meeting' : data.location,
       attendees: selectedAttendees.join(', '),
       attachments: attachedFiles,
       rsvpEnabled
     };
+
+    console.log('Meeting data being sent:', meetingData);
 
     const meeting = await createMeeting(meetingData);
 
@@ -164,8 +193,17 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
     }
   };
 
+  const handleDialogClose = () => {
+    reset();
+    setSelectedDate(undefined);
+    setSelectedAttendees([]);
+    setAttachedFiles([]);
+    setRsvpEnabled(true);
+    onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogClose}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Schedule New Meeting</DialogTitle>
@@ -207,22 +245,24 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start text-left font-normal"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                      type="button"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
+                  <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
                       selected={selectedDate}
-                      onSelect={(date) => {
-                        setSelectedDate(date);
-                        setShowCalendar(false);
-                      }}
-                      disabled={(date) => date < new Date()}
+                      onSelect={handleDateSelect}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                       initialFocus
+                      className={cn("p-3 pointer-events-auto")}
                     />
                   </PopoverContent>
                 </Popover>
@@ -361,6 +401,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
                         size="sm"
                         onClick={() => removeFile(index)}
                         className="h-6 w-6 p-0"
+                        type="button"
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -384,7 +425,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={handleDialogClose}>
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting} className="bg-primary hover:bg-primary/90">
