@@ -58,6 +58,9 @@ export const DocumentsModule: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'type'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+  const [documentToMove, setDocumentToMove] = useState<string | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<string>('');
 
   // Track document views
   const trackDocumentView = async (documentId: string) => {
@@ -128,6 +131,8 @@ export const DocumentsModule: React.FC = () => {
 
   const handleViewDocument = (documentId: string, documentName: string) => {
     trackDocumentView(documentId);
+    // Simulate opening document - in real implementation this would open the file
+    window.open('#', '_blank');
     toast({
       title: "Document Opened",
       description: `Opening "${documentName}". Document view has been tracked.`
@@ -135,10 +140,13 @@ export const DocumentsModule: React.FC = () => {
   };
 
   const handleDownloadDocument = (documentId: string, documentName: string) => {
+    // Create a temporary download link
     const link = document.createElement('a');
-    link.href = '#';
+    link.href = '#'; // In real implementation, this would be the actual file URL
     link.download = documentName;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     
     toast({
       title: "Download Started",
@@ -149,13 +157,34 @@ export const DocumentsModule: React.FC = () => {
   const handleDeleteDocument = async (documentId: string) => {
     try {
       await deleteDocument(documentId);
+      toast({
+        title: "Success",
+        description: "Document deleted successfully"
+      });
     } catch (error: any) {
       console.error('Delete error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete document",
+        variant: "destructive"
+      });
     }
   };
 
   const handleFolderCreated = async (folderName: string) => {
-    await createFolder(folderName);
+    try {
+      await createFolder(folderName);
+      toast({
+        title: "Success",
+        description: `Folder "${folderName}" created successfully`
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to create folder",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleSearch = (term: string) => {
@@ -163,8 +192,25 @@ export const DocumentsModule: React.FC = () => {
     searchDocuments(term);
   };
 
-  const handleMoveToFolder = (documentId: string, newFolder: string) => {
-    moveDocument(documentId, newFolder);
+  const handleMoveDocument = async () => {
+    if (!documentToMove || !selectedFolder) return;
+    
+    try {
+      await moveDocument(documentToMove, selectedFolder);
+      setMoveDialogOpen(false);
+      setDocumentToMove(null);
+      setSelectedFolder('');
+      toast({
+        title: "Success",
+        description: "Document moved successfully"
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to move document",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleCopyDocument = async (documentId: string) => {
@@ -202,10 +248,19 @@ export const DocumentsModule: React.FC = () => {
   };
 
   const handleRenameDocument = async (documentId: string, newName: string) => {
+    if (!newName.trim()) {
+      toast({
+        title: "Invalid Name",
+        description: "Please enter a valid document name",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('documents')
-        .update({ name: newName, updated_at: new Date().toISOString() })
+        .update({ name: newName.trim(), updated_at: new Date().toISOString() })
         .eq('id', documentId);
 
       if (error) throw error;
@@ -225,6 +280,16 @@ export const DocumentsModule: React.FC = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const startRename = (documentId: string, currentName: string) => {
+    setRenameDocumentId(documentId);
+    setNewDocumentName(currentName);
+  };
+
+  const cancelRename = () => {
+    setRenameDocumentId(null);
+    setNewDocumentName('');
   };
 
   // Check if user can access document based on hierarchy
@@ -247,8 +312,10 @@ export const DocumentsModule: React.FC = () => {
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 'c') {
           e.preventDefault();
+          // Copy functionality would be implemented here
         } else if (e.key === 'v') {
           e.preventDefault();
+          // Paste functionality would be implemented here
         }
       }
     };
@@ -442,6 +509,44 @@ export const DocumentsModule: React.FC = () => {
         </div>
       </div>
 
+      {/* Move Document Dialog */}
+      <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move Document</DialogTitle>
+            <DialogDescription>
+              Select the folder to move this document to
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="folder">Select Folder</Label>
+              <Select value={selectedFolder} onValueChange={setSelectedFolder}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a folder" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="general">General</SelectItem>
+                  {folders.map((folder) => (
+                    <SelectItem key={folder} value={folder}>
+                      {folder}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setMoveDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleMoveDocument} disabled={!selectedFolder}>
+                Move
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Documents Display */}
       {viewMode === 'list' ? (
         <Card>
@@ -483,13 +588,22 @@ export const DocumentsModule: React.FC = () => {
                               <Input
                                 value={newDocumentName}
                                 onChange={(e) => setNewDocumentName(e.target.value)}
-                                onBlur={() => handleRenameDocument(document.id, newDocumentName)}
+                                onBlur={() => {
+                                  if (newDocumentName.trim()) {
+                                    handleRenameDocument(document.id, newDocumentName);
+                                  } else {
+                                    cancelRename();
+                                  }
+                                }}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
-                                    handleRenameDocument(document.id, newDocumentName);
+                                    if (newDocumentName.trim()) {
+                                      handleRenameDocument(document.id, newDocumentName);
+                                    } else {
+                                      cancelRename();
+                                    }
                                   } else if (e.key === 'Escape') {
-                                    setRenameDocumentId(null);
-                                    setNewDocumentName('');
+                                    cancelRename();
                                   }
                                 }}
                                 className="h-8 text-sm"
@@ -585,16 +699,20 @@ export const DocumentsModule: React.FC = () => {
                       Download
                     </ContextMenuItem>
                     <ContextMenuSeparator />
-                    <ContextMenuItem onClick={() => {
-                      setRenameDocumentId(document.id);
-                      setNewDocumentName(document.name);
-                    }}>
+                    <ContextMenuItem onClick={() => startRename(document.id, document.name)}>
                       <Edit className="h-4 w-4 mr-2" />
                       Rename
                     </ContextMenuItem>
                     <ContextMenuItem onClick={() => handleCopyDocument(document.id)}>
                       <Copy className="h-4 w-4 mr-2" />
                       Copy Document
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => {
+                      setDocumentToMove(document.id);
+                      setMoveDialogOpen(true);
+                    }}>
+                      <Move className="h-4 w-4 mr-2" />
+                      Move to Folder
                     </ContextMenuItem>
                     <ContextMenuItem onClick={() => toggleImportant(document.id, document.is_important || false)}>
                       {document.is_important ? (
@@ -620,11 +738,11 @@ export const DocumentsModule: React.FC = () => {
           </Table>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {filteredAndSortedDocuments.map((document) => (
             <ContextMenu key={document.id}>
               <ContextMenuTrigger asChild>
-                <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                <Card className="cursor-pointer hover:shadow-md transition-shadow h-full">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-2">
@@ -646,7 +764,7 @@ export const DocumentsModule: React.FC = () => {
                         </Button>
                       </div>
                     </div>
-                    <CardTitle className="text-sm font-medium truncate" title={document.name}>
+                    <CardTitle className="text-sm font-medium line-clamp-2" title={document.name}>
                       {document.name}
                     </CardTitle>
                     <CardDescription className="text-xs">
@@ -733,16 +851,20 @@ export const DocumentsModule: React.FC = () => {
                   Download
                 </ContextMenuItem>
                 <ContextMenuSeparator />
-                <ContextMenuItem onClick={() => {
-                  setRenameDocumentId(document.id);
-                  setNewDocumentName(document.name);
-                }}>
+                <ContextMenuItem onClick={() => startRename(document.id, document.name)}>
                   <Edit className="h-4 w-4 mr-2" />
                   Rename
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => handleCopyDocument(document.id)}>
                   <Copy className="h-4 w-4 mr-2" />
                   Copy Document
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => {
+                  setDocumentToMove(document.id);
+                  setMoveDialogOpen(true);
+                }}>
+                  <Move className="h-4 w-4 mr-2" />
+                  Move to Folder
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => toggleImportant(document.id, document.is_important || false)}>
                   {document.is_important ? (
