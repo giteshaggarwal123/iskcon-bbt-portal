@@ -61,7 +61,6 @@ export const DocumentsModule: React.FC = () => {
   const [selectedFolder, setSelectedFolder] = useState('all');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadFolder, setUploadFolder] = useState('general');
   const [draggedDocument, setDraggedDocument] = useState<string | null>(null);
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
@@ -132,8 +131,8 @@ export const DocumentsModule: React.FC = () => {
       return;
     }
 
-    const targetFolder = uploadFolder;
-    await uploadDocument(selectedFile, targetFolder);
+    // Always upload to 'general' folder
+    await uploadDocument(selectedFile, 'general');
     setSelectedFile(null);
     setUploadDialogOpen(false);
   };
@@ -334,21 +333,6 @@ export const DocumentsModule: React.FC = () => {
                       Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
                     </p>
                   )}
-                </div>
-                <div>
-                  <Label htmlFor="folder">Folder</Label>
-                  <Select value={uploadFolder} onValueChange={setUploadFolder}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select folder" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allFolders.map(folder => (
-                        <SelectItem key={folder} value={folder}>
-                          {folder.charAt(0).toUpperCase() + folder.slice(1)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
