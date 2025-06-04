@@ -7,6 +7,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Function to format phone number to international format
+const formatPhoneNumber = (phone: string): string => {
+  // Remove all non-digit characters
+  let cleaned = phone.replace(/\D/g, '');
+  
+  // If it starts with 91 (India country code), add +
+  if (cleaned.startsWith('91') && cleaned.length === 12) {
+    return '+' + cleaned;
+  }
+  
+  // If it's a 10-digit Indian number, add +91
+  if (cleaned.length === 10 && cleaned.startsWith('9')) {
+    return '+91' + cleaned;
+  }
+  
+  // If it already has + at the beginning, use as is
+  if (phone.startsWith('+')) {
+    return phone;
+  }
+  
+  // Default: assume it's an Indian number and add +91
+  return '+91' + cleaned;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -42,6 +66,10 @@ serve(async (req) => {
       );
     }
 
+    // Format the phone number properly
+    const formattedPhone = formatPhoneNumber(profile.phone);
+    console.log('Original phone:', profile.phone, 'Formatted phone:', formattedPhone);
+
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
@@ -68,7 +96,7 @@ serve(async (req) => {
       },
       body: new URLSearchParams({
         From: twilioPhoneNumber,
-        To: profile.phone,
+        To: formattedPhone,
         Body: `Your ISKCON Bureau login verification code is: ${otp}. This code will expire in 5 minutes.`
       }),
     });
@@ -77,12 +105,12 @@ serve(async (req) => {
       const error = await response.text();
       console.error('Twilio error:', error);
       return new Response(
-        JSON.stringify({ error: 'Failed to send OTP' }),
+        JSON.stringify({ error: 'Failed to send OTP. Please check your phone number format.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Login OTP sent successfully to:', profile.phone, 'for email:', email);
+    console.log('Login OTP sent successfully to:', formattedPhone, 'for email:', email);
     
     return new Response(
       JSON.stringify({ 
