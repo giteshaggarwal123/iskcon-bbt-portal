@@ -394,62 +394,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error: error || data };
       }
 
-      // After successful OTP verification, get the user and create a session
-      // First, check if the user exists in the auth.users table by email
-      const { data: { users }, error: userError } = await supabase.auth.admin.listUsers();
-      
-      if (userError) {
-        toast({
-          title: "Authentication Error",
-          description: "Failed to authenticate user. Please try again.",
-          variant: "destructive"
-        });
-        return { error: userError };
-      }
-
-      const existingUser = users?.find(u => u.email === email);
-      
-      if (!existingUser) {
-        toast({
-          title: "Authentication Error",
-          description: "User account not found. Please contact administrator.",
-          variant: "destructive"
-        });
-        return { error: { message: "User not found" } };
-      }
-
-      // Create a temporary password and sign in the user
-      const tempPassword = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      
-      // Update user password temporarily
-      const { error: updateError } = await supabase.auth.admin.updateUserById(existingUser.id, {
-        password: tempPassword
-      });
-
-      if (updateError) {
-        console.error('Failed to update temporary password:', updateError);
-        toast({
-          title: "Authentication Error",
-          description: "Failed to complete authentication. Please try again.",
-          variant: "destructive"
-        });
-        return { error: updateError };
-      }
-
-      // Sign in with the temporary password
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      // After successful OTP verification, sign in using magic link
+      const { error: magicLinkError } = await supabase.auth.signInWithOtp({
         email: SecurityService.sanitizeInput(email),
-        password: tempPassword
+        options: {
+          shouldCreateUser: false
+        }
       });
 
-      if (signInError) {
-        console.error('Failed to sign in with temporary password:', signInError);
+      if (magicLinkError) {
+        console.error('Magic link signin failed:', magicLinkError);
         toast({
-          title: "Authentication Error", 
+          title: "Authentication Error",
           description: "Failed to complete authentication. Please try again.",
           variant: "destructive"
         });
-        return { error: signInError };
+        return { error: magicLinkError };
       }
 
       toast({
