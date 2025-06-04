@@ -163,7 +163,6 @@ export const DocumentsModule: React.FC = () => {
 
   const handleFolderCreated = async (folderName: string) => {
     await createFolder(folderName);
-    setUploadFolder(folderName);
   };
 
   const handleSearch = (term: string) => {
