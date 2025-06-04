@@ -14,13 +14,12 @@ import { SharePointDocuments } from './SharePointDocuments';
 import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 
 export const DocumentsModule: React.FC = () => {
-  const { documents, folders, loading, uploadDocument, searchDocuments, fetchDocuments } = useDocuments();
+  const { documents, folders, loading, uploadDocument, searchDocuments, fetchDocuments, createFolder } = useDocuments();
   const { isConnected } = useMicrosoftAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [selectedFolder, setSelectedFolder] = useState('general');
-  const [showFolderDialog, setShowFolderDialog] = useState(false);
 
   const handleUpload = async () => {
     if (!selectedFiles) return;
@@ -140,10 +139,10 @@ export const DocumentsModule: React.FC = () => {
                 </DialogContent>
               </Dialog>
 
-              <Button variant="outline" onClick={() => setShowFolderDialog(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Folder
-              </Button>
+              <CreateFolderDialog 
+                onFolderCreated={createFolder} 
+                existingFolders={folders}
+              />
 
               <Button variant="outline" onClick={fetchDocuments} disabled={loading}>
                 <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -228,11 +227,6 @@ export const DocumentsModule: React.FC = () => {
               </p>
             </div>
           )}
-
-          <CreateFolderDialog 
-            open={showFolderDialog} 
-            onOpenChange={setShowFolderDialog} 
-          />
         </TabsContent>
       </Tabs>
     </div>

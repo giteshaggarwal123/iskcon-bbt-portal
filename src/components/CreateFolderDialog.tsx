@@ -9,16 +9,24 @@ import { useToast } from '@/hooks/use-toast';
 
 interface CreateFolderDialogProps {
   onFolderCreated: (folderName: string) => void;
-  existingFolders: string[];
+  existingFolders?: string[];
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({ 
   onFolderCreated, 
-  existingFolders 
+  existingFolders = [],
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange
 }) => {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [folderName, setFolderName] = useState('');
   const { toast } = useToast();
+
+  // Use external state if provided, otherwise use internal state
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = externalOnOpenChange || setInternalOpen;
 
   const handleCreate = async () => {
     if (!folderName.trim()) {
@@ -47,12 +55,14 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          New Folder
-        </Button>
-      </DialogTrigger>
+      {externalOpen === undefined && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            New Folder
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create New Folder</DialogTitle>
