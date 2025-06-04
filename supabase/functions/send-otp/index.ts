@@ -7,7 +7,43 @@ const corsHeaders = {
 };
 
 // In-memory OTP store - in production, use Redis or secure database
-const otpStore = new Map<string, { otp: string; expiresAt: number; attempts: number }>();
+const otpStore = new Map<string, { otp: string; expiresAt: number; attempts: number; lastSent: number }>();
+
+// Rate limiting store
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+// Rate limiting function
+const checkRateLimit = (phoneNumber: string): boolean => {
+  const now = Date.now();
+  const key = `rate_limit_${phoneNumber}`;
+  const rateLimit = rateLimitStore.get(key);
+  
+  if (!rateLimit || now > rateLimit.resetTime) {
+    // Reset rate limit every 5 minutes
+    rateLimitStore.set(key, { count: 1, resetTime: now + 5 * 60 * 1000 });
+    return true;
+  }
+  
+  if (rateLimit.count >= 3) {
+    return false; // Too many requests
+  }
+  
+  rateLimit.count++;
+  return true;
+};
+
+// Check if OTP was recently sent (prevent duplicates within 60 seconds)
+const checkRecentOTP = (phoneNumber: string): boolean => {
+  const key = `reset_${phoneNumber}`;
+  const storedOTP = otpStore.get(key);
+  
+  if (storedOTP && storedOTP.lastSent) {
+    const timeSinceLastSent = Date.now() - storedOTP.lastSent;
+    return timeSinceLastSent < 60000; // 60 seconds
+  }
+  
+  return false;
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -33,14 +69,38 @@ serve(async (req) => {
       );
     }
 
+    // Check rate limiting
+    if (!checkRateLimit(phoneNumber)) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Too many OTP requests. Please wait 5 minutes before trying again.',
+          details: 'Rate limit exceeded.'
+        }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if OTP was recently sent
+    if (checkRecentOTP(phoneNumber)) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'OTP was recently sent. Please wait 60 seconds before requesting again.',
+          details: 'Duplicate request prevention.'
+        }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const now = Date.now();
     
-    // Store OTP securely with 10-minute expiration
+    // Store OTP securely with 10-minute expiration and last sent timestamp
     const key = `reset_${phoneNumber}`;
     otpStore.set(key, {
       otp,
-      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
-      attempts: 0
+      expiresAt: now + 10 * 60 * 1000, // 10 minutes
+      attempts: 0,
+      lastSent: now
     });
     
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
@@ -73,6 +133,10 @@ serve(async (req) => {
     if (!response.ok) {
       const error = await response.text();
       console.error('Twilio error:', error);
+      
+      // Remove OTP from store if SMS failed
+      otpStore.delete(key);
+      
       return new Response(
         JSON.stringify({ error: 'Failed to send OTP' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -84,8 +148,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'OTP sent successfully'
-        // OTP is NO LONGER returned in the response for security
+        message: 'OTP sent successfully',
+        cooldown: 60 // Tell frontend to wait 60 seconds before allowing another request
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
