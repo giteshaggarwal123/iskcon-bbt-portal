@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Mail, Phone, Settings, MessageCircle, Trash2 } from 'lucide-react';
+import { User, Mail, Phone, Settings, MessageCircle, Trash2, Lock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -68,12 +68,15 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
     onDeleteMember(member.id);
   };
 
-  // Role change permissions
-  const canChangeRole = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin');
-  const canDeleteMember = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin');
+  // Role change permissions - enhanced with more granular control
+  const canChangeRole = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin' && actualRole !== 'admin');
+  const canDeleteMember = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin' && actualRole !== 'admin');
+  const canViewSettings = userRole.isSuperAdmin || userRole.isAdmin || userRole.isSecretary;
+  const canSendMessage = true; // All users can send messages
   
   // Super admin can never be deleted or have role changed by others
   const isSuperAdminMember = actualRole === 'super_admin';
+  const isProtectedMember = isSuperAdminMember || (actualRole === 'admin' && !userRole.isSuperAdmin);
 
   return (
     <>
@@ -106,6 +109,12 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
                   {isSuperAdminMember && (
                     <Badge className="bg-gold-500 text-white">System Admin</Badge>
                   )}
+                  {isProtectedMember && (
+                    <Badge className="bg-amber-100 text-amber-800">
+                      <Lock className="h-3 w-3 mr-1" />
+                      Protected
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -116,7 +125,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
                 <Select 
                   value={actualRole} 
                   onValueChange={(value) => onRoleChange(member.id, value)}
-                  disabled={!canChangeRole || isSuperAdminMember}
+                  disabled={!canChangeRole || isProtectedMember}
                 >
                   <SelectTrigger className="w-32">
                     <SelectValue />
@@ -125,45 +134,56 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
                     {userRole.isSuperAdmin && (
                       <SelectItem value="super_admin">Super Admin</SelectItem>
                     )}
-                    <SelectItem value="admin">Admin</SelectItem>
+                    {userRole.isSuperAdmin && (
+                      <SelectItem value="admin">Admin</SelectItem>
+                    )}
                     <SelectItem value="secretary">Secretary</SelectItem>
                     <SelectItem value="treasurer">Treasurer</SelectItem>
                     <SelectItem value="member">Member</SelectItem>
                   </SelectContent>
                 </Select>
+                {!canChangeRole && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {isProtectedMember ? 'Protected role' : 'No permission'}
+                  </p>
+                )}
               </div>
               
               <div className="flex space-x-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => setShowSettingsDialog(true)}>
-                      Member Settings
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      View Activity
-                    </DropdownMenuItem>
-                    {!isSuperAdminMember && (
-                      <DropdownMenuItem>
-                        Reset Password
+                {canViewSettings && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => setShowSettingsDialog(true)}>
+                        Member Settings
                       </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      <DropdownMenuItem>
+                        View Activity
+                      </DropdownMenuItem>
+                      {!isSuperAdminMember && userRole.isSuperAdmin && (
+                        <DropdownMenuItem>
+                          Reset Password
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
 
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowMessageDialog(true)}
-                >
-                  <MessageCircle className="h-4 w-4" />
-                </Button>
+                {canSendMessage && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowMessageDialog(true)}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                  </Button>
+                )}
 
-                {canDeleteMember && !isSuperAdminMember && (
+                {canDeleteMember && !isProtectedMember && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
@@ -196,17 +216,21 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
         </CardContent>
       </Card>
 
-      <MemberSettingsDialog 
-        open={showSettingsDialog}
-        onOpenChange={setShowSettingsDialog}
-        member={member}
-      />
+      {canViewSettings && (
+        <MemberSettingsDialog 
+          open={showSettingsDialog}
+          onOpenChange={setShowSettingsDialog}
+          member={member}
+        />
+      )}
 
-      <MemberMessageDialog 
-        open={showMessageDialog}
-        onOpenChange={setShowMessageDialog}
-        member={member}
-      />
+      {canSendMessage && (
+        <MemberMessageDialog 
+          open={showMessageDialog}
+          onOpenChange={setShowMessageDialog}
+          member={member}
+        />
+      )}
     </>
   );
 };

@@ -21,6 +21,11 @@ interface UseUserRoleReturn {
   canCreateContent: boolean;
   canDeleteContent: boolean;
   canEditContent: boolean;
+  canEditAllUserInfo: boolean;
+  canEditUserRoles: boolean;
+  canDeleteUsers: boolean;
+  canEditPhoneNumbers: boolean;
+  canViewMemberSettings: boolean;
 }
 
 export const useUserRole = (): UseUserRoleReturn => {
@@ -92,18 +97,24 @@ export const useUserRole = (): UseUserRoleReturn => {
   const isTreasurer = userRole === 'treasurer' || isAdmin;
   const isMember = userRole === 'member' || isSecretary || isTreasurer || isAdmin || isSuperAdmin;
 
-  // Super Admin has access to everything
+  // Basic permissions
   const canManageMembers = isSuperAdmin || isAdmin;
   const canManageMeetings = isSuperAdmin || isAdmin || isSecretary;
   const canManageDocuments = isSuperAdmin || isAdmin || isSecretary;
   const canViewReports = isSuperAdmin || isAdmin || isTreasurer;
-  // All authenticated users can access settings (changed from admin-only)
   const canManageSettings = true; // All members can access settings
   
-  // Content permissions - Super Admin can do everything
+  // Content permissions
   const canCreateContent = isSuperAdmin || isAdmin || isSecretary;
   const canDeleteContent = isSuperAdmin || isAdmin;
   const canEditContent = isSuperAdmin || isAdmin || isSecretary;
+
+  // Enhanced user management permissions
+  const canEditAllUserInfo = isSuperAdmin; // Only super admin can edit names, etc.
+  const canEditUserRoles = isSuperAdmin || isAdmin; // Admins can edit roles but not super admin roles
+  const canDeleteUsers = isSuperAdmin || isAdmin; // Admins can delete users but not super admins
+  const canEditPhoneNumbers = isSuperAdmin || isAdmin; // Phone numbers can be edited by admins+
+  const canViewMemberSettings = isSuperAdmin || isAdmin || isSecretary; // Settings access
 
   return {
     userRole,
@@ -120,6 +131,11 @@ export const useUserRole = (): UseUserRoleReturn => {
     canManageSettings,
     canCreateContent,
     canDeleteContent,
-    canEditContent
+    canEditContent,
+    canEditAllUserInfo,
+    canEditUserRoles,
+    canDeleteUsers,
+    canEditPhoneNumbers,
+    canViewMemberSettings
   };
 };

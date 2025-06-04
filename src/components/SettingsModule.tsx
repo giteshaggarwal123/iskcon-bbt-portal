@@ -8,14 +8,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { User, Bell, Settings, Mail, Save, MessageCircle } from 'lucide-react';
+import { User, Bell, Settings, Mail, Save, MessageCircle, Shield, Lock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { MicrosoftOAuthButton } from './MicrosoftOAuthButton';
+import { Badge } from '@/components/ui/badge';
 
 export const SettingsModule: React.FC = () => {
   const { user } = useAuth();
+  const userRole = useUserRole();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
@@ -36,6 +39,12 @@ export const SettingsModule: React.FC = () => {
     documentUpdates: false,
     voteNotifications: true
   });
+
+  // Permission checks
+  const canEditPersonalInfo = userRole.isSuperAdmin;
+  const canEditEmail = false; // Email can never be changed
+  const canEditPhone = userRole.isSuperAdmin || userRole.isAdmin;
+  const canEditNotifications = true; // All users can edit their notification preferences
 
   useEffect(() => {
     if (user) {
@@ -71,18 +80,41 @@ export const SettingsModule: React.FC = () => {
   const updatePersonalInfo = async () => {
     if (!user) return;
 
+    // Check permissions before updating
+    if (!canEditPersonalInfo && !canEditPhone) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to edit this information. Contact an administrator.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
+      // Prepare update object based on permissions
+      const updateData: any = {
+        id: user.id,
+        updated_at: new Date().toISOString()
+      };
+
+      // Super admins can edit names
+      if (canEditPersonalInfo) {
+        updateData.first_name = personalInfo.first_name;
+        updateData.last_name = personalInfo.last_name;
+      }
+
+      // Super admins and admins can edit phone
+      if (canEditPhone) {
+        updateData.phone = personalInfo.phone;
+      }
+
+      // Email is never editable
+      updateData.email = personalInfo.email;
+
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
-          first_name: personalInfo.first_name,
-          last_name: personalInfo.last_name,
-          email: personalInfo.email,
-          phone: personalInfo.phone,
-          updated_at: new Date().toISOString()
-        });
+        .upsert(updateData);
 
       if (error) throw error;
 
@@ -143,12 +175,25 @@ export const SettingsModule: React.FC = () => {
     }
   };
 
+  const getPermissionBadge = (canEdit: boolean) => {
+    if (canEdit) {
+      return <Badge className="bg-green-100 text-green-800 text-xs">Editable</Badge>;
+    }
+    return <Badge className="bg-red-100 text-red-800 text-xs">Read Only</Badge>;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
           <p className="text-gray-600">Manage your account settings and preferences</p>
+          <div className="flex items-center space-x-2 mt-2">
+            <Shield className="h-4 w-4 text-gray-500" />
+            <span className="text-sm text-gray-500">
+              Your role: <strong>{userRole.userRole?.replace('_', ' ') || 'Member'}</strong>
+            </span>
+          </div>
         </div>
         <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
           <DialogTrigger asChild>
@@ -203,31 +248,54 @@ export const SettingsModule: React.FC = () => {
                 <User className="h-5 w-5" />
                 <span>Personal Information</span>
               </CardTitle>
-              <CardDescription>Update your personal details and contact information</CardDescription>
+              <CardDescription>
+                Update your personal details and contact information
+                {!canEditPersonalInfo && !canEditPhone && (
+                  <div className="flex items-center space-x-2 mt-2 p-2 bg-amber-50 rounded-md">
+                    <Lock className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm text-amber-700">
+                      Contact an administrator to modify your personal information
+                    </span>
+                  </div>
+                )}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="firstName">First Name</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label htmlFor="firstName">First Name</Label>
+                    {getPermissionBadge(canEditPersonalInfo)}
+                  </div>
                   <Input
                     id="firstName"
                     value={personalInfo.first_name}
-                    onChange={(e) => setPersonalInfo(prev => ({ ...prev, first_name: e.target.value }))}
+                    onChange={(e) => canEditPersonalInfo && setPersonalInfo(prev => ({ ...prev, first_name: e.target.value }))}
                     placeholder="Enter your first name"
+                    readOnly={!canEditPersonalInfo}
+                    className={!canEditPersonalInfo ? "bg-gray-100 cursor-not-allowed" : ""}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="lastName">Last Name</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    {getPermissionBadge(canEditPersonalInfo)}
+                  </div>
                   <Input
                     id="lastName"
                     value={personalInfo.last_name}
-                    onChange={(e) => setPersonalInfo(prev => ({ ...prev, last_name: e.target.value }))}
+                    onChange={(e) => canEditPersonalInfo && setPersonalInfo(prev => ({ ...prev, last_name: e.target.value }))}
                     placeholder="Enter your last name"
+                    readOnly={!canEditPersonalInfo}
+                    className={!canEditPersonalInfo ? "bg-gray-100 cursor-not-allowed" : ""}
                   />
                 </div>
               </div>
               <div>
-                <Label htmlFor="email">Email Address</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label htmlFor="email">Email Address</Label>
+                  {getPermissionBadge(canEditEmail)}
+                </div>
                 <Input
                   id="email"
                   type="email"
@@ -236,23 +304,40 @@ export const SettingsModule: React.FC = () => {
                   className="bg-gray-100 cursor-not-allowed"
                   placeholder="Enter your email address"
                 />
-                <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                <p className="text-xs text-gray-500 mt-1">Email cannot be changed for security reasons</p>
               </div>
               <div>
-                <Label htmlFor="phone">Phone Number</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  {getPermissionBadge(canEditPhone)}
+                </div>
                 <Input
                   id="phone"
                   value={personalInfo.phone}
-                  readOnly
-                  className="bg-gray-100 cursor-not-allowed"
+                  onChange={(e) => canEditPhone && setPersonalInfo(prev => ({ ...prev, phone: e.target.value }))}
                   placeholder="Enter your phone number"
+                  readOnly={!canEditPhone}
+                  className={!canEditPhone ? "bg-gray-100 cursor-not-allowed" : ""}
                 />
-                <p className="text-xs text-gray-500 mt-1">Phone number cannot be changed</p>
+                {!canEditPhone && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Phone number can only be changed by administrators
+                  </p>
+                )}
               </div>
-              <Button onClick={updatePersonalInfo} disabled={loading} className="w-full">
+              <Button 
+                onClick={updatePersonalInfo} 
+                disabled={loading || (!canEditPersonalInfo && !canEditPhone)} 
+                className="w-full"
+              >
                 <Save className="h-4 w-4 mr-2" />
                 {loading ? 'Saving...' : 'Save Changes'}
               </Button>
+              {(!canEditPersonalInfo && !canEditPhone) && (
+                <p className="text-sm text-gray-500 text-center">
+                  You don't have permission to edit personal information. Contact an administrator for changes.
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
