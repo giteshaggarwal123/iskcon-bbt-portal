@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,9 +18,14 @@ import {
   FileText,
   Image,
   FileSpreadsheet,
-  Presentation
+  Presentation,
+  RefreshCw,
+  Clock,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { useSharePoint } from '@/hooks/useSharePoint';
+import { useSharePointRealTime } from '@/hooks/useSharePointRealTime';
 import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 import { MicrosoftOAuthButton } from './MicrosoftOAuthButton';
 
@@ -32,15 +36,26 @@ export const SharePointDocuments: React.FC = () => {
     folders,
     currentSiteId,
     loading,
+    lastSyncTime,
+    isRealTimeEnabled,
     setCurrentSiteId,
     uploadDocument,
     deleteDocument,
     createFolder,
     searchDocuments,
-    fetchDocuments
+    fetchDocuments,
+    toggleRealTimeSync,
+    manualSync
   } = useSharePoint();
   
   const { isConnected } = useMicrosoftAuth();
+  
+  // Enable real-time sync
+  useSharePointRealTime({
+    enabled: isRealTimeEnabled && !!currentSiteId,
+    pollInterval: 30000 // 30 seconds
+  });
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [folderDialogOpen, setFolderDialogOpen] = useState(false);
@@ -125,7 +140,21 @@ export const SharePointDocuments: React.FC = () => {
       {/* Site Selection */}
       <Card>
         <CardHeader>
-          <CardTitle>SharePoint Sites</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            <span>SharePoint Sites</span>
+            <div className="flex items-center space-x-2">
+              <Badge variant={isRealTimeEnabled ? "default" : "secondary"} className="flex items-center space-x-1">
+                {isRealTimeEnabled ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                <span>{isRealTimeEnabled ? 'Real-time Sync' : 'Manual Sync'}</span>
+              </Badge>
+              {lastSyncTime && (
+                <Badge variant="outline" className="flex items-center space-x-1">
+                  <Clock className="h-3 w-3" />
+                  <span>Last sync: {lastSyncTime.toLocaleTimeString()}</span>
+                </Badge>
+              )}
+            </div>
+          </CardTitle>
           <CardDescription>Select a SharePoint site to manage documents</CardDescription>
         </CardHeader>
         <CardContent>
@@ -162,6 +191,7 @@ export const SharePointDocuments: React.FC = () => {
           {/* Actions Bar */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
             <div className="flex space-x-2">
+              {/* Upload Dialog */}
               <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
                 <DialogTrigger asChild>
                   <Button>
@@ -198,6 +228,7 @@ export const SharePointDocuments: React.FC = () => {
                 </DialogContent>
               </Dialog>
 
+              {/* Create Folder Dialog */}
               <Dialog open={folderDialogOpen} onOpenChange={setFolderDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline">
@@ -233,6 +264,25 @@ export const SharePointDocuments: React.FC = () => {
                   </div>
                 </DialogContent>
               </Dialog>
+
+              {/* Sync Controls */}
+              <Button 
+                variant="outline" 
+                onClick={toggleRealTimeSync}
+                className={isRealTimeEnabled ? "border-green-500 text-green-600" : ""}
+              >
+                {isRealTimeEnabled ? <Wifi className="h-4 w-4 mr-2" /> : <WifiOff className="h-4 w-4 mr-2" />}
+                {isRealTimeEnabled ? 'Auto Sync' : 'Manual Sync'}
+              </Button>
+
+              <Button 
+                variant="outline" 
+                onClick={manualSync} 
+                disabled={loading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Sync Now
+              </Button>
             </div>
 
             <div className="flex space-x-2 w-full sm:w-auto">

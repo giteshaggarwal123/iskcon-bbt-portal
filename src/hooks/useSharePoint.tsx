@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from './use-toast';
 import { useMicrosoftAuth } from './useMicrosoftAuth';
@@ -15,6 +14,8 @@ export const useSharePoint = () => {
   const [folders, setFolders] = useState<SharePointFolder[]>([]);
   const [currentSiteId, setCurrentSiteId] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
   const { toast } = useToast();
   const { isConnected } = useMicrosoftAuth();
 
@@ -48,7 +49,7 @@ export const useSharePoint = () => {
     }
   };
 
-  const fetchDocuments = async (siteId?: string) => {
+  const fetchDocuments = async (siteId?: string, showToast = false) => {
     const targetSiteId = siteId || currentSiteId;
     if (!targetSiteId || !isConnected) return;
 
@@ -61,6 +62,14 @@ export const useSharePoint = () => {
       
       setDocuments(fetchedDocuments);
       setFolders(fetchedFolders);
+      setLastSyncTime(new Date());
+
+      if (showToast) {
+        toast({
+          title: "Synced",
+          description: "Documents synchronized with SharePoint",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -174,6 +183,20 @@ export const useSharePoint = () => {
     }
   };
 
+  const toggleRealTimeSync = () => {
+    setIsRealTimeEnabled(!isRealTimeEnabled);
+    toast({
+      title: isRealTimeEnabled ? "Real-time Sync Disabled" : "Real-time Sync Enabled",
+      description: isRealTimeEnabled 
+        ? "Documents will no longer sync automatically" 
+        : "Documents will sync automatically every 30 seconds",
+    });
+  };
+
+  const manualSync = () => {
+    fetchDocuments(undefined, true);
+  };
+
   useEffect(() => {
     if (isConnected) {
       fetchSites();
@@ -192,12 +215,16 @@ export const useSharePoint = () => {
     folders,
     currentSiteId,
     loading,
+    lastSyncTime,
+    isRealTimeEnabled,
     setCurrentSiteId,
     fetchSites,
     fetchDocuments,
     uploadDocument,
     deleteDocument,
     createFolder,
-    searchDocuments
+    searchDocuments,
+    toggleRealTimeSync,
+    manualSync
   };
 };
