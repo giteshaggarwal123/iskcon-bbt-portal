@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -86,62 +85,79 @@ export const useMeetings = () => {
         created_by: user.id
       });
 
-      // Check if user has Microsoft connection for Teams meetings
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('microsoft_access_token')
-        .eq('id', user.id)
-        .single();
-
       let meeting;
 
-      if (profile?.microsoft_access_token && meetingData.type === 'online') {
-        // Create Teams meeting using edge function
-        const { data: teamsData, error: teamsError } = await supabase.functions.invoke('create-teams-meeting', {
-          body: {
-            title: meetingData.title,
-            description: meetingData.description,
-            startTime: startDateTime.toISOString(),
-            endTime: endDateTime.toISOString(),
-            attendees: meetingData.attendees ? meetingData.attendees.split(',').map(email => email.trim()) : []
-          }
-        });
-
-        if (teamsError) {
-          console.error('Teams meeting creation failed:', teamsError);
-          throw new Error('Failed to create Teams meeting: ' + teamsError.message);
-        }
-
-        meeting = teamsData.meeting;
-        
-        toast({
-          title: "Success",
-          description: `Teams meeting "${meetingData.title}" created successfully`,
-        });
-      } else {
-        // Create regular meeting in database
-        const { data: meetingResult, error } = await supabase
-          .from('meetings')
-          .insert({
-            title: meetingData.title,
-            description: meetingData.description,
-            start_time: startDateTime.toISOString(),
-            end_time: endDateTime.toISOString(),
-            location: meetingData.location,
-            meeting_type: meetingData.type,
-            created_by: user.id
-          })
-          .select()
+      // Always try to create Teams meeting for online meetings
+      if (meetingData.type === 'online') {
+        // Check if user has Microsoft connection
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('microsoft_access_token')
+          .eq('id', user.id)
           .single();
 
-        if (error) throw error;
-        meeting = meetingResult;
+        if (profile?.microsoft_access_token) {
+          // Create Teams meeting using edge function
+          const { data: teamsData, error: teamsError } = await supabase.functions.invoke('create-teams-meeting', {
+            body: {
+              title: meetingData.title,
+              description: meetingData.description,
+              startTime: startDateTime.toISOString(),
+              endTime: endDateTime.toISOString(),
+              attendees: meetingData.attendees ? meetingData.attendees.split(',').map(email => email.trim()) : []
+            }
+          });
 
-        toast({
-          title: "Success",
-          description: `Meeting "${meetingData.title}" created successfully`
-        });
+          if (teamsError) {
+            console.error('Teams meeting creation failed:', teamsError);
+            // Fall back to regular meeting creation
+            toast({
+              title: "Teams Meeting Creation Failed",
+              description: "Creating regular meeting instead. Connect Microsoft account for Teams integration.",
+              variant: "destructive"
+            });
+          } else {
+            meeting = teamsData.meeting;
+            
+            toast({
+              title: "Teams Meeting Created!",
+              description: `"${meetingData.title}" created with Teams link and calendar event`,
+            });
+
+            fetchMeetings();
+            return meeting;
+          }
+        } else {
+          toast({
+            title: "Microsoft Account Not Connected",
+            description: "Connect your Microsoft account in Settings to create Teams meetings automatically",
+            variant: "destructive"
+          });
+        }
       }
+
+      // Create regular meeting in database (fallback or for non-online meetings)
+      const { data: meetingResult, error } = await supabase
+        .from('meetings')
+        .insert({
+          title: meetingData.title,
+          description: meetingData.description,
+          start_time: startDateTime.toISOString(),
+          end_time: endDateTime.toISOString(),
+          location: meetingData.location,
+          meeting_type: meetingData.type,
+          created_by: user.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      meeting = meetingResult;
+
+      toast({
+        title: "Meeting Created",
+        description: `"${meetingData.title}" has been scheduled successfully`
+      });
 
       // Add attendees if provided
       if (meetingData.attendees && meeting) {

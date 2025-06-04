@@ -32,6 +32,8 @@ serve(async (req) => {
 
     const { title, description, startTime, endTime, attendees = [] } = await req.json()
 
+    console.log('Creating Teams meeting for user:', user.email)
+
     // Get user's Microsoft tokens
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -48,12 +50,46 @@ serve(async (req) => {
 
     let accessToken = profile.microsoft_access_token
 
-    // Create Teams meeting
+    // Check if token needs refresh
+    if (new Date(profile.token_expires_at) <= new Date()) {
+      console.log('Token expired, attempting refresh...')
+      
+      const { data: refreshData, error: refreshError } = await supabase.functions.invoke('refresh-microsoft-token', {
+        body: { user_id: user.id }
+      })
+
+      if (refreshError || refreshData.error) {
+        console.error('Token refresh failed:', refreshError || refreshData.error)
+        return new Response(
+          JSON.stringify({ error: 'Microsoft token expired. Please reconnect your account.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      accessToken = refreshData.access_token
+    }
+
+    // Create Teams meeting with enhanced calendar integration
     const meetingData = {
       startDateTime: startTime,
       endDateTime: endTime,
-      subject: title
+      subject: title,
+      chatInfo: {
+        "@odata.type": "#microsoft.graph.chatInfo"
+      },
+      lobbyBypassSettings: {
+        scope: "everyone",
+        isDialInBypassEnabled: true
+      },
+      allowMeetingChat: "enabled",
+      allowTeamworkReactions: true,
+      allowedPresenters: "everyone",
+      isEntryExitAnnounced: false,
+      allowAttendeeToEnableMic: true,
+      allowAttendeeToEnableCamera: true
     }
+
+    console.log('Creating Teams meeting with data:', meetingData)
 
     const teamsResponse = await fetch('https://graph.microsoft.com/v1.0/me/onlineMeetings', {
       method: 'POST',
@@ -74,13 +110,25 @@ serve(async (req) => {
     }
 
     const teamsData = await teamsResponse.json()
+    console.log('Teams meeting created successfully:', teamsData.id)
 
-    // Create Outlook calendar event
+    // Create comprehensive Outlook calendar event with full edit permissions
     const calendarEventData = {
       subject: title,
       body: {
         contentType: 'HTML',
-        content: `${description}<br/><br/>Join Teams Meeting: <a href="${teamsData.joinWebUrl}">${teamsData.joinWebUrl}</a>`
+        content: `
+          <div>
+            <p>${description || 'No description provided'}</p>
+            <hr>
+            <p><strong>Join Microsoft Teams Meeting</strong></p>
+            <p><a href="${teamsData.joinWebUrl}" style="color: #0078d4; text-decoration: none;">Click here to join the meeting</a></p>
+            <br>
+            <p><strong>Meeting ID:</strong> ${teamsData.videoTeleconferenceId || 'N/A'}</p>
+            <p><strong>Conference ID:</strong> ${teamsData.audioConferencing?.conferenceId || 'N/A'}</p>
+            ${teamsData.audioConferencing?.tollNumber ? `<p><strong>Phone:</strong> ${teamsData.audioConferencing.tollNumber}</p>` : ''}
+          </div>
+        `
       },
       start: {
         dateTime: startTime,
@@ -90,17 +138,32 @@ serve(async (req) => {
         dateTime: endTime,
         timeZone: 'UTC'
       },
+      location: {
+        displayName: 'Microsoft Teams Meeting',
+        locationType: 'default'
+      },
       attendees: attendees.map((email: string) => ({
         emailAddress: {
-          address: email,
-          name: email
+          address: email.trim(),
+          name: email.trim()
         },
         type: 'required'
       })),
       onlineMeeting: {
         joinUrl: teamsData.joinWebUrl
-      }
+      },
+      isOnlineMeeting: true,
+      onlineMeetingProvider: 'teamsForBusiness',
+      allowNewTimeProposals: true,
+      responseRequested: true,
+      importance: 'normal',
+      sensitivity: 'normal',
+      showAs: 'busy',
+      categories: ['Meeting', 'Teams'],
+      reminderMinutesBeforeStart: 15
     }
+
+    console.log('Creating Outlook calendar event...')
 
     const calendarResponse = await fetch('https://graph.microsoft.com/v1.0/me/events', {
       method: 'POST',
@@ -112,12 +175,18 @@ serve(async (req) => {
     })
 
     let outlookEventId = null
+    let calendarEventDetails = null
+
     if (calendarResponse.ok) {
-      const calendarData = await calendarResponse.json()
-      outlookEventId = calendarData.id
+      calendarEventDetails = await calendarResponse.json()
+      outlookEventId = calendarEventDetails.id
+      console.log('Calendar event created successfully:', outlookEventId)
+    } else {
+      const calendarError = await calendarResponse.json()
+      console.error('Calendar event creation failed:', calendarError)
     }
 
-    // Store meeting in database
+    // Store meeting in database with enhanced metadata
     const { data: meeting, error: meetingError } = await supabase
       .from('meetings')
       .insert({
@@ -126,10 +195,12 @@ serve(async (req) => {
         start_time: startTime,
         end_time: endTime,
         meeting_type: 'online',
+        location: 'Microsoft Teams Meeting',
         teams_meeting_id: teamsData.id,
         teams_join_url: teamsData.joinWebUrl,
         outlook_event_id: outlookEventId,
-        created_by: user.id
+        created_by: user.id,
+        status: 'scheduled'
       })
       .select()
       .single()
@@ -142,12 +213,18 @@ serve(async (req) => {
       )
     }
 
+    console.log('Meeting stored in database successfully')
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         meeting: meeting,
         teamsJoinUrl: teamsData.joinWebUrl,
-        outlookEventId: outlookEventId
+        outlookEventId: outlookEventId,
+        meetingId: teamsData.id,
+        videoTeleconferenceId: teamsData.videoTeleconferenceId,
+        audioConferencing: teamsData.audioConferencing,
+        calendarEventUrl: calendarEventDetails?.webLink || null
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

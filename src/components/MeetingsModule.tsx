@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, Paperclip } from 'lucide-react';
+import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, Paperclip, ExternalLink, Copy } from 'lucide-react';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 import { ViewAgendaDialog } from './ViewAgendaDialog';
 import { ManageAttendeesDialog } from './ManageAttendeesDialog';
@@ -12,6 +12,7 @@ import { CheckInDialog } from './CheckInDialog';
 import { PostMeetingDialog } from './PostMeetingDialog';
 import { CalendarView } from './CalendarView';
 import { useMeetings } from '@/hooks/useMeetings';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
 export const MeetingsModule: React.FC = () => {
@@ -23,6 +24,7 @@ export const MeetingsModule: React.FC = () => {
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
   
   const { meetings, loading, deleteMeeting } = useMeetings();
+  const { toast } = useToast();
 
   // Filter meetings by date
   const now = new Date();
@@ -48,6 +50,14 @@ export const MeetingsModule: React.FC = () => {
     if (confirm('Are you sure you want to delete this meeting?')) {
       await deleteMeeting(meetingId);
     }
+  };
+
+  const handleCopyJoinUrl = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Link Copied",
+      description: "Teams meeting link copied to clipboard"
+    });
   };
 
   const handleAttachFiles = (meeting: any) => {
@@ -101,7 +111,7 @@ export const MeetingsModule: React.FC = () => {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Meeting Management</h1>
-            <p className="text-gray-600">Schedule, track, and manage all ISKCON meetings</p>
+            <p className="text-gray-600">Schedule, track, and manage all ISKCON meetings with Teams integration</p>
           </div>
           <Button 
             className="bg-primary hover:bg-primary/90"
@@ -125,7 +135,7 @@ export const MeetingsModule: React.FC = () => {
                 <CardContent className="p-8 text-center">
                   <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600">No upcoming meetings</p>
-                  <p className="text-sm text-gray-500 mt-2">Schedule your first meeting to get started</p>
+                  <p className="text-sm text-gray-500 mt-2">Schedule your first Teams meeting to get started</p>
                 </CardContent>
               </Card>
             ) : (
@@ -147,15 +157,16 @@ export const MeetingsModule: React.FC = () => {
                                   LIVE
                                 </Badge>
                               )}
+                              {meeting.teams_join_url && (
+                                <Badge className="bg-blue-500 text-white">
+                                  <Video className="h-3 w-3 mr-1" />
+                                  Teams
+                                </Badge>
+                              )}
                             </CardTitle>
                             <CardDescription className="mt-2">{meeting.description || 'No description provided'}</CardDescription>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge className="bg-primary text-white">{meeting.status || 'scheduled'}</Badge>
-                            {meeting.teams_join_url && (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700">Teams</Badge>
-                            )}
-                          </div>
+                          <Badge className="bg-green-100 text-green-800">{meeting.status || 'scheduled'}</Badge>
                         </div>
                       </CardHeader>
                       <CardContent>
@@ -173,24 +184,56 @@ export const MeetingsModule: React.FC = () => {
                             <span className="text-sm">{meeting.attendees?.length || 0} attendees</span>
                           </div>
                           <div className="flex items-center space-x-2">
-                            {meeting.meeting_type === 'online' ? (
-                              <Video className="h-4 w-4 text-gray-500" />
-                            ) : (
-                              <Calendar className="h-4 w-4 text-gray-500" />
-                            )}
+                            <Video className="h-4 w-4 text-gray-500" />
                             <span className="text-sm">{meeting.location || 'No location'}</span>
                           </div>
                         </div>
+
+                        {/* Teams Meeting Info */}
+                        {meeting.teams_join_url && (
+                          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <Video className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-800">Teams Meeting Link</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleCopyJoinUrl(meeting.teams_join_url)}
+                                  className="h-7 px-2 text-blue-600 hover:bg-blue-100"
+                                >
+                                  <Copy className="h-3 w-3 mr-1" />
+                                  Copy
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => window.open(meeting.teams_join_url, '_blank')}
+                                  className="h-7 px-2 text-blue-600 hover:bg-blue-100"
+                                >
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  Open
+                                </Button>
+                              </div>
+                            </div>
+                            <p className="text-xs text-blue-600 mt-1 truncate">
+                              {meeting.teams_join_url}
+                            </p>
+                          </div>
+                        )}
+                        
                         <div className="flex flex-wrap gap-2">
                           {meeting.teams_join_url && (
                             <Button 
-                              variant="outline" 
+                              variant="default" 
                               size="sm"
                               onClick={() => window.open(meeting.teams_join_url, '_blank')}
-                              className="bg-blue-50 hover:bg-blue-100 text-blue-700"
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
                             >
                               <Video className="h-4 w-4 mr-2" />
-                              Join Teams
+                              Join Teams Meeting
                             </Button>
                           )}
                           
@@ -260,7 +303,15 @@ export const MeetingsModule: React.FC = () => {
                       <CardHeader>
                         <div className="flex justify-between items-start">
                           <div>
-                            <CardTitle className="text-xl">{meeting.title}</CardTitle>
+                            <CardTitle className="text-xl flex items-center space-x-2">
+                              <span>{meeting.title}</span>
+                              {meeting.teams_join_url && (
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                  <Video className="h-3 w-3 mr-1" />
+                                  Teams
+                                </Badge>
+                              )}
+                            </CardTitle>
                             <CardDescription>{timeInfo.date} • {timeInfo.duration}</CardDescription>
                           </div>
                           <Badge variant="secondary">Completed</Badge>

@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Video, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { useMeetings } from '@/hooks/useMeetings';
+import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 
 interface ScheduleMeetingDialogProps {
   open: boolean;
@@ -29,10 +30,13 @@ interface MeetingFormData {
 }
 
 export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ open, onOpenChange }) => {
-  const { register, handleSubmit, setValue, reset, formState: { isSubmitting } } = useForm<MeetingFormData>();
+  const { register, handleSubmit, setValue, watch, reset, formState: { isSubmitting } } = useForm<MeetingFormData>();
   const [selectedDate, setSelectedDate] = React.useState<Date>();
   const [showCalendar, setShowCalendar] = React.useState(false);
   const { createMeeting } = useMeetings();
+  const { isConnected } = useMicrosoftAuth();
+  
+  const watchType = watch('type');
 
   const onSubmit = async (data: MeetingFormData) => {
     if (!selectedDate) {
@@ -40,10 +44,14 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
       return;
     }
 
-    const meeting = await createMeeting({
+    // For online meetings, Teams link will be auto-generated
+    const meetingData = {
       ...data,
-      date: selectedDate
-    });
+      date: selectedDate,
+      location: data.type === 'online' ? 'Microsoft Teams Meeting' : data.location
+    };
+
+    const meeting = await createMeeting(meetingData);
 
     if (meeting) {
       reset();
@@ -59,6 +67,11 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
           <DialogTitle>Schedule New Meeting</DialogTitle>
           <DialogDescription>
             Create a new meeting and send invitations to attendees.
+            {!isConnected && watchType === 'online' && (
+              <span className="block mt-2 text-orange-600 text-sm">
+                Connect your Microsoft account in Settings to create Teams meetings automatically.
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
         
@@ -144,31 +157,65 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="physical">Physical Meeting</SelectItem>
-                    <SelectItem value="online">Online Meeting</SelectItem>
+                    <SelectItem value="online">
+                      <div className="flex items-center space-x-2">
+                        <Video className="h-4 w-4" />
+                        <span>Teams Meeting</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="physical">
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-4 w-4" />
+                        <span>Physical Meeting</span>
+                      </div>
+                    </SelectItem>
                     <SelectItem value="hybrid">Hybrid Meeting</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="location">Location/Meeting Link</Label>
-              <Input 
-                id="location" 
-                {...register('location', { required: true })}
-                placeholder="Conference room or Zoom/Teams link"
-              />
-            </div>
+            {/* Conditional location field - only show for physical/hybrid meetings */}
+            {watchType && watchType !== 'online' && (
+              <div>
+                <Label htmlFor="location">
+                  {watchType === 'hybrid' ? 'Physical Location' : 'Meeting Location'}
+                </Label>
+                <Input 
+                  id="location" 
+                  {...register('location', { required: watchType !== 'online' })}
+                  placeholder={watchType === 'hybrid' ? 'Conference room address' : 'Conference room or venue'}
+                />
+              </div>
+            )}
+
+            {/* Teams meeting info for online meetings */}
+            {watchType === 'online' && (
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Video className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium text-blue-800">Teams Meeting</span>
+                </div>
+                <p className="text-sm text-blue-700">
+                  {isConnected 
+                    ? 'A Microsoft Teams meeting will be created automatically with a shareable join link and calendar event.'
+                    : 'Connect your Microsoft account in Settings to automatically create Teams meetings with calendar integration.'
+                  }
+                </p>
+              </div>
+            )}
 
             <div>
               <Label htmlFor="attendees">Attendees (Email addresses)</Label>
               <Textarea 
                 id="attendees" 
                 {...register('attendees')}
-                placeholder="Enter email addresses separated by commas"
+                placeholder="Enter email addresses separated by commas (e.g., user1@email.com, user2@email.com)"
                 rows={2}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                For Teams meetings, attendees will receive calendar invitations with the join link.
+              </p>
             </div>
           </div>
 
@@ -177,7 +224,23 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting} className="bg-primary hover:bg-primary/90">
-              {isSubmitting ? 'Creating...' : 'Schedule Meeting'}
+              {isSubmitting ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  <span>Creating...</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  {watchType === 'online' ? (
+                    <Video className="h-4 w-4" />
+                  ) : (
+                    <CalendarIcon className="h-4 w-4" />
+                  )}
+                  <span>
+                    {watchType === 'online' ? 'Create Teams Meeting' : 'Schedule Meeting'}
+                  </span>
+                </div>
+              )}
             </Button>
           </DialogFooter>
         </form>
