@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,10 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Video, MapPin } from 'lucide-react';
+import { CalendarIcon, Video, MapPin, Paperclip, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
+import { AttendeeSelector } from './AttendeeSelector';
+import { useToast } from '@/hooks/use-toast';
 
 interface ScheduleMeetingDialogProps {
   open: boolean;
@@ -26,29 +28,128 @@ interface MeetingFormData {
   duration: string;
   type: string;
   location: string;
-  attendees: string;
+}
+
+interface AttachedFile {
+  file: File;
+  name: string;
+  size: number;
 }
 
 export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ open, onOpenChange }) => {
   const { register, handleSubmit, setValue, watch, reset, formState: { isSubmitting } } = useForm<MeetingFormData>();
-  const [selectedDate, setSelectedDate] = React.useState<Date>();
-  const [showCalendar, setShowCalendar] = React.useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>();
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [rsvpEnabled, setRsvpEnabled] = useState(true);
+  
   const { createMeeting } = useMeetings();
   const { isConnected } = useMicrosoftAuth();
+  const { toast } = useToast();
   
   const watchType = watch('type');
 
-  const onSubmit = async (data: MeetingFormData) => {
-    if (!selectedDate) {
-      alert('Please select a date');
+  // File upload constraints
+  const MAX_FILES = 5;
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const ALLOWED_TYPES = [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain',
+    'image/jpeg',
+    'image/png'
+  ];
+
+  const handleFileAttachment = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    
+    if (attachedFiles.length + files.length > MAX_FILES) {
+      toast({
+        title: "Too Many Files",
+        description: `Maximum ${MAX_FILES} files allowed`,
+        variant: "destructive"
+      });
       return;
     }
 
-    // For online meetings, Teams link will be auto-generated
+    const validFiles: AttachedFile[] = [];
+    const errors: string[] = [];
+
+    files.forEach(file => {
+      if (file.size > MAX_FILE_SIZE) {
+        errors.push(`${file.name}: File too large (max 10MB)`);
+        return;
+      }
+
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        errors.push(`${file.name}: File type not supported`);
+        return;
+      }
+
+      validFiles.push({
+        file,
+        name: file.name,
+        size: file.size
+      });
+    });
+
+    if (errors.length > 0) {
+      toast({
+        title: "File Upload Errors",
+        description: errors.join(', '),
+        variant: "destructive"
+      });
+    }
+
+    if (validFiles.length > 0) {
+      setAttachedFiles(prev => [...prev, ...validFiles]);
+    }
+
+    // Reset input
+    event.target.value = '';
+  };
+
+  const removeFile = (index: number) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const onSubmit = async (data: MeetingFormData) => {
+    if (!selectedDate) {
+      toast({
+        title: "Date Required",
+        description: "Please select a meeting date",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (selectedAttendees.length === 0) {
+      toast({
+        title: "Attendees Required",
+        description: "Please select at least one attendee",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const meetingData = {
       ...data,
       date: selectedDate,
-      location: data.type === 'online' ? 'Microsoft Teams Meeting' : data.location
+      location: data.type === 'online' ? 'Microsoft Teams Meeting' : data.location,
+      attendees: selectedAttendees.join(', '),
+      attachments: attachedFiles,
+      rsvpEnabled
     };
 
     const meeting = await createMeeting(meetingData);
@@ -56,17 +157,20 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
     if (meeting) {
       reset();
       setSelectedDate(undefined);
+      setSelectedAttendees([]);
+      setAttachedFiles([]);
+      setRsvpEnabled(true);
       onOpenChange(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Schedule New Meeting</DialogTitle>
           <DialogDescription>
-            Create a new meeting and send invitations to attendees.
+            Create a new meeting with Teams integration, attendee management, and file attachments.
             {!isConnected && watchType === 'online' && (
               <span className="block mt-2 text-orange-600 text-sm">
                 Connect your Microsoft account in Settings to create Teams meetings automatically.
@@ -75,10 +179,10 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid grid-cols-1 gap-4">
             <div>
-              <Label htmlFor="title">Meeting Title</Label>
+              <Label htmlFor="title">Meeting Title *</Label>
               <Input 
                 id="title" 
                 {...register('title', { required: true })}
@@ -98,7 +202,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Date</Label>
+                <Label>Date *</Label>
                 <Popover open={showCalendar} onOpenChange={setShowCalendar}>
                   <PopoverTrigger asChild>
                     <Button
@@ -117,6 +221,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
                         setSelectedDate(date);
                         setShowCalendar(false);
                       }}
+                      disabled={(date) => date < new Date()}
                       initialFocus
                     />
                   </PopoverContent>
@@ -124,7 +229,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
               </div>
 
               <div>
-                <Label htmlFor="time">Time</Label>
+                <Label htmlFor="time">Time *</Label>
                 <Input 
                   id="time" 
                   type="time"
@@ -135,7 +240,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="duration">Duration</Label>
+                <Label htmlFor="duration">Duration *</Label>
                 <Select onValueChange={(value) => setValue('duration', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select duration" />
@@ -151,7 +256,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
               </div>
 
               <div>
-                <Label htmlFor="type">Meeting Type</Label>
+                <Label htmlFor="type">Meeting Type *</Label>
                 <Select onValueChange={(value) => setValue('type', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
@@ -175,11 +280,10 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
               </div>
             </div>
 
-            {/* Conditional location field - only show for physical/hybrid meetings */}
             {watchType && watchType !== 'online' && (
               <div>
                 <Label htmlFor="location">
-                  {watchType === 'hybrid' ? 'Physical Location' : 'Meeting Location'}
+                  {watchType === 'hybrid' ? 'Physical Location *' : 'Meeting Location *'}
                 </Label>
                 <Input 
                   id="location" 
@@ -189,7 +293,6 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
               </div>
             )}
 
-            {/* Teams meeting info for online meetings */}
             {watchType === 'online' && (
               <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <div className="flex items-center space-x-2 mb-2">
@@ -205,17 +308,78 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({ op
               </div>
             )}
 
-            <div>
-              <Label htmlFor="attendees">Attendees (Email addresses)</Label>
-              <Textarea 
-                id="attendees" 
-                {...register('attendees')}
-                placeholder="Enter email addresses separated by commas (e.g., user1@email.com, user2@email.com)"
-                rows={2}
+            {/* Attendee Selector */}
+            <AttendeeSelector
+              selectedAttendees={selectedAttendees}
+              onAttendeesChange={setSelectedAttendees}
+              placeholder="Select meeting attendees..."
+            />
+
+            {/* File Attachments */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>File Attachments</Label>
+                <span className="text-xs text-gray-500">
+                  Max {MAX_FILES} files, 10MB each
+                </span>
+              </div>
+              
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.docx,.pptx,.xlsx,.txt,.jpg,.jpeg,.png"
+                  onChange={handleFileAttachment}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label htmlFor="file-upload" className="cursor-pointer">
+                  <div className="text-center">
+                    <Paperclip className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-600">
+                      Click to attach files or drag and drop
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Supported: PDF, DOCX, PPTX, XLSX, TXT, JPG, PNG
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {attachedFiles.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Attached Files:</p>
+                  {attachedFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <div className="flex items-center space-x-2">
+                        <Paperclip className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">{file.name}</span>
+                        <span className="text-xs text-gray-500">({formatFileSize(file.size)})</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile(index)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* RSVP Settings */}
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="rsvp"
+                checked={rsvpEnabled}
+                onChange={(e) => setRsvpEnabled(e.target.checked)}
+                className="rounded"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                For Teams meetings, attendees will receive calendar invitations with the join link.
-              </p>
+              <Label htmlFor="rsvp">Enable RSVP (attendees can respond Yes/No/Maybe)</Label>
             </div>
           </div>
 

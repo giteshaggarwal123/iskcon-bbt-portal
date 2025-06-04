@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -15,6 +16,7 @@ interface Meeting {
   created_by: string;
   created_at: string;
   teams_join_url: string | null;
+  teams_meeting_id: string | null;
   outlook_event_id: string | null;
   attendees?: { user_id: string; status: string }[];
 }
@@ -59,6 +61,8 @@ export const useMeetings = () => {
     type: string;
     location: string;
     attendees?: string;
+    attachments?: any[];
+    rsvpEnabled?: boolean;
   }) => {
     if (!user) {
       toast({
@@ -124,6 +128,11 @@ export const useMeetings = () => {
               description: `"${meetingData.title}" created with Teams link and calendar event`,
             });
 
+            // Save transcript reference for future auto-save
+            if (meeting) {
+              await saveTranscriptReference(meeting.id, teamsData.meetingId);
+            }
+
             fetchMeetings();
             return meeting;
           }
@@ -179,17 +188,74 @@ export const useMeetings = () => {
     }
   };
 
+  const saveTranscriptReference = async (meetingId: string, teamsMeetingId: string) => {
+    try {
+      await supabase
+        .from('meeting_transcripts')
+        .insert({
+          meeting_id: meetingId,
+          teams_transcript_id: teamsMeetingId,
+          created_at: new Date().toISOString()
+        });
+    } catch (error) {
+      console.error('Error saving transcript reference:', error);
+    }
+  };
+
   const deleteMeeting = async (meetingId: string) => {
     try {
-      // Delete related attendance records first
+      const meeting = meetings.find(m => m.id === meetingId);
+      if (!meeting) return;
+
+      // Delete from Teams and Outlook if it's a Teams meeting
+      if (meeting.teams_meeting_id || meeting.outlook_event_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('microsoft_access_token')
+          .eq('id', user?.id)
+          .single();
+
+        if (profile?.microsoft_access_token) {
+          try {
+            // Delete Teams meeting
+            if (meeting.teams_meeting_id) {
+              await fetch(`https://graph.microsoft.com/v1.0/me/onlineMeetings/${meeting.teams_meeting_id}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${profile.microsoft_access_token}`,
+                }
+              });
+            }
+
+            // Delete Outlook calendar event
+            if (meeting.outlook_event_id) {
+              await fetch(`https://graph.microsoft.com/v1.0/me/events/${meeting.outlook_event_id}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${profile.microsoft_access_token}`,
+                }
+              });
+            }
+          } catch (graphError) {
+            console.error('Error deleting from Microsoft services:', graphError);
+            // Continue with database deletion even if Microsoft deletion fails
+          }
+        }
+      }
+
+      // Delete related records from database
       await supabase
         .from('attendance_records')
         .delete()
         .eq('meeting_id', meetingId);
 
-      // Delete meeting attendees
       await supabase
         .from('meeting_attendees')
+        .delete()
+        .eq('meeting_id', meetingId);
+
+      await supabase
+        .from('meeting_transcripts')
         .delete()
         .eq('meeting_id', meetingId);
 
@@ -201,12 +267,12 @@ export const useMeetings = () => {
 
       if (error) throw error;
 
-      // Update local state immediately
+      // Update local state immediately to prevent restoration
       setMeetings(prev => prev.filter(meeting => meeting.id !== meetingId));
 
       toast({
         title: "Success",
-        description: "Meeting deleted successfully"
+        description: "Meeting deleted successfully from all platforms"
       });
 
     } catch (error: any) {
@@ -238,6 +304,63 @@ export const useMeetings = () => {
     await deleteMeeting(meetingId);
   };
 
+  const autoSaveTranscript = async (meetingId: string) => {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('microsoft_access_token')
+        .eq('id', user?.id)
+        .single();
+
+      if (!profile?.microsoft_access_token) return;
+
+      const meeting = meetings.find(m => m.id === meetingId);
+      if (!meeting?.teams_meeting_id) return;
+
+      // Fetch transcript from Teams
+      const { data: transcriptData, error } = await supabase.functions.invoke('fetch-teams-transcript', {
+        body: {
+          meetingId: meeting.teams_meeting_id,
+          accessToken: profile.microsoft_access_token
+        }
+      });
+
+      if (error) throw error;
+
+      if (transcriptData?.transcript) {
+        // Save transcript to meeting_transcripts table
+        await supabase
+          .from('meeting_transcripts')
+          .upsert({
+            meeting_id: meetingId,
+            transcript_content: JSON.stringify(transcriptData.transcript),
+            participants: transcriptData.attendees,
+            teams_transcript_id: meeting.teams_meeting_id
+          });
+
+        // Save to documents repository
+        const fileName = `${meeting.title}_transcript_${new Date().toISOString().split('T')[0]}.txt`;
+        await supabase
+          .from('documents')
+          .insert({
+            name: fileName,
+            file_path: `transcripts/${meetingId}/${fileName}`,
+            folder: 'Meeting Transcripts',
+            uploaded_by: user?.id,
+            mime_type: 'text/plain',
+            file_size: JSON.stringify(transcriptData.transcript).length
+          });
+
+        toast({
+          title: "Transcript Saved",
+          description: "Meeting transcript has been automatically saved to documents"
+        });
+      }
+    } catch (error: any) {
+      console.error('Error auto-saving transcript:', error);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchMeetings();
@@ -250,6 +373,7 @@ export const useMeetings = () => {
     createMeeting,
     deleteMeeting,
     deletePastMeeting,
-    fetchMeetings
+    fetchMeetings,
+    autoSaveTranscript
   };
 };

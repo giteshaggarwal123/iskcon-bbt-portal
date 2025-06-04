@@ -13,7 +13,7 @@ import { PostMeetingDialog } from './PostMeetingDialog';
 import { CalendarView } from './CalendarView';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, parseISO, compareAsc, compareDesc } from 'date-fns';
 
 export const MeetingsModule: React.FC = () => {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
@@ -26,16 +26,24 @@ export const MeetingsModule: React.FC = () => {
   const { meetings, loading, deleteMeeting } = useMeetings();
   const { toast } = useToast();
 
-  // Filter meetings by date - including ALL scheduled meetings
+  // Filter and sort meetings properly by date and time
   const now = new Date();
-  const upcomingMeetings = meetings.filter(meeting => {
-    const startTime = new Date(meeting.start_time);
-    return startTime >= now || meeting.status === 'scheduled';
-  });
-  const pastMeetings = meetings.filter(meeting => {
-    const startTime = new Date(meeting.start_time);
-    return startTime < now && meeting.status !== 'scheduled';
-  });
+  
+  // Upcoming meetings: start time is in the future, sorted by nearest first
+  const upcomingMeetings = meetings
+    .filter(meeting => {
+      const startTime = parseISO(meeting.start_time);
+      return startTime >= now;
+    })
+    .sort((a, b) => compareAsc(parseISO(a.start_time), parseISO(b.start_time)));
+  
+  // Past meetings: start time is in the past, sorted by most recent first
+  const pastMeetings = meetings
+    .filter(meeting => {
+      const startTime = parseISO(meeting.start_time);
+      return startTime < now;
+    })
+    .sort((a, b) => compareDesc(parseISO(a.start_time), parseISO(b.start_time)));
 
   const handleViewAgenda = (meeting: any) => {
     setSelectedMeeting(meeting);
@@ -53,7 +61,7 @@ export const MeetingsModule: React.FC = () => {
   };
 
   const handleDeleteMeeting = async (meetingId: string) => {
-    if (confirm('Are you sure you want to delete this meeting?')) {
+    if (confirm('Are you sure you want to delete this meeting? This will also remove it from Teams and Outlook calendar.')) {
       await deleteMeeting(meetingId);
     }
   };
@@ -79,13 +87,13 @@ export const MeetingsModule: React.FC = () => {
   };
 
   const handleAttachFiles = (meeting: any) => {
-    // Placeholder for file attachment functionality
+    // This will be implemented with file attachment functionality
     alert(`Attach files to ${meeting.title}`);
   };
 
   const formatMeetingTime = (startTime: string, endTime: string) => {
-    const start = new Date(startTime);
-    const end = new Date(endTime);
+    const start = parseISO(startTime);
+    const end = parseISO(endTime);
     const duration = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
     const hours = Math.floor(duration / 60);
     const minutes = duration % 60;
@@ -103,14 +111,14 @@ export const MeetingsModule: React.FC = () => {
 
   const isLiveMeeting = (meeting: any) => {
     const now = new Date();
-    const start = new Date(meeting.start_time);
-    const end = new Date(meeting.end_time);
+    const start = parseISO(meeting.start_time);
+    const end = parseISO(meeting.end_time);
     return now >= start && now <= end;
   };
 
   const canCheckIn = (meeting: any) => {
     const now = new Date();
-    const start = new Date(meeting.start_time);
+    const start = parseISO(meeting.start_time);
     const hourBeforeStart = new Date(start.getTime() - 60 * 60 * 1000);
     return now >= hourBeforeStart && now <= start;
   };
@@ -124,7 +132,7 @@ export const MeetingsModule: React.FC = () => {
   }
 
   return (
-    <>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -167,52 +175,55 @@ export const MeetingsModule: React.FC = () => {
                     <Card key={meeting.id} className="hover:shadow-md transition-shadow">
                       <CardHeader>
                         <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-xl flex items-center space-x-2">
-                              <span>{meeting.title}</span>
+                          <div className="flex-1">
+                            <CardTitle className="text-xl flex items-center space-x-2 flex-wrap">
+                              <span className="break-words">{meeting.title}</span>
                               {isLive && (
-                                <Badge className="bg-red-500 text-white animate-pulse">
+                                <Badge className="bg-red-500 text-white animate-pulse ml-2">
                                   LIVE
                                 </Badge>
                               )}
                               {meeting.teams_join_url && (
-                                <Badge className="bg-blue-500 text-white">
+                                <Badge className="bg-blue-500 text-white ml-2">
                                   <Video className="h-3 w-3 mr-1" />
                                   Teams
                                 </Badge>
                               )}
                             </CardTitle>
-                            <CardDescription className="mt-2">{meeting.description || 'No description provided'}</CardDescription>
+                            <CardDescription className="mt-2 break-words">
+                              {meeting.description || 'No description provided'}
+                            </CardDescription>
                           </div>
-                          <Badge className="bg-green-100 text-green-800">{meeting.status || 'scheduled'}</Badge>
+                          <Badge className="bg-green-100 text-green-800 ml-4 shrink-0">
+                            {meeting.status || 'scheduled'}
+                          </Badge>
                         </div>
                       </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                           <div className="flex items-center space-x-2">
-                            <Calendar className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm">{timeInfo.date}</span>
+                            <Calendar className="h-4 w-4 text-gray-500 shrink-0" />
+                            <span className="text-sm break-words">{timeInfo.date}</span>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <Clock className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm">{timeInfo.time} ({timeInfo.duration})</span>
+                            <Clock className="h-4 w-4 text-gray-500 shrink-0" />
+                            <span className="text-sm break-words">{timeInfo.time} ({timeInfo.duration})</span>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <Users className="h-4 w-4 text-gray-500" />
+                            <Users className="h-4 w-4 text-gray-500 shrink-0" />
                             <span className="text-sm">{meeting.attendees?.length || 0} attendees</span>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <Video className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm">{meeting.location || 'No location'}</span>
+                            <Video className="h-4 w-4 text-gray-500 shrink-0" />
+                            <span className="text-sm break-words">{meeting.location || 'No location'}</span>
                           </div>
                         </div>
 
-                        {/* Teams Meeting Info */}
                         {meeting.teams_join_url && (
-                          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <div className="flex items-center justify-between">
+                          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center space-x-2">
-                                <Video className="h-4 w-4 text-blue-600" />
+                                <Video className="h-4 w-4 text-blue-600 shrink-0" />
                                 <span className="text-sm font-medium text-blue-800">Teams Meeting Link</span>
                               </div>
                               <div className="flex items-center space-x-2">
@@ -236,7 +247,7 @@ export const MeetingsModule: React.FC = () => {
                                 </Button>
                               </div>
                             </div>
-                            <p className="text-xs text-blue-600 mt-1 truncate">
+                            <p className="text-xs text-blue-600 mt-1 break-all">
                               {meeting.teams_join_url}
                             </p>
                           </div>
@@ -320,23 +331,25 @@ export const MeetingsModule: React.FC = () => {
                     <Card key={meeting.id} className="hover:shadow-md transition-shadow">
                       <CardHeader>
                         <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-xl flex items-center space-x-2">
-                              <span>{meeting.title}</span>
+                          <div className="flex-1">
+                            <CardTitle className="text-xl flex items-center space-x-2 flex-wrap">
+                              <span className="break-words">{meeting.title}</span>
                               {meeting.teams_join_url && (
-                                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 ml-2">
                                   <Video className="h-3 w-3 mr-1" />
                                   Teams
                                 </Badge>
                               )}
                             </CardTitle>
-                            <CardDescription>{timeInfo.date} • {timeInfo.duration}</CardDescription>
+                            <CardDescription className="break-words">
+                              {timeInfo.date} • {timeInfo.duration}
+                            </CardDescription>
                           </div>
-                          <Badge variant="secondary">Completed</Badge>
+                          <Badge variant="secondary" className="ml-4 shrink-0">Completed</Badge>
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <div className="flex flex-wrap gap-2 mb-4">
+                        <div className="flex flex-wrap gap-2">
                           <Button 
                             variant="outline" 
                             size="sm"
@@ -349,11 +362,11 @@ export const MeetingsModule: React.FC = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => alert('View meeting documents')}
+                            onClick={() => alert('View meeting transcript and documents')}
                             className="bg-blue-50 hover:bg-blue-100 text-blue-700"
                           >
                             <FileText className="h-4 w-4 mr-2" />
-                            View Document
+                            View Transcript
                           </Button>
                           
                           <Button 
@@ -408,6 +421,6 @@ export const MeetingsModule: React.FC = () => {
         onOpenChange={setShowPostMeetingDialog}
         meeting={selectedMeeting}
       />
-    </>
+    </div>
   );
 };
