@@ -7,12 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Global shared OTP store that matches verify-otp function
-const globalOTPStore = new Map<string, { otp: string; expiresAt: number; attempts: number; lastSent: number }>();
-
-// Rate limiting store
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
-
 // Function to format phone number to international format
 const formatPhoneNumber = (phone: string): string => {
   let cleaned = phone.replace(/\D/g, '');
@@ -30,39 +24,6 @@ const formatPhoneNumber = (phone: string): string => {
   }
   
   return '+91' + cleaned;
-};
-
-// Rate limiting function
-const checkRateLimit = (email: string): boolean => {
-  const now = Date.now();
-  const key = `rate_limit_${email}`;
-  const rateLimit = rateLimitStore.get(key);
-  
-  if (!rateLimit || now > rateLimit.resetTime) {
-    // Reset rate limit every 5 minutes
-    rateLimitStore.set(key, { count: 1, resetTime: now + 5 * 60 * 1000 });
-    return true;
-  }
-  
-  if (rateLimit.count >= 3) {
-    return false; // Too many requests
-  }
-  
-  rateLimit.count++;
-  return true;
-};
-
-// Check if OTP was recently sent (prevent duplicates within 60 seconds)
-const checkRecentOTP = (email: string): boolean => {
-  const key = `login_${email}`;
-  const storedOTP = globalOTPStore.get(key);
-  
-  if (storedOTP && storedOTP.lastSent) {
-    const timeSinceLastSent = Date.now() - storedOTP.lastSent;
-    return timeSinceLastSent < 60000; // 60 seconds
-  }
-  
-  return false;
 };
 
 serve(async (req) => {
@@ -86,28 +47,6 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Invalid email format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check rate limiting
-    if (!checkRateLimit(email)) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Too many OTP requests. Please wait 5 minutes before trying again.',
-          details: 'Rate limit exceeded.'
-        }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check if OTP was recently sent
-    if (checkRecentOTP(email)) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'OTP was recently sent. Please wait 60 seconds before requesting again.',
-          details: 'Duplicate request prevention.'
-        }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -143,21 +82,56 @@ serve(async (req) => {
       );
     }
 
+    // Check for recent OTP (within 60 seconds)
+    const { data: recentOtp } = await supabase
+      .from('otp_codes')
+      .select('created_at')
+      .eq('identifier', email)
+      .eq('type', 'login')
+      .gte('created_at', new Date(Date.now() - 60 * 1000).toISOString())
+      .single();
+
+    if (recentOtp) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'OTP was recently sent. Please wait 60 seconds before requesting again.',
+          details: 'Duplicate request prevention.'
+        }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const formattedPhone = formatPhoneNumber(profile.phone);
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const now = Date.now();
-    
-    // Store OTP with consistent key format: login_{email}
-    const key = `login_${email}`;
-    globalOTPStore.set(key, {
-      otp,
-      expiresAt: now + 5 * 60 * 1000, // 5 minutes
-      attempts: 0,
-      lastSent: now
-    });
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-    console.log(`Storing login OTP for key: ${key}, OTP: ${otp}`);
-    console.log(`Current OTP store keys: ${Array.from(globalOTPStore.keys()).join(', ')}`);
+    // Delete any existing OTP for this email and type
+    await supabase
+      .from('otp_codes')
+      .delete()
+      .eq('identifier', email)
+      .eq('type', 'login');
+
+    // Store new OTP in database
+    const { error: otpError } = await supabase
+      .from('otp_codes')
+      .insert({
+        identifier: email,
+        otp_code: otp,
+        type: 'login',
+        expires_at: expiresAt.toISOString(),
+        attempts: 0
+      });
+
+    if (otpError) {
+      console.error('Error storing OTP:', otpError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to generate OTP' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Stored login OTP in database for email: ${email}, OTP: ${otp}`);
 
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
@@ -193,8 +167,12 @@ serve(async (req) => {
       const error = await response.text();
       console.error('Twilio error:', error);
       
-      // Remove OTP from store if SMS failed
-      globalOTPStore.delete(key);
+      // Remove OTP from database if SMS failed
+      await supabase
+        .from('otp_codes')
+        .delete()
+        .eq('identifier', email)
+        .eq('type', 'login');
       
       return new Response(
         JSON.stringify({ 
@@ -211,7 +189,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: `Verification code sent to ${formattedPhone.replace(/(\+91)(\d{5})(\d{5})/, '$1*****$3')}`,
-        cooldown: 60 // Tell frontend to wait 60 seconds before allowing another request
+        cooldown: 60
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -227,6 +205,3 @@ serve(async (req) => {
     );
   }
 });
-
-// Export the OTP store for cross-function access
-export { globalOTPStore as otpStore };

@@ -1,48 +1,10 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-// Global shared OTP store that matches verify-otp function
-const globalOTPStore = new Map<string, { otp: string; expiresAt: number; attempts: number; lastSent: number }>();
-
-// Rate limiting store
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
-
-// Rate limiting function
-const checkRateLimit = (phoneNumber: string): boolean => {
-  const now = Date.now();
-  const key = `rate_limit_${phoneNumber}`;
-  const rateLimit = rateLimitStore.get(key);
-  
-  if (!rateLimit || now > rateLimit.resetTime) {
-    // Reset rate limit every 5 minutes
-    rateLimitStore.set(key, { count: 1, resetTime: now + 5 * 60 * 1000 });
-    return true;
-  }
-  
-  if (rateLimit.count >= 3) {
-    return false; // Too many requests
-  }
-  
-  rateLimit.count++;
-  return true;
-};
-
-// Check if OTP was recently sent (prevent duplicates within 60 seconds)
-const checkRecentOTP = (phoneNumber: string): boolean => {
-  const key = `reset_${phoneNumber}`;
-  const storedOTP = globalOTPStore.get(key);
-  
-  if (storedOTP && storedOTP.lastSent) {
-    const timeSinceLastSent = Date.now() - storedOTP.lastSent;
-    return timeSinceLastSent < 60000; // 60 seconds
-  }
-  
-  return false;
 };
 
 serve(async (req) => {
@@ -69,19 +31,20 @@ serve(async (req) => {
       );
     }
 
-    // Check rate limiting
-    if (!checkRateLimit(phoneNumber)) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Too many OTP requests. Please wait 5 minutes before trying again.',
-          details: 'Rate limit exceeded.'
-        }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check if OTP was recently sent
-    if (checkRecentOTP(phoneNumber)) {
+    // Check for recent OTP (within 60 seconds)
+    const { data: recentOtp } = await supabase
+      .from('otp_codes')
+      .select('created_at')
+      .eq('identifier', phoneNumber)
+      .eq('type', 'reset')
+      .gte('created_at', new Date(Date.now() - 60 * 1000).toISOString())
+      .single();
+
+    if (recentOtp) {
       return new Response(
         JSON.stringify({ 
           error: 'OTP was recently sent. Please wait 60 seconds before requesting again.',
@@ -92,19 +55,35 @@ serve(async (req) => {
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const now = Date.now();
-    
-    // Store OTP with consistent key format: reset_{phoneNumber}
-    const key = `reset_${phoneNumber}`;
-    globalOTPStore.set(key, {
-      otp,
-      expiresAt: now + 10 * 60 * 1000, // 10 minutes
-      attempts: 0,
-      lastSent: now
-    });
-    
-    console.log(`Storing reset OTP for key: ${key}, OTP: ${otp}`);
-    console.log(`Current OTP store keys: ${Array.from(globalOTPStore.keys()).join(', ')}`);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Delete any existing OTP for this phone number and type
+    await supabase
+      .from('otp_codes')
+      .delete()
+      .eq('identifier', phoneNumber)
+      .eq('type', 'reset');
+
+    // Store new OTP in database
+    const { error: otpError } = await supabase
+      .from('otp_codes')
+      .insert({
+        identifier: phoneNumber,
+        otp_code: otp,
+        type: 'reset',
+        expires_at: expiresAt.toISOString(),
+        attempts: 0
+      });
+
+    if (otpError) {
+      console.error('Error storing OTP:', otpError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to generate OTP' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Stored reset OTP in database for phone: ${phoneNumber}, OTP: ${otp}`);
     
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
@@ -137,8 +116,12 @@ serve(async (req) => {
       const error = await response.text();
       console.error('Twilio error:', error);
       
-      // Remove OTP from store if SMS failed
-      globalOTPStore.delete(key);
+      // Remove OTP from database if SMS failed
+      await supabase
+        .from('otp_codes')
+        .delete()
+        .eq('identifier', phoneNumber)
+        .eq('type', 'reset');
       
       return new Response(
         JSON.stringify({ error: 'Failed to send OTP' }),
@@ -152,7 +135,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: 'OTP sent successfully',
-        cooldown: 60 // Tell frontend to wait 60 seconds before allowing another request
+        cooldown: 60
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -165,6 +148,3 @@ serve(async (req) => {
     );
   }
 });
-
-// Export the OTP store for cross-function access
-export { globalOTPStore as otpStore };

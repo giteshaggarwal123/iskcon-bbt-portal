@@ -1,28 +1,11 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// Import the shared OTP store from send-login-otp function
-// In Deno edge functions, we need to implement a simple shared storage mechanism
-// Since edge functions are stateless, we'll use a consistent approach
-
-// Global OTP store that will be consistent across function calls
-const globalOTPStore = new Map<string, { otp: string; expiresAt: number; attempts: number; lastSent?: number }>();
-
-// Cleanup expired OTPs every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of globalOTPStore.entries()) {
-    if (now > value.expiresAt) {
-      globalOTPStore.delete(key);
-      console.log(`Cleaned up expired OTP for key: ${key}`);
-    }
-  }
-}, 5 * 60 * 1000);
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -39,8 +22,12 @@ serve(async (req) => {
       );
     }
 
-    // Determine the correct key format based on type
-    let key: string;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Determine the correct identifier based on type
+    let identifier: string;
     if (type === 'login') {
       if (!email) {
         return new Response(
@@ -48,22 +35,15 @@ serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      key = `login_${email}`;
+      identifier = email;
     } else if (type === 'reset') {
-      // For reset, we can use either email or phoneNumber
-      if (phoneNumber) {
-        key = `reset_${phoneNumber}`;
-      } else if (email) {
-        // Find the reset key associated with this email by checking all reset keys
-        const resetKeys = Array.from(globalOTPStore.keys()).filter(k => k.startsWith('reset_'));
-        // For now, use the first available reset key - in production, you'd have better user mapping
-        key = resetKeys[0] || `reset_${email}`;
-      } else {
+      if (!phoneNumber && !email) {
         return new Response(
           JSON.stringify({ error: 'Phone number or email is required for reset OTP verification' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      identifier = phoneNumber || email;
     } else {
       return new Response(
         JSON.stringify({ error: 'Invalid OTP type. Must be "login" or "reset"' }),
@@ -71,23 +51,33 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Verifying OTP for key: ${key}, provided OTP: ${otp}`);
-    console.log(`Available keys in store: ${Array.from(globalOTPStore.keys()).join(', ')}`);
-    
-    const storedOTP = globalOTPStore.get(key);
+    console.log(`Verifying OTP for identifier: ${identifier}, type: ${type}, provided OTP: ${otp}`);
 
-    if (!storedOTP) {
-      console.log(`OTP not found for key: ${key}`);
+    // Get OTP from database
+    const { data: otpRecord, error: fetchError } = await supabase
+      .from('otp_codes')
+      .select('*')
+      .eq('identifier', identifier)
+      .eq('type', type)
+      .single();
+
+    if (fetchError || !otpRecord) {
+      console.log(`OTP not found for identifier: ${identifier}, type: ${type}`);
       return new Response(
         JSON.stringify({ error: 'OTP not found or expired. Please request a new OTP.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    console.log(`Found OTP record: ${JSON.stringify(otpRecord)}`);
+
     // Check attempts limit (max 3 attempts)
-    if (storedOTP.attempts >= 3) {
-      globalOTPStore.delete(key);
-      console.log(`Too many attempts for key: ${key}, deleting OTP`);
+    if (otpRecord.attempts >= 3) {
+      await supabase
+        .from('otp_codes')
+        .delete()
+        .eq('id', otpRecord.id);
+      console.log(`Too many attempts for identifier: ${identifier}, deleting OTP`);
       return new Response(
         JSON.stringify({ error: 'Too many failed attempts. Please request a new OTP.' }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -95,9 +85,12 @@ serve(async (req) => {
     }
 
     // Check expiration
-    if (Date.now() > storedOTP.expiresAt) {
-      globalOTPStore.delete(key);
-      console.log(`Expired OTP for key: ${key}, deleting`);
+    if (new Date() > new Date(otpRecord.expires_at)) {
+      await supabase
+        .from('otp_codes')
+        .delete()
+        .eq('id', otpRecord.id);
+      console.log(`Expired OTP for identifier: ${identifier}, deleting`);
       return new Response(
         JSON.stringify({ error: 'OTP has expired. Please request a new OTP.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -105,21 +98,30 @@ serve(async (req) => {
     }
 
     // Verify OTP
-    if (storedOTP.otp !== otp) {
-      storedOTP.attempts++;
-      console.log(`Invalid OTP attempt for key: ${key}. Expected: ${storedOTP.otp}, Received: ${otp}, Attempts: ${storedOTP.attempts}`);
+    if (otpRecord.otp_code !== otp) {
+      // Increment attempts
+      await supabase
+        .from('otp_codes')
+        .update({ attempts: otpRecord.attempts + 1 })
+        .eq('id', otpRecord.id);
+      
+      console.log(`Invalid OTP attempt for identifier: ${identifier}. Expected: ${otpRecord.otp_code}, Received: ${otp}, Attempts: ${otpRecord.attempts + 1}`);
       return new Response(
         JSON.stringify({ 
           error: 'Invalid OTP. Please check the code and try again.',
-          attemptsRemaining: 3 - storedOTP.attempts
+          attemptsRemaining: 3 - (otpRecord.attempts + 1)
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // OTP verified successfully
-    globalOTPStore.delete(key);
-    console.log(`OTP verified successfully for key: ${key}`);
+    // OTP verified successfully - delete it
+    await supabase
+      .from('otp_codes')
+      .delete()
+      .eq('id', otpRecord.id);
+    
+    console.log(`OTP verified successfully for identifier: ${identifier}`);
 
     return new Response(
       JSON.stringify({ success: true, message: 'OTP verified successfully' }),
@@ -134,6 +136,3 @@ serve(async (req) => {
     );
   }
 });
-
-// Export the OTP store for use by other functions if needed
-export { globalOTPStore as otpStore };
