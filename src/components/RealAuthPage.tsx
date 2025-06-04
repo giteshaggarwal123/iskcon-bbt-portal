@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -192,7 +191,7 @@ export const RealAuthPage: React.FC = () => {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="your.email@iskcon.org"
+                      placeholder="your.email@iskconbureau.in"
                       value={formData.email}
                       onChange={(e) => updateFormData('email', e.target.value)}
                       className="pl-10"
