@@ -262,7 +262,7 @@ export const MeetingsModule: React.FC = () => {
                               className="bg-blue-600 hover:bg-blue-700 text-white"
                             >
                               <Video className="h-4 w-4 mr-2" />
-                              Join Now
+                              Join Meeting
                             </Button>
                           )}
                           
