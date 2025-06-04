@@ -7,8 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Shared OTP store with verify-otp function - using consistent key format
-const otpStore = new Map<string, { otp: string; expiresAt: number; attempts: number; lastSent: number }>();
+// Global shared OTP store that matches verify-otp function
+const globalOTPStore = new Map<string, { otp: string; expiresAt: number; attempts: number; lastSent: number }>();
 
 // Rate limiting store
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
@@ -55,7 +55,7 @@ const checkRateLimit = (email: string): boolean => {
 // Check if OTP was recently sent (prevent duplicates within 60 seconds)
 const checkRecentOTP = (email: string): boolean => {
   const key = `login_${email}`;
-  const storedOTP = otpStore.get(key);
+  const storedOTP = globalOTPStore.get(key);
   
   if (storedOTP && storedOTP.lastSent) {
     const timeSinceLastSent = Date.now() - storedOTP.lastSent;
@@ -149,7 +149,7 @@ serve(async (req) => {
     
     // Store OTP with consistent key format: login_{email}
     const key = `login_${email}`;
-    otpStore.set(key, {
+    globalOTPStore.set(key, {
       otp,
       expiresAt: now + 5 * 60 * 1000, // 5 minutes
       attempts: 0,
@@ -157,6 +157,7 @@ serve(async (req) => {
     });
 
     console.log(`Storing login OTP for key: ${key}, OTP: ${otp}`);
+    console.log(`Current OTP store keys: ${Array.from(globalOTPStore.keys()).join(', ')}`);
 
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
@@ -193,7 +194,7 @@ serve(async (req) => {
       console.error('Twilio error:', error);
       
       // Remove OTP from store if SMS failed
-      otpStore.delete(key);
+      globalOTPStore.delete(key);
       
       return new Response(
         JSON.stringify({ 
@@ -226,3 +227,6 @@ serve(async (req) => {
     );
   }
 });
+
+// Export the OTP store for cross-function access
+export { globalOTPStore as otpStore };
