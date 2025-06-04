@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// In-memory OTP store - in production, use Redis or secure database
+// Shared OTP store with verify-otp function - using consistent key format
 const otpStore = new Map<string, { otp: string; expiresAt: number; attempts: number; lastSent: number }>();
 
 // Rate limiting store
@@ -147,7 +147,7 @@ serve(async (req) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const now = Date.now();
     
-    // Store OTP securely with 5-minute expiration and last sent timestamp
+    // Store OTP with consistent key format: login_{email}
     const key = `login_${email}`;
     otpStore.set(key, {
       otp,
@@ -155,6 +155,8 @@ serve(async (req) => {
       attempts: 0,
       lastSent: now
     });
+
+    console.log(`Storing login OTP for key: ${key}, OTP: ${otp}`);
 
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');

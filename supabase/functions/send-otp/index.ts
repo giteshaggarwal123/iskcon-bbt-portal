@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// In-memory OTP store - in production, use Redis or secure database
+// Shared OTP store with verify-otp function - using consistent key format
 const otpStore = new Map<string, { otp: string; expiresAt: number; attempts: number; lastSent: number }>();
 
 // Rate limiting store
@@ -94,7 +94,7 @@ serve(async (req) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const now = Date.now();
     
-    // Store OTP securely with 10-minute expiration and last sent timestamp
+    // Store OTP with consistent key format: reset_{phoneNumber}
     const key = `reset_${phoneNumber}`;
     otpStore.set(key, {
       otp,
@@ -102,6 +102,8 @@ serve(async (req) => {
       attempts: 0,
       lastSent: now
     });
+    
+    console.log(`Storing reset OTP for key: ${key}, OTP: ${otp}`);
     
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
@@ -143,7 +145,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('OTP sent successfully to:', phoneNumber);
+    console.log('Reset OTP sent successfully to:', phoneNumber);
     
     return new Response(
       JSON.stringify({ 

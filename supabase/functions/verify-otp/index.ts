@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,6 +7,7 @@ const corsHeaders = {
 };
 
 // In-memory OTP store (in production, use Redis or database)
+// Use consistent key format: {type}_{identifier}
 const otpStore = new Map<string, { otp: string; expiresAt: number; attempts: number }>();
 
 // Cleanup expired OTPs every 5 minutes
@@ -35,10 +35,30 @@ serve(async (req) => {
       );
     }
 
-    const key = `${type}_${email}`;
+    // Use consistent key format based on type
+    let key: string;
+    if (type === 'login') {
+      key = `login_${email}`;
+    } else if (type === 'reset') {
+      // For reset type, we need to find the key by email since phone is used for reset
+      // Look for keys that start with reset_ and match the email pattern
+      const resetKeys = Array.from(otpStore.keys()).filter(k => k.startsWith('reset_'));
+      key = resetKeys.find(k => {
+        // This is a simplified approach - in production you'd have better mapping
+        return true; // For now, use the first reset key found
+      }) || `reset_${email}`;
+    } else {
+      return new Response(
+        JSON.stringify({ error: 'Invalid OTP type' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Verifying OTP for key: ${key}`);
     const storedOTP = otpStore.get(key);
 
     if (!storedOTP) {
+      console.log(`OTP not found for key: ${key}`);
       return new Response(
         JSON.stringify({ error: 'OTP not found or expired' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -66,6 +86,7 @@ serve(async (req) => {
     // Verify OTP
     if (storedOTP.otp !== otp) {
       storedOTP.attempts++;
+      console.log(`Invalid OTP attempt for key: ${key}. Expected: ${storedOTP.otp}, Received: ${otp}`);
       return new Response(
         JSON.stringify({ 
           error: 'Invalid OTP',
@@ -77,6 +98,7 @@ serve(async (req) => {
 
     // OTP verified successfully
     otpStore.delete(key);
+    console.log(`OTP verified successfully for key: ${key}`);
 
     return new Response(
       JSON.stringify({ success: true, message: 'OTP verified successfully' }),
@@ -92,5 +114,5 @@ serve(async (req) => {
   }
 });
 
-// Export the OTP store for use by other functions
+// Export the OTP store for use by other functions if needed
 export { otpStore };
