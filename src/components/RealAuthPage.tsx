@@ -9,35 +9,70 @@ import { Mail, Shield, Lock, Phone } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 export const RealAuthPage: React.FC = () => {
-  const { signIn, loading } = useAuth();
-  const [step, setStep] = useState<'login' | 'otp'>('login');
+  const { signIn, sendOTP, verifyOTP, loading } = useAuth();
+  const [step, setStep] = useState<'login' | 'phone' | 'otp' | 'newPassword'>('login');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     rememberMe: false,
-    otp: ''
+    phoneNumber: '',
+    otp: '',
+    newPassword: '',
+    confirmPassword: ''
   });
   const [forgotPassword, setForgotPassword] = useState(false);
+  const [storedOTP, setStoredOTP] = useState('');
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (forgotPassword) {
-      // Send OTP via Twilio (placeholder for now)
-      alert('OTP sent to your registered phone number');
-      setStep('otp');
+      setStep('phone');
     } else {
-      await signIn(formData.email, formData.password);
+      await signIn(formData.email, formData.password, formData.rememberMe);
     }
   };
 
-  const handleOtpVerification = async (e: React.FormEvent) => {
+  const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Verify OTP and proceed with password reset (placeholder)
-    alert('OTP verified. Please set new password.');
+    const { error, otp } = await sendOTP(formData.phoneNumber);
+    if (!error && otp) {
+      setStoredOTP(otp);
+      setStep('otp');
+    }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.otp === storedOTP) {
+      setStep('newPassword');
+    } else {
+      alert('Invalid OTP. Please try again.');
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.newPassword !== formData.confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+    
+    const { error } = await verifyOTP(formData.email, formData.otp, formData.newPassword);
+    if (!error) {
+      setStep('login');
+      setForgotPassword(false);
+      setFormData(prev => ({ ...prev, password: '', newPassword: '', confirmPassword: '', otp: '', phoneNumber: '' }));
+    }
   };
 
   const updateFormData = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const resetToLogin = () => {
+    setStep('login');
+    setForgotPassword(false);
+    setFormData(prev => ({ ...prev, otp: '', phoneNumber: '', newPassword: '', confirmPassword: '' }));
   };
 
   return (
@@ -84,32 +119,32 @@ export const RealAuthPage: React.FC = () => {
                 </div>
                 
                 {!forgotPassword && (
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder="Enter your password"
-                        value={formData.password}
-                        onChange={(e) => updateFormData('password', e.target.value)}
-                        className="pl-10"
-                        required
-                      />
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder="Enter your password"
+                          value={formData.password}
+                          onChange={(e) => updateFormData('password', e.target.value)}
+                          className="pl-10"
+                          required
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
 
-                {!forgotPassword && (
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="remember"
-                      checked={formData.rememberMe}
-                      onCheckedChange={(checked) => updateFormData('rememberMe', checked as boolean)}
-                    />
-                    <Label htmlFor="remember" className="text-sm">Remember me (30 days)</Label>
-                  </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="remember"
+                        checked={formData.rememberMe}
+                        onCheckedChange={(checked) => updateFormData('rememberMe', checked as boolean)}
+                      />
+                      <Label htmlFor="remember" className="text-sm">Remember me</Label>
+                    </div>
+                  </>
                 )}
                 
                 <Button 
@@ -117,7 +152,7 @@ export const RealAuthPage: React.FC = () => {
                   disabled={loading}
                   className="w-full bg-primary hover:bg-primary/90"
                 >
-                  {loading ? 'Processing...' : forgotPassword ? 'Send OTP' : 'Sign In'}
+                  {loading ? 'Processing...' : forgotPassword ? 'Continue' : 'Sign In'}
                 </Button>
 
                 <div className="text-center">
@@ -130,8 +165,45 @@ export const RealAuthPage: React.FC = () => {
                   </button>
                 </div>
               </form>
-            ) : (
-              <form onSubmit={handleOtpVerification} className="space-y-4">
+            ) : step === 'phone' ? (
+              <form onSubmit={handleSendOTP} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="+1234567890"
+                      value={formData.phoneNumber}
+                      onChange={(e) => updateFormData('phoneNumber', e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">Enter your registered phone number to receive OTP</p>
+                </div>
+                
+                <Button 
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-primary hover:bg-primary/90"
+                >
+                  {loading ? 'Sending...' : 'Send OTP'}
+                </Button>
+                
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={resetToLogin}
+                    className="text-sm text-gray-600 hover:text-primary"
+                  >
+                    Back to Login
+                  </button>
+                </div>
+              </form>
+            ) : step === 'otp' ? (
+              <form onSubmit={handleVerifyOTP} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="otp">Enter OTP</Label>
                   <div className="relative">
@@ -147,6 +219,7 @@ export const RealAuthPage: React.FC = () => {
                       required
                     />
                   </div>
+                  <p className="text-xs text-gray-500">Enter the 6-digit code sent to your phone</p>
                 </div>
                 
                 <Button 
@@ -160,12 +233,54 @@ export const RealAuthPage: React.FC = () => {
                 <div className="text-center">
                   <button
                     type="button"
-                    onClick={() => setStep('login')}
+                    onClick={() => setStep('phone')}
                     className="text-sm text-gray-600 hover:text-primary"
                   >
-                    Back to Login
+                    Resend OTP
                   </button>
                 </div>
+              </form>
+            ) : (
+              <form onSubmit={handlePasswordReset} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      placeholder="Enter new password"
+                      value={formData.newPassword}
+                      onChange={(e) => updateFormData('newPassword', e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Confirm new password"
+                      value={formData.confirmPassword}
+                      onChange={(e) => updateFormData('confirmPassword', e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <Button 
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-primary hover:bg-primary/90"
+                >
+                  {loading ? 'Updating...' : 'Update Password'}
+                </Button>
               </form>
             )}
           </CardContent>

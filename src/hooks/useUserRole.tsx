@@ -97,7 +97,8 @@ export const useUserRole = (): UseUserRoleReturn => {
   const canManageMeetings = isSuperAdmin || isAdmin || isSecretary;
   const canManageDocuments = isSuperAdmin || isAdmin || isSecretary;
   const canViewReports = isSuperAdmin || isAdmin || isTreasurer;
-  const canManageSettings = isSuperAdmin || isAdmin;
+  // All authenticated users can access settings (changed from admin-only)
+  const canManageSettings = true; // All members can access settings
   
   // Content permissions - Super Admin can do everything
   const canCreateContent = isSuperAdmin || isAdmin || isSecretary;

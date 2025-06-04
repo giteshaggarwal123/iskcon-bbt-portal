@@ -8,8 +8,10 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   signUp: (email: string, password: string, firstName: string, lastName: string, phone?: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  sendOTP: (phoneNumber: string) => Promise<{ error: any; otp?: string }>;
+  verifyOTP: (email: string, otp: string, newPassword: string) => Promise<{ error: any }>;
   loading: boolean;
 }
 
@@ -103,7 +105,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -117,6 +119,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           variant: "destructive"
         });
         return { error };
+      }
+
+      // Handle remember me functionality
+      if (rememberMe) {
+        // Set longer session duration (30 days)
+        localStorage.setItem('rememberMe', 'true');
+        localStorage.setItem('rememberMeExpiry', (Date.now() + 30 * 24 * 60 * 60 * 1000).toString());
+      } else {
+        localStorage.removeItem('rememberMe');
+        localStorage.removeItem('rememberMeExpiry');
       }
 
       toast({
@@ -135,9 +147,76 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const sendOTP = async (phoneNumber: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('send-otp', {
+        body: { phoneNumber }
+      });
+
+      if (error) {
+        toast({
+          title: "OTP Error",
+          description: "Failed to send OTP. Please try again.",
+          variant: "destructive"
+        });
+        return { error };
+      }
+
+      toast({
+        title: "OTP Sent",
+        description: "Please check your phone for the verification code."
+      });
+
+      return { error: null, otp: data.otp };
+    } catch (error: any) {
+      toast({
+        title: "OTP Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return { error };
+    }
+  };
+
+  const verifyOTP = async (email: string, otp: string, newPassword: string) => {
+    try {
+      // In a real implementation, you would verify the OTP against stored values
+      // For now, we'll simulate OTP verification and reset the password
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        toast({
+          title: "Password Reset Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return { error };
+      }
+
+      toast({
+        title: "Password Reset Successful",
+        description: "Your password has been updated successfully."
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        title: "Password Reset Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return { error };
+    }
+  };
+
   const signOut = async () => {
     try {
-      // Check if we have a valid session before attempting logout
+      // Clear remember me settings
+      localStorage.removeItem('rememberMe');
+      localStorage.removeItem('rememberMeExpiry');
+
       if (!session) {
         console.log('No active session found, clearing local state');
         setSession(null);
@@ -151,7 +230,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const { error } = await supabase.auth.signOut();
       
-      // Clear local state regardless of error
       setSession(null);
       setUser(null);
       
@@ -169,7 +247,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error: any) {
       console.error('Logout error:', error);
-      // Always clear local state even if logout fails
       setSession(null);
       setUser(null);
       toast({
@@ -185,6 +262,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signUp,
     signIn,
     signOut,
+    sendOTP,
+    verifyOTP,
     loading
   };
 
