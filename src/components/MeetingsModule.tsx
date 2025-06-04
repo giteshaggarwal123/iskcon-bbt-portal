@@ -4,14 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, Users, Video, FileText, Plus, Mic, Trash2, UserCheck } from 'lucide-react';
+import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, Paperclip } from 'lucide-react';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 import { ViewAgendaDialog } from './ViewAgendaDialog';
 import { ManageAttendeesDialog } from './ManageAttendeesDialog';
-import { MeetingSettingsDialog } from './MeetingSettingsDialog';
 import { CheckInDialog } from './CheckInDialog';
 import { PostMeetingDialog } from './PostMeetingDialog';
-import { MeetingTranscriptDialog } from './MeetingTranscriptDialog';
 import { CalendarView } from './CalendarView';
 import { useMeetings } from '@/hooks/useMeetings';
 import { format } from 'date-fns';
@@ -20,10 +18,8 @@ export const MeetingsModule: React.FC = () => {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [showAgendaDialog, setShowAgendaDialog] = useState(false);
   const [showAttendeesDialog, setShowAttendeesDialog] = useState(false);
-  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [showPostMeetingDialog, setShowPostMeetingDialog] = useState(false);
-  const [showTranscriptDialog, setShowTranscriptDialog] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
   
   const { meetings, loading, deleteMeeting } = useMeetings();
@@ -48,15 +44,15 @@ export const MeetingsModule: React.FC = () => {
     setShowPostMeetingDialog(true);
   };
 
-  const handleViewTranscript = (meeting: any) => {
-    setSelectedMeeting(meeting);
-    setShowTranscriptDialog(true);
-  };
-
   const handleDeleteMeeting = async (meetingId: string) => {
     if (confirm('Are you sure you want to delete this meeting?')) {
       await deleteMeeting(meetingId);
     }
+  };
+
+  const handleAttachFiles = (meeting: any) => {
+    // Placeholder for file attachment functionality
+    alert(`Attach files to ${meeting.title}`);
   };
 
   const formatMeetingTime = (startTime: string, endTime: string) => {
@@ -117,11 +113,10 @@ export const MeetingsModule: React.FC = () => {
         </div>
 
         <Tabs defaultValue="upcoming" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="upcoming">Upcoming ({upcomingMeetings.length})</TabsTrigger>
             <TabsTrigger value="past">Past Meetings ({pastMeetings.length})</TabsTrigger>
             <TabsTrigger value="calendar">Calendar</TabsTrigger>
-            <TabsTrigger value="templates">Templates</TabsTrigger>
           </TabsList>
 
           <TabsContent value="upcoming" className="space-y-6">
@@ -223,10 +218,11 @@ export const MeetingsModule: React.FC = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleViewTranscript(meeting)}
+                            onClick={() => handleAttachFiles(meeting)}
+                            className="bg-purple-50 hover:bg-purple-100 text-purple-700"
                           >
-                            <Mic className="h-4 w-4 mr-2" />
-                            Transcript
+                            <Paperclip className="h-4 w-4 mr-2" />
+                            Attach Files
                           </Button>
                           
                           <Button 
@@ -284,10 +280,11 @@ export const MeetingsModule: React.FC = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleViewTranscript(meeting)}
+                            onClick={() => alert('View meeting documents')}
+                            className="bg-blue-50 hover:bg-blue-100 text-blue-700"
                           >
-                            <Mic className="h-4 w-4 mr-2" />
-                            Transcript & Notes
+                            <FileText className="h-4 w-4 mr-2" />
+                            View Document
                           </Button>
                           
                           <Button 
@@ -314,34 +311,6 @@ export const MeetingsModule: React.FC = () => {
               onMeetingClick={handleViewAgenda}
             />
           </TabsContent>
-
-          <TabsContent value="templates" className="space-y-6">
-            <div className="grid gap-4">
-              {[
-                { id: 1, name: 'Monthly Bureau Meeting', description: 'Regular monthly meeting template' },
-                { id: 2, name: 'Emergency Meeting', description: 'Urgent matters discussion' },
-                { id: 3, name: 'Committee Meeting', description: 'Specialized committee discussions' }
-              ].map((template) => (
-                <Card key={template.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{template.name}</h3>
-                        <p className="text-sm text-gray-500 mt-1">{template.description}</p>
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => alert(`Creating meeting from template: ${template.name}`)}
-                      >
-                        Use Template
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
         </Tabs>
       </div>
 
@@ -360,11 +329,6 @@ export const MeetingsModule: React.FC = () => {
         onOpenChange={setShowAttendeesDialog}
         meeting={selectedMeeting}
       />
-      <MeetingSettingsDialog 
-        open={showSettingsDialog} 
-        onOpenChange={setShowSettingsDialog}
-        meeting={selectedMeeting}
-      />
       <CheckInDialog
         open={showCheckInDialog}
         onOpenChange={setShowCheckInDialog}
@@ -373,11 +337,6 @@ export const MeetingsModule: React.FC = () => {
       <PostMeetingDialog
         open={showPostMeetingDialog}
         onOpenChange={setShowPostMeetingDialog}
-        meeting={selectedMeeting}
-      />
-      <MeetingTranscriptDialog
-        open={showTranscriptDialog}
-        onOpenChange={setShowTranscriptDialog}
         meeting={selectedMeeting}
       />
     </>

@@ -7,9 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { User, Bell, Shield, Mail, Save, MessageCircle, Settings } from 'lucide-react';
+import { User, Bell, Settings, Mail, Save, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -114,12 +113,11 @@ export const SettingsModule: React.FC = () => {
 
     setLoading(true);
     try {
-      // In a real application, you would send this to an admin email or notification system
       const { error } = await supabase
         .from('emails')
         .insert({
           sender_id: user?.id,
-          recipients: ['admin@iskcon.org'], // Replace with actual admin email
+          recipients: ['admin@iskcon.org'],
           subject: 'Contact Administrator Request',
           body: `Message from ${personalInfo.first_name} ${personalInfo.last_name} (${personalInfo.email}):\n\n${contactMessage}`,
           status: 'draft'
@@ -192,10 +190,9 @@ export const SettingsModule: React.FC = () => {
       </div>
 
       <Tabs defaultValue="personal" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="personal">Personal Info</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
         </TabsList>
 
@@ -235,18 +232,22 @@ export const SettingsModule: React.FC = () => {
                   id="email"
                   type="email"
                   value={personalInfo.email}
-                  onChange={(e) => setPersonalInfo(prev => ({ ...prev, email: e.target.value }))}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
                   placeholder="Enter your email address"
                 />
+                <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
               </div>
               <div>
                 <Label htmlFor="phone">Phone Number</Label>
                 <Input
                   id="phone"
                   value={personalInfo.phone}
-                  onChange={(e) => setPersonalInfo(prev => ({ ...prev, phone: e.target.value }))}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
                   placeholder="Enter your phone number"
                 />
+                <p className="text-xs text-gray-500 mt-1">Phone number cannot be changed</p>
               </div>
               <Button onClick={updatePersonalInfo} disabled={loading} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
@@ -317,34 +318,6 @@ export const SettingsModule: React.FC = () => {
                     setNotificationSettings(prev => ({ ...prev, voteNotifications: checked }))
                   }
                 />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="security" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Shield className="h-5 w-5" />
-                <span>Security Settings</span>
-              </CardTitle>
-              <CardDescription>Manage your account security and privacy</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-medium">Password</h3>
-                  <p className="text-sm text-gray-500">Last changed 30 days ago</p>
-                </div>
-                <Button variant="outline">Change Password</Button>
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-medium">Two-Factor Authentication</h3>
-                  <p className="text-sm text-gray-500">Add an extra layer of security</p>
-                </div>
-                <Badge variant="secondary">Not Enabled</Badge>
               </div>
             </CardContent>
           </Card>

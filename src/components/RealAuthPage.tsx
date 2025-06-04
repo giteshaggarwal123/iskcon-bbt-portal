@@ -4,38 +4,39 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Mail, Shield, User, Phone } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Mail, Shield, Lock, Phone } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 export const RealAuthPage: React.FC = () => {
-  const { signIn, signUp, loading } = useAuth();
+  const { signIn, loading } = useAuth();
+  const [step, setStep] = useState<'login' | 'otp'>('login');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    firstName: '',
-    lastName: '',
-    phone: '',
-    confirmPassword: ''
+    rememberMe: false,
+    otp: ''
   });
+  const [forgotPassword, setForgotPassword] = useState(false);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signIn(formData.email, formData.password);
-  };
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
-      return;
+    if (forgotPassword) {
+      // Send OTP via Twilio (placeholder for now)
+      alert('OTP sent to your registered phone number');
+      setStep('otp');
+    } else {
+      await signIn(formData.email, formData.password);
     }
-
-    await signUp(formData.email, formData.password, formData.firstName, formData.lastName, formData.phone);
   };
 
-  const updateFormData = (field: string, value: string) => {
+  const handleOtpVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Verify OTP and proceed with password reset (placeholder)
+    alert('OTP verified. Please set new password.');
+  };
+
+  const updateFormData = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -59,154 +60,114 @@ export const RealAuthPage: React.FC = () => {
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center space-x-2">
               <Shield className="h-5 w-5 text-primary" />
-              <span>Authentication</span>
+              <span>Secure Login</span>
             </CardTitle>
-            <CardDescription>
-              Sign in to your account or create a new one
-            </CardDescription>
           </CardHeader>
           
           <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="signin" className="space-y-4">
-                <form onSubmit={handleSignIn} className="space-y-4">
+            {step === 'login' ? (
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="your.email@iskcon.org"
+                      value={formData.email}
+                      onChange={(e) => updateFormData('email', e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                {!forgotPassword && (
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email Address</Label>
+                    <Label htmlFor="password">Password</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <Input
-                        id="signin-email"
-                        type="email"
-                        placeholder="your.email@iskcon.org"
-                        value={formData.email}
-                        onChange={(e) => updateFormData('email', e.target.value)}
+                        id="password"
+                        type="password"
+                        placeholder="Enter your password"
+                        value={formData.password}
+                        onChange={(e) => updateFormData('password', e.target.value)}
                         className="pl-10"
                         required
                       />
                     </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      placeholder="Enter your password"
-                      value={formData.password}
-                      onChange={(e) => updateFormData('password', e.target.value)}
-                      required
+                )}
+
+                {!forgotPassword && (
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="remember"
+                      checked={formData.rememberMe}
+                      onCheckedChange={(checked) => updateFormData('rememberMe', checked as boolean)}
                     />
+                    <Label htmlFor="remember" className="text-sm">Remember me (30 days)</Label>
                   </div>
-                  
-                  <Button 
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-primary hover:bg-primary/90"
+                )}
+                
+                <Button 
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-primary hover:bg-primary/90"
+                >
+                  {loading ? 'Processing...' : forgotPassword ? 'Send OTP' : 'Sign In'}
+                </Button>
+
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setForgotPassword(!forgotPassword)}
+                    className="text-sm text-primary hover:underline"
                   >
-                    {loading ? 'Signing In...' : 'Sign In'}
-                  </Button>
-                </form>
-              </TabsContent>
-              
-              <TabsContent value="signup" className="space-y-4">
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="firstName"
-                          placeholder="First name"
-                          value={formData.firstName}
-                          onChange={(e) => updateFormData('firstName', e.target.value)}
-                          className="pl-10"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        placeholder="Last name"
-                        value={formData.lastName}
-                        onChange={(e) => updateFormData('lastName', e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email Address</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="signup-email"
-                        type="email"
-                        placeholder="your.email@iskcon.org"
-                        value={formData.email}
-                        onChange={(e) => updateFormData('email', e.target.value)}
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number (Optional)</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="+91 98765 43210"
-                        value={formData.phone}
-                        onChange={(e) => updateFormData('phone', e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
+                    {forgotPassword ? 'Back to Login' : 'Forgot Password?'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleOtpVerification} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="otp">Enter OTP</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="Create a password"
-                      value={formData.password}
-                      onChange={(e) => updateFormData('password', e.target.value)}
+                      id="otp"
+                      type="text"
+                      placeholder="123456"
+                      value={formData.otp}
+                      onChange={(e) => updateFormData('otp', e.target.value)}
+                      maxLength={6}
+                      className="pl-10 text-center text-lg tracking-widest"
                       required
                     />
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="Confirm your password"
-                      value={formData.confirmPassword}
-                      onChange={(e) => updateFormData('confirmPassword', e.target.value)}
-                      required
-                    />
-                  </div>
-                  
-                  <Button 
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-primary hover:bg-primary/90"
+                </div>
+                
+                <Button 
+                  type="submit"
+                  disabled={loading || formData.otp.length !== 6}
+                  className="w-full bg-primary hover:bg-primary/90"
+                >
+                  {loading ? 'Verifying...' : 'Verify OTP'}
+                </Button>
+                
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setStep('login')}
+                    className="text-sm text-gray-600 hover:text-primary"
                   >
-                    {loading ? 'Creating Account...' : 'Create Account'}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+                    Back to Login
+                  </button>
+                </div>
+              </form>
+            )}
           </CardContent>
         </Card>
         

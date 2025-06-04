@@ -8,11 +8,11 @@ import {
   Mail, 
   Clock,
   User,
-  Check,
-  BarChart3
+  Check
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -23,19 +23,19 @@ interface SidebarProps {
 
 const allMenuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: Calendar, requiredPermission: null },
-  { id: 'meetings', label: 'Meetings', icon: Calendar, requiredPermission: null }, // All users can view meetings
-  { id: 'documents', label: 'Documents', icon: File, requiredPermission: null }, // All users can view documents
+  { id: 'meetings', label: 'Meetings', icon: Calendar, requiredPermission: null },
+  { id: 'documents', label: 'Documents', icon: File, requiredPermission: null },
   { id: 'voting', label: 'Voting', icon: Check, requiredPermission: null },
-  { id: 'attendance', label: 'Attendance', icon: Clock, requiredPermission: null }, // All users can view attendance
-  { id: 'email', label: 'Email', icon: Mail, requiredPermission: 'canManageMeetings' }, // Only admins/secretaries can send emails
-  { id: 'members', label: 'Members', icon: Users, requiredPermission: null }, // All users can view members
-  { id: 'reports', label: 'Reports', icon: BarChart3, requiredPermission: 'canViewReports' },
+  { id: 'attendance', label: 'Attendance', icon: Clock, requiredPermission: null },
+  { id: 'email', label: 'Email', icon: Mail, requiredPermission: 'canManageMeetings' },
+  { id: 'members', label: 'Members', icon: Users, requiredPermission: null },
   { id: 'settings', label: 'Settings', icon: Settings, requiredPermission: 'canManageSettings' },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModuleChange }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModuleChange, onClose }) => {
   const { user } = useAuth();
   const userRole = useUserRole();
+  const isMobile = useIsMobile();
 
   // Filter menu items based on user permissions
   const menuItems = allMenuItems.filter(item => {
@@ -50,8 +50,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModul
   
   const userEmail = user?.email || 'user@iskcon.org';
 
+  const handleItemClick = (itemId: string) => {
+    onModuleChange(itemId);
+    if (isMobile) {
+      onClose();
+    }
+  };
+
   return (
-    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ${
+      isOpen ? 'translate-x-0' : '-translate-x-full'
+    } ${isMobile ? 'z-50' : 'lg:translate-x-0'}`}>
       <div className="flex flex-col h-full">
         {/* Logo Section */}
         <div className="p-6 border-b border-gray-200">
@@ -71,11 +80,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModul
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-1">
+        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => onModuleChange(item.id)}
+              onClick={() => handleItemClick(item.id)}
               className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 currentModule === item.id
                   ? 'bg-primary text-white shadow-sm'
