@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +28,14 @@ import {
   ContextMenuSubTrigger
 } from '@/components/ui/context-menu';
 import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { 
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -36,7 +43,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb';
-import { FileText, Upload, Search, Filter, Download, Trash2, Eye, Plus, Folder, FolderOpen, Move, Edit, Copy, ArrowLeft, Home } from 'lucide-react';
+import { FileText, Upload, Search, Filter, Download, Trash2, Eye, Plus, Folder, FolderOpen, Move, Edit, Copy, ArrowLeft, Home, Grid3X3, List, Star, StarOff, MoreHorizontal } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -48,7 +55,7 @@ import { supabase } from '@/integrations/supabase/client';
 export const DocumentsModule: React.FC = () => {
   const { documents, folders, loading, uploadDocument, deleteDocument, moveDocument, createFolder, searchDocuments, fetchDocuments } = useDocuments();
   const { user } = useAuth();
-  const { canDeleteContent } = useUserRole();
+  const { canDeleteContent, isSuperAdmin } = useUserRole();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFolder, setSelectedFolder] = useState('all');
@@ -57,6 +64,11 @@ export const DocumentsModule: React.FC = () => {
   const [uploadFolder, setUploadFolder] = useState('general');
   const [draggedDocument, setDraggedDocument] = useState<string | null>(null);
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('modified');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Track document views
   const trackDocumentView = async (documentId: string) => {
@@ -79,6 +91,30 @@ export const DocumentsModule: React.FC = () => {
     }
   };
 
+  const toggleImportant = async (documentId: string, isImportant: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .update({ is_important: !isImportant })
+        .eq('id', documentId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Document ${!isImportant ? 'marked as important' : 'unmarked as important'}`
+      });
+
+      fetchDocuments();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update document",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -96,7 +132,7 @@ export const DocumentsModule: React.FC = () => {
       return;
     }
 
-    const targetFolder = currentFolder || uploadFolder;
+    const targetFolder = uploadFolder;
     await uploadDocument(selectedFile, targetFolder);
     setSelectedFile(null);
     setUploadDialogOpen(false);
@@ -133,29 +169,7 @@ export const DocumentsModule: React.FC = () => {
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
-    if (!term.trim()) {
-      setCurrentFolder(null);
-      setSelectedFolder('all');
-    }
     searchDocuments(term);
-  };
-
-  const handleDragStart = (e: React.DragEvent, documentId: string) => {
-    setDraggedDocument(documentId);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = (e: React.DragEvent, targetFolder: string) => {
-    e.preventDefault();
-    if (draggedDocument) {
-      moveDocument(draggedDocument, targetFolder);
-      setDraggedDocument(null);
-    }
   };
 
   const handleMoveToFolder = (documentId: string, newFolder: string) => {
@@ -196,38 +210,12 @@ export const DocumentsModule: React.FC = () => {
     }
   };
 
-  const handleDeleteFolder = async (folderName: string) => {
-    const folderDocuments = documents.filter(doc => (doc.folder || 'general') === folderName);
-    
-    if (folderDocuments.length > 0) {
-      toast({
-        title: "Cannot Delete Folder",
-        description: "Please move or delete all documents in this folder first",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    toast({
-      title: "Folder Deleted",
-      description: "Folder has been removed"
-    });
-    
-    if (currentFolder === folderName) {
-      setCurrentFolder(null);
-    }
-    fetchDocuments();
-  };
-
-  const openFolder = (folderName: string) => {
-    setCurrentFolder(folderName);
-    setSelectedFolder(folderName);
-    setSearchTerm('');
-  };
-
-  const goBackToRoot = () => {
-    setCurrentFolder(null);
-    setSelectedFolder('all');
+  // Check if user can access document based on hierarchy
+  const canAccessDocument = (document: any) => {
+    if (isSuperAdmin) return true;
+    if (document.uploaded_by === user?.id) return true;
+    if (document.folder === 'personal') return document.uploaded_by === user?.id;
+    return !document.is_hidden;
   };
 
   // Check if user can delete a specific document
@@ -235,21 +223,35 @@ export const DocumentsModule: React.FC = () => {
     return canDeleteContent || user?.id === document.uploaded_by;
   };
 
-  // Fixed filtering logic to properly separate documents by folder
-  const filteredDocuments = documents.filter(doc => {
-    const documentFolder = doc.folder || 'general';
-    const matchesSearch = !searchTerm || doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (currentFolder) {
-      return matchesSearch && documentFolder === currentFolder;
-    } else {
-      if (selectedFolder === 'all') {
-        return matchesSearch && documentFolder === 'general';
-      } else {
-        return matchesSearch && documentFolder === selectedFolder;
+  // Filter and sort documents
+  const filteredAndSortedDocuments = documents
+    .filter(doc => canAccessDocument(doc))
+    .filter(doc => {
+      const matchesSearch = !searchTerm || doc.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = typeFilter === 'all' || doc.mime_type?.includes(typeFilter);
+      const matchesFolder = selectedFolder === 'all' || (doc.folder || 'general') === selectedFolder;
+      
+      return matchesSearch && matchesType && matchesFolder;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'modified':
+          comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+          break;
+        case 'size':
+          comparison = (a.file_size || 0) - (b.file_size || 0);
+          break;
+        default:
+          comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
       }
-    }
-  });
+      
+      return sortOrder === 'desc' ? -comparison : comparison;
+    });
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return 'Unknown';
@@ -268,8 +270,17 @@ export const DocumentsModule: React.FC = () => {
     });
   };
 
+  const getFileIcon = (mimeType: string | null) => {
+    if (!mimeType) return <FileText className="h-4 w-4" />;
+    if (mimeType.includes('image')) return <FileText className="h-4 w-4 text-green-500" />;
+    if (mimeType.includes('pdf')) return <FileText className="h-4 w-4 text-red-500" />;
+    if (mimeType.includes('document')) return <FileText className="h-4 w-4 text-blue-500" />;
+    if (mimeType.includes('spreadsheet')) return <FileText className="h-4 w-4 text-green-600" />;
+    return <FileText className="h-4 w-4" />;
+  };
+
   // Create all folders list including default ones
-  const allFolders = ['general', 'meetings', 'financial', 'policies', 'reports', ...folders.filter(f => !['general', 'meetings', 'financial', 'policies', 'reports'].includes(f))];
+  const allFolders = ['general', 'meetings', 'financial', 'policies', 'reports', 'personal', ...folders.filter(f => !['general', 'meetings', 'financial', 'policies', 'reports', 'personal'].includes(f))];
 
   if (loading) {
     return (
@@ -281,54 +292,12 @@ export const DocumentsModule: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Enhanced Header with Better Navigation */}
+      {/* Header */}
       <div className="flex justify-between items-start">
         <div className="space-y-2">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-3xl font-bold text-gray-900">Documents</h1>
-            {currentFolder && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={goBackToRoot}
-                className="flex items-center space-x-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span>Back to All Documents</span>
-              </Button>
-            )}
-          </div>
-          
-          {/* Enhanced Breadcrumb Navigation */}
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink 
-                  onClick={goBackToRoot}
-                  className="flex items-center space-x-1 cursor-pointer hover:text-primary"
-                >
-                  <Home className="h-4 w-4" />
-                  <span>General Documents</span>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              {currentFolder && currentFolder !== 'general' && (
-                <>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage className="capitalize font-medium">
-                      {currentFolder}
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </>
-              )}
-            </BreadcrumbList>
-          </Breadcrumb>
-          
+          <h1 className="text-3xl font-bold text-gray-900">Documents</h1>
           <p className="text-gray-600">
-            {currentFolder 
-              ? `Viewing ${currentFolder === 'general' ? 'general documents' : `${currentFolder} folder`} • ${filteredDocuments.length} documents`
-              : `Manage bureau documents and files • ${documents.filter(d => (d.folder || 'general') === 'general').length} general documents`
-            }
+            Manage bureau documents and files • {filteredAndSortedDocuments.length} documents
           </p>
         </div>
         
@@ -368,7 +337,7 @@ export const DocumentsModule: React.FC = () => {
                 </div>
                 <div>
                   <Label htmlFor="folder">Folder</Label>
-                  <Select value={currentFolder || uploadFolder} onValueChange={setUploadFolder}>
+                  <Select value={uploadFolder} onValueChange={setUploadFolder}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select folder" />
                     </SelectTrigger>
@@ -396,10 +365,10 @@ export const DocumentsModule: React.FC = () => {
         </div>
       </div>
 
-      {/* Search and Filter - only show when not in a specific folder */}
-      {!currentFolder && (
-        <div className="flex space-x-4">
-          <div className="flex-1 relative">
+      {/* Filters and Controls */}
+      <div className="flex flex-wrap gap-4 items-center justify-between">
+        <div className="flex space-x-4 flex-1">
+          <div className="flex-1 relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Search documents..."
@@ -408,98 +377,239 @@ export const DocumentsModule: React.FC = () => {
               className="pl-10"
             />
           </div>
-          <Select value={selectedFolder} onValueChange={setSelectedFolder}>
-            <SelectTrigger className="w-48">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="All folders" />
+          
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">General Documents</SelectItem>
-              {allFolders.filter(f => f !== 'general').map(folder => (
+              <SelectItem value="all">All types</SelectItem>
+              <SelectItem value="pdf">PDF</SelectItem>
+              <SelectItem value="document">Documents</SelectItem>
+              <SelectItem value="spreadsheet">Spreadsheets</SelectItem>
+              <SelectItem value="image">Images</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedFolder} onValueChange={setSelectedFolder}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Folder" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All folders</SelectItem>
+              {allFolders.map(folder => (
                 <SelectItem key={folder} value={folder}>
                   {folder.charAt(0).toUpperCase() + folder.slice(1)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-      )}
 
-      {/* Folders Row - only show when not in a specific folder */}
-      {!currentFolder && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-            <Folder className="h-5 w-5" />
-            <span>Folders</span>
-          </h2>
-          <div className="flex space-x-4 overflow-x-auto pb-2">
-            {allFolders.filter(f => f !== 'general').map((folder) => (
-              <ContextMenu key={folder}>
-                <ContextMenuTrigger>
-                  <div
-                    className="flex-shrink-0 min-w-[120px] p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer group"
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, folder)}
-                    onClick={() => openFolder(folder)}
-                  >
-                    <div className="text-center">
-                      <div className="w-12 h-12 bg-primary/10 group-hover:bg-primary/20 rounded-lg flex items-center justify-center mx-auto mb-2 transition-colors">
-                        <Folder className="h-6 w-6 text-primary" />
-                      </div>
-                      <p className="text-sm font-medium group-hover:text-primary transition-colors">
-                        {folder.charAt(0).toUpperCase() + folder.slice(1)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {documents.filter(doc => (doc.folder || 'general') === folder).length} files
-                      </p>
-                    </div>
-                  </div>
-                </ContextMenuTrigger>
-                <ContextMenuContent>
-                  <ContextMenuItem onClick={() => openFolder(folder)}>
-                    <FolderOpen className="h-4 w-4 mr-2" />
-                    Open Folder
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem 
-                    onClick={() => handleDeleteFolder(folder)}
-                    className="text-red-600"
-                    disabled={['general', 'meetings', 'financial', 'policies', 'reports'].includes(folder)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Folder
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
-            ))}
-          </div>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="modified">Modified</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="size">Size</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      )}
 
-      {/* Documents Section */}
-      <div className="space-y-3">
-        {currentFolder && (
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-            <FileText className="h-5 w-5" />
-            <span>Documents in {currentFolder.charAt(0).toUpperCase() + currentFolder.slice(1)}</span>
-          </h2>
-        )}
-        
-        {/* Documents Grid */}
+        <div className="flex items-center space-x-2">
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('list')}
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'card' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('card')}
+          >
+            <Grid3X3 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Documents Display */}
+      {viewMode === 'list' ? (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8"></TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Owner</TableHead>
+                <TableHead>Last modified</TableHead>
+                <TableHead>File size</TableHead>
+                <TableHead className="w-16">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAndSortedDocuments.map((document) => (
+                <ContextMenu key={document.id}>
+                  <ContextMenuTrigger asChild>
+                    <TableRow className="cursor-pointer hover:bg-gray-50">
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleImportant(document.id, document.is_important || false)}
+                          className="h-6 w-6 p-0"
+                        >
+                          {document.is_important ? (
+                            <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                          ) : (
+                            <StarOff className="h-4 w-4 text-gray-400" />
+                          )}
+                        </Button>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          {getFileIcon(document.mime_type)}
+                          <div>
+                            <div className="font-medium">{document.name}</div>
+                            <div className="text-sm text-gray-500 capitalize">
+                              {(document.folder || 'general')}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                            <span className="text-xs font-medium">me</span>
+                          </div>
+                          <span className="text-sm">me</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">
+                        {formatDate(document.updated_at)}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">
+                        {formatFileSize(document.file_size)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-1">
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleViewDocument(document.id)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <DocumentAnalytics 
+                            documentId={document.id}
+                            documentName={document.name}
+                          />
+                          {canDeleteDocument(document) && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Document</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{document.name}"? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => handleDeleteDocument(document.id, document.name)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </ContextMenuTrigger>
+                  
+                  <ContextMenuContent>
+                    <ContextMenuItem onClick={() => handleViewDocument(document.id)}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      View Document
+                    </ContextMenuItem>
+                    <ContextMenuItem>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem onClick={() => toggleImportant(document.id, document.is_important || false)}>
+                      {document.is_important ? (
+                        <><StarOff className="h-4 w-4 mr-2" />Remove from Important</>
+                      ) : (
+                        <><Star className="h-4 w-4 mr-2" />Mark as Important</>
+                      )}
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => handleCopyDocument(document.id)}>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy Document
+                    </ContextMenuItem>
+                    <ContextMenuSub>
+                      <ContextMenuSubTrigger>
+                        <Move className="h-4 w-4 mr-2" />
+                        Move to Folder
+                      </ContextMenuSubTrigger>
+                      <ContextMenuSubContent>
+                        {allFolders.filter(f => f !== (document.folder || 'general')).map(folder => (
+                          <ContextMenuItem 
+                            key={folder}
+                            onClick={() => handleMoveToFolder(document.id, folder)}
+                          >
+                            <Folder className="h-4 w-4 mr-2" />
+                            {folder.charAt(0).toUpperCase() + folder.slice(1)}
+                          </ContextMenuItem>
+                        ))}
+                      </ContextMenuSubContent>
+                    </ContextMenuSub>
+                    <ContextMenuSeparator />
+                    {canDeleteDocument(document) && (
+                      <ContextMenuItem 
+                        onClick={() => handleDeleteDocument(document.id, document.name)}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </ContextMenuItem>
+                    )}
+                  </ContextMenuContent>
+                </ContextMenu>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredDocuments.map((document) => (
+          {filteredAndSortedDocuments.map((document) => (
             <ContextMenu key={document.id}>
               <ContextMenuTrigger>
-                <Card 
-                  className="hover:shadow-md transition-shadow cursor-pointer" 
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, document.id)}
-                >
+                <Card className="hover:shadow-md transition-shadow cursor-pointer">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <FileText className="h-5 w-5 text-primary" />
+                          {getFileIcon(document.mime_type)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <CardTitle className="text-sm font-medium truncate">
@@ -510,15 +620,29 @@ export const DocumentsModule: React.FC = () => {
                           </CardDescription>
                         </div>
                       </div>
-                      <Badge variant="secondary" className="text-xs">
-                        {document.mime_type?.split('/')[1] || 'file'}
-                      </Badge>
+                      <div className="flex items-center space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleImportant(document.id, document.is_important || false)}
+                          className="h-6 w-6 p-0"
+                        >
+                          {document.is_important ? (
+                            <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                          ) : (
+                            <StarOff className="h-3 w-3 text-gray-400" />
+                          )}
+                        </Button>
+                        <Badge variant="secondary" className="text-xs">
+                          {document.mime_type?.split('/')[1] || 'file'}
+                        </Badge>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="space-y-2 text-xs text-gray-500">
                       <div>Size: {formatFileSize(document.file_size)}</div>
-                      <div>Uploaded: {formatDate(document.created_at)}</div>
+                      <div>Modified: {formatDate(document.updated_at)}</div>
                     </div>
                     <div className="flex justify-between items-center mt-4">
                       <div className="flex space-x-1">
@@ -555,7 +679,7 @@ export const DocumentsModule: React.FC = () => {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete Document</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete "{document.name}"? This action cannot be undone and the document will be permanently removed from the system.
+                                Are you sure you want to delete "{document.name}"? This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -585,6 +709,13 @@ export const DocumentsModule: React.FC = () => {
                   Download
                 </ContextMenuItem>
                 <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => toggleImportant(document.id, document.is_important || false)}>
+                  {document.is_important ? (
+                    <><StarOff className="h-4 w-4 mr-2" />Remove from Important</>
+                  ) : (
+                    <><Star className="h-4 w-4 mr-2" />Mark as Important</>
+                  )}
+                </ContextMenuItem>
                 <ContextMenuItem onClick={() => handleCopyDocument(document.id)}>
                   <Copy className="h-4 w-4 mr-2" />
                   Copy Document
@@ -620,27 +751,23 @@ export const DocumentsModule: React.FC = () => {
             </ContextMenu>
           ))}
         </div>
+      )}
 
-        {filteredDocuments.length === 0 && (
-          <div className="text-center py-12">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
-            <p className="text-gray-500 mb-4">
-              {searchTerm || (currentFolder && selectedFolder !== 'all')
-                ? 'Try adjusting your search or filter criteria'
-                : currentFolder 
-                  ? `No documents in ${currentFolder} folder yet`
-                  : 'Get started by uploading your first document'}
-            </p>
-            {!searchTerm && (
-              <Button onClick={() => setUploadDialogOpen(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Document
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
+      {filteredAndSortedDocuments.length === 0 && (
+        <div className="text-center py-12">
+          <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
+          <p className="text-gray-500 mb-4">
+            {searchTerm ? 'Try adjusting your search or filter criteria' : 'Get started by uploading your first document'}
+          </p>
+          {!searchTerm && (
+            <Button onClick={() => setUploadDialogOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Document
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

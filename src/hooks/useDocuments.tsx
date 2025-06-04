@@ -14,6 +14,8 @@ interface Document {
   uploaded_by: string;
   created_at: string;
   updated_at: string;
+  is_important?: boolean;
+  is_hidden?: boolean;
 }
 
 export const useDocuments = () => {
@@ -28,7 +30,7 @@ export const useDocuments = () => {
       const { data, error } = await supabase
         .from('documents')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false });
 
       if (error) throw error;
       
@@ -81,7 +83,9 @@ export const useDocuments = () => {
           file_size: file.size,
           mime_type: file.type,
           folder: folder,
-          uploaded_by: user.id
+          uploaded_by: user.id,
+          is_important: false,
+          is_hidden: false
         })
         .select()
         .single();
@@ -167,7 +171,7 @@ export const useDocuments = () => {
         .from('documents')
         .select('*')
         .ilike('name', `%${searchTerm}%`)
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false });
 
       if (error) throw error;
       setDocuments(data || []);
