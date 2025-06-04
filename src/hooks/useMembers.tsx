@@ -141,8 +141,10 @@ export const useMembers = () => {
 
       console.log('User created via auth:', authData.user);
 
-      // The profile should be created automatically via trigger
-      // But let's also manually create it to be sure
+      // Wait a moment for the trigger to complete, then ensure profile exists
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Ensure the profile is created with all required data
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -151,24 +153,32 @@ export const useMembers = () => {
           first_name: memberData.firstName,
           last_name: memberData.lastName,
           phone: memberData.phone || ''
+        }, {
+          onConflict: 'id'
         });
 
       if (profileError) {
-        console.error('Profile creation error:', profileError);
-        // Don't throw error here as the trigger might have already created it
+        console.error('Profile upsert error:', profileError);
+        // Don't throw error here, but log it
+      } else {
+        console.log('Profile successfully created/updated for user:', authData.user.id);
       }
 
       // Add role if specified
       if (memberData.role && authData.user) {
         const { error: roleError } = await supabase
           .from('user_roles')
-          .insert({
+          .upsert({
             user_id: authData.user.id,
             role: memberData.role as any
+          }, {
+            onConflict: 'user_id,role'
           });
 
         if (roleError) {
           console.error('Error adding role:', roleError);
+        } else {
+          console.log('Role successfully added for user:', authData.user.id);
         }
       }
 
@@ -195,10 +205,14 @@ export const useMembers = () => {
 
       toast({
         title: "Member Added Successfully!",
-        description: `${memberData.firstName} ${memberData.lastName} has been added and invitation sent.`
+        description: `${memberData.firstName} ${memberData.lastName} has been added and can now login with OTP.`
       });
 
-      fetchMembers();
+      // Wait a moment before refreshing to ensure all operations complete
+      setTimeout(() => {
+        fetchMembers();
+      }, 1500);
+      
       return authData.user;
     } catch (error: any) {
       console.error('Error adding member:', error);

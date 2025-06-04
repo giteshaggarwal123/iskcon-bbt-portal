@@ -51,18 +51,45 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    console.log('Looking for user with email:', email);
+
     // Get user's phone number from profiles table
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('phone')
+      .select('phone, first_name, last_name')
       .eq('email', email)
       .single();
 
-    if (profileError || !profile?.phone) {
+    if (profileError) {
       console.error('Profile error:', profileError);
       return new Response(
-        JSON.stringify({ error: 'User not found or phone number not registered' }),
+        JSON.stringify({ 
+          error: 'User not found. Please ensure the member has been properly added to the system.',
+          details: 'The email address is not registered in our system or the profile data is incomplete.'
+        }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!profile) {
+      console.error('No profile found for email:', email);
+      return new Response(
+        JSON.stringify({ 
+          error: 'User profile not found. Please contact the administrator.',
+          details: 'This user exists in authentication but not in the profiles table.'
+        }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!profile.phone) {
+      console.error('No phone number for user:', email);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Phone number not registered. Please contact the administrator to update your phone number.',
+          details: 'OTP can only be sent to registered mobile numbers.'
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -79,7 +106,7 @@ serve(async (req) => {
 
     if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
       return new Response(
-        JSON.stringify({ error: 'Twilio credentials not configured' }),
+        JSON.stringify({ error: 'SMS service not configured. Please contact the administrator.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -87,6 +114,9 @@ serve(async (req) => {
     // Send SMS via Twilio
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
     const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
+
+    const userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+    const smsBody = `Hello ${userName}, your ISKCON Bureau login verification code is: ${otp}. This code will expire in 5 minutes.`;
 
     const response = await fetch(twilioUrl, {
       method: 'POST',
@@ -97,7 +127,7 @@ serve(async (req) => {
       body: new URLSearchParams({
         From: twilioPhoneNumber,
         To: formattedPhone,
-        Body: `Your ISKCON Bureau login verification code is: ${otp}. This code will expire in 5 minutes.`
+        Body: smsBody
       }),
     });
 
@@ -105,7 +135,10 @@ serve(async (req) => {
       const error = await response.text();
       console.error('Twilio error:', error);
       return new Response(
-        JSON.stringify({ error: 'Failed to send OTP. Please check your phone number format.' }),
+        JSON.stringify({ 
+          error: 'Failed to send verification code. Please check if your phone number is correct or contact the administrator.',
+          details: 'SMS delivery failed. This could be due to network issues or invalid phone number format.'
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -115,7 +148,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'OTP sent successfully',
+        message: `Verification code sent to ${formattedPhone.replace(/(\+91)(\d{5})(\d{5})/, '$1*****$3')}`,
         otp: otp // In production, store this securely instead of returning it
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -124,7 +157,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in send-login-otp function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Internal server error. Please try again later.',
+        details: 'An unexpected error occurred while processing your request.'
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
