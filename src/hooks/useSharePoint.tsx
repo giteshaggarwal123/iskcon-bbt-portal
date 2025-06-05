@@ -11,7 +11,7 @@ export const useSharePoint = () => {
   const { isConnected, accessToken } = useMicrosoftAuth();
   const { toast } = useToast();
 
-  const uploadToSharePoint = async (file: File, folder: string = 'Documents') => {
+  const uploadToSharePoint = async (file: File, folder: string = 'General') => {
     if (!isConnected || !accessToken) {
       toast({
         title: "Microsoft Account Required",
@@ -23,7 +23,7 @@ export const useSharePoint = () => {
 
     setLoading(true);
     try {
-      // Convert file to base64 for transmission
+      // Convert file to array buffer
       const fileBuffer = await file.arrayBuffer();
       
       const { data, error } = await supabase.functions.invoke('sharepoint-integration', {
@@ -35,8 +35,17 @@ export const useSharePoint = () => {
         }
       });
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (error) {
+        console.error('Upload error:', error);
+        throw error;
+      }
+      
+      if (data.error) {
+        console.error('Upload data error:', data.error);
+        throw new Error(data.error);
+      }
+
+      console.log('Upload successful:', data);
 
       // Create document record with SharePoint metadata
       const { data: document, error: docError } = await supabase
@@ -57,7 +66,10 @@ export const useSharePoint = () => {
         .select()
         .single();
 
-      if (docError) throw docError;
+      if (docError) {
+        console.error('Database error:', docError);
+        throw docError;
+      }
 
       // Create SharePoint file record
       await supabase
@@ -112,7 +124,12 @@ export const useSharePoint = () => {
         .eq('document_id', documentId)
         .single();
 
-      if (spError) throw spError;
+      if (spError) {
+        console.error('SharePoint file lookup error:', spError);
+        throw spError;
+      }
+
+      console.log('Downloading file:', spFile);
 
       const { data, error } = await supabase.functions.invoke('sharepoint-integration', {
         body: {
@@ -122,7 +139,10 @@ export const useSharePoint = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Download function error:', error);
+        throw error;
+      }
 
       // Create blob and download
       const blob = new Blob([data]);
@@ -179,7 +199,10 @@ export const useSharePoint = () => {
         .eq('document_id', documentId)
         .single();
 
-      if (spError) throw spError;
+      if (spError) {
+        console.error('SharePoint file lookup error:', spError);
+        throw spError;
+      }
 
       const { data, error } = await supabase.functions.invoke('sharepoint-integration', {
         body: {
@@ -189,8 +212,15 @@ export const useSharePoint = () => {
         }
       });
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (error) {
+        console.error('Delete function error:', error);
+        throw error;
+      }
+      
+      if (data.error) {
+        console.error('Delete data error:', data.error);
+        throw new Error(data.error);
+      }
 
       toast({
         title: "File Deleted",
@@ -221,7 +251,10 @@ export const useSharePoint = () => {
         .eq('id', documentId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Document lookup error:', error);
+        throw error;
+      }
 
       if (documentData.sharepoint_url) {
         // Open SharePoint file in new tab
@@ -251,58 +284,72 @@ export const useSharePoint = () => {
     }
 
     try {
+      console.log('Starting SharePoint sync...');
+
       const { data, error } = await supabase.functions.invoke('sharepoint-integration', {
         body: {
           action: 'list',
-          folder: 'Documents'
+          folder: 'General'
         }
       });
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (error) {
+        console.error('Sync function error:', error);
+        throw error;
+      }
+      
+      if (data.error) {
+        console.error('Sync data error:', data.error);
+        throw new Error(data.error);
+      }
+
+      console.log('SharePoint files:', data.files);
 
       // Sync files with local database
-      for (const file of data.files) {
-        const { data: existing } = await supabase
-          .from('documents')
-          .select('id')
-          .eq('sharepoint_id', file.id)
-          .single();
-
-        if (!existing) {
-          // Create new document record
-          const { data: document } = await supabase
+      if (data.files && Array.isArray(data.files)) {
+        for (const file of data.files) {
+          const { data: existing } = await supabase
             .from('documents')
-            .insert({
-              name: file.name,
-              file_path: file.webUrl,
-              file_size: file.size,
-              mime_type: 'application/octet-stream',
-              folder: 'Documents',
-              uploaded_by: user?.id || '',
-              is_sharepoint_file: true,
-              sharepoint_id: file.id,
-              sharepoint_url: file.webUrl,
-              is_important: false,
-              is_hidden: false
-            })
-            .select()
+            .select('id')
+            .eq('sharepoint_id', file.id)
             .single();
 
-          if (document) {
-            // Create SharePoint file record
-            await supabase
-              .from('sharepoint_files')
+          if (!existing) {
+            console.log('Creating new document record for:', file.name);
+            // Create new document record
+            const { data: document } = await supabase
+              .from('documents')
               .insert({
-                document_id: document.id,
+                name: file.name,
+                file_path: file.webUrl,
+                file_size: file.size,
+                mime_type: 'application/octet-stream',
+                folder: 'General',
+                uploaded_by: user?.id || '',
+                is_sharepoint_file: true,
                 sharepoint_id: file.id,
                 sharepoint_url: file.webUrl,
-                download_url: file.downloadUrl,
-                web_url: file.webUrl,
-                drive_id: file.driveId,
-                item_id: file.itemId,
-                etag: file.etag
-              });
+                is_important: false,
+                is_hidden: false
+              })
+              .select()
+              .single();
+
+            if (document) {
+              // Create SharePoint file record
+              await supabase
+                .from('sharepoint_files')
+                .insert({
+                  document_id: document.id,
+                  sharepoint_id: file.id,
+                  sharepoint_url: file.webUrl,
+                  download_url: file.downloadUrl,
+                  web_url: file.webUrl,
+                  drive_id: file.driveId,
+                  item_id: file.itemId,
+                  etag: file.etag
+                });
+            }
           }
         }
       }
@@ -316,9 +363,31 @@ export const useSharePoint = () => {
       console.error('SharePoint sync error:', error);
       toast({
         title: "Sync Failed",
-        description: "Failed to sync with SharePoint",
+        description: error.message || "Failed to sync with SharePoint",
         variant: "destructive"
       });
+    }
+  };
+
+  const getSharePointSiteInfo = async () => {
+    if (!isConnected || !accessToken) {
+      return null;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('sharepoint-integration', {
+        body: {
+          action: 'get-site-info'
+        }
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      return data.sites;
+    } catch (error: any) {
+      console.error('Failed to get SharePoint site info:', error);
+      return null;
     }
   };
 
@@ -329,6 +398,7 @@ export const useSharePoint = () => {
     downloadFromSharePoint,
     deleteFromSharePoint,
     openSharePointFile,
-    syncWithSharePoint
+    syncWithSharePoint,
+    getSharePointSiteInfo
   };
 };
