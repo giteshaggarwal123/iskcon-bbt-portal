@@ -62,12 +62,18 @@ export const useMembers = () => {
       const membersData = profiles?.map(profile => {
         let memberRoles = userRoles?.filter(role => role.user_id === profile.id) || [];
         
-        // Special handling for super admin
+        // Special handling for super admin and admin
         if (profile.email === 'cs@iskconbureau.in') {
           // Ensure super admin role is present
           const hasSuperAdminRole = memberRoles.some(role => role.role === 'super_admin');
           if (!hasSuperAdminRole) {
             memberRoles = [{ user_id: profile.id, role: 'super_admin' }, ...memberRoles];
+          }
+        } else if (profile.email === 'admin@iskconbureau.in') {
+          // Ensure admin role is present
+          const hasAdminRole = memberRoles.some(role => role.role === 'admin');
+          if (!hasAdminRole) {
+            memberRoles = [{ user_id: profile.id, role: 'admin' }, ...memberRoles];
           }
         }
         
@@ -94,6 +100,84 @@ export const useMembers = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createAuthAccountForExistingProfile = async (email: string, password: string) => {
+    try {
+      console.log('Creating auth account for existing profile:', email);
+
+      // Get the profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (profileError || !profile) {
+        throw new Error('Profile not found');
+      }
+
+      // Create auth account
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: {
+            first_name: profile.first_name,
+            last_name: profile.last_name,
+            phone: profile.phone
+          }
+        }
+      });
+
+      if (authError) {
+        console.error('Auth signup error:', authError);
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error('Failed to create auth user');
+      }
+
+      console.log('Auth account created successfully for:', email);
+
+      // Update the profile with the correct user ID from auth
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ id: authData.user.id })
+        .eq('email', email);
+
+      if (updateError) {
+        console.error('Profile update error:', updateError);
+        // Continue anyway, the important part is that auth account exists
+      }
+
+      // Update user_roles with the new auth user ID
+      const { error: roleUpdateError } = await supabase
+        .from('user_roles')
+        .update({ user_id: authData.user.id })
+        .eq('user_id', profile.id);
+
+      if (roleUpdateError) {
+        console.error('Role update error:', roleUpdateError);
+      }
+
+      toast({
+        title: "Auth Account Created",
+        description: `Authentication account created successfully for ${email}`
+      });
+
+      fetchMembers();
+      return authData.user;
+    } catch (error: any) {
+      console.error('Error creating auth account:', error);
+      toast({
+        title: "Failed to Create Auth Account",
+        description: error.message || "An error occurred while creating the auth account",
+        variant: "destructive"
+      });
+      throw error;
     }
   };
 
@@ -285,12 +369,12 @@ export const useMembers = () => {
 
   const deleteMember = async (memberId: string) => {
     try {
-      // Check if this is trying to delete super admin
+      // Check if this is trying to delete super admin or admin
       const member = members.find(m => m.id === memberId);
-      if (member?.email === 'cs@iskconbureau.in') {
+      if (member?.email === 'cs@iskconbureau.in' || member?.email === 'admin@iskconbureau.in') {
         toast({
           title: "Access Denied",
-          description: "Cannot delete the system super admin",
+          description: "Cannot delete system administrators",
           variant: "destructive"
         });
         return;
@@ -410,6 +494,7 @@ export const useMembers = () => {
     exportMembers,
     fetchMembers,
     logActivity,
-    searchMembers
+    searchMembers,
+    createAuthAccountForExistingProfile
   };
 };

@@ -1,19 +1,20 @@
-
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Users, Mail, Phone, Shield, Search, Plus, Download } from 'lucide-react';
+import { User, Users, Mail, Phone, Shield, Search, Plus, Download, UserPlus } from 'lucide-react';
 import { AddMemberDialog } from './AddMemberDialog';
 import { MemberCard } from './MemberCard';
+import { CreateAdminAuthDialog } from './CreateAdminAuthDialog';
 import { useMembers } from '@/hooks/useMembers';
 import { useUserRole } from '@/hooks/useUserRole';
 
 export const MembersModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
+  const [showCreateAdminAuthDialog, setShowCreateAdminAuthDialog] = useState(false);
   const { members, loading, addMember, updateMemberRole, deleteMember, searchMembers } = useMembers();
   const userRole = useUserRole();
 
@@ -92,15 +93,26 @@ export const MembersModule: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">Member Management</h1>
             <p className="text-gray-600">Manage bureau members, roles, and permissions</p>
           </div>
-          {userRole.canManageMembers && (
-            <Button 
-              className="bg-primary hover:bg-primary/90"
-              onClick={() => setShowAddMemberDialog(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Member
-            </Button>
-          )}
+          <div className="flex space-x-2">
+            {userRole.isSuperAdmin && (
+              <Button 
+                variant="outline"
+                onClick={() => setShowCreateAdminAuthDialog(true)}
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Create Admin Auth
+              </Button>
+            )}
+            {userRole.canManageMembers && (
+              <Button 
+                className="bg-primary hover:bg-primary/90"
+                onClick={() => setShowAddMemberDialog(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Member
+              </Button>
+            )}
+          </div>
         </div>
 
         <Tabs defaultValue="members" className="space-y-6">
@@ -205,6 +217,13 @@ export const MembersModule: React.FC = () => {
           onMemberAdded={() => {
             setShowAddMemberDialog(false);
           }}
+        />
+      )}
+
+      {userRole.isSuperAdmin && (
+        <CreateAdminAuthDialog 
+          open={showCreateAdminAuthDialog}
+          onOpenChange={setShowCreateAdminAuthDialog}
         />
       )}
     </>
