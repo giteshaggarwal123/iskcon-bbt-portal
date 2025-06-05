@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Mail, Shield, Lock, Phone, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { supabase } from '@/integrations/supabase/client';
 
 export const RealAuthPage: React.FC = () => {
   const { signIn, sendLoginOTP, verifyLoginOTP, sendOTP, verifyOTP, loading } = useAuth();
@@ -24,6 +24,7 @@ export const RealAuthPage: React.FC = () => {
   const [forgotPassword, setForgotPassword] = useState(false);
   const [storedOTP, setStoredOTP] = useState('');
   const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '', rememberMe: false });
+  const [userExists, setUserExists] = useState(false);
 
   const handleInitialLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +38,28 @@ export const RealAuthPage: React.FC = () => {
         rememberMe: formData.rememberMe
       });
       
-      console.log('Sending OTP for email:', formData.email);
+      console.log('Checking if user exists and sending OTP for email:', formData.email);
+      
+      // First check if user exists in profiles table
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('email, phone, first_name, last_name')
+        .eq('email', formData.email)
+        .single();
+
+      if (profileError || !profile) {
+        console.error('User not found in profiles:', profileError);
+        alert('User not found. Please contact administrator to add your profile to the system.');
+        return;
+      }
+
+      // Check if user exists in Supabase auth
+      const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
+      const authUser = users?.find(user => user.email === formData.email);
+      
+      console.log('User exists in auth:', !!authUser);
+      setUserExists(!!authUser);
+
       const { error, otp } = await sendLoginOTP(formData.email);
       if (!error && otp) {
         console.log('OTP sent successfully, stored OTP:', otp);
@@ -45,6 +67,7 @@ export const RealAuthPage: React.FC = () => {
         setStep('otp-verification');
       } else {
         console.error('Failed to send OTP:', error);
+        alert('Failed to send OTP. Please try again.');
       }
     }
   };
@@ -56,8 +79,7 @@ export const RealAuthPage: React.FC = () => {
     console.log('Email:', loginCredentials.email);
     console.log('Input OTP:', formData.otp);
     console.log('Stored OTP:', storedOTP);
-    console.log('OTP Length:', formData.otp.length);
-    console.log('OTP Match:', formData.otp === storedOTP);
+    console.log('User exists in auth:', userExists);
     
     // Verify OTP matches
     if (formData.otp !== storedOTP) {
@@ -66,36 +88,84 @@ export const RealAuthPage: React.FC = () => {
       return;
     }
 
-    // OTP is correct, proceed with login
-    console.log('OTP verified successfully, proceeding with login');
-    console.log('Login credentials:', { 
-      email: loginCredentials.email, 
-      password: loginCredentials.password ? '***PASSWORD_SET***' : 'NO_PASSWORD',
-      rememberMe: loginCredentials.rememberMe 
-    });
-    
+    console.log('OTP verified successfully');
+
     try {
-      const { error } = await signIn(loginCredentials.email, loginCredentials.password, loginCredentials.rememberMe);
-      
-      if (error) {
-        console.error('Login error after OTP verification:', error);
-        alert(`Login failed: ${error.message || 'Invalid credentials. Please check your email and password.'}`);
+      if (userExists) {
+        // User exists in auth, try to sign in
+        console.log('User exists in auth, attempting sign in');
+        const { error } = await signIn(loginCredentials.email, loginCredentials.password, loginCredentials.rememberMe);
+        
+        if (error) {
+          console.error('Login error after OTP verification:', error);
+          alert(`Login failed: ${error.message || 'Invalid credentials. Please check your email and password.'}`);
+        } else {
+          console.log('Login successful!');
+          // Reset form data on successful login
+          setFormData({
+            email: '',
+            password: '',
+            rememberMe: false,
+            phoneNumber: '',
+            otp: '',
+            newPassword: '',
+            confirmPassword: ''
+          });
+          setStoredOTP('');
+        }
       } else {
-        console.log('Login successful!');
-        // Reset form data on successful login
-        setFormData({
-          email: '',
-          password: '',
-          rememberMe: false,
-          phoneNumber: '',
-          otp: '',
-          newPassword: '',
-          confirmPassword: ''
+        // User doesn't exist in auth, create account
+        console.log('User does not exist in auth, creating account');
+        
+        // Get user profile for metadata
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, phone')
+          .eq('email', loginCredentials.email)
+          .single();
+
+        const { error } = await supabase.auth.signUp({
+          email: loginCredentials.email,
+          password: loginCredentials.password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`,
+            data: {
+              first_name: profile?.first_name || '',
+              last_name: profile?.last_name || '',
+              phone: profile?.phone || ''
+            }
+          }
         });
-        setStoredOTP('');
+
+        if (error) {
+          console.error('Sign up error:', error);
+          alert(`Account creation failed: ${error.message}`);
+        } else {
+          console.log('Account created successfully, now signing in');
+          // Now sign in with the new account
+          const { error: signInError } = await signIn(loginCredentials.email, loginCredentials.password, loginCredentials.rememberMe);
+          
+          if (signInError) {
+            console.error('Sign in error after account creation:', signInError);
+            alert(`Sign in failed after account creation: ${signInError.message}`);
+          } else {
+            console.log('Sign in successful after account creation!');
+            // Reset form data on successful login
+            setFormData({
+              email: '',
+              password: '',
+              rememberMe: false,
+              phoneNumber: '',
+              otp: '',
+              newPassword: '',
+              confirmPassword: ''
+            });
+            setStoredOTP('');
+          }
+        }
       }
     } catch (err) {
-      console.error('Unexpected error during login:', err);
+      console.error('Unexpected error during authentication:', err);
       alert('An unexpected error occurred. Please try again.');
     }
   };
