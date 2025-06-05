@@ -185,8 +185,8 @@ export const SettingsModule: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-4">
-            <Badge className={getRoleBadgeColor(userRole.role)}>
-              {userRole.role.replace('_', ' ').toUpperCase()}
+            <Badge className={getRoleBadgeColor(userRole.userRole || 'member')}>
+              {(userRole.userRole || 'member').replace('_', ' ').toUpperCase()}
             </Badge>
             <span className="text-sm text-gray-600">
               Your current access level in the system
