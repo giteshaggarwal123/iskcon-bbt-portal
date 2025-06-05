@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,17 +9,43 @@ import { VotingDialog } from './VotingDialog';
 import { CreatePollDialog } from './CreatePollDialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { usePolls, Poll } from '@/hooks/usePolls';
+import { useVoting } from '@/hooks/useVoting';
 import { format } from 'date-fns';
 
 export const VotingModule: React.FC = () => {
   const [showVotingDialog, setShowVotingDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
+  const [pollResults, setPollResults] = useState<Record<string, any[]>>({});
   const userRole = useUserRole();
   const { polls, loading, deletePoll, updatePollStatus, downloadAttachment } = usePolls();
+  const { getPollResults } = useVoting();
 
   const canCreatePolls = userRole.isSuperAdmin || userRole.isAdmin;
   const canManagePolls = userRole.isSuperAdmin || userRole.isAdmin;
+
+  // Fetch results for completed polls
+  useEffect(() => {
+    const fetchResults = async () => {
+      const completedPolls = polls.filter(poll => poll.status === 'completed');
+      const resultsPromises = completedPolls.map(async (poll) => {
+        const results = await getPollResults(poll.id);
+        return { pollId: poll.id, results };
+      });
+      
+      const allResults = await Promise.all(resultsPromises);
+      const resultsMap = allResults.reduce((acc, { pollId, results }) => {
+        acc[pollId] = results;
+        return acc;
+      }, {} as Record<string, any[]>);
+      
+      setPollResults(resultsMap);
+    };
+
+    if (polls.length > 0) {
+      fetchResults();
+    }
+  }, [polls, getPollResults]);
 
   const handleVoteClick = (poll: Poll) => {
     setSelectedPoll(poll);
@@ -45,7 +70,6 @@ export const VotingModule: React.FC = () => {
   };
 
   const handleViewAttachment = (attachmentPath: string) => {
-    // Create a signed URL for viewing
     window.open(`https://daiimiznlkffbbadhodw.supabase.co/storage/v1/object/public/poll-attachments/${attachmentPath}`, '_blank');
   };
 
@@ -56,6 +80,32 @@ export const VotingModule: React.FC = () => {
   const getProgressPercentage = (poll: Poll) => {
     if (!poll.stats) return 0;
     return poll.stats.total_voters > 0 ? (poll.stats.voted_count / poll.stats.total_voters) * 100 : 0;
+  };
+
+  const getVoteIcon = (voteType: string) => {
+    switch (voteType) {
+      case 'favor':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'against':
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      case 'abstain':
+        return <MinusCircle className="h-4 w-4 text-yellow-600" />;
+      default:
+        return null;
+    }
+  };
+
+  const getVoteColor = (voteType: string) => {
+    switch (voteType) {
+      case 'favor':
+        return 'text-green-600 bg-green-50';
+      case 'against':
+        return 'text-red-600 bg-red-50';
+      case 'abstain':
+        return 'text-yellow-600 bg-yellow-50';
+      default:
+        return 'text-gray-600 bg-gray-50';
+    }
   };
 
   const activePolls = polls.filter(poll => poll.status === 'active');
@@ -250,95 +300,176 @@ export const VotingModule: React.FC = () => {
               </Card>
             ) : (
               <div className="grid gap-6">
-                {completedPolls.map((poll) => (
-                  <Card key={poll.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-xl">{poll.title}</CardTitle>
-                          <div className="flex items-center space-x-2 mt-2">
-                            <Badge variant="secondary">{poll.sub_polls?.length || 0} question{(poll.sub_polls?.length || 0) !== 1 ? 's' : ''}</Badge>
-                            <Badge variant="secondary">Anonymous Voting</Badge>
+                {completedPolls.map((poll) => {
+                  const results = pollResults[poll.id] || [];
+                  
+                  return (
+                    <Card key={poll.id} className="hover:shadow-md transition-shadow">
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-xl">{poll.title}</CardTitle>
+                            <div className="flex items-center space-x-2 mt-2">
+                              <Badge variant="secondary">{poll.sub_polls?.length || 0} question{(poll.sub_polls?.length || 0) !== 1 ? 's' : ''}</Badge>
+                              <Badge variant="secondary">Anonymous Voting</Badge>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge className="bg-success text-white">Completed</Badge>
+                            {canManagePolls && (
+                              <div className="flex space-x-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleReopenPoll(poll)}
+                                  className="h-8 w-8"
+                                >
+                                  <RotateCcw className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEditPoll(poll)}
+                                  className="h-8 w-8"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeletePoll(poll)}
+                                  className="h-8 w-8 text-red-500 hover:text-red-700"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge className="bg-success text-white">Completed</Badge>
-                          {canManagePolls && (
-                            <div className="flex space-x-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleReopenPoll(poll)}
-                                className="h-8 w-8"
-                              >
-                                <RotateCcw className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEditPoll(poll)}
-                                className="h-8 w-8"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeletePoll(poll)}
-                                className="h-8 w-8 text-red-500 hover:text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                        <CardDescription>Completed on {format(new Date(poll.updated_at), 'PPP')}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center text-sm text-gray-500">
+                            <span>Turnout: {Math.round(getProgressPercentage(poll))}%</span>
+                            <span>{poll.stats?.total_voters || 0} total voters</span>
+                          </div>
+
+                          {/* Voting Results */}
+                          {results.length > 0 && (
+                            <div className="bg-gray-50 rounded-lg p-4">
+                              <h4 className="font-medium text-gray-900 mb-4">Final Results</h4>
+                              <div className="space-y-4">
+                                {results.map((result: any, index: number) => (
+                                  <div key={index} className="border-b border-gray-200 pb-4 last:border-b-0">
+                                    <h5 className="font-medium text-gray-800 mb-3">
+                                      Question {index + 1}: {result.title}
+                                    </h5>
+                                    <div className="grid grid-cols-3 gap-4">
+                                      <div className={`p-3 rounded-lg ${getVoteColor('favor')}`}>
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center space-x-2">
+                                            {getVoteIcon('favor')}
+                                            <span className="font-medium">For</span>
+                                          </div>
+                                          <span className="text-lg font-bold">{result.favor}</span>
+                                        </div>
+                                        <div className="mt-2">
+                                          <Progress 
+                                            value={result.total > 0 ? (result.favor / result.total) * 100 : 0} 
+                                            className="h-2" 
+                                          />
+                                          <span className="text-xs">
+                                            {result.total > 0 ? Math.round((result.favor / result.total) * 100) : 0}%
+                                          </span>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className={`p-3 rounded-lg ${getVoteColor('against')}`}>
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center space-x-2">
+                                            {getVoteIcon('against')}
+                                            <span className="font-medium">Against</span>
+                                          </div>
+                                          <span className="text-lg font-bold">{result.against}</span>
+                                        </div>
+                                        <div className="mt-2">
+                                          <Progress 
+                                            value={result.total > 0 ? (result.against / result.total) * 100 : 0} 
+                                            className="h-2" 
+                                          />
+                                          <span className="text-xs">
+                                            {result.total > 0 ? Math.round((result.against / result.total) * 100) : 0}%
+                                          </span>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className={`p-3 rounded-lg ${getVoteColor('abstain')}`}>
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center space-x-2">
+                                            {getVoteIcon('abstain')}
+                                            <span className="font-medium">Abstain</span>
+                                          </div>
+                                          <span className="text-lg font-bold">{result.abstain}</span>
+                                        </div>
+                                        <div className="mt-2">
+                                          <Progress 
+                                            value={result.total > 0 ? (result.abstain / result.total) * 100 : 0} 
+                                            className="h-2" 
+                                          />
+                                          <span className="text-xs">
+                                            {result.total > 0 ? Math.round((result.abstain / result.total) * 100) : 0}%
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="mt-2 text-center text-sm text-gray-600">
+                                      Total votes: {result.total}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {poll.attachments && poll.attachments.length > 0 && (
+                            <div className="bg-blue-50 rounded-lg p-4">
+                              <h4 className="font-medium text-blue-900 mb-2">Supporting Document</h4>
+                              {poll.attachments.map((attachment) => (
+                                <div key={attachment.id} className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-sm font-medium text-blue-800">{attachment.file_name}</p>
+                                    <p className="text-xs text-blue-600">
+                                      {attachment.file_size ? (attachment.file_size / 1024 / 1024).toFixed(2) + ' MB' : 'Unknown size'}
+                                    </p>
+                                  </div>
+                                  <div className="flex space-x-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewAttachment(attachment.file_path)}
+                                    >
+                                      <Eye className="h-4 w-4 mr-1" />
+                                      View
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDownloadAttachment(attachment.file_path, attachment.file_name)}
+                                    >
+                                      <Download className="h-4 w-4 mr-1" />
+                                      Download
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
-                      </div>
-                      <CardDescription>Completed on {format(new Date(poll.updated_at), 'PPP')}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center text-sm text-gray-500">
-                          <span>Turnout: {Math.round(getProgressPercentage(poll))}%</span>
-                          <span>{poll.stats?.total_voters || 0} total voters</span>
-                        </div>
-
-                        {poll.attachments && poll.attachments.length > 0 && (
-                          <div className="bg-blue-50 rounded-lg p-4">
-                            <h4 className="font-medium text-blue-900 mb-2">Supporting Document</h4>
-                            {poll.attachments.map((attachment) => (
-                              <div key={attachment.id} className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-sm font-medium text-blue-800">{attachment.file_name}</p>
-                                  <p className="text-xs text-blue-600">
-                                    {attachment.file_size ? (attachment.file_size / 1024 / 1024).toFixed(2) + ' MB' : 'Unknown size'}
-                                  </p>
-                                </div>
-                                <div className="flex space-x-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleViewAttachment(attachment.file_path)}
-                                  >
-                                    <Eye className="h-4 w-4 mr-1" />
-                                    View
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleDownloadAttachment(attachment.file_path, attachment.file_name)}
-                                  >
-                                    <Download className="h-4 w-4 mr-1" />
-                                    Download
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
