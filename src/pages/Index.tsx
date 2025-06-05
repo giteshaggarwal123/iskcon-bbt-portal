@@ -5,6 +5,7 @@ import { Header } from '@/components/Header';
 import { RealAuthPage } from '@/components/RealAuthPage';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { useSessionManager } from '@/hooks/useSessionManager';
 
 // Lazy load heavy components
 const Dashboard = React.lazy(() => import('@/components/Dashboard').then(module => ({ default: module.Dashboard })));
@@ -21,6 +22,9 @@ const AppContent = () => {
   const { user, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [currentModule, setCurrentModule] = React.useState('dashboard');
+
+  // Initialize session management (now properly within AuthProvider)
+  useSessionManager();
 
   if (loading) {
     return <LoadingSpinner />;

@@ -8,7 +8,6 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { MicrosoftCallback } from "./pages/MicrosoftCallback";
 import { useCacheBuster } from "./hooks/useCacheBuster";
-import { useSessionManager } from "./hooks/useSessionManager";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,9 +20,6 @@ const queryClient = new QueryClient({
 });
 
 const AppContent = () => {
-  // Initialize session management
-  useSessionManager();
-  
   return (
     <BrowserRouter>
       <Routes>
