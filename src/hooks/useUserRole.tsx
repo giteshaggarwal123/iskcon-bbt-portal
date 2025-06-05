@@ -1,100 +1,61 @@
-src/
-├─ lib/
-│   └─ authService.ts   /* ────────────────────────────────────────────────────────────
-   authService.ts
-   All auth helpers live here
-   ──────────────────────────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// authAndRole.ts  –  Supabase client, sign-in helper, optional admin seeder,
+//                    and the useUserRole() React hook in one place.
+// -----------------------------------------------------------------------------
 
-import { createClient } from '@supabase/supabase-js';
-import type { User } from '@supabase/supabase-js';
+import { createClient, User } from '@supabase/supabase-js';
+import { useState, useEffect } from 'react';
+import { useAuth } from './useAuth';      // keep this if you already have useAuth()
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''; // only needed for seeding
+// 1. Supabase client -----------------------------------------------------------
+const SUPABASE_URL       = process.env.NEXT_PUBLIC_SUPABASE_URL  as string;
+const SUPABASE_ANON_KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+export const supabase    = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-type SignInResult = { user: User };
-
-/* ── public: email + password sign-in ──────────────────────── */
-export async function signInWithEmail(
-  rawEmail: string,
-  password: string,
-): Promise<SignInResult> {
+// 2. Auth helpers --------------------------------------------------------------
+export async function signInWithEmail(rawEmail: string, password: string): Promise<User> {
   const email = rawEmail.trim().toLowerCase();
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    // Normalise common errors to a friendlier message
-    if (error.status === 400) {
-      throw new Error('Incorrect email or password.');
-    }
-    throw error;
+    throw new Error(error.message || 'Incorrect email or password.');
   }
-
-  return { user: data.user! };
+  return data.user;
 }
 
-/* ── one-off helper: seed the very first admin ─────────────── */
+/* Optional – run ONCE on the server to create the very first admin user */
 export async function seedInitialAdmin() {
-  if (!SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error(
-      'SUPABASE_SERVICE_ROLE_KEY missing – cannot seed admin automatically.',
-    );
-  }
+  const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SERVICE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY is missing');
 
-  const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const adminClient = createClient(SUPABASE_URL, SERVICE_KEY);
+  const adminEmail = 'admin@iskconbureau.in';
+  const adminPwd   = 'ChangeThisStrongPwd!'; // change after first login
 
-  // 1. Create the auth user (email is auto-confirmed).
-  const { data: createRes, error: createErr } =
-    await adminClient.auth.admin.createUser({
-      email: 'admin@iskconbureau.in',
-      password: 'ChangeThisStrongPwd!',
-      email_confirm: true,
-    });
-
-  if (createErr && createErr.status !== 409) {
-    // 409 = already exists – ignore in that case
-    throw createErr;
-  }
+  const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+    email: adminEmail,
+    password: adminPwd,
+    email_confirm: true,
+  });
+  if (createErr && createErr.status !== 409) throw createErr;
 
   const adminId =
-    createRes?.user?.id ??
+    created?.user?.id ??
     (
       await adminClient
         .from('auth.users')
         .select('id')
-        .eq('email', 'admin@iskconbureau.in')
+        .eq('email', adminEmail)
         .single()
     ).data.id;
 
-  // 2. Ensure the role row exists.
-  await adminClient.from('user_roles').upsert(
-    {
-      user_id: adminId,
-      role: 'super_admin',
-    },
-    { onConflict: 'user_id' },
-  );
-
-  console.log('✅ Admin seeded & role set');
+  await adminClient
+    .from('user_roles')
+    .upsert({ user_id: adminId, role: 'super_admin' }, { onConflict: 'user_id' });
+  console.log('Initial admin seeded');
 }
 
-└─ hooks/
-    └─ useUserRole.ts   /* ────────────────────────────────────────────────────────────
-   useUserRole.ts
-   Reliable role hook – no accidental super-admins
-   ──────────────────────────────────────────────────────────── */
-
-import { useEffect, useState } from 'react';
-import { supabase } from './authService';      // ← import from the file above
-import { useAuth } from './useAuth';
-
-/* ── role type ─────────────────────────────────────────────── */
+// 3. Role & permissions --------------------------------------------------------
 export type UserRole =
   | 'super_admin'
   | 'admin'
@@ -102,7 +63,6 @@ export type UserRole =
   | 'treasurer'
   | 'member';
 
-/* ── return type ───────────────────────────────────────────── */
 interface UseUserRoleReturn {
   userRole: UserRole | null;
   isSuperAdmin: boolean;
@@ -111,8 +71,6 @@ interface UseUserRoleReturn {
   isTreasurer: boolean;
   isMember: boolean;
   loading: boolean;
-
-  /* permissions */
   canManageMembers: boolean;
   canManageMeetings: boolean;
   canManageDocuments: boolean;
@@ -128,29 +86,34 @@ interface UseUserRoleReturn {
   canViewMemberSettings: boolean;
 }
 
-/* ── config ───────────────────────────────────────────────── */
-const SUPER_ADMIN_EMAILS = ['cs@iskconbureau.in', 'admin@iskconbureau.in'].map(
-  (e) => e.trim().toLowerCase(),
-);
+// only these e-mails can be super_admin
+const SUPER_ADMIN_EMAILS = ['cs@iskconbureau.in', 'admin@iskconbureau.in'];
 
-/* ── hook ─────────────────────────────────────────────────── */
-export const useUserRole = (): UseUserRoleReturn => {
+// 4. React hook ----------------------------------------------------------------
+export function useUserRole(): UseUserRoleReturn {
+  /* If you already have a separate useAuth() hook, keep using it.
+     Otherwise you can replace the next line with
+     `const { data: { user } } = supabase.auth.getSession();`
+  */
+  const { user } = useAuth();
+
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth(); // must give current session user
+  const [loading,  setLoading ] = useState(true);
 
   useEffect(() => {
-    const fetchUserRole = async () => {
+    let cancelled = false;
+
+    async function loadRole() {
       if (!user) {
-        setUserRole(null);
-        setLoading(false);
+        if (!cancelled) {
+          setUserRole(null);
+          setLoading(false);
+        }
         return;
       }
 
       setLoading(true);
-
       try {
-        /* 1. Pull role from DB */
         const { data, error } = await supabase
           .from('user_roles')
           .select('role')
@@ -158,59 +121,49 @@ export const useUserRole = (): UseUserRoleReturn => {
           .limit(1)
           .single();
 
-        let role: UserRole | null =
-          error || !data ? null : (data.role as UserRole);
+        let role: UserRole | null = error || !data ? null : (data.role as UserRole);
 
-        const email = (user.email ?? '').trim().toLowerCase();
+        const email      = (user.email || '').trim().toLowerCase();
         const whitelisted = SUPER_ADMIN_EMAILS.includes(email);
 
-        /* 2. Promote whitelisted e-mails if DB role ≠ super_admin */
         if (whitelisted && role !== 'super_admin') role = 'super_admin';
-
-        /* 3. Demote rogue super_admin rows */
-        if (role === 'super_admin' && !whitelisted) role = 'member';
-
-        /* 4. Default */
+        if (role === 'super_admin' && !whitelisted)  role = 'member';
         if (!role) role = 'member';
 
-        setUserRole(role);
+        if (!cancelled) setUserRole(role);
       } catch {
-        setUserRole('member');
+        if (!cancelled) setUserRole('member');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    };
+    }
 
-    fetchUserRole();
+    loadRole();
+    return () => { cancelled = true; };
   }, [user?.id]);
 
-  /* helpers */
+  // helpers
   const isSuperAdmin = userRole === 'super_admin';
-  const isAdmin = userRole === 'admin' || isSuperAdmin;
-  const isSecretary = userRole === 'secretary' || isAdmin;
-  const isTreasurer = userRole === 'treasurer' || isAdmin;
-  const isMember =
-    userRole === 'member' ||
-    isSecretary ||
-    isTreasurer ||
-    isAdmin ||
-    isSuperAdmin;
+  const isAdmin      = userRole === 'admin' || isSuperAdmin;
+  const isSecretary  = userRole === 'secretary' || isAdmin;
+  const isTreasurer  = userRole === 'treasurer' || isAdmin;
+  const isMember     =
+    userRole === 'member' || isSecretary || isTreasurer || isAdmin || isSuperAdmin;
 
-  /* permissions */
-  const canManageMembers = isSuperAdmin || isAdmin;
-  const canManageMeetings = isSuperAdmin || isAdmin || isSecretary;
-  const canManageDocuments = isSuperAdmin || isAdmin || isSecretary;
-  const canViewReports = isSuperAdmin || isAdmin || isTreasurer;
-  const canManageSettings = true;
-  const canCreateContent = isSuperAdmin || isAdmin || isSecretary;
-  const canDeleteContent = isSuperAdmin || isAdmin;
-  const canEditContent = isSuperAdmin || isAdmin || isSecretary;
-
-  const canEditAllUserInfo = isSuperAdmin;
-  const canEditUserRoles = isSuperAdmin || isAdmin;
-  const canDeleteUsers = isSuperAdmin || isAdmin;
-  const canEditPhoneNumbers = isSuperAdmin || isAdmin;
-  const canViewMemberSettings = isSuperAdmin || isAdmin || isSecretary;
+  // permissions
+  const canManageMembers       = isSuperAdmin || isAdmin;
+  const canManageMeetings      = isSuperAdmin || isAdmin || isSecretary;
+  const canManageDocuments     = isSuperAdmin || isAdmin || isSecretary;
+  const canViewReports         = isSuperAdmin || isAdmin || isTreasurer;
+  const canManageSettings      = true;
+  const canCreateContent       = isSuperAdmin || isAdmin || isSecretary;
+  const canDeleteContent       = isSuperAdmin || isAdmin;
+  const canEditContent         = isSuperAdmin || isAdmin || isSecretary;
+  const canEditAllUserInfo     = isSuperAdmin;
+  const canEditUserRoles       = isSuperAdmin || isAdmin;
+  const canDeleteUsers         = isSuperAdmin || isAdmin;
+  const canEditPhoneNumbers    = isSuperAdmin || isAdmin;
+  const canViewMemberSettings  = isSuperAdmin || isAdmin || isSecretary;
 
   return {
     userRole,
@@ -234,5 +187,4 @@ export const useUserRole = (): UseUserRoleReturn => {
     canEditPhoneNumbers,
     canViewMemberSettings,
   };
-};
-
+}
