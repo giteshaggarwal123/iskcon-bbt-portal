@@ -31,7 +31,7 @@ export const SettingsModule: React.FC = () => {
     last_name: '',
     email: '',
     phone: '',
-    profile_image_url: ''
+    avatar_url: ''
   });
 
   // Notification Settings
@@ -73,7 +73,7 @@ export const SettingsModule: React.FC = () => {
           last_name: data.last_name || '',
           email: data.email || user.email || '',
           phone: data.phone || '',
-          profile_image_url: data.profile_image_url || ''
+          avatar_url: data.avatar_url || ''
         });
       }
     } catch (error) {
@@ -128,13 +128,13 @@ export const SettingsModule: React.FC = () => {
         .from('profiles')
         .upsert({
           id: user.id,
-          profile_image_url: publicUrl,
+          avatar_url: publicUrl,
           updated_at: new Date().toISOString()
         });
 
       if (updateError) throw updateError;
 
-      setPersonalInfo(prev => ({ ...prev, profile_image_url: publicUrl }));
+      setPersonalInfo(prev => ({ ...prev, avatar_url: publicUrl }));
       
       toast({
         title: "Profile Image Updated",
@@ -330,9 +330,9 @@ export const SettingsModule: React.FC = () => {
             <CardContent className="space-y-4">
               <div className="flex items-center space-x-6">
                 <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden">
-                  {personalInfo.profile_image_url ? (
+                  {personalInfo.avatar_url ? (
                     <img 
-                      src={personalInfo.profile_image_url} 
+                      src={personalInfo.avatar_url} 
                       alt="Profile" 
                       className="w-full h-full object-cover"
                     />
