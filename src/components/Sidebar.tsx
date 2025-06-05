@@ -23,7 +23,7 @@ interface SidebarProps {
   onClose: () => void;
   currentModule: string;
   onModuleChange: (module: string) => void;
-  avatarRefreshTrigger?: number; // Add prop to trigger avatar refresh
+  avatarRefreshTrigger?: number;
 }
 
 const allMenuItems = [
@@ -68,8 +68,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const handleLogout = async () => {
-    await signOut();
+  const handleLogout = () => {
+    // Immediate logout without confirmation
+    signOut();
     if (isMobile) {
       onClose();
     }
@@ -131,7 +132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           ))}
           
-          {/* Logout Button - No confirmation dialog */}
+          {/* Logout Button - Immediate logout */}
           <Button
             onClick={handleLogout}
             variant="ghost"

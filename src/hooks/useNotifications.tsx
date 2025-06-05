@@ -25,19 +25,21 @@ export const useNotifications = () => {
     if (!user) return;
 
     try {
-      // Fetch recent meetings
+      // Fetch recent meetings (last 7 days)
       const { data: meetings } = await supabase
         .from('meetings')
         .select('*')
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(3);
 
-      // Fetch recent documents
+      // Fetch recent documents (last 7 days)
       const { data: documents } = await supabase
         .from('documents')
         .select('*')
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(3);
 
       const notificationList: Notification[] = [];
 
@@ -89,10 +91,10 @@ export const useNotifications = () => {
         });
       });
 
-      // Sort by creation date and limit to 10
+      // Sort by creation date and limit to 6 most recent
       const sortedNotifications = notificationList
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 10);
+        .slice(0, 6);
 
       setNotifications(sortedNotifications);
     } catch (error) {
@@ -127,7 +129,9 @@ export const useNotifications = () => {
   };
 
   const getUnreadCount = () => {
-    return notifications.filter(n => !n.read).length;
+    const unreadCount = notifications.filter(n => !n.read).length;
+    console.log('Unread notifications count:', unreadCount, 'Total notifications:', notifications.length);
+    return unreadCount;
   };
 
   const getTimeAgo = (dateString: string) => {

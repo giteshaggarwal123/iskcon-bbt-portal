@@ -27,6 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { getUnreadCount } = useNotifications();
 
   const unreadNotifications = getUnreadCount();
+  console.log('Header - Unread notifications:', unreadNotifications);
 
   // Get user's name for personalized greeting
   const userName = user?.user_metadata?.first_name 
@@ -74,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Notifications - Now shows dynamic count */}
+            {/* Notifications - Dynamic count only shows when there are unread notifications */}
             <Button
               variant="ghost"
               size="icon"
