@@ -89,21 +89,6 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </Button>
 
-            {/* User Profile */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleProfileClick}
-              className="relative"
-            >
-              <Avatar className="h-8 w-8">
-                <AvatarImage src="/placeholder.svg" />
-                <AvatarFallback>
-                  <User className="h-4 w-4" />
-                </AvatarFallback>
-              </Avatar>
-            </Button>
-
             {/* Settings */}
             <Button
               variant="ghost"

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Calendar, 
@@ -15,6 +14,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ProfileAvatarLoader } from './ProfileAvatarLoader';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -127,11 +128,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModul
         <div className="border-t border-gray-200 p-4">
           <button 
             onClick={handleProfileClick}
-            className="w-full flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+            className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="h-5 w-5 text-white" />
-            </div>
+            <ProfileAvatarLoader userName={userName} />
             <div className="flex-1 min-w-0 text-left">
               <p className="text-sm font-medium text-gray-900 truncate">
                 {userName}
