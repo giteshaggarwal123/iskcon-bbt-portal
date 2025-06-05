@@ -1,9 +1,23 @@
 
-import { useState, useEffect } from 'react';
+/* ────────────────────────────────────────────────────────────
+   useUserRole.ts
+   Correct role detection without accidental super-admin grants
+   ──────────────────────────────────────────────────────────── */
+
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
-export type UserRole = 'super_admin' | 'admin' | 'secretary' | 'treasurer' | 'member';
+/* ── role type ─────────────────────────────────────────────── */
+
+export type UserRole =
+  | 'super_admin'
+  | 'admin'
+  | 'secretary'
+  | 'treasurer'
+  | 'member';
+
+/* ── return type ───────────────────────────────────────────── */
 
 interface UseUserRoleReturn {
   userRole: UserRole | null;
@@ -13,6 +27,8 @@ interface UseUserRoleReturn {
   isTreasurer: boolean;
   isMember: boolean;
   loading: boolean;
+
+  /* permissions */
   canManageMembers: boolean;
   canManageMeetings: boolean;
   canManageDocuments: boolean;
@@ -28,10 +44,19 @@ interface UseUserRoleReturn {
   canViewMemberSettings: boolean;
 }
 
+/* ── configuration ─────────────────────────────────────────── */
+
+const SUPER_ADMIN_EMAILS: string[] = [
+  'cs@iskconbureau.in',
+  'admin@iskconbureau.in',
+].map((email) => email.trim().toLowerCase());
+
+/* ── hook ──────────────────────────────────────────────────── */
+
 export const useUserRole = (): UseUserRoleReturn => {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const [loading, setLoading] = useState<boolean>(true);
+  const { user } = useAuth(); // always returns current session user
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -41,80 +66,80 @@ export const useUserRole = (): UseUserRoleReturn => {
         return;
       }
 
-      try {
-        console.log('Fetching role for user:', user.email);
-        
-        // Check if this is a super admin by email
-        if (user.email === 'cs@iskconbureau.in' || user.email === 'admin@iskconbureau.in') {
-          console.log('Super admin detected by email');
-          
-          // Ensure super admin role exists in database
-          const { error: upsertError } = await supabase
-            .from('user_roles')
-            .upsert({ 
-              user_id: user.id, 
-              role: 'super_admin' 
-            }, { 
-              onConflict: 'user_id,role' 
-            });
-          
-          if (upsertError) {
-            console.error('Error upserting super admin role:', upsertError);
-          }
-          
-          setUserRole('super_admin');
-          setLoading(false);
-          return;
-        }
+      setLoading(true);
 
-        // For other users, fetch their role from the database
+      try {
+        /* fetch role from DB */
         const { data, error } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
+          .limit(1)
           .single();
 
-        if (error) {
-          console.error('Error fetching user role:', error);
-          setUserRole('member'); // Default to member if no role found
-        } else {
-          setUserRole(data.role as UserRole);
+        let role: UserRole | null =
+          error || !data ? null : (data.role as UserRole);
+
+        const email = (user.email ?? '').trim().toLowerCase();
+        const isWhitelisted = SUPER_ADMIN_EMAILS.includes(email);
+
+        /* promote whitelisted emails if needed */
+        if (isWhitelisted && role !== 'super_admin') {
+          role = 'super_admin';
         }
-      } catch (error) {
-        console.error('Error in fetchUserRole:', error);
-        setUserRole('member');
+
+        /* demote any stray super_admin not on the list */
+        if (role === 'super_admin' && !isWhitelisted) {
+          role = 'member';
+        }
+
+        /* default to member if still null */
+        if (!role) {
+          role = 'member';
+        }
+
+        setUserRole(role);
+      } catch (err) {
+        setUserRole('member'); // fail-safe
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserRole();
-  }, [user]);
+  }, [user?.id]);
+
+  /* helpers */
 
   const isSuperAdmin = userRole === 'super_admin';
   const isAdmin = userRole === 'admin' || isSuperAdmin;
   const isSecretary = userRole === 'secretary' || isAdmin;
   const isTreasurer = userRole === 'treasurer' || isAdmin;
-  const isMember = userRole === 'member' || isSecretary || isTreasurer || isAdmin || isSuperAdmin;
+  const isMember =
+    userRole === 'member' ||
+    isSecretary ||
+    isTreasurer ||
+    isAdmin ||
+    isSuperAdmin;
 
-  // Basic permissions
+  /* permission matrix */
+
   const canManageMembers = isSuperAdmin || isAdmin;
   const canManageMeetings = isSuperAdmin || isAdmin || isSecretary;
   const canManageDocuments = isSuperAdmin || isAdmin || isSecretary;
   const canViewReports = isSuperAdmin || isAdmin || isTreasurer;
-  const canManageSettings = true; // All members can access settings
-  
-  // Content permissions
+  const canManageSettings = true; // all roles
   const canCreateContent = isSuperAdmin || isAdmin || isSecretary;
   const canDeleteContent = isSuperAdmin || isAdmin;
   const canEditContent = isSuperAdmin || isAdmin || isSecretary;
 
-  // Enhanced user management permissions
-  const canEditAllUserInfo = isSuperAdmin; // Only super admin can edit names, etc.
-  const canEditUserRoles = isSuperAdmin || isAdmin; // Admins can edit roles but not super admin roles
-  const canDeleteUsers = isSuperAdmin || isAdmin; // Admins can delete users but not super admins
-  const canEditPhoneNumbers = isSuperAdmin || isAdmin; // Phone numbers can be edited by admins+
-  const canViewMemberSettings = isSuperAdmin || isAdmin || isSecretary; // Settings access
+  const canEditAllUserInfo = isSuperAdmin;
+  const canEditUserRoles = isSuperAdmin || isAdmin;
+  const canDeleteUsers = isSuperAdmin || isAdmin;
+  const canEditPhoneNumbers = isSuperAdmin || isAdmin;
+  const canViewMemberSettings = isSuperAdmin || isAdmin || isSecretary;
+
+  /* return */
 
   return {
     userRole,
@@ -136,6 +161,6 @@ export const useUserRole = (): UseUserRoleReturn => {
     canEditUserRoles,
     canDeleteUsers,
     canEditPhoneNumbers,
-    canViewMemberSettings
+    canViewMemberSettings,
   };
 };
