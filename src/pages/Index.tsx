@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
@@ -18,6 +19,26 @@ const AppContent = () => {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [currentModule, setCurrentModule] = React.useState('dashboard');
   const [avatarRefreshTrigger, setAvatarRefreshTrigger] = React.useState(0);
+
+  // Listen for navigation events from dashboard
+  React.useEffect(() => {
+    const handleNavigateToModule = (event: any) => {
+      setCurrentModule(event.detail.module);
+    };
+
+    const handleNavigateToPoll = (event: any) => {
+      setCurrentModule('voting');
+      // You can pass the pollId to the VotingModule if needed
+    };
+
+    window.addEventListener('navigate-to-module', handleNavigateToModule);
+    window.addEventListener('navigate-to-poll', handleNavigateToPoll);
+
+    return () => {
+      window.removeEventListener('navigate-to-module', handleNavigateToModule);
+      window.removeEventListener('navigate-to-poll', handleNavigateToPoll);
+    };
+  }, []);
 
   if (loading) {
     return (

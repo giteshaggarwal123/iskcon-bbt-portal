@@ -1,142 +1,52 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Users, FileText, Mail, TrendingUp, Clock, MessageSquare, Vote, CheckCircle } from 'lucide-react';
+import { CalendarDays, FileText, Mail, Vote, ExternalLink, Play } from 'lucide-react';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useMembers } from '@/hooks/useMembers';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useEmails } from '@/hooks/useEmails';
 import { MicrosoftConnectionStatus } from './MicrosoftConnectionStatus';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
-interface DashboardStats {
-  totalMembers: number;
-  activeMeetings: number;
-  documentsCount: number;
-  emailsCount: number;
-  inboxEmailsCount: number;
-  pollsCount: number;
+interface Poll {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  deadline: string;
+  created_at: string;
 }
 
 export const Dashboard: React.FC = () => {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalMembers: 0,
-    activeMeetings: 0,
-    documentsCount: 0,
-    emailsCount: 0,
-    inboxEmailsCount: 0,
-    pollsCount: 0
-  });
-
+  const [polls, setPolls] = useState<Poll[]>([]);
   const { meetings, loading: meetingsLoading } = useMeetings();
-  const { members, loading: membersLoading } = useMembers();
   const { documents, loading: documentsLoading } = useDocuments();
   const { emails, loading: emailsLoading } = useEmails();
+  const { toast } = useToast();
 
-  // Fetch additional stats
+  // Fetch active polls
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchActivePolls = async () => {
       try {
-        // Fetch emails count from Supabase (sent emails)
-        const { count: emailsCount } = await supabase
-          .from('emails')
-          .select('*', { count: 'exact', head: true });
-
-        // Fetch polls count
-        const { count: pollsCount } = await supabase
+        const { data, error } = await supabase
           .from('polls')
-          .select('*', { count: 'exact', head: true });
+          .select('*')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(3);
 
-        // Calculate active meetings (today's meetings)
-        const today = new Date();
-        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-        
-        const activeMeetings = meetings.filter(meeting => {
-          const meetingDate = new Date(meeting.start_time);
-          return meetingDate >= todayStart && meetingDate < todayEnd;
-        }).length;
-
-        setStats({
-          totalMembers: members.length,
-          activeMeetings,
-          documentsCount: documents.length,
-          emailsCount: emailsCount || 0,
-          inboxEmailsCount: emails.length, // Outlook inbox emails
-          pollsCount: pollsCount || 0
-        });
+        if (error) throw error;
+        setPolls(data || []);
       } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
+        console.error('Error fetching polls:', error);
       }
     };
 
-    if (!meetingsLoading && !membersLoading && !documentsLoading && !emailsLoading) {
-      fetchStats();
-    }
-  }, [meetings, members, documents, emails, meetingsLoading, membersLoading, documentsLoading, emailsLoading]);
-
-  // Set up real-time subscriptions for live updates
-  useEffect(() => {
-    const channels = [
-      supabase
-        .channel('meetings-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, () => {
-          // Refresh stats when meetings change
-          setStats(prev => ({ ...prev }));
-        })
-        .subscribe(),
-
-      supabase
-        .channel('members-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-          // Refresh stats when members change
-          setStats(prev => ({ ...prev }));
-        })
-        .subscribe(),
-
-      supabase
-        .channel('documents-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'documents' }, () => {
-          // Refresh stats when documents change
-          setStats(prev => ({ ...prev }));
-        })
-        .subscribe(),
-
-      supabase
-        .channel('emails-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'emails' }, async () => {
-          const { count } = await supabase.from('emails').select('*', { count: 'exact', head: true });
-          setStats(prev => ({ ...prev, emailsCount: count || 0 }));
-        })
-        .subscribe(),
-
-      supabase
-        .channel('polls-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, async () => {
-          const { count } = await supabase.from('polls').select('*', { count: 'exact', head: true });
-          setStats(prev => ({ ...prev, pollsCount: count || 0 }));
-        })
-        .subscribe()
-    ];
-
-    return () => {
-      channels.forEach(channel => supabase.removeChannel(channel));
-    };
+    fetchActivePolls();
   }, []);
-
-  // Auto-refresh inbox emails every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!emailsLoading) {
-        // This will trigger a refresh of the emails hook
-        setStats(prev => ({ ...prev, inboxEmailsCount: emails.length }));
-      }
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(interval);
-  }, [emails.length, emailsLoading]);
 
   const recentMeetings = meetings
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
@@ -150,7 +60,45 @@ export const Dashboard: React.FC = () => {
     .sort((a, b) => new Date(b.receivedDateTime).getTime() - new Date(a.receivedDateTime).getTime())
     .slice(0, 3);
 
-  const unreadEmailsCount = emails.filter(email => !email.isRead).length;
+  const handleJoinMeeting = (meeting: any) => {
+    if (meeting.teams_join_url) {
+      window.open(meeting.teams_join_url, '_blank');
+    } else {
+      toast({
+        title: "No Teams Link",
+        description: "This meeting doesn't have a Teams link available",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleOpenDocument = (doc: any) => {
+    // Simulate opening document - in real implementation this would open the actual document
+    toast({
+      title: "Opening Document",
+      description: `Opening ${doc.name}...`
+    });
+  };
+
+  const handleOpenEmail = (email: any) => {
+    // Open Outlook web with the specific email
+    const outlookUrl = `https://outlook.office.com/mail/inbox/id/${email.id}`;
+    window.open(outlookUrl, '_blank');
+  };
+
+  const handleVoteNow = (poll: Poll) => {
+    // Navigate to voting module with specific poll
+    const event = new CustomEvent('navigate-to-poll', { detail: { pollId: poll.id } });
+    window.dispatchEvent(event);
+  };
+
+  const handleViewMore = (module: string) => {
+    const event = new CustomEvent('navigate-to-module', { detail: { module } });
+    window.dispatchEvent(event);
+  };
+
+  const isUpcoming = (dateTime: string) => new Date(dateTime) > new Date();
+  const isPastDeadline = (deadline: string) => new Date(deadline) < new Date();
 
   return (
     <div className="space-y-6">
@@ -163,204 +111,215 @@ export const Dashboard: React.FC = () => {
         <MicrosoftConnectionStatus />
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+      {/* Main Grid - 4 Columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+        {/* Recent Meetings */}
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center space-x-2 text-lg">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              <span>Recent Meetings</span>
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalMembers}</div>
-            <p className="text-xs text-muted-foreground">Bureau members</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Meetings</CardTitle>
-            <CalendarDays className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.activeMeetings}</div>
-            <p className="text-xs text-muted-foreground">Scheduled for today</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Documents</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.documentsCount}</div>
-            <p className="text-xs text-muted-foreground">Files stored</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Inbox Emails</CardTitle>
-            <Mail className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.inboxEmailsCount}</div>
-            <p className="text-xs text-muted-foreground">
-              {unreadEmailsCount > 0 ? `${unreadEmailsCount} unread` : 'All read'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Polls</CardTitle>
-            <Vote className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pollsCount}</div>
-            <p className="text-xs text-muted-foreground">Voting polls</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Stats with Real Data */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-              <CalendarDays className="w-6 h-6 text-primary" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">{stats.activeMeetings}</h3>
-              <p className="text-sm text-gray-500">Today's Meetings</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-500" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">{stats.pollsCount}</h3>
-              <p className="text-sm text-gray-500">Active Polls</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-yellow-500/10 rounded-lg flex items-center justify-center">
-              <FileText className="w-6 h-6 text-yellow-500" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">{stats.documentsCount}</h3>
-              <p className="text-sm text-gray-500">Documents</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center">
-              <Mail className="w-6 h-6 text-red-500" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">{stats.inboxEmailsCount}</h3>
-              <p className="text-sm text-gray-500">
-                Inbox ({unreadEmailsCount} unread)
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity with Real Data */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Recent Meetings</h2>
-          </div>
-          <div className="p-6 space-y-4">
-            {recentMeetings.map((meeting) => {
-              const isUpcoming = new Date(meeting.start_time) > new Date();
-              return (
-                <div key={meeting.id} className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium text-gray-900">{meeting.title}</h3>
-                    <p className="text-sm text-gray-500">
+          <CardContent className="space-y-3">
+            {recentMeetings.length > 0 ? (
+              <>
+                {recentMeetings.map((meeting) => (
+                  <div key={meeting.id} className="border-b pb-2 last:border-b-0">
+                    <h4 className="font-medium text-sm text-gray-900 truncate">{meeting.title}</h4>
+                    <p className="text-xs text-gray-500">
                       {new Date(meeting.start_time).toLocaleDateString()} • {new Date(meeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
+                    <div className="mt-1 flex space-x-2">
+                      {isUpcoming(meeting.start_time) && meeting.teams_join_url && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => handleJoinMeeting(meeting)}
+                        >
+                          <Play className="h-3 w-3 mr-1" />
+                          Join Now
+                        </Button>
+                      )}
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        isUpcoming(meeting.start_time) ? 'bg-primary/10 text-primary' : 'bg-green-500/10 text-green-500'
+                      }`}>
+                        {isUpcoming(meeting.start_time) ? 'Upcoming' : 'Completed'}
+                      </span>
+                    </div>
                   </div>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    isUpcoming ? 'bg-primary/10 text-primary' : 'bg-green-500/10 text-green-500'
-                  }`}>
-                    {isUpcoming ? 'Upcoming' : 'Completed'}
-                  </span>
-                </div>
-              );
-            })}
-            {meetings.length === 0 && (
-              <p className="text-sm text-gray-500">No meetings scheduled</p>
+                ))}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full mt-2 text-xs"
+                  onClick={() => handleViewMore('meetings')}
+                >
+                  View More
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">No meetings scheduled</p>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Recent Documents</h2>
-          </div>
-          <div className="p-6 space-y-4">
-            {recentDocuments.map((doc) => (
-              <div key={doc.id} className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-gray-900">{doc.name}</h3>
-                  <p className="text-sm text-gray-500">
-                    {new Date(doc.created_at).toLocaleDateString()} • {doc.folder || 'General'}
-                  </p>
-                </div>
-                <span className="px-2 py-1 bg-blue-500/10 text-blue-500 text-xs rounded-full">
-                  {doc.mime_type?.includes('pdf') ? 'PDF' : 'Document'}
-                </span>
-              </div>
-            ))}
-            {documents.length === 0 && (
-              <p className="text-sm text-gray-500">No documents uploaded</p>
+        {/* Recent Documents */}
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center space-x-2 text-lg">
+              <FileText className="h-5 w-5 text-yellow-500" />
+              <span>Recent Documents</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentDocuments.length > 0 ? (
+              <>
+                {recentDocuments.map((doc) => (
+                  <div key={doc.id} className="border-b pb-2 last:border-b-0">
+                    <h4 className="font-medium text-sm text-gray-900 truncate">{doc.name}</h4>
+                    <p className="text-xs text-gray-500">
+                      {new Date(doc.created_at).toLocaleDateString()} • {doc.folder || 'General'}
+                    </p>
+                    <div className="mt-1 flex justify-between items-center">
+                      <span className="text-xs px-2 py-1 bg-blue-500/10 text-blue-500 rounded-full">
+                        {doc.mime_type?.includes('pdf') ? 'PDF' : 'Document'}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => handleOpenDocument(doc)}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Open
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full mt-2 text-xs"
+                  onClick={() => handleViewMore('documents')}
+                >
+                  View More
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">No documents uploaded</p>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Recent Emails</h2>
-          </div>
-          <div className="p-6 space-y-4">
-            {recentEmails.map((email) => (
-              <div key={email.id} className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-gray-900">{email.subject}</h3>
-                  <p className="text-sm text-gray-500">
-                    {email.from.name} • {new Date(email.receivedDateTime).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {!email.isRead && (
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  )}
-                  {email.importance === 'high' && (
-                    <span className="px-2 py-1 bg-red-500/10 text-red-500 text-xs rounded-full">
-                      High
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-            {emails.length === 0 && (
-              <p className="text-sm text-gray-500">No emails found</p>
+        {/* Recent Emails */}
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center space-x-2 text-lg">
+              <Mail className="h-5 w-5 text-red-500" />
+              <span>Recent Emails</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentEmails.length > 0 ? (
+              <>
+                {recentEmails.map((email) => (
+                  <div key={email.id} className="border-b pb-2 last:border-b-0">
+                    <h4 className="font-medium text-sm text-gray-900 truncate">{email.subject}</h4>
+                    <p className="text-xs text-gray-500">
+                      {email.from.name} • {new Date(email.receivedDateTime).toLocaleDateString()}
+                    </p>
+                    <div className="mt-1 flex justify-between items-center">
+                      <div className="flex items-center space-x-2">
+                        {!email.isRead && (
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        )}
+                        {email.importance === 'high' && (
+                          <span className="text-xs px-2 py-1 bg-red-500/10 text-red-500 rounded-full">
+                            High
+                          </span>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => handleOpenEmail(email)}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Open
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full mt-2 text-xs"
+                  onClick={() => handleViewMore('email')}
+                >
+                  View More
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">No emails found</p>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+
+        {/* Active Polls */}
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center space-x-2 text-lg">
+              <Vote className="h-5 w-5 text-green-500" />
+              <span>Active Polls</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {polls.length > 0 ? (
+              <>
+                {polls.map((poll) => (
+                  <div key={poll.id} className="border-b pb-2 last:border-b-0">
+                    <h4 className="font-medium text-sm text-gray-900 truncate">{poll.title}</h4>
+                    <p className="text-xs text-gray-500 truncate">{poll.description}</p>
+                    <p className="text-xs text-gray-500">
+                      Deadline: {new Date(poll.deadline).toLocaleDateString()}
+                    </p>
+                    <div className="mt-1 flex justify-between items-center">
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        isPastDeadline(poll.deadline) ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'
+                      }`}>
+                        {isPastDeadline(poll.deadline) ? 'Expired' : 'Active'}
+                      </span>
+                      {!isPastDeadline(poll.deadline) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => handleVoteNow(poll)}
+                        >
+                          <Vote className="h-3 w-3 mr-1" />
+                          Vote Now
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full mt-2 text-xs"
+                  onClick={() => handleViewMore('voting')}
+                >
+                  View More
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">No active polls</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
