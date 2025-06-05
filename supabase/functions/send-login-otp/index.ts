@@ -53,7 +53,7 @@ serve(async (req) => {
 
     console.log('Looking for user with email:', email);
 
-    // Get user's phone number from profiles table
+    // Get user's phone number and name from profiles table
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('phone, first_name, last_name')
@@ -97,6 +97,10 @@ serve(async (req) => {
     const formattedPhone = formatPhoneNumber(profile.phone);
     console.log('Original phone:', profile.phone, 'Formatted phone:', formattedPhone);
 
+    // Create personalized greeting
+    const firstName = profile.first_name || '';
+    const greeting = firstName ? `Hi ${firstName}` : 'Hello';
+
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
@@ -111,12 +115,12 @@ serve(async (req) => {
       );
     }
 
-    // Send SMS via Twilio with improved message format
+    // Send SMS via Twilio with personalized message
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
     const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
 
-    // Improved message format to avoid fraud detection
-    const smsBody = `ISKCON Bureau: Your login code is ${otp}. Valid for 5 minutes. Do not share this code.`;
+    // Personalized message format
+    const smsBody = `${greeting}, your ISKCON Bureau login code is ${otp}. Valid for 5 minutes.`;
 
     const response = await fetch(twilioUrl, {
       method: 'POST',

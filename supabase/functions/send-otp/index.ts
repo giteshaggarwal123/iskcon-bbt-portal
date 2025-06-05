@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { phoneNumber } = await req.json();
+    const { phoneNumber, name } = await req.json();
 
     if (!phoneNumber) {
       return new Response(
@@ -39,8 +39,11 @@ serve(async (req) => {
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
     const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
 
-    // Improved message format to avoid fraud detection
-    const smsBody = `ISKCON Bureau: Your password reset code is ${otp}. Valid for 10 minutes. Do not share this code.`;
+    // Create personalized greeting
+    const greeting = name ? `Hi ${name}` : 'Hello';
+
+    // Personalized message format for password reset
+    const smsBody = `${greeting}, your ISKCON Bureau password reset code is ${otp}. Valid for 10 minutes.`;
 
     const response = await fetch(twilioUrl, {
       method: 'POST',
