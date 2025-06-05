@@ -68,8 +68,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const handleLogout = () => {
-    signOut();
+  const handleLogout = async () => {
+    await signOut();
     if (isMobile) {
       onClose();
     }
@@ -131,7 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           ))}
           
-          {/* Logout Button */}
+          {/* Logout Button - No confirmation dialog */}
           <Button
             onClick={handleLogout}
             variant="ghost"

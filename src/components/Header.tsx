@@ -74,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Notifications */}
+            {/* Notifications - Now shows dynamic count */}
             <Button
               variant="ghost"
               size="icon"
@@ -84,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
               <Bell className="h-4 w-4" />
               {unreadNotifications > 0 && (
                 <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unreadNotifications}
+                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
                 </span>
               )}
             </Button>
