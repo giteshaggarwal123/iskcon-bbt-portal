@@ -469,6 +469,60 @@ export type Database = {
         }
         Relationships: []
       }
+      recycle_bin: {
+        Row: {
+          deleted_at: string
+          deleted_by: string
+          file_path: string
+          file_size: number | null
+          folder: string | null
+          id: string
+          is_hidden: boolean | null
+          is_important: boolean | null
+          mime_type: string | null
+          name: string
+          original_created_at: string
+          original_document_id: string
+          original_updated_at: string
+          permanent_delete_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          deleted_at?: string
+          deleted_by: string
+          file_path: string
+          file_size?: number | null
+          folder?: string | null
+          id?: string
+          is_hidden?: boolean | null
+          is_important?: boolean | null
+          mime_type?: string | null
+          name: string
+          original_created_at: string
+          original_document_id: string
+          original_updated_at: string
+          permanent_delete_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          deleted_at?: string
+          deleted_by?: string
+          file_path?: string
+          file_size?: number | null
+          folder?: string | null
+          id?: string
+          is_hidden?: boolean | null
+          is_important?: boolean | null
+          mime_type?: string | null
+          name?: string
+          original_created_at?: string
+          original_document_id?: string
+          original_updated_at?: string
+          permanent_delete_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
       sharepoint_files: {
         Row: {
           created_at: string
@@ -578,6 +632,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_recycle_bin: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_expired_sessions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -606,6 +664,14 @@ export type Database = {
       is_super_admin: {
         Args: { _user_id: string }
         Returns: boolean
+      }
+      move_to_recycle_bin: {
+        Args: { _document_id: string; _deleted_by: string }
+        Returns: undefined
+      }
+      restore_from_recycle_bin: {
+        Args: { _recycle_bin_id: string }
+        Returns: undefined
       }
     }
     Enums: {

@@ -134,17 +134,27 @@ export const useDocuments = () => {
   };
 
   const deleteDocument = async (documentId: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to delete documents",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
-      const { error } = await supabase
-        .from('documents')
-        .delete()
-        .eq('id', documentId);
+      // Use the database function to move to recycle bin
+      const { error } = await supabase.rpc('move_to_recycle_bin', {
+        _document_id: documentId,
+        _deleted_by: user.id
+      });
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Document deleted successfully"
+        description: "Document moved to recycle bin"
       });
 
       fetchDocuments();
@@ -152,7 +162,7 @@ export const useDocuments = () => {
       console.error('Error deleting document:', error);
       toast({
         title: "Delete Failed",
-        description: error.message || "Failed to delete document",
+        description: error.message || "Failed to move document to recycle bin",
         variant: "destructive"
       });
     }

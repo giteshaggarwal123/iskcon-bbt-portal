@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { FileText, Upload } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
@@ -164,15 +163,15 @@ export const DocumentsModule: React.FC = () => {
     try {
       await deleteDocument(documentId);
       toast({
-        title: "Document Deleted",
-        description: `"${documentName}" has been permanently deleted`
+        title: "Document Moved to Recycle Bin",
+        description: `"${documentName}" has been moved to the recycle bin. You can restore it from Settings > Recycle Bin within 30 days.`
       });
       // Auto-refresh after delete
       fetchDocuments();
     } catch (error: any) {
       toast({
         title: "Delete Failed",
-        description: error.message || "Failed to delete document",
+        description: error.message || "Failed to move document to recycle bin",
         variant: "destructive"
       });
     }
