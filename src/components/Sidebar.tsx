@@ -17,6 +17,17 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProfileAvatarLoader } from './ProfileAvatarLoader';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -47,6 +58,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { user, signOut } = useAuth();
   const userRole = useUserRole();
   const isMobile = useIsMobile();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   // Filter menu items based on user permissions
   const menuItems = allMenuItems.filter(item => {
@@ -68,9 +80,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const handleLogout = () => {
-    // Immediate logout without confirmation
-    signOut();
+  const handleLogoutConfirm = async () => {
+    await signOut();
+    setShowLogoutDialog(false);
     if (isMobile) {
       onClose();
     }
@@ -132,15 +144,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           ))}
           
-          {/* Logout Button - Immediate logout */}
-          <Button
-            onClick={handleLogout}
-            variant="ghost"
-            className="w-full flex items-center justify-start px-4 py-3 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors mt-4"
-          >
-            <LogOut className="mr-3 h-5 w-5" />
-            Logout
-          </Button>
+          {/* Logout Button with Confirmation Dialog */}
+          <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full flex items-center justify-start px-4 py-3 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors mt-4"
+              >
+                <LogOut className="mr-3 h-5 w-5" />
+                Logout
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You will be signed out of your account and redirected to the login page.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleLogoutConfirm}>
+                  Yes, Log Out
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </nav>
 
         {/* User Profile Section */}
