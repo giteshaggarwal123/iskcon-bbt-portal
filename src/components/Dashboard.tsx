@@ -1,8 +1,7 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { CalendarDays, Users, FileText, Mail, TrendingUp, Clock, MessageSquare, Vote, CheckCircle } from 'lucide-react';
+import { CalendarDays, Users, FileText, Mail, CheckCircle } from 'lucide-react';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useMembers } from '@/hooks/useMembers';
 import { useDocuments } from '@/hooks/useDocuments';
@@ -34,8 +33,8 @@ export const Dashboard: React.FC = () => {
   const { documents = [], loading: documentsLoading } = useDocuments();
   const { emails = [], loading: emailsLoading } = useEmails();
 
-  // Memoize expensive calculations
-  const { activeMeetingsCount, recentMeetings, recentDocuments, recentEmails, unreadEmailsCount } = useMemo(() => {
+  // Memoize calculations for better performance
+  const dashboardData = useMemo(() => {
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
@@ -45,36 +44,33 @@ export const Dashboard: React.FC = () => {
       return meetingDate >= todayStart && meetingDate < todayEnd;
     }).length;
 
-    const sortedMeetings = meetings
+    const recentMeetings = meetings
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
       .slice(0, 3);
 
-    const sortedDocuments = documents
+    const recentDocuments = documents
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 3);
 
-    const sortedEmails = emails
+    const recentEmails = emails
       .sort((a, b) => new Date(b.receivedDateTime).getTime() - new Date(a.receivedDateTime).getTime())
       .slice(0, 3);
 
-    const unreadCount = emails.filter(email => !email.isRead).length;
+    const unreadEmailsCount = emails.filter(email => !email.isRead).length;
 
     return {
       activeMeetingsCount: activeMeetings,
-      recentMeetings: sortedMeetings,
-      recentDocuments: sortedDocuments,
-      recentEmails: sortedEmails,
-      unreadEmailsCount: unreadCount
+      recentMeetings,
+      recentDocuments,
+      recentEmails,
+      unreadEmailsCount
     };
   }, [meetings, documents, emails]);
 
-  // Fetch additional stats with debouncing
+  // Fetch additional stats with better error handling
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
     const fetchStats = async () => {
       try {
-        // Use Promise.allSettled to prevent one failure from blocking others
         const [emailsResult, pollsResult] = await Promise.allSettled([
           supabase.from('emails').select('*', { count: 'exact', head: true }),
           supabase.from('polls').select('*', { count: 'exact', head: true })
@@ -85,7 +81,7 @@ export const Dashboard: React.FC = () => {
 
         setStats({
           totalMembers: members.length,
-          activeMeetings: activeMeetingsCount,
+          activeMeetings: dashboardData.activeMeetingsCount,
           documentsCount: documents.length,
           emailsCount,
           inboxEmailsCount: emails.length,
@@ -97,35 +93,19 @@ export const Dashboard: React.FC = () => {
     };
 
     if (!meetingsLoading && !membersLoading && !documentsLoading && !emailsLoading) {
-      // Debounce the fetch to prevent excessive calls
-      timeoutId = setTimeout(fetchStats, 300);
+      fetchStats();
     }
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [meetings.length, members.length, documents.length, emails.length, activeMeetingsCount, meetingsLoading, membersLoading, documentsLoading, emailsLoading]);
-
-  // Simplified real-time subscriptions
-  useEffect(() => {
-    const channels = [
-      supabase
-        .channel('stats-updates')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'emails' }, async () => {
-          const { count } = await supabase.from('emails').select('*', { count: 'exact', head: true });
-          setStats(prev => ({ ...prev, emailsCount: count || 0 }));
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, async () => {
-          const { count } = await supabase.from('polls').select('*', { count: 'exact', head: true });
-          setStats(prev => ({ ...prev, pollsCount: count || 0 }));
-        })
-        .subscribe()
-    ];
-
-    return () => {
-      channels.forEach(channel => supabase.removeChannel(channel));
-    };
-  }, []);
+  }, [
+    meetings.length, 
+    members.length, 
+    documents.length, 
+    emails.length, 
+    dashboardData.activeMeetingsCount,
+    meetingsLoading, 
+    membersLoading, 
+    documentsLoading, 
+    emailsLoading
+  ]);
 
   if (meetingsLoading || membersLoading || documentsLoading || emailsLoading) {
     return (
@@ -189,7 +169,7 @@ export const Dashboard: React.FC = () => {
           <CardContent>
             <div className="text-2xl font-bold">{stats.inboxEmailsCount}</div>
             <p className="text-xs text-muted-foreground">
-              {unreadEmailsCount > 0 ? `${unreadEmailsCount} unread` : 'All read'}
+              {dashboardData.unreadEmailsCount > 0 ? `${dashboardData.unreadEmailsCount} unread` : 'All read'}
             </p>
           </CardContent>
         </Card>
@@ -197,7 +177,7 @@ export const Dashboard: React.FC = () => {
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Polls</CardTitle>
-            <Vote className="h-4 w-4 text-muted-foreground" />
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.pollsCount}</div>
@@ -206,67 +186,14 @@ export const Dashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Quick Stats with Real Data */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-              <CalendarDays className="w-6 h-6 text-primary" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">{stats.activeMeetings}</h3>
-              <p className="text-sm text-gray-500">Today's Meetings</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-500" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">{stats.pollsCount}</h3>
-              <p className="text-sm text-gray-500">Active Polls</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-yellow-500/10 rounded-lg flex items-center justify-center">
-              <FileText className="w-6 h-6 text-yellow-500" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">{stats.documentsCount}</h3>
-              <p className="text-sm text-gray-500">Documents</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center">
-              <Mail className="w-6 h-6 text-red-500" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">{stats.inboxEmailsCount}</h3>
-              <p className="text-sm text-gray-500">
-                Inbox ({unreadEmailsCount} unread)
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity with Real Data */}
+      {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">Recent Meetings</h2>
           </div>
           <div className="p-6 space-y-4">
-            {recentMeetings.map((meeting) => {
+            {dashboardData.recentMeetings.map((meeting) => {
               const isUpcoming = new Date(meeting.start_time) > new Date();
               return (
                 <div key={meeting.id} className="flex items-center justify-between">
@@ -295,7 +222,7 @@ export const Dashboard: React.FC = () => {
             <h2 className="text-xl font-semibold text-gray-900">Recent Documents</h2>
           </div>
           <div className="p-6 space-y-4">
-            {recentDocuments.map((doc) => (
+            {dashboardData.recentDocuments.map((doc) => (
               <div key={doc.id} className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium text-gray-900">{doc.name}</h3>
@@ -319,7 +246,7 @@ export const Dashboard: React.FC = () => {
             <h2 className="text-xl font-semibold text-gray-900">Recent Emails</h2>
           </div>
           <div className="p-6 space-y-4">
-            {recentEmails.map((email) => (
+            {dashboardData.recentEmails.map((email) => (
               <div key={email.id} className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium text-gray-900">{email.subject}</h3>

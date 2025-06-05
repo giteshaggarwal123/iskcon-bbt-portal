@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
@@ -28,7 +28,7 @@ export const useDocuments = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('documents')
@@ -40,8 +40,8 @@ export const useDocuments = () => {
       const docs = data || [];
       setDocuments(docs);
       
-      // Extract unique folders
-      const uniqueFolders = [...new Set(docs.map(doc => doc.folder).filter(Boolean))];
+      // Extract unique folders efficiently
+      const uniqueFolders = Array.from(new Set(docs.map(doc => doc.folder).filter(Boolean)));
       setFolders(uniqueFolders);
     } catch (error: any) {
       console.error('Error fetching documents:', error);
@@ -53,11 +53,11 @@ export const useDocuments = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const createFolder = async (folderName: string) => {
+  const createFolder = useCallback(async (folderName: string) => {
     try {
-      // Update folders list immediately
+      // Update folders list immediately for better UX
       if (!folders.includes(folderName)) {
         setFolders(prev => [...prev, folderName]);
       }
@@ -67,8 +67,6 @@ export const useDocuments = () => {
         description: `Folder "${folderName}" created successfully`
       });
 
-      // Refresh documents to show the new folder
-      await fetchDocuments();
       return folderName;
     } catch (error: any) {
       console.error('Error creating folder:', error);
@@ -79,9 +77,9 @@ export const useDocuments = () => {
       });
       throw error;
     }
-  };
+  }, [folders, toast]);
 
-  const deleteFolder = async (folderName: string) => {
+  const deleteFolder = useCallback(async (folderName: string) => {
     try {
       // Delete all documents in the folder from database
       const { error } = await supabase
@@ -109,9 +107,9 @@ export const useDocuments = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [fetchDocuments, toast]);
 
-  const uploadDocument = async (file: File, folder: string = 'Documents') => {
+  const uploadDocument = useCallback(async (file: File, folder: string = 'Documents') => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -122,11 +120,9 @@ export const useDocuments = () => {
     }
 
     try {
-      // For now, we'll just create a document record without actual file upload
-      // In a real implementation, you'd upload to Supabase Storage or another service
       const document = {
         name: file.name,
-        file_path: URL.createObjectURL(file), // Temporary URL for demo
+        file_path: URL.createObjectURL(file),
         file_size: file.size,
         mime_type: file.type,
         folder: folder,
@@ -162,9 +158,9 @@ export const useDocuments = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [user, toast, fetchDocuments]);
 
-  const moveDocument = async (documentId: string, newFolder: string) => {
+  const moveDocument = useCallback(async (documentId: string, newFolder: string) => {
     try {
       const { error } = await supabase
         .from('documents')
@@ -187,11 +183,10 @@ export const useDocuments = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [fetchDocuments, toast]);
 
-  const deleteDocument = async (documentId: string) => {
+  const deleteDocument = useCallback(async (documentId: string) => {
     try {
-      // Delete from database
       const { error } = await supabase
         .from('documents')
         .delete()
@@ -213,9 +208,9 @@ export const useDocuments = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [fetchDocuments, toast]);
 
-  const searchDocuments = async (searchTerm: string) => {
+  const searchDocuments = useCallback(async (searchTerm: string) => {
     if (!searchTerm.trim()) {
       fetchDocuments();
       return;
@@ -238,11 +233,13 @@ export const useDocuments = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [fetchDocuments, toast]);
 
   useEffect(() => {
-    fetchDocuments();
-  }, []);
+    if (user) {
+      fetchDocuments();
+    }
+  }, [user, fetchDocuments]);
 
   return {
     documents,

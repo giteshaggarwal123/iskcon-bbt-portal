@@ -1,9 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -19,16 +18,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { 
-  ContextMenu, 
-  ContextMenuContent, 
-  ContextMenuItem, 
-  ContextMenuSeparator, 
-  ContextMenuTrigger,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger
-} from '@/components/ui/context-menu';
-import { 
   Table,
   TableBody,
   TableCell,
@@ -36,53 +25,114 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { FileText, Upload, Search, Download, Trash2, Eye, Plus, Folder, Move, Edit, Copy, Star, StarOff } from 'lucide-react';
+import { FileText, Upload, Search, Download, Trash2, Eye, Plus, Star, StarOff } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
-import { DocumentAnalytics } from './DocumentAnalytics';
 import { CreateFolderDialog } from './CreateFolderDialog';
 import { supabase } from '@/integrations/supabase/client';
 
 export const DocumentsModule: React.FC = () => {
-  const { documents, folders, loading, uploadDocument, deleteDocument, deleteFolder, moveDocument, createFolder, searchDocuments, fetchDocuments } = useDocuments();
+  const { documents, folders, loading, uploadDocument, deleteDocument, deleteFolder, createFolder, searchDocuments, fetchDocuments } = useDocuments();
   const { user } = useAuth();
   const { canDeleteContent, isSuperAdmin } = useUserRole();
   const { toast } = useToast();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [renameDocumentId, setRenameDocumentId] = useState<string | null>(null);
-  const [newDocumentName, setNewDocumentName] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'type'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
-  const [documentToMove, setDocumentToMove] = useState<string | null>(null);
-  const [selectedFolder, setSelectedFolder] = useState<string>('');
 
-  // Track document views
-  const trackDocumentView = async (documentId: string) => {
-    if (!user) return;
+  // Optimized document filtering and sorting with useMemo
+  const filteredAndSortedDocuments = useMemo(() => {
+    return documents
+      .filter(doc => doc.name !== '.folder_placeholder')
+      .filter(doc => {
+        // Access control
+        if (isSuperAdmin) return true;
+        if (doc.uploaded_by === user?.id) return true;
+        if (doc.folder === 'personal' && doc.uploaded_by !== user?.id) return false;
+        if (doc.is_hidden && doc.uploaded_by !== user?.id) return false;
+        return true;
+      })
+      .filter(doc => {
+        if (!searchTerm) return true;
+        return doc.name.toLowerCase().includes(searchTerm.toLowerCase());
+      })
+      .sort((a, b) => {
+        let aValue: any, bValue: any;
+        
+        switch (sortBy) {
+          case 'name':
+            aValue = a.name.toLowerCase();
+            bValue = b.name.toLowerCase();
+            break;
+          case 'size':
+            aValue = a.file_size || 0;
+            bValue = b.file_size || 0;
+            break;
+          case 'type':
+            aValue = a.mime_type || '';
+            bValue = b.mime_type || '';
+            break;
+          case 'date':
+          default:
+            aValue = new Date(a.updated_at).getTime();
+            bValue = new Date(b.updated_at).getTime();
+            break;
+        }
+        
+        return sortOrder === 'asc' ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1);
+      });
+  }, [documents, searchTerm, sortBy, sortOrder, isSuperAdmin, user?.id]);
 
-    try {
-      const { error } = await supabase
-        .from('document_views')
-        .insert({
-          document_id: documentId,
-          user_id: user.id,
-          view_started_at: new Date().toISOString(),
-          completion_percentage: 0,
-          last_page_viewed: 1
-        });
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error tracking document view:', error);
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
     }
-  };
+  }, []);
 
-  const toggleImportant = async (documentId: string, isImportant: boolean) => {
+  const handleUpload = useCallback(async () => {
+    if (!selectedFile) {
+      toast({
+        title: "No File Selected",
+        description: "Please select a file to upload",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await uploadDocument(selectedFile, 'Documents');
+    setSelectedFile(null);
+    setUploadDialogOpen(false);
+  }, [selectedFile, uploadDocument, toast]);
+
+  const handleViewDocument = useCallback((document: any) => {
+    if (document.file_path) {
+      window.open(document.file_path, '_blank');
+    }
+  }, []);
+
+  const handleDownloadDocument = useCallback((document: any) => {
+    if (document.file_path) {
+      const link = document.createElement('a');
+      link.href = document.file_path;
+      link.download = document.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  }, []);
+
+  const handleSearch = useCallback((term: string) => {
+    setSearchTerm(term);
+    searchDocuments(term);
+  }, [searchDocuments]);
+
+  const toggleImportant = useCallback(async (documentId: string, isImportant: boolean) => {
     try {
       const { error } = await supabase
         .from('documents')
@@ -104,250 +154,20 @@ export const DocumentsModule: React.FC = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [toast, fetchDocuments]);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      toast({
-        title: "No File Selected",
-        description: "Please select a file to upload",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    await uploadDocument(selectedFile, 'Documents');
-    setSelectedFile(null);
-    setUploadDialogOpen(false);
-  };
-
-  const handleViewDocument = (document: any) => {
-    trackDocumentView(document.id);
-    // Simple view action - open file path
-    if (document.file_path) {
-      window.open(document.file_path, '_blank');
-    }
-  };
-
-  const handleDownloadDocument = (document: any) => {
-    if (document.file_path) {
-      const link = document.createElement('a');
-      link.href = document.file_path;
-      link.download = document.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
-
-  const handleDeleteDocument = async (documentId: string) => {
-    try {
-      await deleteDocument(documentId);
-    } catch (error: any) {
-      console.error('Delete error:', error);
-    }
-  };
-
-  const handleFolderCreated = async (folderName: string) => {
-    try {
-      await createFolder(folderName);
-    } catch (error: any) {
-      // Error handling is done in the hook
-    }
-  };
-
-  const handleFolderDeleted = async (folderName: string) => {
-    try {
-      await deleteFolder(folderName);
-    } catch (error: any) {
-      // Error handling is done in the hook
-    }
-  };
-
-  const handleSearch = (term: string) => {
-    setSearchTerm(term);
-    searchDocuments(term);
-  };
-
-  const handleMoveDocument = async () => {
-    if (!documentToMove || !selectedFolder) return;
-    
-    try {
-      await moveDocument(documentToMove, selectedFolder);
-      setMoveDialogOpen(false);
-      setDocumentToMove(null);
-      setSelectedFolder('');
-    } catch (error: any) {
-      // Error handling is done in the hook
-    }
-  };
-
-  const handleCopyDocument = async (documentId: string) => {
-    const document = documents.find(doc => doc.id === documentId);
-    if (!document) return;
-
-    try {
-      const { error } = await supabase
-        .from('documents')
-        .insert({
-          name: `Copy of ${document.name}`,
-          file_path: document.file_path,
-          file_size: document.file_size,
-          mime_type: document.mime_type,
-          folder: document.folder,
-          uploaded_by: user?.id || document.uploaded_by,
-          is_sharepoint_file: false,
-          sharepoint_id: null,
-          sharepoint_url: null
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Document Copied",
-        description: "Document has been copied successfully"
-      });
-
-      fetchDocuments();
-    } catch (error: any) {
-      toast({
-        title: "Copy Failed",
-        description: error.message || "Failed to copy document",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleRenameDocument = async (documentId: string, newName: string) => {
-    if (!newName.trim()) {
-      toast({
-        title: "Invalid Name",
-        description: "Please enter a valid document name",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('documents')
-        .update({ name: newName.trim(), updated_at: new Date().toISOString() })
-        .eq('id', documentId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Document Renamed",
-        description: "Document has been renamed successfully"
-      });
-
-      fetchDocuments();
-      setRenameDocumentId(null);
-      setNewDocumentName('');
-    } catch (error: any) {
-      toast({
-        title: "Rename Failed",
-        description: error.message || "Failed to rename document",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const startRename = (documentId: string, currentName: string) => {
-    setRenameDocumentId(documentId);
-    setNewDocumentName(currentName);
-  };
-
-  const cancelRename = () => {
-    setRenameDocumentId(null);
-    setNewDocumentName('');
-  };
-
-  // Check if user can access document based on hierarchy
-  const canAccessDocument = (document: any) => {
-    if (isSuperAdmin) return true;
-    if (document.uploaded_by === user?.id) return true;
-    if (document.folder === 'personal' && document.uploaded_by !== user?.id) return false;
-    if (document.is_hidden && document.uploaded_by !== user?.id) return false;
-    return true;
-  };
-
-  // Check if user can delete a specific document
-  const canDeleteDocument = (document: any) => {
+  const canDeleteDocument = useCallback((document: any) => {
     return canDeleteContent || user?.id === document.uploaded_by;
-  };
+  }, [canDeleteContent, user?.id]);
 
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeydown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'c') {
-          e.preventDefault();
-          // Copy functionality would be implemented here
-        } else if (e.key === 'v') {
-          e.preventDefault();
-          // Paste functionality would be implemented here
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeydown);
-    return () => document.removeEventListener('keydown', handleKeydown);
-  }, []);
-
-  // Filter and sort documents (exclude hidden placeholder files)
-  const filteredAndSortedDocuments = documents
-    .filter(doc => doc.name !== '.folder_placeholder') // Hide placeholder files
-    .filter(doc => canAccessDocument(doc))
-    .filter(doc => {
-      const matchesSearch = !searchTerm || doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesSearch;
-    })
-    .sort((a, b) => {
-      let aValue: any, bValue: any;
-      
-      switch (sortBy) {
-        case 'name':
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-          break;
-        case 'size':
-          aValue = a.file_size || 0;
-          bValue = b.file_size || 0;
-          break;
-        case 'type':
-          aValue = a.mime_type || '';
-          bValue = b.mime_type || '';
-          break;
-        case 'date':
-        default:
-          aValue = new Date(a.updated_at).getTime();
-          bValue = new Date(b.updated_at).getTime();
-          break;
-      }
-      
-      if (sortOrder === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
-    });
-
-  const formatFileSize = (bytes: number | null) => {
+  const formatFileSize = useCallback((bytes: number | null) => {
     if (!bytes) return 'Unknown';
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-  };
+  }, []);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -355,16 +175,16 @@ export const DocumentsModule: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
+  }, []);
 
-  const getFileIcon = (mimeType: string | null) => {
+  const getFileIcon = useCallback((mimeType: string | null) => {
     if (!mimeType) return <FileText className="h-4 w-4" />;
     if (mimeType.includes('image')) return <FileText className="h-4 w-4 text-green-500" />;
     if (mimeType.includes('pdf')) return <FileText className="h-4 w-4 text-red-500" />;
     if (mimeType.includes('document')) return <FileText className="h-4 w-4 text-blue-500" />;
     if (mimeType.includes('spreadsheet')) return <FileText className="h-4 w-4 text-green-600" />;
     return <FileText className="h-4 w-4" />;
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -387,8 +207,8 @@ export const DocumentsModule: React.FC = () => {
         
         <div className="flex space-x-2">
           <CreateFolderDialog 
-            onFolderCreated={handleFolderCreated}
-            onFolderDeleted={handleFolderDeleted}
+            onFolderCreated={createFolder}
+            onFolderDeleted={deleteFolder}
             existingFolders={folders}
           />
           <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
@@ -470,44 +290,6 @@ export const DocumentsModule: React.FC = () => {
         </div>
       </div>
 
-      {/* Move Document Dialog */}
-      <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Move Document</DialogTitle>
-            <DialogDescription>
-              Select the folder to move this document to
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="folder">Select Folder</Label>
-              <Select value={selectedFolder} onValueChange={setSelectedFolder}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a folder" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Documents">Documents</SelectItem>
-                  {folders.map((folder) => (
-                    <SelectItem key={folder} value={folder}>
-                      {folder}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setMoveDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleMoveDocument} disabled={!selectedFolder}>
-                Move
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Documents Table */}
       <Card>
         <Table>
@@ -515,7 +297,6 @@ export const DocumentsModule: React.FC = () => {
             <TableRow>
               <TableHead className="w-8"></TableHead>
               <TableHead>Name</TableHead>
-              <TableHead>Owner</TableHead>
               <TableHead>Last modified</TableHead>
               <TableHead>File size</TableHead>
               <TableHead className="w-32">Actions</TableHead>
@@ -523,190 +304,103 @@ export const DocumentsModule: React.FC = () => {
           </TableHeader>
           <TableBody>
             {filteredAndSortedDocuments.map((document) => (
-              <ContextMenu key={document.id}>
-                <ContextMenuTrigger asChild>
-                  <TableRow 
-                    className="cursor-pointer hover:bg-gray-50"
-                    onClick={() => handleViewDocument(document)}
+              <TableRow 
+                key={document.id}
+                className="cursor-pointer hover:bg-gray-50"
+                onClick={() => handleViewDocument(document)}
+              >
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleImportant(document.id, document.is_important || false);
+                    }}
+                    className="h-6 w-6 p-0"
                   >
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleImportant(document.id, document.is_important || false);
-                        }}
-                        className="h-6 w-6 p-0"
-                      >
-                        {document.is_important ? (
-                          <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                        ) : (
-                          <StarOff className="h-4 w-4 text-gray-400" />
-                        )}
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        {getFileIcon(document.mime_type)}
-                        <div>
-                          {renameDocumentId === document.id ? (
-                            <Input
-                              value={newDocumentName}
-                              onChange={(e) => setNewDocumentName(e.target.value)}
-                              onBlur={() => {
-                                if (newDocumentName.trim()) {
-                                  handleRenameDocument(document.id, newDocumentName);
-                                } else {
-                                  cancelRename();
-                                }
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  if (newDocumentName.trim()) {
-                                    handleRenameDocument(document.id, newDocumentName);
-                                  } else {
-                                    cancelRename();
-                                  }
-                                } else if (e.key === 'Escape') {
-                                  cancelRename();
-                                }
-                              }}
-                              className="h-8 text-sm"
-                              autoFocus
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          ) : (
-                            <div className="font-medium">{document.name}</div>
-                          )}
-                          <div className="text-sm text-gray-500 capitalize">
-                            {(document.folder || 'Documents')}
-                          </div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-xs font-medium">me</span>
-                        </div>
-                        <span className="text-sm">me</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-600">
-                      {formatDate(document.updated_at)}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-600">
-                      {formatFileSize(document.file_size)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-1">
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className="h-8 w-8 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewDocument(document);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className="h-8 w-8 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDownloadDocument(document);
-                          }}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        <DocumentAnalytics 
-                          documentId={document.id}
-                          documentName={document.name}
-                        />
-                        {canDeleteDocument(document) && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Document</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{document.name}"? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => handleDeleteDocument(document.id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Delete Document
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                </ContextMenuTrigger>
-                
-                <ContextMenuContent>
-                  <ContextMenuItem onClick={() => handleViewDocument(document)}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    Open Document
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => handleDownloadDocument(document)}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem onClick={() => startRename(document.id, document.name)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Rename
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => handleCopyDocument(document.id)}>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy Document
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => {
-                    setDocumentToMove(document.id);
-                    setMoveDialogOpen(true);
-                  }}>
-                    <Move className="h-4 w-4 mr-2" />
-                    Move to Folder
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => toggleImportant(document.id, document.is_important || false)}>
                     {document.is_important ? (
-                      <><StarOff className="h-4 w-4 mr-2" />Remove from Important</>
+                      <Star className="h-4 w-4 text-yellow-500 fill-current" />
                     ) : (
-                      <><Star className="h-4 w-4 mr-2" />Mark as Important</>
+                      <StarOff className="h-4 w-4 text-gray-400" />
                     )}
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  {canDeleteDocument(document) && (
-                    <ContextMenuItem 
-                      onClick={() => handleDeleteDocument(document.id)}
-                      className="text-red-600"
+                  </Button>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-3">
+                    {getFileIcon(document.mime_type)}
+                    <div>
+                      <div className="font-medium">{document.name}</div>
+                      <div className="text-sm text-gray-500 capitalize">
+                        {(document.folder || 'Documents')}
+                      </div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="text-sm text-gray-600">
+                  {formatDate(document.updated_at)}
+                </TableCell>
+                <TableCell className="text-sm text-gray-600">
+                  {formatFileSize(document.file_size)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-1">
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewDocument(document);
+                      }}
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Document
-                    </ContextMenuItem>
-                  )}
-                </ContextMenuContent>
-              </ContextMenu>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadDocument(document);
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    {canDeleteDocument(document) && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Document</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{document.name}"? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => deleteDocument(document.id)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              Delete Document
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
             ))}
           </TableBody>
         </Table>
