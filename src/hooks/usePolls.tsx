@@ -77,7 +77,7 @@ export const usePolls = () => {
 
       if (error) throw error;
 
-      // Get stats for each poll
+      // Get stats for each poll and transform the data to match our interface
       const pollsWithStats = await Promise.all(
         pollsData.map(async (poll) => {
           const { data: stats } = await supabase.rpc('get_poll_stats', {
@@ -85,11 +85,20 @@ export const usePolls = () => {
           });
           
           return {
-            ...poll,
+            id: poll.id,
+            title: poll.title,
+            description: poll.description,
+            deadline: poll.deadline,
+            status: poll.status as 'active' | 'completed' | 'cancelled',
+            is_secret: poll.is_secret,
+            notify_members: poll.notify_members,
+            created_by: poll.created_by,
+            created_at: poll.created_at,
+            updated_at: poll.updated_at,
             sub_polls: poll.sub_polls || [],
             attachments: poll.poll_attachments || [],
             stats: stats?.[0] || { total_voters: 0, voted_count: 0, pending_count: 0, sub_poll_count: 0 }
-          };
+          } as Poll;
         })
       );
 

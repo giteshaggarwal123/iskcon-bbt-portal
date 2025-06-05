@@ -88,7 +88,12 @@ export const useVoting = () => {
   };
 
   const checkVotingEligibility = async (pollId: string) => {
-    if (!user) return { canVote: false, reason: 'Not logged in' };
+    console.log('Checking voting eligibility for poll:', pollId, 'user:', user?.id);
+    
+    if (!user) {
+      console.log('No user found');
+      return { canVote: false, reason: 'Not logged in' };
+    }
 
     try {
       // Check if poll is active
@@ -98,7 +103,12 @@ export const useVoting = () => {
         .eq('id', pollId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching poll:', error);
+        throw error;
+      }
+
+      console.log('Poll data:', poll);
 
       if (poll.status !== 'active') {
         return { canVote: false, reason: 'Poll is not active' };
@@ -109,17 +119,25 @@ export const useVoting = () => {
       }
 
       // Check if user has already voted
-      const { data: existingVotes } = await supabase
+      const { data: existingVotes, error: voteError } = await supabase
         .from('poll_votes')
         .select('id')
         .eq('poll_id', pollId)
         .eq('user_id', user.id)
         .limit(1);
 
+      if (voteError) {
+        console.error('Error checking existing votes:', voteError);
+        throw voteError;
+      }
+
+      console.log('Existing votes:', existingVotes);
+
       if (existingVotes && existingVotes.length > 0) {
         return { canVote: false, reason: 'You have already voted on this poll' };
       }
 
+      console.log('User can vote');
       return { canVote: true, reason: null };
     } catch (error) {
       console.error('Error checking voting eligibility:', error);
