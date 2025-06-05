@@ -5,169 +5,86 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Mail, Shield, Lock, Phone, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Mail, Shield, Lock, Phone, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export const RealAuthPage: React.FC = () => {
-  const { signIn, sendLoginOTP, loading } = useAuth();
-  const { toast } = useToast();
-  const [step, setStep] = useState<'login' | 'otp-verification'>('login');
+  const { signIn, sendLoginOTP, verifyLoginOTP, sendOTP, verifyOTP, loading } = useAuth();
+  const [step, setStep] = useState<'login' | 'otp-verification' | 'forgot-phone' | 'forgot-otp' | 'forgot-newPassword'>('login');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     rememberMe: false,
-    otp: ''
+    phoneNumber: '',
+    otp: '',
+    newPassword: '',
+    confirmPassword: ''
   });
+  const [forgotPassword, setForgotPassword] = useState(false);
   const [storedOTP, setStoredOTP] = useState('');
   const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '', rememberMe: false });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
-  const [otpSentTime, setOtpSentTime] = useState<Date | null>(null);
 
   const handleInitialLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    
-    try {
-      // Store credentials for later use
+    if (forgotPassword) {
+      setStep('forgot-phone');
+    } else {
+      // Store credentials and send OTP for login verification
       setLoginCredentials({
         email: formData.email,
         password: formData.password,
         rememberMe: formData.rememberMe
       });
       
-      console.log('Sending OTP for email:', formData.email);
-      
-      // Send OTP for verification
       const { error, otp } = await sendLoginOTP(formData.email);
-      
-      console.log('SendLoginOTP response:', { error, otp });
-      
-      if (error) {
-        console.error('Failed to send OTP:', error);
-        setDebugInfo({ 
-          status: 'error', 
-          error: error.details || error.message,
-          timestamp: new Date().toLocaleString()
-        });
-        toast({
-          title: "Failed to send OTP",
-          description: error.details || error.message || "Please check your email and try again.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      if (otp) {
-        console.log('OTP sent successfully, received OTP:', otp);
+      if (!error && otp) {
         setStoredOTP(otp);
-        setOtpSentTime(new Date());
-        setDebugInfo({
-          status: 'success',
-          message: 'OTP sent successfully via Twilio',
-          timestamp: new Date().toLocaleString(),
-          phoneNumber: 'ending in ***5090', // Masked for security
-          otpCode: otp // Temporarily showing for debugging
-        });
         setStep('otp-verification');
-        toast({
-          title: "OTP Sent",
-          description: "Please check your phone for the verification code."
-        });
-      } else {
-        setDebugInfo({
-          status: 'error',
-          error: 'No OTP received from server',
-          timestamp: new Date().toLocaleString()
-        });
-        toast({
-          title: "No OTP received",
-          description: "Please try again or contact support.",
-          variant: "destructive"
-        });
       }
-    } catch (error) {
-      console.error('Error in login process:', error);
-      setDebugInfo({
-        status: 'error',
-        error: `Unexpected error: ${error}`,
-        timestamp: new Date().toLocaleString()
-      });
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   const handleOTPVerification = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    
-    try {
-      console.log('Verifying OTP:', formData.otp, 'Expected:', storedOTP);
-      
-      // Verify OTP
-      if (formData.otp !== storedOTP) {
-        console.error('OTP mismatch');
-        toast({
-          title: "Invalid OTP",
-          description: "Please check the code and try again.",
-          variant: "destructive"
-        });
-        setIsSubmitting(false);
-        return;
-      }
+    if (formData.otp === storedOTP) {
+      // OTP verified, now complete the login
+      await signIn(loginCredentials.email, loginCredentials.password, loginCredentials.rememberMe);
+    } else {
+      alert('Invalid OTP. Please try again.');
+    }
+  };
 
-      console.log('OTP verified successfully, attempting login');
-      
-      // OTP is correct, proceed with login
-      const { error } = await signIn(
-        loginCredentials.email, 
-        loginCredentials.password, 
-        loginCredentials.rememberMe
-      );
-      
-      if (error) {
-        console.error('Login failed after OTP verification:', error);
-        toast({
-          title: "Login Failed",
-          description: error.message || "Please check your credentials and try again.",
-          variant: "destructive"
-        });
-      } else {
-        console.log('Login successful!');
-        toast({
-          title: "Login Successful",
-          description: "Welcome back!"
-        });
-        // Reset form
-        setFormData({
-          email: '',
-          password: '',
-          rememberMe: false,
-          otp: ''
-        });
-        setStoredOTP('');
-        setStep('login');
-        setDebugInfo(null);
-        setOtpSentTime(null);
-      }
-    } catch (error) {
-      console.error('Error in OTP verification:', error);
-      toast({
-        title: "Verification Error",
-        description: "An error occurred during verification. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
+  const handleSendForgotOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { error, otp } = await sendOTP(formData.phoneNumber);
+    if (!error && otp) {
+      setStoredOTP(otp);
+      setStep('forgot-otp');
+    }
+  };
+
+  const handleVerifyForgotOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.otp === storedOTP) {
+      setStep('forgot-newPassword');
+    } else {
+      alert('Invalid OTP. Please try again.');
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.newPassword !== formData.confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+    
+    const { error } = await verifyOTP(formData.email, formData.otp, formData.newPassword);
+    if (!error) {
+      setStep('login');
+      setForgotPassword(false);
+      setFormData(prev => ({ ...prev, password: '', newPassword: '', confirmPassword: '', otp: '', phoneNumber: '' }));
     }
   };
 
@@ -177,71 +94,22 @@ export const RealAuthPage: React.FC = () => {
 
   const resetToLogin = () => {
     setStep('login');
-    setFormData(prev => ({ ...prev, otp: '' }));
-    setStoredOTP('');
-    setIsSubmitting(false);
-    setDebugInfo(null);
-    setOtpSentTime(null);
+    setForgotPassword(false);
+    setFormData(prev => ({ ...prev, otp: '', phoneNumber: '', newPassword: '', confirmPassword: '' }));
   };
 
   const handleResendOTP = async () => {
-    setIsSubmitting(true);
-    try {
-      console.log('Resending OTP for:', loginCredentials.email);
+    if (step === 'otp-verification') {
       const { error, otp } = await sendLoginOTP(loginCredentials.email);
-      
-      console.log('Resend OTP response:', { error, otp });
-      
       if (!error && otp) {
-        console.log('OTP resent successfully, new OTP:', otp);
         setStoredOTP(otp);
-        setOtpSentTime(new Date());
-        setFormData(prev => ({ ...prev, otp: '' }));
-        setDebugInfo({
-          status: 'success',
-          message: 'OTP resent successfully via Twilio',
-          timestamp: new Date().toLocaleString(),
-          phoneNumber: 'ending in ***5090',
-          otpCode: otp // Temporarily showing for debugging
-        });
-        toast({
-          title: "OTP Resent",
-          description: "A new verification code has been sent to your phone."
-        });
-      } else {
-        setDebugInfo({
-          status: 'error',
-          error: error?.details || 'Failed to resend OTP',
-          timestamp: new Date().toLocaleString()
-        });
-        toast({
-          title: "Failed to resend OTP",
-          description: error?.details || "Please try again.",
-          variant: "destructive"
-        });
       }
-    } catch (error) {
-      console.error('Error resending OTP:', error);
-      setDebugInfo({
-        status: 'error',
-        error: `Resend error: ${error}`,
-        timestamp: new Date().toLocaleString()
-      });
-      toast({
-        title: "Error",
-        description: "Failed to resend OTP. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
+    } else if (step === 'forgot-otp') {
+      const { error, otp } = await sendOTP(formData.phoneNumber);
+      if (!error && otp) {
+        setStoredOTP(otp);
+      }
     }
-  };
-
-  // Calculate time since OTP was sent
-  const getTimeSinceOTP = () => {
-    if (!otpSentTime) return '';
-    const seconds = Math.floor((new Date().getTime() - otpSentTime.getTime()) / 1000);
-    return `${seconds} seconds ago`;
   };
 
   return (
@@ -260,35 +128,22 @@ export const RealAuthPage: React.FC = () => {
           <p className="text-gray-600">Management Platform</p>
         </div>
 
-        {/* Debug Information */}
-        {debugInfo && (
-          <Alert className={`mb-6 ${debugInfo.status === 'error' ? 'border-red-500' : 'border-blue-500'}`}>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="text-sm">
-              <div className="space-y-1">
-                <div><strong>Status:</strong> {debugInfo.status}</div>
-                <div><strong>Time:</strong> {debugInfo.timestamp}</div>
-                {debugInfo.message && <div><strong>Message:</strong> {debugInfo.message}</div>}
-                {debugInfo.error && <div><strong>Error:</strong> {debugInfo.error}</div>}
-                {debugInfo.phoneNumber && <div><strong>Phone:</strong> {debugInfo.phoneNumber}</div>}
-                {debugInfo.otpCode && <div><strong>Debug OTP:</strong> {debugInfo.otpCode}</div>}
-                {otpSentTime && <div><strong>Sent:</strong> {getTimeSinceOTP()}</div>}
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
         <Card className="shadow-xl border-0">
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center space-x-2">
               <Shield className="h-5 w-5 text-primary" />
               <span>
-                {step === 'otp-verification' ? 'Verify OTP' : 'Secure Login'}
+                {step === 'otp-verification' ? 'Verify OTP' : 
+                 step.startsWith('forgot-') ? 'Reset Password' : 'Secure Login'}
               </span>
             </CardTitle>
             <CardDescription>
-              {step === 'login' && 'Enter your credentials to continue'}
+              {step === 'login' && !forgotPassword && 'Enter your credentials to sign in'}
+              {step === 'login' && forgotPassword && 'Enter your email to reset password'}
               {step === 'otp-verification' && 'Enter the OTP sent to your registered mobile number'}
+              {step === 'forgot-phone' && 'Enter your registered mobile number'}
+              {step === 'forgot-otp' && 'Enter the OTP sent to your mobile'}
+              {step === 'forgot-newPassword' && 'Set your new password'}
             </CardDescription>
           </CardHeader>
           
@@ -302,52 +157,63 @@ export const RealAuthPage: React.FC = () => {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="your.email@iskconbureau.in"
+                      placeholder="your.email@iskcon.org"
                       value={formData.email}
                       onChange={(e) => updateFormData('email', e.target.value)}
                       className="pl-10"
                       required
-                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Enter your password"
-                      value={formData.password}
-                      onChange={(e) => updateFormData('password', e.target.value)}
-                      className="pl-10"
-                      required
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                </div>
+                {!forgotPassword && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder="Enter your password"
+                          value={formData.password}
+                          onChange={(e) => updateFormData('password', e.target.value)}
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="remember"
-                    checked={formData.rememberMe}
-                    onCheckedChange={(checked) => updateFormData('rememberMe', checked as boolean)}
-                    disabled={isSubmitting}
-                  />
-                  <Label htmlFor="remember" className="text-sm">Remember me</Label>
-                </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="remember"
+                        checked={formData.rememberMe}
+                        onCheckedChange={(checked) => updateFormData('rememberMe', checked as boolean)}
+                      />
+                      <Label htmlFor="remember" className="text-sm">Remember me</Label>
+                    </div>
+                  </>
+                )}
                 
                 <Button 
                   type="submit"
-                  disabled={loading || isSubmitting || !formData.email || !formData.password}
+                  disabled={loading}
                   className="w-full bg-primary hover:bg-primary/90"
                 >
-                  {isSubmitting ? 'Sending OTP...' : 'Continue to OTP'}
+                  {loading ? 'Processing...' : forgotPassword ? 'Continue' : 'Continue to OTP'}
                 </Button>
+
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setForgotPassword(!forgotPassword)}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {forgotPassword ? 'Back to Login' : 'Forgot Password?'}
+                  </button>
+                </div>
               </form>
-            ) : (
+            ) : step === 'otp-verification' ? (
               <form onSubmit={handleOTPVerification} className="space-y-6">
                 <div className="space-y-4">
                   <div className="text-center">
@@ -355,17 +221,6 @@ export const RealAuthPage: React.FC = () => {
                     <p className="text-sm text-gray-600">
                       We've sent a 6-digit verification code to your registered mobile number
                     </p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Email: {loginCredentials.email}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Phone: +91***75090
-                    </p>
-                    {storedOTP && (
-                      <p className="text-xs text-blue-600 mt-2">
-                        Debug: If SMS doesn't arrive, the code is: {storedOTP}
-                      </p>
-                    )}
                   </div>
                   
                   <div className="space-y-2">
@@ -375,7 +230,6 @@ export const RealAuthPage: React.FC = () => {
                         maxLength={6}
                         value={formData.otp}
                         onChange={(value) => updateFormData('otp', value)}
-                        disabled={isSubmitting}
                       >
                         <InputOTPGroup>
                           <InputOTPSlot index={0} />
@@ -392,18 +246,17 @@ export const RealAuthPage: React.FC = () => {
                 
                 <Button 
                   type="submit"
-                  disabled={loading || isSubmitting || formData.otp.length !== 6}
+                  disabled={loading || formData.otp.length !== 6}
                   className="w-full bg-primary hover:bg-primary/90"
                 >
-                  {isSubmitting ? 'Verifying...' : 'Verify & Sign In'}
+                  {loading ? 'Verifying...' : 'Verify & Sign In'}
                 </Button>
                 
                 <div className="flex items-center justify-between text-sm">
                   <button
                     type="button"
-                    onClick={resetToLogin}
+                    onClick={() => setStep('login')}
                     className="flex items-center text-gray-600 hover:text-primary"
-                    disabled={isSubmitting}
                   >
                     <ArrowLeft className="h-4 w-4 mr-1" />
                     Back
@@ -412,11 +265,146 @@ export const RealAuthPage: React.FC = () => {
                     type="button"
                     onClick={handleResendOTP}
                     className="text-primary hover:underline"
-                    disabled={isSubmitting}
                   >
-                    {isSubmitting ? 'Sending...' : 'Resend OTP'}
+                    Resend OTP
                   </button>
                 </div>
+              </form>
+            ) : step === 'forgot-phone' ? (
+              <form onSubmit={handleSendForgotOTP} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="+1234567890"
+                      value={formData.phoneNumber}
+                      onChange={(e) => updateFormData('phoneNumber', e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">Enter your registered phone number to receive OTP</p>
+                </div>
+                
+                <Button 
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-primary hover:bg-primary/90"
+                >
+                  {loading ? 'Sending...' : 'Send OTP'}
+                </Button>
+                
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={resetToLogin}
+                    className="text-sm text-gray-600 hover:text-primary"
+                  >
+                    Back to Login
+                  </button>
+                </div>
+              </form>
+            ) : step === 'forgot-otp' ? (
+              <form onSubmit={handleVerifyForgotOTP} className="space-y-6">
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <Phone className="h-8 w-8 text-primary mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">
+                      Enter the 6-digit code sent to {formData.phoneNumber}
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="otp" className="text-center block">Verification Code</Label>
+                    <div className="flex justify-center">
+                      <InputOTP
+                        maxLength={6}
+                        value={formData.otp}
+                        onChange={(value) => updateFormData('otp', value)}
+                      >
+                        <InputOTPGroup>
+                          <InputOTPSlot index={0} />
+                          <InputOTPSlot index={1} />
+                          <InputOTPSlot index={2} />
+                          <InputOTPSlot index={3} />
+                          <InputOTPSlot index={4} />
+                          <InputOTPSlot index={5} />
+                        </InputOTPGroup>
+                      </InputOTP>
+                    </div>
+                  </div>
+                </div>
+                
+                <Button 
+                  type="submit"
+                  disabled={loading || formData.otp.length !== 6}
+                  className="w-full bg-primary hover:bg-primary/90"
+                >
+                  {loading ? 'Verifying...' : 'Verify OTP'}
+                </Button>
+                
+                <div className="flex items-center justify-between text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setStep('forgot-phone')}
+                    className="flex items-center text-gray-600 hover:text-primary"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-1" />
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResendOTP}
+                    className="text-primary hover:underline"
+                  >
+                    Resend OTP
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handlePasswordReset} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      placeholder="Enter new password"
+                      value={formData.newPassword}
+                      onChange={(e) => updateFormData('newPassword', e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Confirm new password"
+                      value={formData.confirmPassword}
+                      onChange={(e) => updateFormData('confirmPassword', e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <Button 
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-primary hover:bg-primary/90"
+                >
+                  {loading ? 'Updating...' : 'Update Password'}
+                </Button>
               </form>
             )}
           </CardContent>

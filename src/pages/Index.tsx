@@ -1,33 +1,33 @@
 
-import React, { Suspense } from 'react';
+import React from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
+import { Dashboard } from '@/components/Dashboard';
+import { MeetingsModule } from '@/components/MeetingsModule';
+import { DocumentsModule } from '@/components/DocumentsModule';
+import { VotingModule } from '@/components/VotingModule';
+import { AttendanceModule } from '@/components/AttendanceModule';
+import { EmailModule } from '@/components/EmailModule';
+import { MembersModule } from '@/components/MembersModule';
+import { ReportsModule } from '@/components/ReportsModule';
+import { SettingsModule } from '@/components/SettingsModule';
 import { RealAuthPage } from '@/components/RealAuthPage';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
-import { useSessionManager } from '@/hooks/useSessionManager';
-
-// Lazy load heavy components
-const Dashboard = React.lazy(() => import('@/components/Dashboard').then(module => ({ default: module.Dashboard })));
-const MeetingsModule = React.lazy(() => import('@/components/MeetingsModule').then(module => ({ default: module.MeetingsModule })));
-const DocumentsModule = React.lazy(() => import('@/components/DocumentsModule').then(module => ({ default: module.DocumentsModule })));
-const VotingModule = React.lazy(() => import('@/components/VotingModule').then(module => ({ default: module.VotingModule })));
-const AttendanceModule = React.lazy(() => import('@/components/AttendanceModule').then(module => ({ default: module.AttendanceModule })));
-const EmailModule = React.lazy(() => import('@/components/EmailModule').then(module => ({ default: module.EmailModule })));
-const MembersModule = React.lazy(() => import('@/components/MembersModule').then(module => ({ default: module.MembersModule })));
-const ReportsModule = React.lazy(() => import('@/components/ReportsModule').then(module => ({ default: module.ReportsModule })));
-const SettingsModule = React.lazy(() => import('@/components/SettingsModule').then(module => ({ default: module.SettingsModule })));
 
 const AppContent = () => {
   const { user, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [currentModule, setCurrentModule] = React.useState('dashboard');
 
-  // Initialize session management (now properly within AuthProvider)
-  useSessionManager();
-
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
@@ -35,40 +35,28 @@ const AppContent = () => {
   }
 
   const renderModule = () => {
-    const ModuleComponent = (() => {
-      switch (currentModule) {
-        case 'dashboard':
-          return Dashboard;
-        case 'meetings':
-          return MeetingsModule;
-        case 'documents':
-          return DocumentsModule;
-        case 'voting':
-          return VotingModule;
-        case 'attendance':
-          return AttendanceModule;
-        case 'email':
-          return EmailModule;
-        case 'members':
-          return MembersModule;
-        case 'reports':
-          return ReportsModule;
-        case 'settings':
-          return SettingsModule;
-        default:
-          return Dashboard;
-      }
-    })();
-
-    return (
-      <Suspense fallback={
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      }>
-        <ModuleComponent />
-      </Suspense>
-    );
+    switch (currentModule) {
+      case 'dashboard':
+        return <Dashboard />;
+      case 'meetings':
+        return <MeetingsModule />;
+      case 'documents':
+        return <DocumentsModule />;
+      case 'voting':
+        return <VotingModule />;
+      case 'attendance':
+        return <AttendanceModule />;
+      case 'email':
+        return <EmailModule />;
+      case 'members':
+        return <MembersModule />;
+      case 'reports':
+        return <ReportsModule />;
+      case 'settings':
+        return <SettingsModule />;
+      default:
+        return <Dashboard />;
+    }
   };
 
   return (

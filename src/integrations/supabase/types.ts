@@ -113,16 +113,11 @@ export type Database = {
           file_size: number | null
           folder: string | null
           id: string
-          is_hidden: boolean | null
-          is_important: boolean | null
           is_shared: boolean | null
-          is_sharepoint_file: boolean | null
           mime_type: string | null
           name: string
           sharepoint_drive_id: string | null
           sharepoint_file_id: string | null
-          sharepoint_id: string | null
-          sharepoint_url: string | null
           updated_at: string | null
           uploaded_by: string
           version: string | null
@@ -133,16 +128,11 @@ export type Database = {
           file_size?: number | null
           folder?: string | null
           id?: string
-          is_hidden?: boolean | null
-          is_important?: boolean | null
           is_shared?: boolean | null
-          is_sharepoint_file?: boolean | null
           mime_type?: string | null
           name: string
           sharepoint_drive_id?: string | null
           sharepoint_file_id?: string | null
-          sharepoint_id?: string | null
-          sharepoint_url?: string | null
           updated_at?: string | null
           uploaded_by: string
           version?: string | null
@@ -153,16 +143,11 @@ export type Database = {
           file_size?: number | null
           folder?: string | null
           id?: string
-          is_hidden?: boolean | null
-          is_important?: boolean | null
           is_shared?: boolean | null
-          is_sharepoint_file?: boolean | null
           mime_type?: string | null
           name?: string
           sharepoint_drive_id?: string | null
           sharepoint_file_id?: string | null
-          sharepoint_id?: string | null
-          sharepoint_url?: string | null
           updated_at?: string | null
           uploaded_by?: string
           version?: string | null
@@ -469,56 +454,6 @@ export type Database = {
         }
         Relationships: []
       }
-      sharepoint_files: {
-        Row: {
-          created_at: string
-          document_id: string | null
-          download_url: string | null
-          drive_id: string
-          etag: string | null
-          id: string
-          item_id: string
-          sharepoint_id: string
-          sharepoint_url: string
-          updated_at: string
-          web_url: string | null
-        }
-        Insert: {
-          created_at?: string
-          document_id?: string | null
-          download_url?: string | null
-          drive_id: string
-          etag?: string | null
-          id?: string
-          item_id: string
-          sharepoint_id: string
-          sharepoint_url: string
-          updated_at?: string
-          web_url?: string | null
-        }
-        Update: {
-          created_at?: string
-          document_id?: string | null
-          download_url?: string | null
-          drive_id?: string
-          etag?: string | null
-          id?: string
-          item_id?: string
-          sharepoint_id?: string
-          sharepoint_url?: string
-          updated_at?: string
-          web_url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sharepoint_files_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_roles: {
         Row: {
           id: string
@@ -537,61 +472,11 @@ export type Database = {
         }
         Relationships: []
       }
-      user_sessions: {
-        Row: {
-          created_at: string
-          device_info: Json | null
-          expires_at: string
-          id: string
-          ip_address: unknown | null
-          last_active: string
-          session_id: string
-          user_agent: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          device_info?: Json | null
-          expires_at?: string
-          id?: string
-          ip_address?: unknown | null
-          last_active?: string
-          session_id: string
-          user_agent?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          device_info?: Json | null
-          expires_at?: string
-          id?: string
-          ip_address?: unknown | null
-          last_active?: string
-          session_id?: string
-          user_agent?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      cleanup_expired_sessions: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      enforce_session_limit: {
-        Args: {
-          _user_id: string
-          _session_id: string
-          _device_info?: Json
-          _ip_address?: unknown
-          _user_agent?: string
-        }
-        Returns: boolean
-      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

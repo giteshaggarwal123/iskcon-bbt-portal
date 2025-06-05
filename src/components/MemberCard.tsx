@@ -40,10 +40,9 @@ interface MemberCardProps {
   member: Member;
   onRoleChange: (memberId: string, newRole: string) => void;
   onDeleteMember: (memberId: string) => void;
-  onRefreshMembers?: () => void;
 }
 
-export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, onDeleteMember, onRefreshMembers }) => {
+export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, onDeleteMember }) => {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const userRole = useUserRole();
@@ -67,21 +66,6 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
 
   const handleDeleteMember = () => {
     onDeleteMember(member.id);
-  };
-
-  const handleSettingsClose = (open: boolean) => {
-    setShowSettingsDialog(open);
-  };
-
-  const handleMemberUpdated = () => {
-    console.log('Member updated, refreshing list...');
-    // Close the dialog
-    setShowSettingsDialog(false);
-    
-    // Refresh the members list to show updated information
-    if (onRefreshMembers) {
-      onRefreshMembers();
-    }
   };
 
   // Role change permissions - enhanced with more granular control
@@ -235,9 +219,8 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
       {canViewSettings && (
         <MemberSettingsDialog 
           open={showSettingsDialog}
-          onOpenChange={handleSettingsClose}
+          onOpenChange={setShowSettingsDialog}
           member={member}
-          onMemberUpdated={handleMemberUpdated}
         />
       )}
 

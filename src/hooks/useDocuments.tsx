@@ -14,11 +14,6 @@ interface Document {
   uploaded_by: string;
   created_at: string;
   updated_at: string;
-  is_important: boolean;
-  is_hidden: boolean;
-  is_sharepoint_file: boolean;
-  sharepoint_id: string | null;
-  sharepoint_url: string | null;
 }
 
 export const useDocuments = () => {
@@ -33,7 +28,7 @@ export const useDocuments = () => {
       const { data, error } = await supabase
         .from('documents')
         .select('*')
-        .order('updated_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       
@@ -56,62 +51,18 @@ export const useDocuments = () => {
   };
 
   const createFolder = async (folderName: string) => {
-    try {
-      // Update folders list immediately
-      if (!folders.includes(folderName)) {
-        setFolders(prev => [...prev, folderName]);
-      }
-
+    // Just add to folders list - folders are created when documents are uploaded to them
+    if (!folders.includes(folderName)) {
+      setFolders(prev => [...prev, folderName]);
       toast({
         title: "Success",
         description: `Folder "${folderName}" created successfully`
       });
-
-      // Refresh documents to show the new folder
-      await fetchDocuments();
-      return folderName;
-    } catch (error: any) {
-      console.error('Error creating folder:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create folder",
-        variant: "destructive"
-      });
-      throw error;
     }
+    return folderName;
   };
 
-  const deleteFolder = async (folderName: string) => {
-    try {
-      // Delete all documents in the folder from database
-      const { error } = await supabase
-        .from('documents')
-        .delete()
-        .eq('folder', folderName);
-
-      if (error) throw error;
-
-      // Update folders list
-      setFolders(prev => prev.filter(f => f !== folderName));
-
-      toast({
-        title: "Success",
-        description: `Folder "${folderName}" and all its contents deleted successfully`
-      });
-
-      // Refresh documents
-      await fetchDocuments();
-    } catch (error: any) {
-      console.error('Error deleting folder:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete folder",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const uploadDocument = async (file: File, folder: string = 'Documents') => {
+  const uploadDocument = async (file: File, folder: string = 'general') => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -122,25 +73,16 @@ export const useDocuments = () => {
     }
 
     try {
-      // For now, we'll just create a document record without actual file upload
-      // In a real implementation, you'd upload to Supabase Storage or another service
-      const document = {
-        name: file.name,
-        file_path: URL.createObjectURL(file), // Temporary URL for demo
-        file_size: file.size,
-        mime_type: file.type,
-        folder: folder,
-        uploaded_by: user.id,
-        is_sharepoint_file: false,
-        sharepoint_id: null,
-        sharepoint_url: null,
-        is_important: false,
-        is_hidden: false
-      };
-
       const { data, error } = await supabase
         .from('documents')
-        .insert(document)
+        .insert({
+          name: file.name,
+          file_path: `/uploads/${folder}/${file.name}`,
+          file_size: file.size,
+          mime_type: file.type,
+          folder: folder,
+          uploaded_by: user.id
+        })
         .select()
         .single();
 
@@ -151,7 +93,7 @@ export const useDocuments = () => {
         description: `Document "${file.name}" uploaded successfully`
       });
 
-      // Refresh documents list
+      // Refresh documents and folders
       fetchDocuments();
       return data;
     } catch (error: any) {
@@ -191,7 +133,6 @@ export const useDocuments = () => {
 
   const deleteDocument = async (documentId: string) => {
     try {
-      // Delete from database
       const { error } = await supabase
         .from('documents')
         .delete()
@@ -226,7 +167,7 @@ export const useDocuments = () => {
         .from('documents')
         .select('*')
         .ilike('name', `%${searchTerm}%`)
-        .order('updated_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setDocuments(data || []);
@@ -250,7 +191,6 @@ export const useDocuments = () => {
     loading,
     uploadDocument,
     deleteDocument,
-    deleteFolder,
     moveDocument,
     createFolder,
     searchDocuments,

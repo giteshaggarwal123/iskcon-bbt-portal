@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from './use-toast';
 
 interface MicrosoftAuthState {
   isConnected: boolean;
@@ -36,14 +36,7 @@ export const useMicrosoftAuth = () => {
         .eq('id', user.id)
         .single();
 
-      if (error) {
-        console.log('No profile found or error:', error);
-        setAuthState({ isConnected: false, isExpired: false, accessToken: null, expiresAt: null });
-        setLoading(false);
-        return;
-      }
-
-      if (!profile?.microsoft_access_token) {
+      if (error || !profile?.microsoft_access_token) {
         setAuthState({ isConnected: false, isExpired: false, accessToken: null, expiresAt: null });
         setLoading(false);
         return;
@@ -57,39 +50,29 @@ export const useMicrosoftAuth = () => {
       if (expiresAt <= fiveMinutesFromNow) {
         console.log('Token expires soon, refreshing...');
         
-        try {
-          const { data, error: refreshError } = await supabase.functions.invoke('refresh-microsoft-token', {
-            body: { user_id: user.id }
-          });
+        const { data, error: refreshError } = await supabase.functions.invoke('refresh-microsoft-token', {
+          body: { user_id: user.id }
+        });
 
-          if (refreshError || data?.error) {
-            console.error('Token refresh failed:', refreshError || data?.error);
-            setAuthState({ 
-              isConnected: true, 
-              isExpired: true, 
-              accessToken: profile.microsoft_access_token, 
-              expiresAt: profile.token_expires_at 
-            });
-            setLoading(false);
-            return;
-          }
-
-          console.log('Token refreshed successfully');
-          setAuthState({ 
-            isConnected: true, 
-            isExpired: false, 
-            accessToken: data.access_token, 
-            expiresAt: data.expires_at 
-          });
-        } catch (refreshError) {
-          console.error('Token refresh failed:', refreshError);
+        if (refreshError || data.error) {
+          console.error('Token refresh failed:', refreshError || data.error);
           setAuthState({ 
             isConnected: true, 
             isExpired: true, 
             accessToken: profile.microsoft_access_token, 
             expiresAt: profile.token_expires_at 
           });
+          setLoading(false);
+          return;
         }
+
+        console.log('Token refreshed successfully');
+        setAuthState({ 
+          isConnected: true, 
+          isExpired: false, 
+          accessToken: data.access_token, 
+          expiresAt: data.expires_at 
+        });
       } else {
         // Token is still valid
         setAuthState({ 
@@ -115,8 +98,6 @@ export const useMicrosoftAuth = () => {
       const interval = setInterval(checkAndRefreshToken, 30 * 60 * 1000);
       
       return () => clearInterval(interval);
-    } else {
-      setLoading(false);
     }
   }, [user]);
 

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,12 +10,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { User, Mail, Phone, Calendar, Shield, Save, Edit } from 'lucide-react';
-import { useUserRole } from '@/hooks/useUserRole';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { User, Mail, Phone, Calendar, Shield } from 'lucide-react';
 
 interface Member {
   id: string;
@@ -31,119 +26,23 @@ interface MemberSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   member: Member;
-  onMemberUpdated?: () => void;
 }
 
 export const MemberSettingsDialog: React.FC<MemberSettingsDialogProps> = ({
   open,
   onOpenChange,
-  member,
-  onMemberUpdated
+  member
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [editedMember, setEditedMember] = useState({
-    first_name: member.first_name,
-    last_name: member.last_name,
-    email: member.email,
-    phone: member.phone || ''
-  });
-
-  const userRole = useUserRole();
-  const { toast } = useToast();
   const joinDate = new Date(member.created_at).toLocaleDateString();
   const primaryRole = member.roles[0] || 'member';
-
-  // Reset edited member when member prop changes
-  React.useEffect(() => {
-    setEditedMember({
-      first_name: member.first_name,
-      last_name: member.last_name,
-      email: member.email,
-      phone: member.phone || ''
-    });
-    setIsEditing(false);
-  }, [member]);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      console.log('Saving member data:', editedMember);
-      console.log('Member ID:', member.id);
-
-      // Update the profile
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          first_name: editedMember.first_name,
-          last_name: editedMember.last_name,
-          email: editedMember.email,
-          phone: editedMember.phone
-        })
-        .eq('id', member.id);
-
-      if (error) {
-        console.error('Supabase update error:', error);
-        throw error;
-      }
-
-      console.log('Member updated successfully');
-
-      toast({
-        title: "Member Updated",
-        description: "Member information has been updated successfully"
-      });
-
-      setIsEditing(false);
-      
-      // Call the callback to refresh member data
-      if (onMemberUpdated) {
-        onMemberUpdated();
-      }
-    } catch (error: any) {
-      console.error('Error updating member:', error);
-      toast({
-        title: "Update Failed",
-        description: error.message || "Failed to update member information",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleCancel = () => {
-    setEditedMember({
-      first_name: member.first_name,
-      last_name: member.last_name,
-      email: member.email,
-      phone: member.phone || ''
-    });
-    setIsEditing(false);
-  };
-
-  // Only super admin can edit all member information including email and phone
-  const canEdit = userRole.isSuperAdmin;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Member Settings</span>
-            {canEdit && !isEditing && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditing(true)}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-            )}
-          </DialogTitle>
+          <DialogTitle>Member Settings</DialogTitle>
           <DialogDescription>
-            {isEditing ? 'Edit member information' : `Manage settings and information for ${member.first_name} ${member.last_name}`}
+            Manage settings and information for {member.first_name} {member.last_name}
           </DialogDescription>
         </DialogHeader>
 
@@ -158,124 +57,67 @@ export const MemberSettingsDialog: React.FC<MemberSettingsDialogProps> = ({
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">First Name</Label>
-                  {isEditing ? (
-                    <Input
-                      value={editedMember.first_name}
-                      onChange={(e) => setEditedMember(prev => ({ ...prev, first_name: e.target.value }))}
-                      className="mt-1"
-                    />
-                  ) : (
-                    <p className="text-gray-900 mt-1">{member.first_name}</p>
-                  )}
+                  <label className="text-sm font-medium text-gray-500">First Name</label>
+                  <p className="text-gray-900">{member.first_name}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Last Name</Label>
-                  {isEditing ? (
-                    <Input
-                      value={editedMember.last_name}
-                      onChange={(e) => setEditedMember(prev => ({ ...prev, last_name: e.target.value }))}
-                      className="mt-1"
-                    />
-                  ) : (
-                    <p className="text-gray-900 mt-1">{member.last_name}</p>
-                  )}
+                  <label className="text-sm font-medium text-gray-500">Last Name</label>
+                  <p className="text-gray-900">{member.last_name}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Email</Label>
-                  {isEditing ? (
-                    <Input
-                      type="email"
-                      value={editedMember.email}
-                      onChange={(e) => setEditedMember(prev => ({ ...prev, email: e.target.value }))}
-                      className="mt-1"
-                    />
-                  ) : (
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Mail className="h-4 w-4" />
-                      <span className="text-gray-900">{member.email}</span>
-                    </div>
-                  )}
+                  <label className="text-sm font-medium text-gray-500">Email</label>
+                  <p className="text-gray-900 flex items-center space-x-2">
+                    <Mail className="h-4 w-4" />
+                    <span>{member.email}</span>
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Phone</Label>
-                  {isEditing ? (
-                    <Input
-                      type="tel"
-                      value={editedMember.phone}
-                      onChange={(e) => setEditedMember(prev => ({ ...prev, phone: e.target.value }))}
-                      className="mt-1"
-                      placeholder="Enter phone number"
-                    />
-                  ) : (
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Phone className="h-4 w-4" />
-                      <span className="text-gray-900">{member.phone || 'Not provided'}</span>
-                    </div>
-                  )}
+                  <label className="text-sm font-medium text-gray-500">Phone</label>
+                  <p className="text-gray-900 flex items-center space-x-2">
+                    <Phone className="h-4 w-4" />
+                    <span>{member.phone || 'Not provided'}</span>
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Join Date</Label>
-                  <div className="flex items-center space-x-2 mt-1">
+                  <label className="text-sm font-medium text-gray-500">Join Date</label>
+                  <p className="text-gray-900 flex items-center space-x-2">
                     <Calendar className="h-4 w-4" />
-                    <span className="text-gray-900">{joinDate}</span>
-                  </div>
+                    <span>{joinDate}</span>
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Role</Label>
-                  <div className="flex items-center space-x-2 mt-1">
+                  <label className="text-sm font-medium text-gray-500">Role</label>
+                  <p className="text-gray-900 flex items-center space-x-2">
                     <Shield className="h-4 w-4" />
                     <Badge>{primaryRole}</Badge>
-                  </div>
+                  </p>
                 </div>
               </div>
-
-              {isEditing && (
-                <div className="flex space-x-2 pt-4 border-t">
-                  <Button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="flex items-center space-x-2"
-                  >
-                    <Save className="h-4 w-4" />
-                    <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleCancel}
-                    disabled={isSaving}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              )}
             </CardContent>
           </Card>
 
-          {!isEditing && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Actions</CardTitle>
-                <CardDescription>
-                  Manage account settings and permissions
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start">
-                  Reset Password
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  Suspend Account
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  View Activity Log
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  Export Data
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Actions</CardTitle>
+              <CardDescription>
+                Manage account settings and permissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button variant="outline" className="w-full justify-start">
+                Reset Password
+              </Button>
+              <Button variant="outline" className="w-full justify-start">
+                Suspend Account
+              </Button>
+              <Button variant="outline" className="w-full justify-start">
+                View Activity Log
+              </Button>
+              <Button variant="outline" className="w-full justify-start">
+                Export Data
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </DialogContent>
     </Dialog>

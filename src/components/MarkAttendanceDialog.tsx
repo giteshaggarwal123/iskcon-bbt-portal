@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -5,11 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { UserCheck, Calendar, Clock, MapPin, Video, AlertTriangle } from 'lucide-react';
+import { UserCheck, Calendar, Clock, MapPin, Video } from 'lucide-react';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useMembers } from '@/hooks/useMembers';
-import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 
@@ -29,7 +29,6 @@ export const MarkAttendanceDialog: React.FC<MarkAttendanceDialogProps> = ({ open
   const { markAttendance } = useAttendance();
   const { meetings } = useMeetings();
   const { members } = useMembers();
-  const { isConnected } = useMicrosoftAuth();
   const { user } = useAuth();
 
   // Filter meetings to show today's and recent meetings
@@ -114,13 +113,6 @@ export const MarkAttendanceDialog: React.FC<MarkAttendanceDialogProps> = ({ open
         </DialogHeader>
         
         <div className="space-y-6">
-          {!isConnected && (
-            <div className="flex items-center space-x-2 text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
-              <AlertTriangle className="h-4 w-4" />
-              <span className="text-sm">Connect your Microsoft account for enhanced meeting features</span>
-            </div>
-          )}
-
           {/* Meeting Selection */}
           <div className="space-y-2">
             <Label htmlFor="meeting">Select Meeting</Label>
