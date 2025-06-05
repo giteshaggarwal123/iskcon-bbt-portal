@@ -6,19 +6,34 @@ import { Bell, Settings, LogOut, User, Menu } from 'lucide-react';
 import { NotificationsDialog } from './NotificationsDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useNotifications } from '@/hooks/useNotifications';
 
 interface HeaderProps {
   onMenuClick?: () => void;
   onProfileClick?: () => void;
   onSettingsClick?: () => void;
+  onNavigate?: (module: string, id?: string) => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onMenuClick, onProfileClick, onSettingsClick }) => {
+export const Header: React.FC<HeaderProps> = ({ 
+  onMenuClick, 
+  onProfileClick, 
+  onSettingsClick,
+  onNavigate 
+}) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const { user, signOut } = useAuth();
   const isMobile = useIsMobile();
+  const { getUnreadCount } = useNotifications();
 
-  const unreadNotifications = 3;
+  const unreadNotifications = getUnreadCount();
+
+  const handleNotificationNavigation = (module: string, id?: string) => {
+    setShowNotifications(false);
+    if (onNavigate) {
+      onNavigate(module, id);
+    }
+  };
 
   return (
     <>
@@ -90,7 +105,8 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, onProfileClick, onS
       {/* Dialogs */}
       <NotificationsDialog 
         open={showNotifications} 
-        onOpenChange={setShowNotifications} 
+        onOpenChange={setShowNotifications}
+        onNavigate={handleNotificationNavigation}
       />
     </>
   );

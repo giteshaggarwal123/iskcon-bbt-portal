@@ -59,6 +59,12 @@ const AppContent = () => {
     }
   };
 
+  const handleNavigateFromNotification = (module: string, id?: string) => {
+    setCurrentModule(module);
+    // You can use the id here to scroll to or highlight specific items
+    console.log(`Navigating to ${module}${id ? ` with ID: ${id}` : ''}`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar 
@@ -68,7 +74,10 @@ const AppContent = () => {
         onModuleChange={setCurrentModule}
       />
       <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <Header 
+          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+          onNavigate={handleNavigateFromNotification}
+        />
         <main className="p-6">
           {renderModule()}
         </main>
