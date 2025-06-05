@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { FileText, Upload, Search, Download, Trash2, Eye, Plus, Folder, Move, Edit, Copy, Star, StarOff } from 'lucide-react';
+import { FileText, Upload, Search, Download, Trash2, Eye, Plus, Folder, Move, Edit, Copy, Star, StarOff, RefreshCw } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -50,13 +50,12 @@ export const DocumentsModule: React.FC = () => {
   const { user } = useAuth();
   const { canDeleteContent, isSuperAdmin } = useUserRole();
   const { toast } = useToast();
-  const { openSharePointFile, downloadFromSharePoint, isConnected } = useSharePoint();
+  const { openSharePointFile, downloadFromSharePoint, isConnected, syncWithSharePoint } = useSharePoint();
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [renameDocumentId, setRenameDocumentId] = useState<string | null>(null);
   const [newDocumentName, setNewDocumentName] = useState('');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'type'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
@@ -125,54 +124,27 @@ export const DocumentsModule: React.FC = () => {
       return;
     }
 
-    await uploadDocument(selectedFile, 'general');
+    if (!isConnected) {
+      toast({
+        title: "Microsoft Account Required",
+        description: "Please connect your Microsoft account to upload files",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await uploadDocument(selectedFile, 'Documents');
     setSelectedFile(null);
     setUploadDialogOpen(false);
   };
 
   const handleViewDocument = (document: any) => {
     trackDocumentView(document.id);
-    
-    if (document.is_sharepoint_file && document.sharepoint_url) {
-      // Open SharePoint file directly
-      openSharePointFile(document.id);
-    } else {
-      // Create a blob URL for the file (demo purposes for non-SharePoint files)
-      const blob = new Blob([`This is a demo file: ${document.name}`], { type: document.mime_type || 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      
-      // Open in new tab
-      window.open(url, '_blank');
-      
-      toast({
-        title: "Document Opened",
-        description: `Opening "${document.name}". Document view has been tracked.`
-      });
-    }
+    openSharePointFile(document.id);
   };
 
   const handleDownloadDocument = (document: any) => {
-    if (document.is_sharepoint_file) {
-      // Download from SharePoint
-      downloadFromSharePoint(document.id);
-    } else {
-      // Create a blob for download (demo purposes for non-SharePoint files)
-      const blob = new Blob([`This is a demo file: ${document.name}`], { type: document.mime_type || 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = document.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      toast({
-        title: "Download Started",
-        description: `Downloading "${document.name}"`
-      });
-    }
+    downloadFromSharePoint(document.id);
   };
 
   const handleDeleteDocument = async (documentId: string) => {
@@ -231,6 +203,9 @@ export const DocumentsModule: React.FC = () => {
           mime_type: document.mime_type,
           folder: document.folder,
           uploaded_by: user?.id || document.uploaded_by,
+          is_sharepoint_file: true,
+          sharepoint_id: document.sharepoint_id,
+          sharepoint_url: document.sharepoint_url
         });
 
       if (error) throw error;
@@ -399,6 +374,20 @@ export const DocumentsModule: React.FC = () => {
     );
   }
 
+  if (!isConnected) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Microsoft Account Required</h3>
+          <p className="text-gray-500 mb-4">
+            Please connect your Microsoft account to access SharePoint document management
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -406,12 +395,20 @@ export const DocumentsModule: React.FC = () => {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-gray-900">Documents</h1>
           <p className="text-gray-600">
-            Manage bureau documents and files • {filteredAndSortedDocuments.length} documents
-            {isConnected && <span className="text-green-600 ml-2">• SharePoint Connected</span>}
+            Manage SharePoint documents with real-time sync • {filteredAndSortedDocuments.length} documents
+            <span className="text-green-600 ml-2">• SharePoint Connected</span>
           </p>
         </div>
         
         <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            onClick={syncWithSharePoint}
+            className="flex items-center space-x-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>Sync</span>
+          </Button>
           <CreateFolderDialog 
             onFolderCreated={handleFolderCreated}
             onFolderDeleted={handleFolderDeleted}
@@ -421,15 +418,14 @@ export const DocumentsModule: React.FC = () => {
             <DialogTrigger asChild>
               <Button className="flex items-center space-x-2">
                 <Plus className="h-4 w-4" />
-                <span>Upload Document</span>
+                <span>Upload to SharePoint</span>
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Upload New Document</DialogTitle>
+                <DialogTitle>Upload to SharePoint</DialogTitle>
                 <DialogDescription>
-                  Select any file to upload to the bureau document library
-                  {isConnected && <span className="text-green-600 block mt-1">Files will be stored in SharePoint</span>}
+                  Select a file to upload to SharePoint with real-time sync
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -453,7 +449,7 @@ export const DocumentsModule: React.FC = () => {
                   </Button>
                   <Button onClick={handleUpload} disabled={!selectedFile}>
                     <Upload className="h-4 w-4 mr-2" />
-                    Upload
+                    Upload to SharePoint
                   </Button>
                 </div>
               </div>
@@ -467,7 +463,7 @@ export const DocumentsModule: React.FC = () => {
         <div className="flex-1 relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Search documents..."
+            placeholder="Search SharePoint documents..."
             value={searchTerm}
             onChange={(e) => handleSearch(e.target.value)}
             className="pl-10"
@@ -514,7 +510,7 @@ export const DocumentsModule: React.FC = () => {
                   <SelectValue placeholder="Choose a folder" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="general">General</SelectItem>
+                  <SelectItem value="Documents">Documents</SelectItem>
                   {folders.map((folder) => (
                     <SelectItem key={folder} value={folder}>
                       {folder}
@@ -535,7 +531,7 @@ export const DocumentsModule: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Documents Display - List View Only */}
+      {/* Documents Table */}
       <Card>
         <Table>
           <TableHeader>
@@ -607,10 +603,8 @@ export const DocumentsModule: React.FC = () => {
                             <div className="font-medium">{document.name}</div>
                           )}
                           <div className="text-sm text-gray-500 capitalize flex items-center space-x-2">
-                            <span>{(document.folder || 'general')}</span>
-                            {document.is_sharepoint_file && (
-                              <span className="text-xs bg-green-100 text-green-800 px-1 rounded">SharePoint</span>
-                            )}
+                            <span>{(document.folder || 'Documents')}</span>
+                            <span className="text-xs bg-green-100 text-green-800 px-1 rounded">SharePoint</span>
                           </div>
                         </div>
                       </div>
@@ -673,12 +667,7 @@ export const DocumentsModule: React.FC = () => {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Document</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Are you sure you want to delete "{document.name}"? This action cannot be undone.
-                                  {document.is_sharepoint_file && (
-                                    <span className="block mt-2 text-orange-600">
-                                      This will also delete the file from SharePoint.
-                                    </span>
-                                  )}
+                                  Are you sure you want to delete "{document.name}"? This will permanently delete the file from SharePoint and cannot be undone.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -687,7 +676,7 @@ export const DocumentsModule: React.FC = () => {
                                   onClick={() => handleDeleteDocument(document.id)}
                                   className="bg-red-600 hover:bg-red-700"
                                 >
-                                  Delete
+                                  Delete from SharePoint
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -701,7 +690,7 @@ export const DocumentsModule: React.FC = () => {
                 <ContextMenuContent>
                   <ContextMenuItem onClick={() => handleViewDocument(document)}>
                     <Eye className="h-4 w-4 mr-2" />
-                    {document.is_sharepoint_file ? 'Open in SharePoint' : 'View Document'}
+                    Open in SharePoint
                   </ContextMenuItem>
                   <ContextMenuItem onClick={() => handleDownloadDocument(document)}>
                     <Download className="h-4 w-4 mr-2" />
@@ -737,7 +726,7 @@ export const DocumentsModule: React.FC = () => {
                       className="text-red-600"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
+                      Delete from SharePoint
                     </ContextMenuItem>
                   )}
                 </ContextMenuContent>
@@ -752,12 +741,12 @@ export const DocumentsModule: React.FC = () => {
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
           <p className="text-gray-500 mb-4">
-            {searchTerm ? 'Try adjusting your search criteria' : 'Get started by uploading your first document'}
+            {searchTerm ? 'Try adjusting your search criteria' : 'Get started by uploading your first document to SharePoint'}
           </p>
           {!searchTerm && (
             <Button onClick={() => setUploadDialogOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />
-              Upload Document
+              Upload to SharePoint
             </Button>
           )}
         </div>

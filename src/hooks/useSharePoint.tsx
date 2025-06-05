@@ -129,7 +129,7 @@ export const useSharePoint = () => {
       const url = URL.createObjectURL(blob);
       
       // Get document name
-      const { data: document } = await supabase
+      const { data: documentData } = await supabase
         .from('documents')
         .select('name')
         .eq('id', documentId)
@@ -137,7 +137,7 @@ export const useSharePoint = () => {
 
       const link = document.createElement('a');
       link.href = url;
-      link.download = document?.name || 'download';
+      link.download = documentData?.name || 'download';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -215,7 +215,7 @@ export const useSharePoint = () => {
   const openSharePointFile = async (documentId: string) => {
     try {
       // Get SharePoint file metadata
-      const { data: document, error } = await supabase
+      const { data: documentData, error } = await supabase
         .from('documents')
         .select('sharepoint_url, name')
         .eq('id', documentId)
@@ -223,13 +223,13 @@ export const useSharePoint = () => {
 
       if (error) throw error;
 
-      if (document.sharepoint_url) {
+      if (documentData.sharepoint_url) {
         // Open SharePoint file in new tab
-        window.open(document.sharepoint_url, '_blank');
+        window.open(documentData.sharepoint_url, '_blank');
         
         toast({
           title: "Opening File",
-          description: `Opening "${document.name}" in SharePoint`
+          description: `Opening "${documentData.name}" in SharePoint`
         });
       } else {
         throw new Error('SharePoint URL not found');
@@ -245,12 +245,90 @@ export const useSharePoint = () => {
     }
   };
 
+  const syncWithSharePoint = async () => {
+    if (!isConnected || !accessToken) {
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('sharepoint-integration', {
+        body: {
+          action: 'list',
+          folder: 'Documents'
+        }
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      // Sync files with local database
+      for (const file of data.files) {
+        const { data: existing } = await supabase
+          .from('documents')
+          .select('id')
+          .eq('sharepoint_id', file.id)
+          .single();
+
+        if (!existing) {
+          // Create new document record
+          const { data: document } = await supabase
+            .from('documents')
+            .insert({
+              name: file.name,
+              file_path: file.webUrl,
+              file_size: file.size,
+              mime_type: 'application/octet-stream',
+              folder: 'Documents',
+              uploaded_by: user?.id || '',
+              is_sharepoint_file: true,
+              sharepoint_id: file.id,
+              sharepoint_url: file.webUrl,
+              is_important: false,
+              is_hidden: false
+            })
+            .select()
+            .single();
+
+          if (document) {
+            // Create SharePoint file record
+            await supabase
+              .from('sharepoint_files')
+              .insert({
+                document_id: document.id,
+                sharepoint_id: file.id,
+                sharepoint_url: file.webUrl,
+                download_url: file.downloadUrl,
+                web_url: file.webUrl,
+                drive_id: file.driveId,
+                item_id: file.itemId,
+                etag: file.etag
+              });
+          }
+        }
+      }
+
+      toast({
+        title: "Sync Complete",
+        description: "Documents synced with SharePoint"
+      });
+
+    } catch (error: any) {
+      console.error('SharePoint sync error:', error);
+      toast({
+        title: "Sync Failed",
+        description: "Failed to sync with SharePoint",
+        variant: "destructive"
+      });
+    }
+  };
+
   return {
     loading,
     isConnected,
     uploadToSharePoint,
     downloadFromSharePoint,
     deleteFromSharePoint,
-    openSharePointFile
+    openSharePointFile,
+    syncWithSharePoint
   };
 };
