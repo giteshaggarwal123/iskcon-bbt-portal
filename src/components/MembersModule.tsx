@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,7 @@ export const MembersModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
   const [showCreateAdminAuthDialog, setShowCreateAdminAuthDialog] = useState(false);
-  const { members, loading, addMember, updateMemberRole, deleteMember, searchMembers } = useMembers();
+  const { members, loading, addMember, updateMemberRole, deleteMember, searchMembers, fetchMembers } = useMembers();
   const userRole = useUserRole();
 
   // Use the search function from the hook
@@ -75,6 +76,12 @@ export const MembersModule: React.FC = () => {
     a.download = 'members-export.csv';
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  // Handle refresh members - this will be called when member settings are updated
+  const handleRefreshMembers = () => {
+    console.log('Refreshing members list...');
+    fetchMembers();
   };
 
   if (loading) {
@@ -149,6 +156,7 @@ export const MembersModule: React.FC = () => {
                   member={member} 
                   onRoleChange={updateMemberRole}
                   onDeleteMember={deleteMember}
+                  onRefreshMembers={handleRefreshMembers}
                 />
               ))}
             </div>
@@ -216,6 +224,7 @@ export const MembersModule: React.FC = () => {
           onOpenChange={setShowAddMemberDialog}
           onMemberAdded={() => {
             setShowAddMemberDialog(false);
+            handleRefreshMembers();
           }}
         />
       )}
