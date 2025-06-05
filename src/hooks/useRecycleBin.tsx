@@ -62,8 +62,6 @@ export const useRecycleBin = () => {
         title: "Success",
         description: `"${documentName}" has been restored`
       });
-
-      fetchRecycleBinItems();
     } catch (error: any) {
       console.error('Error restoring document:', error);
       toast({
@@ -87,8 +85,6 @@ export const useRecycleBin = () => {
         title: "Success",
         description: `"${documentName}" has been permanently deleted`
       });
-
-      fetchRecycleBinItems();
     } catch (error: any) {
       console.error('Error permanently deleting document:', error);
       toast({
@@ -104,7 +100,6 @@ export const useRecycleBin = () => {
       const { error } = await supabase.rpc('cleanup_expired_recycle_bin');
       if (error) throw error;
       
-      fetchRecycleBinItems();
       toast({
         title: "Success",
         description: "Expired items have been cleaned up"
@@ -127,8 +122,29 @@ export const useRecycleBin = () => {
     return Math.max(0, diffDays);
   };
 
+  // Set up realtime subscription for auto-refresh
   useEffect(() => {
     fetchRecycleBinItems();
+
+    const channel = supabase
+      .channel('recycle-bin-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'recycle_bin'
+        },
+        (payload) => {
+          console.log('Recycle bin changed:', payload);
+          fetchRecycleBinItems();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return {

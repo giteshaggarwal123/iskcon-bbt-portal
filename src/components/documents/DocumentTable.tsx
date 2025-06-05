@@ -156,7 +156,10 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                     size="sm" 
                     variant="outline" 
                     className="h-8 px-2"
-                    onClick={() => onViewDocument(document)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewDocument(document);
+                    }}
                   >
                     <Eye className="h-3 w-3 mr-1" />
                     View
@@ -165,7 +168,10 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                     size="sm" 
                     variant="outline" 
                     className="h-8 px-2"
-                    onClick={() => onDownloadDocument(document)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownloadDocument(document);
+                    }}
                   >
                     <Download className="h-3 w-3 mr-1" />
                     Download
@@ -184,18 +190,29 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
-                        onClick={() => onToggleImportant(document.id, document.is_important)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleImportant(document.id, document.is_important);
+                        }}
                       >
                         <Star className="h-4 w-4 mr-2" />
                         {document.is_important ? 'Unmark Important' : 'Mark Important'}
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        onClick={() => onRenameDocument(document)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRenameDocument(document);
+                        }}
                       >
                         <Edit className="h-4 w-4 mr-2" />
                         Rename
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onCopyDocument(document.id)}>
+                      <DropdownMenuItem 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCopyDocument(document.id);
+                        }}
+                      >
                         <Copy className="h-4 w-4 mr-2" />
                         Copy
                       </DropdownMenuItem>
@@ -208,23 +225,26 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                               onSelect={(e) => e.preventDefault()}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
+                              Move to Trash
                             </DropdownMenuItem>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Document</AlertDialogTitle>
+                              <AlertDialogTitle>Move to Recycle Bin</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete "{document.name}"? This action cannot be undone.
+                                Are you sure you want to move "{document.name}" to the recycle bin? You can restore it from Settings > Recycle Bin within 30 days.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction 
-                                onClick={() => onDeleteDocument(document.id, document.name)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteDocument(document.id, document.name);
+                                }}
                                 className="bg-red-600 hover:bg-red-700"
                               >
-                                Delete
+                                Move to Trash
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>

@@ -95,8 +95,6 @@ export const useDocuments = () => {
         description: `Document "${file.name}" uploaded successfully`
       });
 
-      // Refresh documents and folders
-      fetchDocuments();
       return data;
     } catch (error: any) {
       console.error('Error uploading document:', error);
@@ -121,8 +119,6 @@ export const useDocuments = () => {
         title: "Success",
         description: "Document moved successfully"
       });
-
-      fetchDocuments();
     } catch (error: any) {
       console.error('Error moving document:', error);
       toast({
@@ -151,20 +147,9 @@ export const useDocuments = () => {
       });
 
       if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Document moved to recycle bin"
-      });
-
-      fetchDocuments();
     } catch (error: any) {
       console.error('Error deleting document:', error);
-      toast({
-        title: "Delete Failed",
-        description: error.message || "Failed to move document to recycle bin",
-        variant: "destructive"
-      });
+      throw error;
     }
   };
 

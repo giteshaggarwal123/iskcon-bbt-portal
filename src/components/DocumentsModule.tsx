@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { FileText, Upload } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
@@ -37,6 +38,48 @@ export const DocumentsModule: React.FC = () => {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [userProfiles, setUserProfiles] = useState<{[key: string]: {first_name: string, last_name: string}}>({});
+
+  // Auto-refresh setup with realtime subscriptions
+  useEffect(() => {
+    // Set up realtime subscription for documents table
+    const documentsChannel = supabase
+      .channel('documents-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'documents'
+        },
+        (payload) => {
+          console.log('Documents table changed:', payload);
+          fetchDocuments();
+        }
+      )
+      .subscribe();
+
+    // Set up realtime subscription for recycle_bin table
+    const recycleBinChannel = supabase
+      .channel('recycle-bin-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'recycle_bin'
+        },
+        (payload) => {
+          console.log('Recycle bin changed:', payload);
+          fetchDocuments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(documentsChannel);
+      supabase.removeChannel(recycleBinChannel);
+    };
+  }, [fetchDocuments]);
 
   // Fetch user profiles for displaying names
   useEffect(() => {
@@ -88,7 +131,7 @@ export const DocumentsModule: React.FC = () => {
         description: `Document ${!currentStatus ? 'marked as important' : 'unmarked as important'}`
       });
 
-      fetchDocuments();
+      // No need to manually refresh - realtime will handle it
     } catch (error: any) {
       toast({
         title: "Update Failed",
@@ -116,7 +159,7 @@ export const DocumentsModule: React.FC = () => {
 
       setRenameDialogOpen(false);
       setSelectedDocument(null);
-      fetchDocuments();
+      // No need to manually refresh - realtime will handle it
     } catch (error: any) {
       toast({
         title: "Rename Failed",
@@ -149,7 +192,7 @@ export const DocumentsModule: React.FC = () => {
         description: "Document has been copied successfully"
       });
 
-      fetchDocuments();
+      // No need to manually refresh - realtime will handle it
     } catch (error: any) {
       toast({
         title: "Copy Failed",
@@ -166,8 +209,7 @@ export const DocumentsModule: React.FC = () => {
         title: "Document Moved to Recycle Bin",
         description: `"${documentName}" has been moved to the recycle bin. You can restore it from Settings > Recycle Bin within 30 days.`
       });
-      // Auto-refresh after delete
-      fetchDocuments();
+      // No need to manually refresh - realtime will handle it
     } catch (error: any) {
       toast({
         title: "Delete Failed",
