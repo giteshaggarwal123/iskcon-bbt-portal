@@ -92,12 +92,12 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
           {existingFolders.length > 0 && (
             <div>
               <Label htmlFor="parentFolder">Parent Folder (Optional)</Label>
-              <Select value={parentFolderId || ''} onValueChange={(value) => setParentFolderId(value || undefined)}>
+              <Select value={parentFolderId || 'root'} onValueChange={(value) => setParentFolderId(value === 'root' ? undefined : value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select parent folder (or leave empty for root)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Root (No parent)</SelectItem>
+                  <SelectItem value="root">Root (No parent)</SelectItem>
                   {existingFolders.map(folder => (
                     <SelectItem key={folder.id} value={folder.id}>
                       {folder.name}
