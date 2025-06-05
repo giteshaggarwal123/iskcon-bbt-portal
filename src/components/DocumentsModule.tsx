@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Upload, FolderPlus } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useFolders } from '@/hooks/useFolders';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { DocumentTable } from './documents/DocumentTable';
 import { DocumentFilters } from './documents/DocumentFilters';
-import { DocumentUploadDialog } from './documents/DocumentUploadDialog';
 import { DocumentRenameDialog } from './documents/DocumentRenameDialog';
 import { FolderManagement } from './folders/FolderManagement';
-import { Button } from '@/components/ui/button';
+import { DocumentHeader } from './documents/DocumentHeader';
+import { DocumentContent } from './documents/DocumentContent';
+import { useDocumentManager } from './documents/DocumentManager';
 
 interface Document {
   id: string;
@@ -29,8 +28,8 @@ interface Document {
 }
 
 export const DocumentsModule: React.FC = () => {
-  const { documents, loading, uploadDocument, deleteDocument, moveDocument, fetchDocuments } = useDocuments();
-  const { folders, createFolder } = useFolders();
+  const { documents, loading, uploadDocument, deleteDocument } = useDocuments();
+  const { folders } = useFolders();
   const { user } = useAuth();
   const { isSuperAdmin, canDeleteContent } = useUserRole();
   const { toast } = useToast();
@@ -40,9 +39,15 @@ export const DocumentsModule: React.FC = () => {
   const [peopleFilter, setPeopleFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [userProfiles, setUserProfiles] = useState<{[key: string]: {first_name: string, last_name: string}}>({});
+
+  const {
+    renameDialogOpen,
+    setRenameDialogOpen,
+    selectedDocument,
+    setSelectedDocument,
+    handleRename
+  } = useDocumentManager({ user });
 
   // Fetch user profiles for displaying names
   useEffect(() => {
@@ -95,33 +100,6 @@ export const DocumentsModule: React.FC = () => {
       toast({
         title: "Update Failed",
         description: error.message || "Failed to update document",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleRename = async (newName: string) => {
-    if (!selectedDocument || !newName.trim()) return;
-
-    try {
-      const { error } = await supabase
-        .from('documents')
-        .update({ name: newName, updated_at: new Date().toISOString() })
-        .eq('id', selectedDocument.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Document Renamed",
-        description: "Document has been renamed successfully"
-      });
-
-      setRenameDialogOpen(false);
-      setSelectedDocument(null);
-    } catch (error: any) {
-      toast({
-        title: "Rename Failed",
-        description: error.message || "Failed to rename document",
         variant: "destructive"
       });
     }
@@ -291,18 +269,11 @@ export const DocumentsModule: React.FC = () => {
       {/* Main content */}
       <div className="flex-1 p-6 space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-start">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-gray-900">Document Repository</h1>
-            <p className="text-gray-600">
-              {getCurrentFolderName()} • {filteredDocuments.length} documents
-            </p>
-          </div>
-          
-          <div className="flex space-x-2">
-            <DocumentUploadDialog onUpload={handleUpload} />
-          </div>
-        </div>
+        <DocumentHeader 
+          currentFolderName={getCurrentFolderName()}
+          documentCount={filteredDocuments.length}
+          onUpload={handleUpload}
+        />
 
         {/* Filters */}
         <DocumentFilters
@@ -319,39 +290,28 @@ export const DocumentsModule: React.FC = () => {
           onDateFilterChange={setDateFilter}
         />
 
-        {/* Documents Table */}
-        {filteredDocuments.length === 0 ? (
-          <div className="bg-white rounded-lg border">
-            <div className="text-center py-12">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
-              <p className="text-gray-500 mb-4">
-                {searchTerm || typeFilter !== 'all' || peopleFilter !== 'all' || dateFilter !== 'all'
-                  ? 'Try adjusting your search or filter criteria'
-                  : `No documents in ${getCurrentFolderName()} folder. Upload your first document to get started.`}
-              </p>
-              {!searchTerm && (
-                <DocumentUploadDialog onUpload={handleUpload} />
-              )}
-            </div>
-          </div>
-        ) : (
-          <DocumentTable
-            documents={filteredDocuments}
-            userProfiles={userProfiles}
-            currentUserId={user?.id}
-            canDeleteDocument={canDeleteDocument}
-            onViewDocument={handleViewDocument}
-            onDownloadDocument={handleDownloadDocument}
-            onToggleImportant={handleToggleImportant}
-            onRenameDocument={(document) => {
-              setSelectedDocument(document);
-              setRenameDialogOpen(true);
-            }}
-            onCopyDocument={handleCopyDocument}
-            onDeleteDocument={handleDeleteDocument}
-          />
-        )}
+        {/* Documents Content */}
+        <DocumentContent
+          filteredDocuments={filteredDocuments}
+          userProfiles={userProfiles}
+          currentUserId={user?.id}
+          canDeleteDocument={canDeleteDocument}
+          onViewDocument={handleViewDocument}
+          onDownloadDocument={handleDownloadDocument}
+          onToggleImportant={handleToggleImportant}
+          onRenameDocument={(document) => {
+            setSelectedDocument(document);
+            setRenameDialogOpen(true);
+          }}
+          onCopyDocument={handleCopyDocument}
+          onDeleteDocument={handleDeleteDocument}
+          onUpload={handleUpload}
+          searchTerm={searchTerm}
+          typeFilter={typeFilter}
+          peopleFilter={peopleFilter}
+          dateFilter={dateFilter}
+          getCurrentFolderName={getCurrentFolderName}
+        />
 
         {/* Rename Dialog */}
         <DocumentRenameDialog
