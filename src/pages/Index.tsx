@@ -65,6 +65,14 @@ const AppContent = () => {
     console.log(`Navigating to ${module}${id ? ` with ID: ${id}` : ''}`);
   };
 
+  const handleProfileClick = () => {
+    setCurrentModule('settings');
+  };
+
+  const handleSettingsClick = () => {
+    setCurrentModule('settings');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar 
@@ -76,6 +84,8 @@ const AppContent = () => {
       <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
         <Header 
           onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+          onProfileClick={handleProfileClick}
+          onSettingsClick={handleSettingsClick}
           onNavigate={handleNavigateFromNotification}
         />
         <main className="p-6">

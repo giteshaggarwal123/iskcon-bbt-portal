@@ -8,11 +8,13 @@ import {
   Mail, 
   Clock,
   User,
-  Check
+  Check,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Button } from '@/components/ui/button';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -33,7 +35,7 @@ const allMenuItems = [
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModuleChange, onClose }) => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const userRole = useUserRole();
   const isMobile = useIsMobile();
 
@@ -52,6 +54,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModul
 
   const handleItemClick = (itemId: string) => {
     onModuleChange(itemId);
+    if (isMobile) {
+      onClose();
+    }
+  };
+
+  const handleLogout = () => {
+    signOut();
     if (isMobile) {
       onClose();
     }
@@ -95,6 +104,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModul
               {item.label}
             </button>
           ))}
+          
+          {/* Logout Button */}
+          <Button
+            onClick={handleLogout}
+            variant="ghost"
+            className="w-full flex items-center justify-start px-4 py-3 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors mt-4"
+          >
+            <LogOut className="mr-3 h-5 w-5" />
+            Logout
+          </Button>
         </nav>
 
         {/* User Profile Section */}

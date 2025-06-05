@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bell, Settings, LogOut, User, Menu } from 'lucide-react';
+import { Bell, Settings, User, Menu } from 'lucide-react';
 import { NotificationsDialog } from './NotificationsDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -22,16 +22,27 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate 
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   const { getUnreadCount } = useNotifications();
 
   const unreadNotifications = getUnreadCount();
 
+  // Get user's name for personalized greeting
+  const userName = user?.user_metadata?.first_name 
+    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim()
+    : user?.email?.split('@')[0] || 'Devotee';
+
   const handleNotificationNavigation = (module: string, id?: string) => {
     setShowNotifications(false);
     if (onNavigate) {
       onNavigate(module, id);
+    }
+  };
+
+  const handleProfileClick = () => {
+    if (onProfileClick) {
+      onProfileClick();
     }
   };
 
@@ -51,7 +62,14 @@ export const Header: React.FC<HeaderProps> = ({
               </Button>
             )}
             {!isMobile && (
-              <h1 className="text-xl font-semibold text-gray-900">ISKCON Bureau Management</h1>
+              <h1 className="text-xl font-semibold text-gray-900">
+                Hare Krishna, {userName}
+              </h1>
+            )}
+            {isMobile && (
+              <h1 className="text-lg font-semibold text-gray-900">
+                Hare Krishna
+              </h1>
             )}
           </div>
 
@@ -75,7 +93,8 @@ export const Header: React.FC<HeaderProps> = ({
             <Button
               variant="ghost"
               size="icon"
-              onClick={onProfileClick}
+              onClick={handleProfileClick}
+              className="relative"
             >
               <Avatar className="h-8 w-8">
                 <AvatarImage src="/placeholder.svg" />
@@ -92,11 +111,6 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={onSettingsClick}
             >
               <Settings className="h-4 w-4" />
-            </Button>
-
-            {/* Logout */}
-            <Button variant="ghost" size="icon" onClick={signOut}>
-              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>
