@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,10 +22,12 @@ export const RealAuthPage: React.FC = () => {
   const [storedOTP, setStoredOTP] = useState('');
   const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '', rememberMe: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
   const handleInitialLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setDebugInfo('Starting OTP request...');
     
     try {
       // Store credentials for later use
@@ -37,15 +38,20 @@ export const RealAuthPage: React.FC = () => {
       });
       
       console.log('Sending OTP for email:', formData.email);
+      setDebugInfo('Calling sendLoginOTP function...');
       
       // Send OTP for verification
       const { error, otp } = await sendLoginOTP(formData.email);
       
+      console.log('SendLoginOTP response:', { error, otp });
+      setDebugInfo(`Response received - Error: ${error ? error.message : 'None'}, OTP: ${otp ? 'Received' : 'Not received'}`);
+      
       if (error) {
         console.error('Failed to send OTP:', error);
+        setDebugInfo(`Error: ${error.message || 'Unknown error'}`);
         toast({
           title: "Failed to send OTP",
-          description: "Please check your email and try again.",
+          description: error.details || error.message || "Please check your email and try again.",
           variant: "destructive"
         });
         return;
@@ -55,13 +61,22 @@ export const RealAuthPage: React.FC = () => {
         console.log('OTP sent successfully, received OTP:', otp);
         setStoredOTP(otp);
         setStep('otp-verification');
+        setDebugInfo(`OTP sent successfully! Check your phone for: ${otp}`);
         toast({
           title: "OTP Sent",
           description: "Please check your phone for the verification code."
         });
+      } else {
+        setDebugInfo('No OTP received in response');
+        toast({
+          title: "No OTP received",
+          description: "Please try again or contact support.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Error in login process:', error);
+      setDebugInfo(`Catch error: ${error}`);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -144,30 +159,39 @@ export const RealAuthPage: React.FC = () => {
     setFormData(prev => ({ ...prev, otp: '' }));
     setStoredOTP('');
     setIsSubmitting(false);
+    setDebugInfo('');
   };
 
   const handleResendOTP = async () => {
     setIsSubmitting(true);
+    setDebugInfo('Resending OTP...');
     try {
       console.log('Resending OTP for:', loginCredentials.email);
       const { error, otp } = await sendLoginOTP(loginCredentials.email);
+      
+      console.log('Resend OTP response:', { error, otp });
+      setDebugInfo(`Resend response - Error: ${error ? error.message : 'None'}, OTP: ${otp ? 'Received' : 'Not received'}`);
+      
       if (!error && otp) {
         console.log('OTP resent successfully, new OTP:', otp);
         setStoredOTP(otp);
         setFormData(prev => ({ ...prev, otp: '' }));
+        setDebugInfo(`New OTP sent: ${otp}`);
         toast({
           title: "OTP Resent",
           description: "A new verification code has been sent to your phone."
         });
       } else {
+        setDebugInfo(`Resend failed: ${error?.message || 'Unknown error'}`);
         toast({
           title: "Failed to resend OTP",
-          description: "Please try again.",
+          description: error?.details || "Please try again.",
           variant: "destructive"
         });
       }
     } catch (error) {
       console.error('Error resending OTP:', error);
+      setDebugInfo(`Resend catch error: ${error}`);
       toast({
         title: "Error",
         description: "Failed to resend OTP. Please try again.",
@@ -193,6 +217,15 @@ export const RealAuthPage: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">ISKCON Bureau</h1>
           <p className="text-gray-600">Management Platform</p>
         </div>
+
+        {/* Debug Info */}
+        {debugInfo && (
+          <Card className="mb-4 border-blue-200 bg-blue-50">
+            <CardContent className="p-3">
+              <p className="text-sm text-blue-800">Debug: {debugInfo}</p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="shadow-xl border-0">
           <CardHeader className="text-center">
@@ -275,7 +308,7 @@ export const RealAuthPage: React.FC = () => {
                       Email: {loginCredentials.email}
                     </p>
                     {storedOTP && (
-                      <p className="text-xs text-blue-600 mt-1">
+                      <p className="text-xs text-blue-600 mt-1 font-mono">
                         Expected OTP: {storedOTP} (For testing only)
                       </p>
                     )}
