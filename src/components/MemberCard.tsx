@@ -71,8 +71,11 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
 
   const handleSettingsClose = (open: boolean) => {
     setShowSettingsDialog(open);
-    if (!open && onRefreshMembers) {
-      // Refresh members when dialog closes to show updated data
+  };
+
+  const handleMemberUpdated = () => {
+    console.log('Member updated, refreshing list...');
+    if (onRefreshMembers) {
       onRefreshMembers();
     }
   };
@@ -230,6 +233,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
           open={showSettingsDialog}
           onOpenChange={handleSettingsClose}
           member={member}
+          onMemberUpdated={handleMemberUpdated}
         />
       )}
 

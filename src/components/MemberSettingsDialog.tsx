@@ -31,12 +31,14 @@ interface MemberSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   member: Member;
+  onMemberUpdated?: () => void;
 }
 
 export const MemberSettingsDialog: React.FC<MemberSettingsDialogProps> = ({
   open,
   onOpenChange,
-  member
+  member,
+  onMemberUpdated
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -66,6 +68,9 @@ export const MemberSettingsDialog: React.FC<MemberSettingsDialogProps> = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      console.log('Saving member data:', editedMember);
+      console.log('Member ID:', member.id);
+
       // Update the profile
       const { error } = await supabase
         .from('profiles')
@@ -78,8 +83,11 @@ export const MemberSettingsDialog: React.FC<MemberSettingsDialogProps> = ({
         .eq('id', member.id);
 
       if (error) {
+        console.error('Supabase update error:', error);
         throw error;
       }
+
+      console.log('Member updated successfully');
 
       toast({
         title: "Member Updated",
@@ -87,8 +95,16 @@ export const MemberSettingsDialog: React.FC<MemberSettingsDialogProps> = ({
       });
 
       setIsEditing(false);
-      // Close dialog to refresh the member list
-      onOpenChange(false);
+      
+      // Call the callback to refresh member data
+      if (onMemberUpdated) {
+        onMemberUpdated();
+      }
+      
+      // Close dialog after a short delay to allow the toast to show
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 500);
     } catch (error: any) {
       console.error('Error updating member:', error);
       toast({
