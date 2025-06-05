@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,42 +29,67 @@ export const Dashboard: React.FC = () => {
     pollsCount: 0
   });
 
-  const { meetings, loading: meetingsLoading } = useMeetings();
-  const { members, loading: membersLoading } = useMembers();
-  const { documents, loading: documentsLoading } = useDocuments();
-  const { emails, loading: emailsLoading } = useEmails();
+  const { meetings = [], loading: meetingsLoading } = useMeetings();
+  const { members = [], loading: membersLoading } = useMembers();
+  const { documents = [], loading: documentsLoading } = useDocuments();
+  const { emails = [], loading: emailsLoading } = useEmails();
 
-  // Fetch additional stats
+  // Memoize expensive calculations
+  const { activeMeetingsCount, recentMeetings, recentDocuments, recentEmails, unreadEmailsCount } = useMemo(() => {
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    
+    const activeMeetings = meetings.filter(meeting => {
+      const meetingDate = new Date(meeting.start_time);
+      return meetingDate >= todayStart && meetingDate < todayEnd;
+    }).length;
+
+    const sortedMeetings = meetings
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+      .slice(0, 3);
+
+    const sortedDocuments = documents
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 3);
+
+    const sortedEmails = emails
+      .sort((a, b) => new Date(b.receivedDateTime).getTime() - new Date(a.receivedDateTime).getTime())
+      .slice(0, 3);
+
+    const unreadCount = emails.filter(email => !email.isRead).length;
+
+    return {
+      activeMeetingsCount: activeMeetings,
+      recentMeetings: sortedMeetings,
+      recentDocuments: sortedDocuments,
+      recentEmails: sortedEmails,
+      unreadEmailsCount: unreadCount
+    };
+  }, [meetings, documents, emails]);
+
+  // Fetch additional stats with debouncing
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     const fetchStats = async () => {
       try {
-        // Fetch emails count from Supabase (sent emails)
-        const { count: emailsCount } = await supabase
-          .from('emails')
-          .select('*', { count: 'exact', head: true });
+        // Use Promise.allSettled to prevent one failure from blocking others
+        const [emailsResult, pollsResult] = await Promise.allSettled([
+          supabase.from('emails').select('*', { count: 'exact', head: true }),
+          supabase.from('polls').select('*', { count: 'exact', head: true })
+        ]);
 
-        // Fetch polls count
-        const { count: pollsCount } = await supabase
-          .from('polls')
-          .select('*', { count: 'exact', head: true });
-
-        // Calculate active meetings (today's meetings)
-        const today = new Date();
-        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-        
-        const activeMeetings = meetings.filter(meeting => {
-          const meetingDate = new Date(meeting.start_time);
-          return meetingDate >= todayStart && meetingDate < todayEnd;
-        }).length;
+        const emailsCount = emailsResult.status === 'fulfilled' ? emailsResult.value.count || 0 : 0;
+        const pollsCount = pollsResult.status === 'fulfilled' ? pollsResult.value.count || 0 : 0;
 
         setStats({
           totalMembers: members.length,
-          activeMeetings,
+          activeMeetings: activeMeetingsCount,
           documentsCount: documents.length,
-          emailsCount: emailsCount || 0,
-          inboxEmailsCount: emails.length, // Outlook inbox emails
-          pollsCount: pollsCount || 0
+          emailsCount,
+          inboxEmailsCount: emails.length,
+          pollsCount
         });
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
@@ -73,47 +97,24 @@ export const Dashboard: React.FC = () => {
     };
 
     if (!meetingsLoading && !membersLoading && !documentsLoading && !emailsLoading) {
-      fetchStats();
+      // Debounce the fetch to prevent excessive calls
+      timeoutId = setTimeout(fetchStats, 300);
     }
-  }, [meetings, members, documents, emails, meetingsLoading, membersLoading, documentsLoading, emailsLoading]);
 
-  // Set up real-time subscriptions for live updates
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [meetings.length, members.length, documents.length, emails.length, activeMeetingsCount, meetingsLoading, membersLoading, documentsLoading, emailsLoading]);
+
+  // Simplified real-time subscriptions
   useEffect(() => {
     const channels = [
       supabase
-        .channel('meetings-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, () => {
-          // Refresh stats when meetings change
-          setStats(prev => ({ ...prev }));
-        })
-        .subscribe(),
-
-      supabase
-        .channel('members-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-          // Refresh stats when members change
-          setStats(prev => ({ ...prev }));
-        })
-        .subscribe(),
-
-      supabase
-        .channel('documents-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'documents' }, () => {
-          // Refresh stats when documents change
-          setStats(prev => ({ ...prev }));
-        })
-        .subscribe(),
-
-      supabase
-        .channel('emails-changes')
+        .channel('stats-updates')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'emails' }, async () => {
           const { count } = await supabase.from('emails').select('*', { count: 'exact', head: true });
           setStats(prev => ({ ...prev, emailsCount: count || 0 }));
         })
-        .subscribe(),
-
-      supabase
-        .channel('polls-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, async () => {
           const { count } = await supabase.from('polls').select('*', { count: 'exact', head: true });
           setStats(prev => ({ ...prev, pollsCount: count || 0 }));
@@ -126,31 +127,13 @@ export const Dashboard: React.FC = () => {
     };
   }, []);
 
-  // Auto-refresh inbox emails every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!emailsLoading) {
-        // This will trigger a refresh of the emails hook
-        setStats(prev => ({ ...prev, inboxEmailsCount: emails.length }));
-      }
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(interval);
-  }, [emails.length, emailsLoading]);
-
-  const recentMeetings = meetings
-    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-    .slice(0, 3);
-
-  const recentDocuments = documents
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 3);
-
-  const recentEmails = emails
-    .sort((a, b) => new Date(b.receivedDateTime).getTime() - new Date(a.receivedDateTime).getTime())
-    .slice(0, 3);
-
-  const unreadEmailsCount = emails.filter(email => !email.isRead).length;
+  if (meetingsLoading || membersLoading || documentsLoading || emailsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

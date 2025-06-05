@@ -1,5 +1,5 @@
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -35,8 +35,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Fetch user profile when user is set
-  const fetchUserProfile = async (userId: string) => {
+  // Memoized function to fetch user profile
+  const fetchUserProfile = useCallback(async (userId: string) => {
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
@@ -53,9 +53,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error('Profile fetch error:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    let mounted = true;
+
     // Get initial session
     const getInitialSession = async () => {
       try {
@@ -65,7 +67,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.error('Error getting session:', error);
         }
         
-        if (session) {
+        if (mounted && session) {
           setSession(session);
           setUser(session.user);
           await fetchUserProfile(session.user.id);
@@ -73,7 +75,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (error) {
         console.error('Error in getInitialSession:', error);
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -82,6 +86,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
+        
         console.log('Auth state changed:', event, session?.user?.email);
         
         setSession(session);
@@ -97,8 +103,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [fetchUserProfile]);
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string, phone?: string) => {
     try {
@@ -284,7 +293,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { error } = await supabase.auth.signOut();
       
-      // Clear local state regardless of error
+      // Clear local state immediately
       setSession(null);
       setUser(null);
       setUserProfile(null);
