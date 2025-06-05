@@ -116,10 +116,13 @@ export type Database = {
           is_hidden: boolean | null
           is_important: boolean | null
           is_shared: boolean | null
+          is_sharepoint_file: boolean | null
           mime_type: string | null
           name: string
           sharepoint_drive_id: string | null
           sharepoint_file_id: string | null
+          sharepoint_id: string | null
+          sharepoint_url: string | null
           updated_at: string | null
           uploaded_by: string
           version: string | null
@@ -133,10 +136,13 @@ export type Database = {
           is_hidden?: boolean | null
           is_important?: boolean | null
           is_shared?: boolean | null
+          is_sharepoint_file?: boolean | null
           mime_type?: string | null
           name: string
           sharepoint_drive_id?: string | null
           sharepoint_file_id?: string | null
+          sharepoint_id?: string | null
+          sharepoint_url?: string | null
           updated_at?: string | null
           uploaded_by: string
           version?: string | null
@@ -150,10 +156,13 @@ export type Database = {
           is_hidden?: boolean | null
           is_important?: boolean | null
           is_shared?: boolean | null
+          is_sharepoint_file?: boolean | null
           mime_type?: string | null
           name?: string
           sharepoint_drive_id?: string | null
           sharepoint_file_id?: string | null
+          sharepoint_id?: string | null
+          sharepoint_url?: string | null
           updated_at?: string | null
           uploaded_by?: string
           version?: string | null
@@ -459,6 +468,56 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      sharepoint_files: {
+        Row: {
+          created_at: string
+          document_id: string | null
+          download_url: string | null
+          drive_id: string
+          etag: string | null
+          id: string
+          item_id: string
+          sharepoint_id: string
+          sharepoint_url: string
+          updated_at: string
+          web_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_id?: string | null
+          download_url?: string | null
+          drive_id: string
+          etag?: string | null
+          id?: string
+          item_id: string
+          sharepoint_id: string
+          sharepoint_url: string
+          updated_at?: string
+          web_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_id?: string | null
+          download_url?: string | null
+          drive_id?: string
+          etag?: string | null
+          id?: string
+          item_id?: string
+          sharepoint_id?: string
+          sharepoint_url?: string
+          updated_at?: string
+          web_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sharepoint_files_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

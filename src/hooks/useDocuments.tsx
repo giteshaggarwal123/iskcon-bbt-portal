@@ -1,7 +1,9 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { useSharePoint } from './useSharePoint';
 
 interface Document {
   id: string;
@@ -15,6 +17,9 @@ interface Document {
   updated_at: string;
   is_important: boolean;
   is_hidden: boolean;
+  is_sharepoint_file: boolean;
+  sharepoint_id: string | null;
+  sharepoint_url: string | null;
 }
 
 export const useDocuments = () => {
@@ -23,6 +28,7 @@ export const useDocuments = () => {
   const [folders, setFolders] = useState<string[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { uploadToSharePoint, deleteFromSharePoint, isConnected } = useSharePoint();
 
   const fetchDocuments = async () => {
     try {
@@ -97,6 +103,21 @@ export const useDocuments = () => {
 
   const deleteFolder = async (folderName: string) => {
     try {
+      // Get all documents in the folder
+      const { data: folderDocs, error: fetchError } = await supabase
+        .from('documents')
+        .select('id, is_sharepoint_file')
+        .eq('folder', folderName);
+
+      if (fetchError) throw fetchError;
+
+      // Delete SharePoint files first
+      for (const doc of folderDocs || []) {
+        if (doc.is_sharepoint_file && isConnected) {
+          await deleteFromSharePoint(doc.id);
+        }
+      }
+
       // Delete all documents in the folder
       const { error } = await supabase
         .from('documents')
@@ -136,33 +157,47 @@ export const useDocuments = () => {
     }
 
     try {
-      // For demo purposes, we'll store file metadata only
-      // In a real implementation, you'd upload to storage first
-      const { data, error } = await supabase
-        .from('documents')
-        .insert({
-          name: file.name,
-          file_path: `/uploads/${folder}/${file.name}`,
-          file_size: file.size,
-          mime_type: file.type,
-          folder: folder,
-          uploaded_by: user.id,
-          is_important: false,
-          is_hidden: false
-        })
-        .select()
-        .single();
+      let document;
 
-      if (error) throw error;
+      // Try SharePoint upload first if connected
+      if (isConnected) {
+        document = await uploadToSharePoint(file, folder);
+        if (document) {
+          toast({
+            title: "Success",
+            description: `Document "${file.name}" uploaded to SharePoint successfully`
+          });
+        }
+      } else {
+        // Fallback to local storage
+        const { data, error } = await supabase
+          .from('documents')
+          .insert({
+            name: file.name,
+            file_path: `/uploads/${folder}/${file.name}`,
+            file_size: file.size,
+            mime_type: file.type,
+            folder: folder,
+            uploaded_by: user.id,
+            is_important: false,
+            is_hidden: false,
+            is_sharepoint_file: false
+          })
+          .select()
+          .single();
 
-      toast({
-        title: "Success",
-        description: `Document "${file.name}" uploaded successfully`
-      });
+        if (error) throw error;
+        document = data;
+
+        toast({
+          title: "Success",
+          description: `Document "${file.name}" uploaded successfully (local storage)`
+        });
+      }
 
       // Refresh documents and folders
       fetchDocuments();
-      return data;
+      return document;
     } catch (error: any) {
       console.error('Error uploading document:', error);
       toast({
@@ -200,6 +235,22 @@ export const useDocuments = () => {
 
   const deleteDocument = async (documentId: string) => {
     try {
+      // Check if it's a SharePoint file
+      const { data: document, error: fetchError } = await supabase
+        .from('documents')
+        .select('is_sharepoint_file')
+        .eq('id', documentId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Delete from SharePoint if it's a SharePoint file
+      if (document.is_sharepoint_file && isConnected) {
+        const deleted = await deleteFromSharePoint(documentId);
+        if (!deleted) return;
+      }
+
+      // Delete from database
       const { error } = await supabase
         .from('documents')
         .delete()

@@ -43,12 +43,14 @@ import { useToast } from '@/hooks/use-toast';
 import { DocumentAnalytics } from './DocumentAnalytics';
 import { CreateFolderDialog } from './CreateFolderDialog';
 import { supabase } from '@/integrations/supabase/client';
+import { useSharePoint } from '@/hooks/useSharePoint';
 
 export const DocumentsModule: React.FC = () => {
   const { documents, folders, loading, uploadDocument, deleteDocument, deleteFolder, moveDocument, createFolder, searchDocuments, fetchDocuments } = useDocuments();
   const { user } = useAuth();
   const { canDeleteContent, isSuperAdmin } = useUserRole();
   const { toast } = useToast();
+  const { openSharePointFile, downloadFromSharePoint, isConnected } = useSharePoint();
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -131,36 +133,46 @@ export const DocumentsModule: React.FC = () => {
   const handleViewDocument = (document: any) => {
     trackDocumentView(document.id);
     
-    // Create a blob URL for the file (demo purposes)
-    const blob = new Blob([`This is a demo file: ${document.name}`], { type: document.mime_type || 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    
-    // Open in new tab
-    window.open(url, '_blank');
-    
-    toast({
-      title: "Document Opened",
-      description: `Opening "${document.name}". Document view has been tracked.`
-    });
+    if (document.is_sharepoint_file && document.sharepoint_url) {
+      // Open SharePoint file directly
+      openSharePointFile(document.id);
+    } else {
+      // Create a blob URL for the file (demo purposes for non-SharePoint files)
+      const blob = new Blob([`This is a demo file: ${document.name}`], { type: document.mime_type || 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      
+      // Open in new tab
+      window.open(url, '_blank');
+      
+      toast({
+        title: "Document Opened",
+        description: `Opening "${document.name}". Document view has been tracked.`
+      });
+    }
   };
 
   const handleDownloadDocument = (document: any) => {
-    // Create a blob for download (demo purposes)
-    const blob = new Blob([`This is a demo file: ${document.name}`], { type: document.mime_type || 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = document.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    toast({
-      title: "Download Started",
-      description: `Downloading "${document.name}"`
-    });
+    if (document.is_sharepoint_file) {
+      // Download from SharePoint
+      downloadFromSharePoint(document.id);
+    } else {
+      // Create a blob for download (demo purposes for non-SharePoint files)
+      const blob = new Blob([`This is a demo file: ${document.name}`], { type: document.mime_type || 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = document.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download Started",
+        description: `Downloading "${document.name}"`
+      });
+    }
   };
 
   const handleDeleteDocument = async (documentId: string) => {
@@ -395,6 +407,7 @@ export const DocumentsModule: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Documents</h1>
           <p className="text-gray-600">
             Manage bureau documents and files • {filteredAndSortedDocuments.length} documents
+            {isConnected && <span className="text-green-600 ml-2">• SharePoint Connected</span>}
           </p>
         </div>
         
@@ -416,6 +429,7 @@ export const DocumentsModule: React.FC = () => {
                 <DialogTitle>Upload New Document</DialogTitle>
                 <DialogDescription>
                   Select any file to upload to the bureau document library
+                  {isConnected && <span className="text-green-600 block mt-1">Files will be stored in SharePoint</span>}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -592,8 +606,11 @@ export const DocumentsModule: React.FC = () => {
                           ) : (
                             <div className="font-medium">{document.name}</div>
                           )}
-                          <div className="text-sm text-gray-500 capitalize">
-                            {(document.folder || 'general')}
+                          <div className="text-sm text-gray-500 capitalize flex items-center space-x-2">
+                            <span>{(document.folder || 'general')}</span>
+                            {document.is_sharepoint_file && (
+                              <span className="text-xs bg-green-100 text-green-800 px-1 rounded">SharePoint</span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -657,6 +674,11 @@ export const DocumentsModule: React.FC = () => {
                                 <AlertDialogTitle>Delete Document</AlertDialogTitle>
                                 <AlertDialogDescription>
                                   Are you sure you want to delete "{document.name}"? This action cannot be undone.
+                                  {document.is_sharepoint_file && (
+                                    <span className="block mt-2 text-orange-600">
+                                      This will also delete the file from SharePoint.
+                                    </span>
+                                  )}
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -679,7 +701,7 @@ export const DocumentsModule: React.FC = () => {
                 <ContextMenuContent>
                   <ContextMenuItem onClick={() => handleViewDocument(document)}>
                     <Eye className="h-4 w-4 mr-2" />
-                    View Document
+                    {document.is_sharepoint_file ? 'Open in SharePoint' : 'View Document'}
                   </ContextMenuItem>
                   <ContextMenuItem onClick={() => handleDownloadDocument(document)}>
                     <Download className="h-4 w-4 mr-2" />
