@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, Paperclip, ExternalLink, Copy } from 'lucide-react';
+import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, Paperclip, ExternalLink, Copy, AlertTriangle } from 'lucide-react';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 import { ViewAgendaDialog } from './ViewAgendaDialog';
 import { ManageAttendeesDialog } from './ManageAttendeesDialog';
@@ -11,6 +11,7 @@ import { CheckInDialog } from './CheckInDialog';
 import { PostMeetingDialog } from './PostMeetingDialog';
 import { CalendarView } from './CalendarView';
 import { useMeetings } from '@/hooks/useMeetings';
+import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, compareAsc, compareDesc } from 'date-fns';
 
@@ -24,6 +25,7 @@ export const MeetingsModule: React.FC = () => {
   const [preselectedDate, setPreselectedDate] = useState<Date | undefined>(undefined);
   
   const { meetings, loading, deleteMeeting, fetchMeetings } = useMeetings();
+  const { isConnected, loading: authLoading } = useMicrosoftAuth();
   const { toast } = useToast();
 
   // Filter and sort meetings properly by date and time
@@ -87,6 +89,14 @@ export const MeetingsModule: React.FC = () => {
   };
 
   const handleAttachFiles = (meeting: any) => {
+    if (!isConnected) {
+      toast({
+        title: "Microsoft Account Required",
+        description: "Please connect your Microsoft account to attach files to meetings",
+        variant: "destructive"
+      });
+      return;
+    }
     // This will be implemented with file attachment functionality
     alert(`Attach files to ${meeting.title}`);
   };
@@ -138,7 +148,7 @@ export const MeetingsModule: React.FC = () => {
     return now >= hourBeforeStart && now <= start;
   };
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -154,13 +164,21 @@ export const MeetingsModule: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">Meeting Management</h1>
             <p className="text-gray-600">Schedule, track, and manage all ISKCON meetings with Teams integration</p>
           </div>
-          <Button 
-            className="bg-primary hover:bg-primary/90"
-            onClick={() => setShowScheduleDialog(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Schedule Meeting
-          </Button>
+          <div className="flex items-center space-x-4">
+            {!isConnected && (
+              <div className="flex items-center space-x-2 text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-sm">Connect Microsoft account for full features</span>
+              </div>
+            )}
+            <Button 
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => setShowScheduleDialog(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Schedule Meeting
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="upcoming" className="space-y-6">
