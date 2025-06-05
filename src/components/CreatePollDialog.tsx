@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Calendar, Plus, X, Trash2 } from 'lucide-react';
+import { Calendar, Plus, X, Trash2, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface CreatePollDialogProps {
@@ -25,13 +25,14 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ open, onOpen
     title: '',
     description: '',
     deadline: '',
-    isSecret: true,
     notifyMembers: true
   });
 
   const [subPolls, setSubPolls] = useState<SubPoll[]>([
     { id: '1', title: '', description: '' }
   ]);
+
+  const [attachment, setAttachment] = useState<File | null>(null);
 
   const addSubPoll = () => {
     const newSubPoll: SubPoll = {
@@ -54,6 +55,24 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ open, onOpen
     ));
   };
 
+  const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file type (PDF, DOC, DOCX)
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (allowedTypes.includes(file.type)) {
+        setAttachment(file);
+      } else {
+        alert('Please select a PDF, DOC, or DOCX file.');
+        e.target.value = '';
+      }
+    }
+  };
+
+  const removeAttachment = () => {
+    setAttachment(null);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -66,7 +85,13 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ open, onOpen
 
     console.log('Creating poll:', {
       ...formData,
-      subPolls: validSubPolls
+      subPolls: validSubPolls,
+      attachment: attachment ? {
+        name: attachment.name,
+        size: attachment.size,
+        type: attachment.type
+      } : null,
+      isSecret: true // Always true - anonymous voting
     });
     
     // Poll creation logic here
@@ -77,10 +102,10 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ open, onOpen
       title: '',
       description: '',
       deadline: '',
-      isSecret: true,
       notifyMembers: true
     });
     setSubPolls([{ id: '1', title: '', description: '' }]);
+    setAttachment(null);
   };
 
   return (
@@ -133,6 +158,54 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ open, onOpen
                 className="pl-10"
                 required
               />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="attachment">Supporting Document (Optional)</Label>
+            <div className="mt-2">
+              {!attachment ? (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <div className="text-sm text-gray-600 mb-2">
+                    Upload a supporting document (PDF, DOC, DOCX)
+                  </div>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleAttachmentChange}
+                    className="hidden"
+                    id="attachment-input"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => document.getElementById('attachment-input')?.click()}
+                  >
+                    Choose File
+                  </Button>
+                </div>
+              ) : (
+                <div className="border border-gray-300 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm">{attachment.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {(attachment.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={removeAttachment}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -201,18 +274,6 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ open, onOpen
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label htmlFor="secret">Secret Ballot</Label>
-                <p className="text-sm text-gray-500">Hide individual votes from other members</p>
-              </div>
-              <Switch
-                id="secret"
-                checked={formData.isSecret}
-                onCheckedChange={(checked) => setFormData({ ...formData, isSecret: checked })}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
                 <Label htmlFor="notify">Notify Members</Label>
                 <p className="text-sm text-gray-500">Send notification to all eligible voters</p>
               </div>
@@ -227,10 +288,10 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ open, onOpen
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 className="font-medium text-blue-900 mb-2">Voting Rules</h4>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Minimum 75% participation required for validity</li>
               <li>• Members must vote on each question: For, Against, or Abstain</li>
               <li>• Votes cannot be changed once submitted</li>
               <li>• Each question is evaluated independently</li>
+              <li>• Voting is anonymous - individual choices are hidden from other members</li>
             </ul>
           </div>
 
