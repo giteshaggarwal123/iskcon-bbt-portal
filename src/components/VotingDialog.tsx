@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,12 +7,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { CheckCircle, XCircle, MinusCircle, Vote } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useVoting } from '@/hooks/useVoting';
+import { Poll } from '@/hooks/usePolls';
 
 interface VotingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  poll: any;
-  voteType?: 'favor' | 'against' | 'abstain';
+  poll: Poll | null;
 }
 
 interface SubPollVote {
@@ -23,13 +24,17 @@ interface SubPollVote {
 export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, poll }) => {
   const [comment, setComment] = useState('');
   const [subPollVotes, setSubPollVotes] = useState<SubPollVote[]>([]);
+  const [eligibility, setEligibility] = useState<{ canVote: boolean; reason: string | null }>({ canVote: true, reason: null });
+  
+  const { submitVotes, checkVotingEligibility, submitting } = useVoting();
 
-  // Mock sub-polls data - in real implementation, this would come from the poll object
-  const subPolls = poll?.subPolls || [
-    { id: '1', title: 'Approve budget increase', description: 'Increase temple expansion budget by ₹20 lakhs' },
-    { id: '2', title: 'Approve timeline extension', description: 'Extend project completion deadline by 3 months' },
-    { id: '3', title: 'Approve contractor selection', description: 'Select the recommended contractor for the project' }
-  ];
+  useEffect(() => {
+    if (poll && open) {
+      checkVotingEligibility(poll.id).then(setEligibility);
+      setSubPollVotes([]);
+      setComment('');
+    }
+  }, [poll, open, checkVotingEligibility]);
 
   const handleSubPollVote = (subPollId: string, vote: 'favor' | 'against' | 'abstain') => {
     setSubPollVotes(prev => {
@@ -46,26 +51,27 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
     return subPollVotes.find(v => v.subPollId === subPollId)?.vote;
   };
 
-  const allSubPollsVoted = subPolls.every(subPoll => 
+  const allSubPollsVoted = poll?.sub_polls?.every(subPoll => 
     subPollVotes.some(vote => vote.subPollId === subPoll.id)
-  );
+  ) || false;
 
-  const handleSubmit = () => {
-    if (!allSubPollsVoted) {
+  const handleSubmit = async () => {
+    if (!poll || !allSubPollsVoted) {
       alert('Please vote on all questions before submitting.');
       return;
     }
 
-    console.log('Votes submitted:', { 
-      pollId: poll?.id, 
-      votes: subPollVotes, 
-      comment 
+    const success = await submitVotes({
+      pollId: poll.id,
+      votes: subPollVotes,
+      comment: comment.trim() || undefined
     });
-    
-    // Submit vote logic here
-    onOpenChange(false);
-    setSubPollVotes([]);
-    setComment('');
+
+    if (success) {
+      onOpenChange(false);
+      setSubPollVotes([]);
+      setComment('');
+    }
   };
 
   const getVoteIcon = (voteType: string) => {
@@ -111,11 +117,17 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
             <p className="text-sm text-gray-600">{poll.description}</p>
           </div>
 
-          {subPolls.length > 0 && (
+          {!eligibility.canVote && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-800 font-medium">Cannot vote: {eligibility.reason}</p>
+            </div>
+          )}
+
+          {eligibility.canVote && poll.sub_polls && poll.sub_polls.length > 0 && (
             <div className="space-y-4">
               <h4 className="font-medium text-gray-900">Questions to Vote On:</h4>
               
-              {subPolls.map((subPoll, index) => (
+              {poll.sub_polls.map((subPoll, index) => (
                 <Card key={subPoll.id} className="border-2">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center justify-between">
@@ -130,6 +142,7 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                     <RadioGroup 
                       value={getSubPollVote(subPoll.id) || ''} 
                       onValueChange={(value) => handleSubPollVote(subPoll.id, value as any)}
+                      disabled={!eligibility.canVote}
                     >
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="favor" id={`${subPoll.id}-favor`} />
@@ -159,7 +172,7 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
             </div>
           )}
 
-          {subPollVotes.length > 0 && (
+          {eligibility.canVote && subPollVotes.length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="font-medium text-blue-900 mb-2">Your Vote Summary</h4>
               <div className="grid grid-cols-3 gap-4 text-sm">
@@ -177,21 +190,23 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                 </div>
               </div>
               <div className="mt-2 text-center text-sm text-blue-800">
-                {subPollVotes.length} of {subPolls.length} questions answered
+                {subPollVotes.length} of {poll.sub_polls?.length || 0} questions answered
               </div>
             </div>
           )}
 
-          <div>
-            <Label className="text-sm font-medium">Optional Comment</Label>
-            <Textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Add any comments about your votes (optional)..."
-              rows={3}
-              className="mt-2"
-            />
-          </div>
+          {eligibility.canVote && (
+            <div>
+              <Label className="text-sm font-medium">Optional Comment</Label>
+              <Textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Add any comments about your votes (optional)..."
+                rows={3}
+                className="mt-2"
+              />
+            </div>
+          )}
 
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <p className="text-sm text-yellow-800">
@@ -203,14 +218,16 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleSubmit}
-              disabled={!allSubPollsVoted}
-              className="bg-primary hover:bg-primary/90"
-            >
-              <Vote className="h-4 w-4 mr-2" />
-              Submit All Votes ({subPollVotes.length}/{subPolls.length})
-            </Button>
+            {eligibility.canVote && (
+              <Button 
+                onClick={handleSubmit}
+                disabled={!allSubPollsVoted || submitting}
+                className="bg-primary hover:bg-primary/90"
+              >
+                <Vote className="h-4 w-4 mr-2" />
+                {submitting ? 'Submitting...' : `Submit All Votes (${subPollVotes.length}/${poll.sub_polls?.length || 0})`}
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

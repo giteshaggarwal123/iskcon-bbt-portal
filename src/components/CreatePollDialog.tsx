@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Calendar, Plus, X, Trash2, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { usePolls } from '@/hooks/usePolls';
 
 interface CreatePollDialogProps {
   open: boolean;
@@ -33,6 +34,7 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ open, onOpen
   ]);
 
   const [attachment, setAttachment] = useState<File | null>(null);
+  const { createPoll } = usePolls();
 
   const addSubPoll = () => {
     const newSubPoll: SubPoll = {
@@ -58,7 +60,6 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ open, onOpen
   const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Check file type (PDF, DOC, DOCX)
       const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
       if (allowedTypes.includes(file.type)) {
         setAttachment(file);
@@ -73,31 +74,7 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ open, onOpen
     setAttachment(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate that all sub-polls have titles
-    const validSubPolls = subPolls.filter(poll => poll.title.trim() !== '');
-    if (validSubPolls.length === 0) {
-      alert('Please add at least one sub-poll with a title.');
-      return;
-    }
-
-    console.log('Creating poll:', {
-      ...formData,
-      subPolls: validSubPolls,
-      attachment: attachment ? {
-        name: attachment.name,
-        size: attachment.size,
-        type: attachment.type
-      } : null,
-      isSecret: true // Always true - anonymous voting
-    });
-    
-    // Poll creation logic here
-    onOpenChange(false);
-    
-    // Reset form
+  const resetForm = () => {
     setFormData({
       title: '',
       description: '',
@@ -106,6 +83,30 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ open, onOpen
     });
     setSubPolls([{ id: '1', title: '', description: '' }]);
     setAttachment(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const validSubPolls = subPolls.filter(poll => poll.title.trim() !== '');
+    if (validSubPolls.length === 0) {
+      alert('Please add at least one sub-poll with a title.');
+      return;
+    }
+
+    const result = await createPoll({
+      title: formData.title,
+      description: formData.description,
+      deadline: formData.deadline,
+      notify_members: formData.notifyMembers,
+      subPolls: validSubPolls.map(sp => ({ title: sp.title, description: sp.description })),
+      attachment: attachment || undefined
+    });
+
+    if (result) {
+      onOpenChange(false);
+      resetForm();
+    }
   };
 
   return (

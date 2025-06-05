@@ -405,27 +405,106 @@ export type Database = {
         }
         Relationships: []
       }
-      poll_votes: {
+      poll_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          poll_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          poll_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          poll_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_attachments_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poll_notifications: {
         Row: {
           id: string
+          notification_type: string
           poll_id: string
+          sent_at: string
           user_id: string
-          vote: string
-          voted_at: string | null
         }
         Insert: {
           id?: string
+          notification_type: string
           poll_id: string
+          sent_at?: string
           user_id: string
-          vote: string
-          voted_at?: string | null
         }
         Update: {
           id?: string
+          notification_type?: string
           poll_id?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_notifications_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poll_votes: {
+        Row: {
+          comment: string | null
+          id: string
+          poll_id: string
+          sub_poll_id: string
+          user_id: string
+          vote: string
+          voted_at: string
+        }
+        Insert: {
+          comment?: string | null
+          id?: string
+          poll_id: string
+          sub_poll_id: string
+          user_id: string
+          vote: string
+          voted_at?: string
+        }
+        Update: {
+          comment?: string | null
+          id?: string
+          poll_id?: string
+          sub_poll_id?: string
           user_id?: string
           vote?: string
-          voted_at?: string | null
+          voted_at?: string
         }
         Relationships: [
           {
@@ -435,41 +514,51 @@ export type Database = {
             referencedRelation: "polls"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "poll_votes_sub_poll_id_fkey"
+            columns: ["sub_poll_id"]
+            isOneToOne: false
+            referencedRelation: "sub_polls"
+            referencedColumns: ["id"]
+          },
         ]
       }
       polls: {
         Row: {
-          created_at: string | null
+          created_at: string
           created_by: string
           deadline: string
           description: string | null
           id: string
-          is_secret: boolean | null
-          notify_members: boolean | null
-          status: string | null
+          is_secret: boolean
+          notify_members: boolean
+          status: string
           title: string
+          updated_at: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           created_by: string
           deadline: string
           description?: string | null
           id?: string
-          is_secret?: boolean | null
-          notify_members?: boolean | null
-          status?: string | null
+          is_secret?: boolean
+          notify_members?: boolean
+          status?: string
           title: string
+          updated_at?: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           created_by?: string
           deadline?: string
           description?: string | null
           id?: string
-          is_secret?: boolean | null
-          notify_members?: boolean | null
-          status?: string | null
+          is_secret?: boolean
+          notify_members?: boolean
+          status?: string
           title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -622,6 +711,41 @@ export type Database = {
           },
         ]
       }
+      sub_polls: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          order_index: number
+          poll_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          order_index?: number
+          poll_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          order_index?: number
+          poll_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_polls_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -703,6 +827,15 @@ export type Database = {
         Args: { folder_id: string }
         Returns: string
       }
+      get_poll_stats: {
+        Args: { poll_id_param: string }
+        Returns: {
+          total_voters: number
+          voted_count: number
+          pending_count: number
+          sub_poll_count: number
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -724,6 +857,10 @@ export type Database = {
       }
       restore_from_recycle_bin: {
         Args: { _recycle_bin_id: string }
+        Returns: undefined
+      }
+      update_expired_polls: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
     }
