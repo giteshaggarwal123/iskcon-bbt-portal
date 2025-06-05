@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { User, Bell, Settings, Mail, Save, MessageCircle, Shield, Lock } from 'lucide-react';
+import { User, Bell, Settings, Mail, Save, MessageCircle, Shield, Lock, Upload, Camera } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
@@ -23,13 +23,15 @@ export const SettingsModule: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
   
   // Personal Information State
   const [personalInfo, setPersonalInfo] = useState({
     first_name: '',
     last_name: '',
     email: '',
-    phone: ''
+    phone: '',
+    profile_image_url: ''
   });
 
   // Notification Settings
@@ -45,6 +47,7 @@ export const SettingsModule: React.FC = () => {
   const canEditEmail = false; // Email can never be changed
   const canEditPhone = userRole.isSuperAdmin || userRole.isAdmin;
   const canEditNotifications = true; // All users can edit their notification preferences
+  const canEditProfileImage = true; // All users can edit their profile image
 
   useEffect(() => {
     if (user) {
@@ -69,11 +72,82 @@ export const SettingsModule: React.FC = () => {
           first_name: data.first_name || '',
           last_name: data.last_name || '',
           email: data.email || user.email || '',
-          phone: data.phone || ''
+          phone: data.phone || '',
+          profile_image_url: data.profile_image_url || ''
         });
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+    }
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Only PNG and JPEG images are supported.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please select an image smaller than 5MB.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/profile.${fileExt}`;
+
+      // Upload image to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('profile-images')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('profile-images')
+        .getPublicUrl(fileName);
+
+      // Update profile with image URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          profile_image_url: publicUrl,
+          updated_at: new Date().toISOString()
+        });
+
+      if (updateError) throw updateError;
+
+      setPersonalInfo(prev => ({ ...prev, profile_image_url: publicUrl }));
+      
+      toast({
+        title: "Profile Image Updated",
+        description: "Your profile image has been updated successfully."
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload profile image",
+        variant: "destructive"
+      });
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -242,6 +316,54 @@ export const SettingsModule: React.FC = () => {
         </TabsList>
 
         <TabsContent value="personal" className="space-y-6">
+          {/* Profile Image Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Camera className="h-5 w-5" />
+                <span>Profile Image</span>
+              </CardTitle>
+              <CardDescription>
+                Upload your profile picture (PNG, JPEG only, max 5MB)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-6">
+                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden">
+                  {personalInfo.profile_image_url ? (
+                    <img 
+                      src={personalInfo.profile_image_url} 
+                      alt="Profile" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-12 w-12 text-gray-400" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="profile-image-upload"
+                  />
+                  <label htmlFor="profile-image-upload">
+                    <Button variant="outline" disabled={uploadingImage} asChild>
+                      <span className="cursor-pointer">
+                        <Upload className="h-4 w-4 mr-2" />
+                        {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                      </span>
+                    </Button>
+                  </label>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Recommended: Square image, at least 200x200 pixels
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
