@@ -10,7 +10,6 @@ import { DocumentFilters } from './documents/DocumentFilters';
 import { DocumentUploadDialog } from './documents/DocumentUploadDialog';
 import { DocumentRenameDialog } from './documents/DocumentRenameDialog';
 import { CreateFolderDialog } from './CreateFolderDialog';
-import { FolderManager } from './documents/FolderManager';
 
 interface Document {
   id: string;
@@ -340,17 +339,6 @@ export const DocumentsModule: React.FC = () => {
         </div>
       </div>
 
-      {/* Folder Management */}
-      {folders.length > 0 && (
-        <FolderManager
-          folders={folders}
-          onCreateFolder={createFolder}
-          onDeleteFolder={deleteFolder}
-          currentFolderId={folderFilter}
-          showCreateButton={false}
-        />
-      )}
-
       {/* Filters */}
       <DocumentFilters
         searchTerm={searchTerm}
@@ -366,25 +354,33 @@ export const DocumentsModule: React.FC = () => {
         onDateFilterChange={setDateFilter}
       />
 
-      {/* Documents Table */}
-      {filteredDocuments.length === 0 ? (
+      {/* Combined Documents and Folders Table */}
+      {filteredDocuments.length === 0 && folders.length === 0 ? (
         <div className="bg-white rounded-lg border">
           <div className="text-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No documents or folders found</h3>
             <p className="text-gray-500 mb-4">
               {searchTerm || typeFilter !== 'all' || peopleFilter !== 'all' || dateFilter !== 'all'
                 ? 'Try adjusting your search or filter criteria'
-                : 'Get started by uploading your first document'}
+                : 'Get started by uploading your first document or creating a folder'}
             </p>
             {!searchTerm && (
-              <DocumentUploadDialog onUpload={handleUpload} />
+              <div className="flex space-x-2 justify-center">
+                <CreateFolderDialog 
+                  onFolderCreated={createFolder}
+                  existingFolders={folders}
+                  currentFolderId={folderFilter}
+                />
+                <DocumentUploadDialog onUpload={handleUpload} />
+              </div>
             )}
           </div>
         </div>
       ) : (
         <DocumentTable
           documents={filteredDocuments}
+          folders={folders}
           userProfiles={userProfiles}
           currentUserId={user?.id}
           canDeleteDocument={canDeleteDocument}
@@ -397,6 +393,8 @@ export const DocumentsModule: React.FC = () => {
           }}
           onCopyDocument={handleCopyDocument}
           onDeleteDocument={handleDeleteDocument}
+          onDeleteFolder={deleteFolder}
+          onFolderClick={(folderId) => setFolderFilter(folderId)}
         />
       )}
 
