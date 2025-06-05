@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { MicrosoftCallback } from "./pages/MicrosoftCallback";
 import { useCacheBuster } from "./hooks/useCacheBuster";
+import { useSessionManager } from "./hooks/useSessionManager";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,6 +20,22 @@ const queryClient = new QueryClient({
   },
 });
 
+const AppContent = () => {
+  // Initialize session management
+  useSessionManager();
+  
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/microsoft-callback" element={<MicrosoftCallback />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
 const App = () => {
   // Clear cache on app load
   useCacheBuster();
@@ -28,14 +45,7 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/microsoft-callback" element={<MicrosoftCallback />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <AppContent />
       </TooltipProvider>
     </QueryClientProvider>
   );
