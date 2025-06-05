@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { FileText, Upload } from 'lucide-react';
+import { FileText, Upload, FolderPlus } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useFolders } from '@/hooks/useFolders';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,6 +11,7 @@ import { DocumentFilters } from './documents/DocumentFilters';
 import { DocumentUploadDialog } from './documents/DocumentUploadDialog';
 import { DocumentRenameDialog } from './documents/DocumentRenameDialog';
 import { FolderManagement } from './folders/FolderManagement';
+import { Button } from '@/components/ui/button';
 
 interface Document {
   id: string;
@@ -30,7 +30,7 @@ interface Document {
 
 export const DocumentsModule: React.FC = () => {
   const { documents, loading, uploadDocument, deleteDocument, moveDocument, fetchDocuments } = useDocuments();
-  const { folders } = useFolders();
+  const { folders, createFolder } = useFolders();
   const { user } = useAuth();
   const { isSuperAdmin, canDeleteContent } = useUserRole();
   const { toast } = useToast();
