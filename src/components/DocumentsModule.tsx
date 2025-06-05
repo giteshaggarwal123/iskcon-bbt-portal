@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { 
   Table,
   TableBody,
@@ -33,9 +32,6 @@ import {
   ContextMenuItem, 
   ContextMenuSeparator, 
   ContextMenuTrigger,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger
 } from '@/components/ui/context-menu';
 import { 
   DropdownMenu,
@@ -44,15 +40,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { FileText, Upload, Search, Filter, Download, Trash2, Eye, Plus, Folder, FolderOpen, Move, Edit, Copy, Star, StarIcon, Grid, List, MoreHorizontal, Calendar, User } from 'lucide-react';
+import { FileText, Upload, Search, Download, Trash2, Eye, Plus, Edit, Copy, Star, MoreHorizontal } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { DocumentAnalytics } from './DocumentAnalytics';
 
 export const DocumentsModule: React.FC = () => {
-  const { documents, loading, uploadDocument, deleteDocument, moveDocument, searchDocuments, fetchDocuments } = useDocuments();
+  const { documents, loading, uploadDocument, deleteDocument, fetchDocuments } = useDocuments();
   const { user } = useAuth();
   const { isSuperAdmin, canDeleteContent } = useUserRole();
   const { toast } = useToast();
@@ -61,12 +58,39 @@ export const DocumentsModule: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [peopleFilter, setPeopleFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [newName, setNewName] = useState('');
+  const [userProfiles, setUserProfiles] = useState<{[key: string]: {first_name: string, last_name: string}}>({});
+
+  // Fetch user profiles for displaying names
+  useEffect(() => {
+    const fetchUserProfiles = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name');
+
+        if (error) throw error;
+
+        const profilesMap = data.reduce((acc, profile) => {
+          acc[profile.id] = {
+            first_name: profile.first_name || '',
+            last_name: profile.last_name || ''
+          };
+          return acc;
+        }, {});
+
+        setUserProfiles(profilesMap);
+      } catch (error) {
+        console.error('Error fetching user profiles:', error);
+      }
+    };
+
+    fetchUserProfiles();
+  }, []);
 
   // Get unique uploaders for people filter
   const uniqueUploaders = [...new Set(documents.map(doc => doc.uploaded_by))];
@@ -197,6 +221,22 @@ export const DocumentsModule: React.FC = () => {
     }
   };
 
+  const handleViewDocument = (document: any) => {
+    // For now, just show a message
+    toast({
+      title: "View Document",
+      description: "Document viewing will be implemented soon"
+    });
+  };
+
+  const handleDownloadDocument = (document: any) => {
+    // For now, just show a message
+    toast({
+      title: "Download Document",
+      description: "Document download will be implemented soon"
+    });
+  };
+
   // Filter documents based on access control and filters
   const filteredDocuments = documents.filter(doc => {
     // Access control
@@ -257,6 +297,15 @@ export const DocumentsModule: React.FC = () => {
     if (mimeType.includes('sheet') || mimeType.includes('excel')) return <FileText className="h-4 w-4 text-green-500" />;
     if (mimeType.includes('image')) return <FileText className="h-4 w-4 text-purple-500" />;
     return <FileText className="h-4 w-4" />;
+  };
+
+  const getUserDisplayName = (userId: string) => {
+    if (userId === user?.id) return 'You';
+    const profile = userProfiles[userId];
+    if (profile && (profile.first_name || profile.last_name)) {
+      return `${profile.first_name} ${profile.last_name}`.trim();
+    }
+    return 'User';
   };
 
   // Check if user can delete a specific document
@@ -328,7 +377,7 @@ export const DocumentsModule: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters and View Toggle */}
+      {/* Filters */}
       <div className="flex justify-between items-center space-x-4">
         <div className="flex space-x-4 flex-1">
           <div className="flex-1 relative">
@@ -362,7 +411,7 @@ export const DocumentsModule: React.FC = () => {
               <SelectItem value="all">All People</SelectItem>
               {uniqueUploaders.map(uploaderId => (
                 <SelectItem key={uploaderId} value={uploaderId}>
-                  {uploaderId === user?.id ? 'Me' : 'User'}
+                  {getUserDisplayName(uploaderId)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -379,15 +428,6 @@ export const DocumentsModule: React.FC = () => {
               <SelectItem value="month">This Month</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <List className="h-4 w-4" />
-          <Switch
-            checked={viewMode === 'grid'}
-            onCheckedChange={(checked) => setViewMode(checked ? 'grid' : 'list')}
-          />
-          <Grid className="h-4 w-4" />
         </div>
       </div>
 
@@ -433,19 +473,32 @@ export const DocumentsModule: React.FC = () => {
                     </TableCell>
                     <TableCell>{formatFileSize(document.file_size)}</TableCell>
                     <TableCell>{formatDate(document.updated_at || document.created_at)}</TableCell>
-                    <TableCell>
-                      {document.uploaded_by === user?.id ? 'You' : 'User'}
-                    </TableCell>
+                    <TableCell>{getUserDisplayName(document.uploaded_by)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end space-x-2">
-                        <Button size="sm" variant="outline" className="h-8 px-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-8 px-2"
+                          onClick={() => handleViewDocument(document)}
+                        >
                           <Eye className="h-3 w-3 mr-1" />
                           View
                         </Button>
-                        <Button size="sm" variant="outline" className="h-8 px-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-8 px-2"
+                          onClick={() => handleDownloadDocument(document)}
+                        >
                           <Download className="h-3 w-3 mr-1" />
                           Download
                         </Button>
+                        
+                        <DocumentAnalytics 
+                          documentId={document.id}
+                          documentName={document.name}
+                        />
                         
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -513,11 +566,11 @@ export const DocumentsModule: React.FC = () => {
                 </ContextMenuTrigger>
                 
                 <ContextMenuContent>
-                  <ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleViewDocument(document)}>
                     <Eye className="h-4 w-4 mr-2" />
                     View Document
                   </ContextMenuItem>
-                  <ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleDownloadDocument(document)}>
                     <Download className="h-4 w-4 mr-2" />
                     Download
                   </ContextMenuItem>
