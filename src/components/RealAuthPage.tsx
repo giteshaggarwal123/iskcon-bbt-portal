@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,10 +37,14 @@ export const RealAuthPage: React.FC = () => {
         rememberMe: formData.rememberMe
       });
       
+      console.log('Sending OTP for email:', formData.email);
       const { error, otp } = await sendLoginOTP(formData.email);
       if (!error && otp) {
+        console.log('OTP sent successfully, stored OTP:', otp);
         setStoredOTP(otp);
         setStep('otp-verification');
+      } else {
+        console.error('Failed to send OTP:', error);
       }
     }
   };
@@ -47,27 +52,51 @@ export const RealAuthPage: React.FC = () => {
   const handleOTPVerification = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('OTP Verification - Input OTP:', formData.otp);
-    console.log('OTP Verification - Stored OTP:', storedOTP);
+    console.log('=== OTP Verification Debug ===');
+    console.log('Email:', loginCredentials.email);
+    console.log('Input OTP:', formData.otp);
+    console.log('Stored OTP:', storedOTP);
+    console.log('OTP Length:', formData.otp.length);
+    console.log('OTP Match:', formData.otp === storedOTP);
     
-    if (formData.otp === storedOTP) {
-      console.log('OTP verified successfully, proceeding with login');
-      console.log('Login credentials:', { 
-        email: loginCredentials.email, 
-        password: loginCredentials.password ? '***' : 'NO PASSWORD',
-        rememberMe: loginCredentials.rememberMe 
-      });
-      
-      // OTP verified, now complete the login
+    // Verify OTP matches
+    if (formData.otp !== storedOTP) {
+      console.error('OTP mismatch - Input:', formData.otp, 'Expected:', storedOTP);
+      alert('Invalid OTP. Please check the code and try again.');
+      return;
+    }
+
+    // OTP is correct, proceed with login
+    console.log('OTP verified successfully, proceeding with login');
+    console.log('Login credentials:', { 
+      email: loginCredentials.email, 
+      password: loginCredentials.password ? '***PASSWORD_SET***' : 'NO_PASSWORD',
+      rememberMe: loginCredentials.rememberMe 
+    });
+    
+    try {
       const { error } = await signIn(loginCredentials.email, loginCredentials.password, loginCredentials.rememberMe);
       
       if (error) {
         console.error('Login error after OTP verification:', error);
-        alert(`Login failed: ${error.message || 'Invalid credentials'}`);
+        alert(`Login failed: ${error.message || 'Invalid credentials. Please check your email and password.'}`);
+      } else {
+        console.log('Login successful!');
+        // Reset form data on successful login
+        setFormData({
+          email: '',
+          password: '',
+          rememberMe: false,
+          phoneNumber: '',
+          otp: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        setStoredOTP('');
       }
-    } else {
-      console.error('OTP mismatch - Input:', formData.otp, 'Expected:', storedOTP);
-      alert('Invalid OTP. Please try again.');
+    } catch (err) {
+      console.error('Unexpected error during login:', err);
+      alert('An unexpected error occurred. Please try again.');
     }
   };
 
@@ -112,18 +141,25 @@ export const RealAuthPage: React.FC = () => {
     setStep('login');
     setForgotPassword(false);
     setFormData(prev => ({ ...prev, otp: '', phoneNumber: '', newPassword: '', confirmPassword: '' }));
+    setStoredOTP('');
   };
 
   const handleResendOTP = async () => {
+    console.log('Resending OTP...');
     if (step === 'otp-verification') {
+      console.log('Resending login OTP for:', loginCredentials.email);
       const { error, otp } = await sendLoginOTP(loginCredentials.email);
       if (!error && otp) {
+        console.log('New OTP sent:', otp);
         setStoredOTP(otp);
+        // Clear the current OTP input
+        setFormData(prev => ({ ...prev, otp: '' }));
       }
     } else if (step === 'forgot-otp') {
       const { error, otp } = await sendOTP(formData.phoneNumber);
       if (!error && otp) {
         setStoredOTP(otp);
+        setFormData(prev => ({ ...prev, otp: '' }));
       }
     }
   };
@@ -237,6 +273,9 @@ export const RealAuthPage: React.FC = () => {
                     <p className="text-sm text-gray-600">
                       We've sent a 6-digit verification code to your registered mobile number
                     </p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Email: {loginCredentials.email}
+                    </p>
                   </div>
                   
                   <div className="space-y-2">
@@ -271,7 +310,7 @@ export const RealAuthPage: React.FC = () => {
                 <div className="flex items-center justify-between text-sm">
                   <button
                     type="button"
-                    onClick={() => setStep('login')}
+                    onClick={resetToLogin}
                     className="flex items-center text-gray-600 hover:text-primary"
                   >
                     <ArrowLeft className="h-4 w-4 mr-1" />
@@ -281,8 +320,9 @@ export const RealAuthPage: React.FC = () => {
                     type="button"
                     onClick={handleResendOTP}
                     className="text-primary hover:underline"
+                    disabled={loading}
                   >
-                    Resend OTP
+                    {loading ? 'Sending...' : 'Resend OTP'}
                   </button>
                 </div>
               </form>
