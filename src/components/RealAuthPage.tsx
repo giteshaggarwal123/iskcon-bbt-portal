@@ -53,12 +53,21 @@ export const RealAuthPage: React.FC = () => {
         return;
       }
 
-      // Check if user exists in Supabase auth
-      const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
-      const authUser = users?.find(user => user.email === formData.email);
+      // Check if user exists in Supabase auth by trying to sign in first
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      });
       
-      console.log('User exists in auth:', !!authUser);
-      setUserExists(!!authUser);
+      if (!signInError && signInData.user) {
+        console.log('User exists in auth, signing out to proceed with OTP flow');
+        setUserExists(true);
+        // Sign out immediately to continue with OTP flow
+        await supabase.auth.signOut();
+      } else {
+        console.log('User does not exist in auth or invalid password, will create account after OTP');
+        setUserExists(false);
+      }
 
       const { error, otp } = await sendLoginOTP(formData.email);
       if (!error && otp) {
