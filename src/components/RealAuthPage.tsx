@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Mail, Shield, Lock, Phone, ArrowLeft } from 'lucide-react';
+import { Mail, Shield, Lock, Phone, ArrowLeft, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export const RealAuthPage: React.FC = () => {
   const { signIn, sendLoginOTP, loading } = useAuth();
@@ -23,6 +24,8 @@ export const RealAuthPage: React.FC = () => {
   const [storedOTP, setStoredOTP] = useState('');
   const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '', rememberMe: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [otpSentTime, setOtpSentTime] = useState<Date | null>(null);
 
   const handleInitialLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +48,11 @@ export const RealAuthPage: React.FC = () => {
       
       if (error) {
         console.error('Failed to send OTP:', error);
+        setDebugInfo({ 
+          status: 'error', 
+          error: error.details || error.message,
+          timestamp: new Date().toLocaleString()
+        });
         toast({
           title: "Failed to send OTP",
           description: error.details || error.message || "Please check your email and try again.",
@@ -56,12 +64,25 @@ export const RealAuthPage: React.FC = () => {
       if (otp) {
         console.log('OTP sent successfully, received OTP:', otp);
         setStoredOTP(otp);
+        setOtpSentTime(new Date());
+        setDebugInfo({
+          status: 'success',
+          message: 'OTP sent successfully via Twilio',
+          timestamp: new Date().toLocaleString(),
+          phoneNumber: 'ending in ***5090', // Masked for security
+          otpCode: otp // Temporarily showing for debugging
+        });
         setStep('otp-verification');
         toast({
           title: "OTP Sent",
           description: "Please check your phone for the verification code."
         });
       } else {
+        setDebugInfo({
+          status: 'error',
+          error: 'No OTP received from server',
+          timestamp: new Date().toLocaleString()
+        });
         toast({
           title: "No OTP received",
           description: "Please try again or contact support.",
@@ -70,6 +91,11 @@ export const RealAuthPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error in login process:', error);
+      setDebugInfo({
+        status: 'error',
+        error: `Unexpected error: ${error}`,
+        timestamp: new Date().toLocaleString()
+      });
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -130,6 +156,8 @@ export const RealAuthPage: React.FC = () => {
         });
         setStoredOTP('');
         setStep('login');
+        setDebugInfo(null);
+        setOtpSentTime(null);
       }
     } catch (error) {
       console.error('Error in OTP verification:', error);
@@ -152,6 +180,8 @@ export const RealAuthPage: React.FC = () => {
     setFormData(prev => ({ ...prev, otp: '' }));
     setStoredOTP('');
     setIsSubmitting(false);
+    setDebugInfo(null);
+    setOtpSentTime(null);
   };
 
   const handleResendOTP = async () => {
@@ -165,12 +195,25 @@ export const RealAuthPage: React.FC = () => {
       if (!error && otp) {
         console.log('OTP resent successfully, new OTP:', otp);
         setStoredOTP(otp);
+        setOtpSentTime(new Date());
         setFormData(prev => ({ ...prev, otp: '' }));
+        setDebugInfo({
+          status: 'success',
+          message: 'OTP resent successfully via Twilio',
+          timestamp: new Date().toLocaleString(),
+          phoneNumber: 'ending in ***5090',
+          otpCode: otp // Temporarily showing for debugging
+        });
         toast({
           title: "OTP Resent",
           description: "A new verification code has been sent to your phone."
         });
       } else {
+        setDebugInfo({
+          status: 'error',
+          error: error?.details || 'Failed to resend OTP',
+          timestamp: new Date().toLocaleString()
+        });
         toast({
           title: "Failed to resend OTP",
           description: error?.details || "Please try again.",
@@ -179,6 +222,11 @@ export const RealAuthPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error resending OTP:', error);
+      setDebugInfo({
+        status: 'error',
+        error: `Resend error: ${error}`,
+        timestamp: new Date().toLocaleString()
+      });
       toast({
         title: "Error",
         description: "Failed to resend OTP. Please try again.",
@@ -187,6 +235,13 @@ export const RealAuthPage: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Calculate time since OTP was sent
+  const getTimeSinceOTP = () => {
+    if (!otpSentTime) return '';
+    const seconds = Math.floor((new Date().getTime() - otpSentTime.getTime()) / 1000);
+    return `${seconds} seconds ago`;
   };
 
   return (
@@ -204,6 +259,24 @@ export const RealAuthPage: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">ISKCON Bureau</h1>
           <p className="text-gray-600">Management Platform</p>
         </div>
+
+        {/* Debug Information */}
+        {debugInfo && (
+          <Alert className={`mb-6 ${debugInfo.status === 'error' ? 'border-red-500' : 'border-blue-500'}`}>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-sm">
+              <div className="space-y-1">
+                <div><strong>Status:</strong> {debugInfo.status}</div>
+                <div><strong>Time:</strong> {debugInfo.timestamp}</div>
+                {debugInfo.message && <div><strong>Message:</strong> {debugInfo.message}</div>}
+                {debugInfo.error && <div><strong>Error:</strong> {debugInfo.error}</div>}
+                {debugInfo.phoneNumber && <div><strong>Phone:</strong> {debugInfo.phoneNumber}</div>}
+                {debugInfo.otpCode && <div><strong>Debug OTP:</strong> {debugInfo.otpCode}</div>}
+                {otpSentTime && <div><strong>Sent:</strong> {getTimeSinceOTP()}</div>}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Card className="shadow-xl border-0">
           <CardHeader className="text-center">
@@ -285,6 +358,14 @@ export const RealAuthPage: React.FC = () => {
                     <p className="text-xs text-gray-500 mt-2">
                       Email: {loginCredentials.email}
                     </p>
+                    <p className="text-xs text-gray-500">
+                      Phone: +91***75090
+                    </p>
+                    {storedOTP && (
+                      <p className="text-xs text-blue-600 mt-2">
+                        Debug: If SMS doesn't arrive, the code is: {storedOTP}
+                      </p>
+                    )}
                   </div>
                   
                   <div className="space-y-2">
