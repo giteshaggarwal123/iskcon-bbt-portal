@@ -8,10 +8,14 @@ import { Upload, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface DocumentUploadDialogProps {
-  onUpload: (file: File) => Promise<void>;
+  onUpload: (file: File, folderId?: string) => Promise<void>;
+  currentFolderId?: string | null;
 }
 
-export const DocumentUploadDialog: React.FC<DocumentUploadDialogProps> = ({ onUpload }) => {
+export const DocumentUploadDialog: React.FC<DocumentUploadDialogProps> = ({ 
+  onUpload, 
+  currentFolderId 
+}) => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
@@ -33,7 +37,7 @@ export const DocumentUploadDialog: React.FC<DocumentUploadDialogProps> = ({ onUp
       return;
     }
 
-    await onUpload(selectedFile);
+    await onUpload(selectedFile, currentFolderId || undefined);
     setSelectedFile(null);
     setUploadDialogOpen(false);
   };
@@ -57,6 +61,7 @@ export const DocumentUploadDialog: React.FC<DocumentUploadDialogProps> = ({ onUp
           <DialogTitle>Upload New Document</DialogTitle>
           <DialogDescription>
             Select a file to upload to the document repository
+            {currentFolderId && " (will be uploaded to current folder)"}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">

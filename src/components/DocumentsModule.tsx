@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, ChevronRight, Home } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -10,6 +10,7 @@ import { DocumentFilters } from './documents/DocumentFilters';
 import { DocumentUploadDialog } from './documents/DocumentUploadDialog';
 import { DocumentRenameDialog } from './documents/DocumentRenameDialog';
 import { CreateFolderDialog } from './CreateFolderDialog';
+import { Button } from '@/components/ui/button';
 
 interface Document {
   id: string;
@@ -23,6 +24,16 @@ interface Document {
   created_at: string;
   updated_at: string;
   is_important: boolean;
+  is_hidden: boolean;
+}
+
+interface Folder {
+  id: string;
+  name: string;
+  parent_folder_id: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
   is_hidden: boolean;
 }
 
@@ -46,7 +57,8 @@ export const DocumentsModule: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [peopleFilter, setPeopleFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
-  const [folderFilter, setFolderFilter] = useState<string | null>(null);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [folderPath, setFolderPath] = useState<Folder[]>([]);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [userProfiles, setUserProfiles] = useState<{[key: string]: {first_name: string, last_name: string}}>({});
@@ -82,7 +94,6 @@ export const DocumentsModule: React.FC = () => {
         },
         (payload) => {
           console.log('Folders table changed:', payload);
-          // Refresh will happen through useDocuments hook
         }
       )
       .subscribe();
@@ -120,11 +131,82 @@ export const DocumentsModule: React.FC = () => {
     fetchUserProfiles();
   }, []);
 
+  // Build folder path for breadcrumb navigation
+  useEffect(() => {
+    const buildFolderPath = () => {
+      if (!currentFolderId) {
+        setFolderPath([]);
+        return;
+      }
+
+      const path: Folder[] = [];
+      let folderId = currentFolderId;
+
+      while (folderId) {
+        const folder = folders.find(f => f.id === folderId);
+        if (folder) {
+          path.unshift(folder);
+          folderId = folder.parent_folder_id;
+        } else {
+          break;
+        }
+      }
+
+      setFolderPath(path);
+    };
+
+    buildFolderPath();
+  }, [currentFolderId, folders]);
+
   // Get unique uploaders for people filter
   const uniqueUploaders = [...new Set(documents.map(doc => doc.uploaded_by))];
 
   const handleUpload = async (file: File, folderId?: string) => {
-    await uploadDocument(file, folderId || folderFilter || undefined);
+    await uploadDocument(file, folderId || currentFolderId || undefined);
+  };
+
+  const handleFolderClick = (folderId: string) => {
+    setCurrentFolderId(folderId);
+  };
+
+  const handleBreadcrumbClick = (folderId: string | null) => {
+    setCurrentFolderId(folderId);
+  };
+
+  const handleCopyDocument = async (documentId: string) => {
+    const document = documents.find(doc => doc.id === documentId);
+    if (!document) return;
+
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .insert({
+          name: `Copy of ${document.name}`,
+          file_path: document.file_path,
+          file_size: document.file_size,
+          mime_type: document.mime_type,
+          folder_id: currentFolderId,
+          folder: currentFolderId ? null : document.folder,
+          uploaded_by: user?.id || document.uploaded_by,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Document Copied",
+        description: "Document has been copied to current folder"
+      });
+    } catch (error: any) {
+      toast({
+        title: "Copy Failed",
+        description: error.message || "Failed to copy document",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleMoveDocument = async (documentId: string, targetFolderId: string | null) => {
+    await moveDocument(documentId, targetFolderId);
   };
 
   const handleToggleImportant = async (documentId: string, currentStatus: boolean) => {
@@ -171,38 +253,6 @@ export const DocumentsModule: React.FC = () => {
       toast({
         title: "Rename Failed",
         description: error.message || "Failed to rename document",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleCopyDocument = async (documentId: string) => {
-    const document = documents.find(doc => doc.id === documentId);
-    if (!document) return;
-
-    try {
-      const { error } = await supabase
-        .from('documents')
-        .insert({
-          name: `Copy of ${document.name}`,
-          file_path: document.file_path,
-          file_size: document.file_size,
-          mime_type: document.mime_type,
-          folder_id: document.folder_id,
-          folder: document.folder,
-          uploaded_by: user?.id || document.uploaded_by,
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Document Copied",
-        description: "Document has been copied successfully"
-      });
-    } catch (error: any) {
-      toast({
-        title: "Copy Failed",
-        description: error.message || "Failed to copy document",
         variant: "destructive"
       });
     }
@@ -260,8 +310,16 @@ export const DocumentsModule: React.FC = () => {
     }
   };
 
-  // Filter documents based on access control and filters
+  // Filter documents and folders based on current folder and other filters
   const filteredDocuments = documents.filter(doc => {
+    // Folder filter - show documents in current folder
+    if (currentFolderId) {
+      if (doc.folder_id !== currentFolderId) return false;
+    } else {
+      // Show documents with no folder_id (root level)
+      if (doc.folder_id !== null) return false;
+    }
+
     // Access control
     if (!isSuperAdmin) {
       if (doc.is_hidden && doc.uploaded_by !== user?.id) {
@@ -269,17 +327,6 @@ export const DocumentsModule: React.FC = () => {
       }
       if (doc.folder === 'personal' && doc.uploaded_by !== user?.id) {
         return false;
-      }
-    }
-
-    // Folder filter
-    if (folderFilter !== null) {
-      if (folderFilter === 'root') {
-        // Show documents with no folder_id (root level)
-        if (doc.folder_id !== null) return false;
-      } else {
-        // Show documents in specific folder
-        if (doc.folder_id !== folderFilter) return false;
       }
     }
 
@@ -303,6 +350,15 @@ export const DocumentsModule: React.FC = () => {
       (dateFilter === 'month' && new Date(doc.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
 
     return matchesSearch && matchesType && matchesPeople && matchesDate;
+  });
+
+  // Filter folders for current level
+  const filteredFolders = folders.filter(folder => {
+    if (currentFolderId) {
+      return folder.parent_folder_id === currentFolderId;
+    } else {
+      return folder.parent_folder_id === null;
+    }
   });
 
   // Check if user can delete a specific document
@@ -333,11 +389,40 @@ export const DocumentsModule: React.FC = () => {
           <CreateFolderDialog 
             onFolderCreated={createFolder}
             existingFolders={folders}
-            currentFolderId={folderFilter}
+            currentFolderId={currentFolderId}
           />
           <DocumentUploadDialog onUpload={handleUpload} />
         </div>
       </div>
+
+      {/* Breadcrumb Navigation */}
+      {(currentFolderId || folderPath.length > 0) && (
+        <div className="flex items-center space-x-2 text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => handleBreadcrumbClick(null)}
+            className="flex items-center space-x-1 hover:bg-gray-200 px-2 py-1 rounded"
+          >
+            <Home className="h-4 w-4" />
+            <span>Home</span>
+          </Button>
+          
+          {folderPath.map((folder, index) => (
+            <React.Fragment key={folder.id}>
+              <ChevronRight className="h-4 w-4" />
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => handleBreadcrumbClick(folder.id)}
+                className="hover:bg-gray-200 px-2 py-1 rounded"
+              >
+                {folder.name}
+              </Button>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
 
       {/* Filters */}
       <DocumentFilters
@@ -355,7 +440,7 @@ export const DocumentsModule: React.FC = () => {
       />
 
       {/* Combined Documents and Folders Table */}
-      {filteredDocuments.length === 0 && folders.length === 0 ? (
+      {filteredDocuments.length === 0 && filteredFolders.length === 0 ? (
         <div className="bg-white rounded-lg border">
           <div className="text-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -370,7 +455,7 @@ export const DocumentsModule: React.FC = () => {
                 <CreateFolderDialog 
                   onFolderCreated={createFolder}
                   existingFolders={folders}
-                  currentFolderId={folderFilter}
+                  currentFolderId={currentFolderId}
                 />
                 <DocumentUploadDialog onUpload={handleUpload} />
               </div>
@@ -380,7 +465,7 @@ export const DocumentsModule: React.FC = () => {
       ) : (
         <DocumentTable
           documents={filteredDocuments}
-          folders={folders}
+          folders={filteredFolders}
           userProfiles={userProfiles}
           currentUserId={user?.id}
           canDeleteDocument={canDeleteDocument}
@@ -394,7 +479,9 @@ export const DocumentsModule: React.FC = () => {
           onCopyDocument={handleCopyDocument}
           onDeleteDocument={handleDeleteDocument}
           onDeleteFolder={deleteFolder}
-          onFolderClick={(folderId) => setFolderFilter(folderId)}
+          onFolderClick={handleFolderClick}
+          onMoveDocument={handleMoveDocument}
+          currentFolderId={currentFolderId}
         />
       )}
 

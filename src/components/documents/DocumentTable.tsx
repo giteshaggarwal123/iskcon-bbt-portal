@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,8 +26,11 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
-import { FileText, Download, Trash2, Eye, Edit, Copy, Star, MoreHorizontal, Folder, FolderOpen } from 'lucide-react';
+import { FileText, Download, Trash2, Eye, Edit, Copy, Star, MoreHorizontal, Folder, FolderOpen, Move } from 'lucide-react';
 import { DocumentAnalytics } from '../DocumentAnalytics';
 
 interface Document {
@@ -70,6 +72,8 @@ interface DocumentTableProps {
   onDeleteDocument: (documentId: string, documentName: string) => void;
   onDeleteFolder: (folderId: string) => Promise<boolean>;
   onFolderClick: (folderId: string) => void;
+  onMoveDocument: (documentId: string, targetFolderId: string | null) => void;
+  currentFolderId: string | null;
 }
 
 type TableItem = {
@@ -98,7 +102,9 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   onCopyDocument,
   onDeleteDocument,
   onDeleteFolder,
-  onFolderClick
+  onFolderClick,
+  onMoveDocument,
+  currentFolderId
 }) => {
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return 'Unknown';
@@ -140,6 +146,15 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
     if (success) {
       // Success toast is handled in the parent component
     }
+  };
+
+  // Get available folders for move operation (exclude current folder and its children)
+  const getAvailableFolders = (excludeFolderId?: string) => {
+    return folders.filter(folder => {
+      if (excludeFolderId && folder.id === excludeFolderId) return false;
+      // Could add logic to exclude child folders here if needed
+      return true;
+    });
   };
 
   // Combine documents and folders into a single array
@@ -298,6 +313,37 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                             <Copy className="h-4 w-4 mr-2" />
                             Copy
                           </DropdownMenuItem>
+                          {folders.length > 0 && (
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                <Move className="h-4 w-4 mr-2" />
+                                Move to
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent>
+                                <DropdownMenuItem 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onMoveDocument(item.id, null);
+                                  }}
+                                >
+                                  <Folder className="h-4 w-4 mr-2" />
+                                  Root Folder
+                                </DropdownMenuItem>
+                                {getAvailableFolders().map(folder => (
+                                  <DropdownMenuItem 
+                                    key={folder.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onMoveDocument(item.id, folder.id);
+                                    }}
+                                  >
+                                    <Folder className="h-4 w-4 mr-2" />
+                                    {folder.name}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                          )}
                           <DropdownMenuSeparator />
                           {canDeleteDocument(item as Document) && (
                             <AlertDialog>
@@ -336,7 +382,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                       </DropdownMenu>
                     </>
                   ) : (
-                    // Folder actions
+                    // Folder actions (no analytics)
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button size="sm" variant="outline" className="h-8 px-2">
