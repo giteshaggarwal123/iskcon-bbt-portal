@@ -1,15 +1,100 @@
+src/
+├─ lib/
+│   └─ authService.ts   /* ────────────────────────────────────────────────────────────
+   authService.ts
+   All auth helpers live here
+   ──────────────────────────────────────────────────────────── */
 
-/* ────────────────────────────────────────────────────────────
+import { createClient } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''; // only needed for seeding
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+type SignInResult = { user: User };
+
+/* ── public: email + password sign-in ──────────────────────── */
+export async function signInWithEmail(
+  rawEmail: string,
+  password: string,
+): Promise<SignInResult> {
+  const email = rawEmail.trim().toLowerCase();
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    // Normalise common errors to a friendlier message
+    if (error.status === 400) {
+      throw new Error('Incorrect email or password.');
+    }
+    throw error;
+  }
+
+  return { user: data.user! };
+}
+
+/* ── one-off helper: seed the very first admin ─────────────── */
+export async function seedInitialAdmin() {
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY missing – cannot seed admin automatically.',
+    );
+  }
+
+  const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  // 1. Create the auth user (email is auto-confirmed).
+  const { data: createRes, error: createErr } =
+    await adminClient.auth.admin.createUser({
+      email: 'admin@iskconbureau.in',
+      password: 'ChangeThisStrongPwd!',
+      email_confirm: true,
+    });
+
+  if (createErr && createErr.status !== 409) {
+    // 409 = already exists – ignore in that case
+    throw createErr;
+  }
+
+  const adminId =
+    createRes?.user?.id ??
+    (
+      await adminClient
+        .from('auth.users')
+        .select('id')
+        .eq('email', 'admin@iskconbureau.in')
+        .single()
+    ).data.id;
+
+  // 2. Ensure the role row exists.
+  await adminClient.from('user_roles').upsert(
+    {
+      user_id: adminId,
+      role: 'super_admin',
+    },
+    { onConflict: 'user_id' },
+  );
+
+  console.log('✅ Admin seeded & role set');
+}
+
+└─ hooks/
+    └─ useUserRole.ts   /* ────────────────────────────────────────────────────────────
    useUserRole.ts
-   Correct role detection without accidental super-admin grants
+   Reliable role hook – no accidental super-admins
    ──────────────────────────────────────────────────────────── */
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from './authService';      // ← import from the file above
 import { useAuth } from './useAuth';
 
 /* ── role type ─────────────────────────────────────────────── */
-
 export type UserRole =
   | 'super_admin'
   | 'admin'
@@ -18,7 +103,6 @@ export type UserRole =
   | 'member';
 
 /* ── return type ───────────────────────────────────────────── */
-
 interface UseUserRoleReturn {
   userRole: UserRole | null;
   isSuperAdmin: boolean;
@@ -44,19 +128,16 @@ interface UseUserRoleReturn {
   canViewMemberSettings: boolean;
 }
 
-/* ── configuration ─────────────────────────────────────────── */
+/* ── config ───────────────────────────────────────────────── */
+const SUPER_ADMIN_EMAILS = ['cs@iskconbureau.in', 'admin@iskconbureau.in'].map(
+  (e) => e.trim().toLowerCase(),
+);
 
-const SUPER_ADMIN_EMAILS: string[] = [
-  'cs@iskconbureau.in',
-  'admin@iskconbureau.in',
-].map((email) => email.trim().toLowerCase());
-
-/* ── hook ──────────────────────────────────────────────────── */
-
+/* ── hook ─────────────────────────────────────────────────── */
 export const useUserRole = (): UseUserRoleReturn => {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const { user } = useAuth(); // always returns current session user
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth(); // must give current session user
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -69,7 +150,7 @@ export const useUserRole = (): UseUserRoleReturn => {
       setLoading(true);
 
       try {
-        /* fetch role from DB */
+        /* 1. Pull role from DB */
         const { data, error } = await supabase
           .from('user_roles')
           .select('role')
@@ -81,26 +162,20 @@ export const useUserRole = (): UseUserRoleReturn => {
           error || !data ? null : (data.role as UserRole);
 
         const email = (user.email ?? '').trim().toLowerCase();
-        const isWhitelisted = SUPER_ADMIN_EMAILS.includes(email);
+        const whitelisted = SUPER_ADMIN_EMAILS.includes(email);
 
-        /* promote whitelisted emails if needed */
-        if (isWhitelisted && role !== 'super_admin') {
-          role = 'super_admin';
-        }
+        /* 2. Promote whitelisted e-mails if DB role ≠ super_admin */
+        if (whitelisted && role !== 'super_admin') role = 'super_admin';
 
-        /* demote any stray super_admin not on the list */
-        if (role === 'super_admin' && !isWhitelisted) {
-          role = 'member';
-        }
+        /* 3. Demote rogue super_admin rows */
+        if (role === 'super_admin' && !whitelisted) role = 'member';
 
-        /* default to member if still null */
-        if (!role) {
-          role = 'member';
-        }
+        /* 4. Default */
+        if (!role) role = 'member';
 
         setUserRole(role);
-      } catch (err) {
-        setUserRole('member'); // fail-safe
+      } catch {
+        setUserRole('member');
       } finally {
         setLoading(false);
       }
@@ -110,7 +185,6 @@ export const useUserRole = (): UseUserRoleReturn => {
   }, [user?.id]);
 
   /* helpers */
-
   const isSuperAdmin = userRole === 'super_admin';
   const isAdmin = userRole === 'admin' || isSuperAdmin;
   const isSecretary = userRole === 'secretary' || isAdmin;
@@ -122,13 +196,12 @@ export const useUserRole = (): UseUserRoleReturn => {
     isAdmin ||
     isSuperAdmin;
 
-  /* permission matrix */
-
+  /* permissions */
   const canManageMembers = isSuperAdmin || isAdmin;
   const canManageMeetings = isSuperAdmin || isAdmin || isSecretary;
   const canManageDocuments = isSuperAdmin || isAdmin || isSecretary;
   const canViewReports = isSuperAdmin || isAdmin || isTreasurer;
-  const canManageSettings = true; // all roles
+  const canManageSettings = true;
   const canCreateContent = isSuperAdmin || isAdmin || isSecretary;
   const canDeleteContent = isSuperAdmin || isAdmin;
   const canEditContent = isSuperAdmin || isAdmin || isSecretary;
@@ -138,8 +211,6 @@ export const useUserRole = (): UseUserRoleReturn => {
   const canDeleteUsers = isSuperAdmin || isAdmin;
   const canEditPhoneNumbers = isSuperAdmin || isAdmin;
   const canViewMemberSettings = isSuperAdmin || isAdmin || isSecretary;
-
-  /* return */
 
   return {
     userRole,
@@ -164,3 +235,17 @@ export const useUserRole = (): UseUserRoleReturn => {
     canViewMemberSettings,
   };
 };
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key   # only needed for seeding
+// scripts/seedAdmin.ts (for example)
+import { seedInitialAdmin } from '../src/lib/authService';
+seedInitialAdmin().then(() => process.exit());
+node scripts/seedAdmin.ts     # run once, then delete or comment out
+import { signInWithEmail } from '@/lib/authService';
+import { useUserRole } from '@/hooks/useUserRole';
+
+// …
+await signInWithEmail(email, password); // logs user in
+const { isSuperAdmin } = useUserRole(); // role info auto-updates
+
