@@ -30,14 +30,14 @@ export const useNotifications = () => {
         .from('meetings')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(5);
 
       // Fetch recent documents
       const { data: documents } = await supabase
         .from('documents')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(5);
 
       const notificationList: Notification[] = [];
 
@@ -89,7 +89,7 @@ export const useNotifications = () => {
         });
       });
 
-      // Sort by creation date
+      // Sort by creation date and limit to 10
       const sortedNotifications = notificationList
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 10);

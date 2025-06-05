@@ -48,16 +48,25 @@ export const Dashboard: React.FC = () => {
     fetchActivePolls();
   }, []);
 
-  const recentMeetings = meetings
+  // Filter and sort meetings - only upcoming meetings, sorted by nearest first
+  const upcomingMeetings = meetings
+    .filter(meeting => new Date(meeting.start_time) > new Date())
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
     .slice(0, 3);
 
+  // Sort documents by newest first
   const recentDocuments = documents
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 3);
 
+  // Sort emails by newest first
   const recentEmails = emails
     .sort((a, b) => new Date(b.receivedDateTime).getTime() - new Date(a.receivedDateTime).getTime())
+    .slice(0, 3);
+
+  // Sort polls by newest deadline first
+  const sortedPolls = polls
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     .slice(0, 3);
 
   const handleJoinMeeting = (meeting: any) => {
@@ -97,7 +106,6 @@ export const Dashboard: React.FC = () => {
     window.dispatchEvent(event);
   };
 
-  const isUpcoming = (dateTime: string) => new Date(dateTime) > new Date();
   const isPastDeadline = (deadline: string) => new Date(deadline) < new Date();
 
   return (
@@ -113,25 +121,25 @@ export const Dashboard: React.FC = () => {
 
       {/* Main Grid - 4 Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-        {/* Recent Meetings */}
+        {/* Upcoming Meetings */}
         <Card className="hover:shadow-lg transition-shadow cursor-pointer">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center space-x-2 text-lg">
               <CalendarDays className="h-5 w-5 text-primary" />
-              <span>Recent Meetings</span>
+              <span>Upcoming Meetings</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {recentMeetings.length > 0 ? (
+            {upcomingMeetings.length > 0 ? (
               <>
-                {recentMeetings.map((meeting) => (
+                {upcomingMeetings.map((meeting) => (
                   <div key={meeting.id} className="border-b pb-2 last:border-b-0">
                     <h4 className="font-medium text-sm text-gray-900 truncate">{meeting.title}</h4>
                     <p className="text-xs text-gray-500">
                       {new Date(meeting.start_time).toLocaleDateString()} • {new Date(meeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                     <div className="mt-1 flex space-x-2">
-                      {isUpcoming(meeting.start_time) && meeting.teams_join_url && (
+                      {meeting.teams_join_url && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -142,10 +150,8 @@ export const Dashboard: React.FC = () => {
                           Join Now
                         </Button>
                       )}
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        isUpcoming(meeting.start_time) ? 'bg-primary/10 text-primary' : 'bg-green-500/10 text-green-500'
-                      }`}>
-                        {isUpcoming(meeting.start_time) ? 'Upcoming' : 'Completed'}
+                      <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+                        Upcoming
                       </span>
                     </div>
                   </div>
@@ -160,7 +166,7 @@ export const Dashboard: React.FC = () => {
                 </Button>
               </>
             ) : (
-              <p className="text-sm text-gray-500 text-center py-4">No meetings scheduled</p>
+              <p className="text-sm text-gray-500 text-center py-4">No upcoming meetings</p>
             )}
           </CardContent>
         </Card>
@@ -277,9 +283,9 @@ export const Dashboard: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {polls.length > 0 ? (
+            {sortedPolls.length > 0 ? (
               <>
-                {polls.map((poll) => (
+                {sortedPolls.map((poll) => (
                   <div key={poll.id} className="border-b pb-2 last:border-b-0">
                     <h4 className="font-medium text-sm text-gray-900 truncate">{poll.title}</h4>
                     <p className="text-xs text-gray-500 truncate">{poll.description}</p>
