@@ -109,200 +109,210 @@ export const Dashboard: React.FC = () => {
   const isPastDeadline = (deadline: string) => new Date(deadline) < new Date();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Header with Connection Status */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Bureau Dashboard</h1>
-          <p className="text-gray-600">Welcome back! Here's what's happening today.</p>
+          <p className="text-gray-600 mt-2">Welcome back! Here's what's happening today.</p>
         </div>
         <MicrosoftConnectionStatus />
       </div>
 
-      {/* Main Grid - 4 Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-        {/* Upcoming Meetings */}
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center space-x-2 text-lg">
-              <CalendarDays className="h-5 w-5 text-primary" />
-              <span>Upcoming Meetings</span>
+      {/* Main Grid - Enhanced Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Recent Emails - Top Left */}
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-red-50 to-white">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center justify-between text-xl">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Mail className="h-6 w-6 text-red-600" />
+                </div>
+                <span className="text-gray-800">Recent Emails</span>
+              </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {upcomingMeetings.length > 0 ? (
-              <>
-                {upcomingMeetings.map((meeting) => (
-                  <div key={meeting.id} className="border-b pb-2 last:border-b-0">
-                    <h4 className="font-medium text-sm text-gray-900 truncate">{meeting.title}</h4>
-                    <p className="text-xs text-gray-500">
-                      {new Date(meeting.start_time).toLocaleDateString()} • {new Date(meeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                    <div className="mt-1 flex space-x-2">
-                      {meeting.teams_join_url && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 px-2 text-xs"
-                          onClick={() => handleJoinMeeting(meeting)}
-                        >
-                          <Play className="h-3 w-3 mr-1" />
-                          Join Now
-                        </Button>
-                      )}
-                      <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
-                        Upcoming
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full mt-2 text-xs"
-                  onClick={() => handleViewMore('meetings')}
-                >
-                  View More
-                </Button>
-              </>
-            ) : (
-              <p className="text-sm text-gray-500 text-center py-4">No upcoming meetings</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Recent Documents */}
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center space-x-2 text-lg">
-              <FileText className="h-5 w-5 text-yellow-500" />
-              <span>Recent Documents</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {recentDocuments.length > 0 ? (
-              <>
-                {recentDocuments.map((doc) => (
-                  <div key={doc.id} className="border-b pb-2 last:border-b-0">
-                    <h4 className="font-medium text-sm text-gray-900 truncate">{doc.name}</h4>
-                    <p className="text-xs text-gray-500">
-                      {new Date(doc.created_at).toLocaleDateString()} • {doc.folder || 'General'}
-                    </p>
-                    <div className="mt-1 flex justify-between items-center">
-                      <span className="text-xs px-2 py-1 bg-blue-500/10 text-blue-500 rounded-full">
-                        {doc.mime_type?.includes('pdf') ? 'PDF' : 'Document'}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-6 px-2 text-xs"
-                        onClick={() => handleOpenDocument(doc)}
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        Open
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full mt-2 text-xs"
-                  onClick={() => handleViewMore('documents')}
-                >
-                  View More
-                </Button>
-              </>
-            ) : (
-              <p className="text-sm text-gray-500 text-center py-4">No documents uploaded</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Recent Emails */}
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center space-x-2 text-lg">
-              <Mail className="h-5 w-5 text-red-500" />
-              <span>Recent Emails</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             {recentEmails.length > 0 ? (
               <>
                 {recentEmails.map((email) => (
-                  <div key={email.id} className="border-b pb-2 last:border-b-0">
-                    <h4 className="font-medium text-sm text-gray-900 truncate">{email.subject}</h4>
-                    <p className="text-xs text-gray-500">
-                      {email.from.name} • {new Date(email.receivedDateTime).toLocaleDateString()}
-                    </p>
-                    <div className="mt-1 flex justify-between items-center">
-                      <div className="flex items-center space-x-2">
-                        {!email.isRead && (
-                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        )}
-                        {email.importance === 'high' && (
-                          <span className="text-xs px-2 py-1 bg-red-500/10 text-red-500 rounded-full">
-                            High
-                          </span>
-                        )}
-                      </div>
+                  <div key={email.id} className="bg-white p-4 rounded-lg border border-red-100 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold text-gray-900 truncate flex-1 mr-2">{email.subject}</h4>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-6 px-2 text-xs"
+                        className="shrink-0 text-red-600 border-red-200 hover:bg-red-50"
                         onClick={() => handleOpenEmail(email)}
                       >
                         <ExternalLink className="h-3 w-3 mr-1" />
                         Open
                       </Button>
                     </div>
+                    <p className="text-sm text-gray-600 mb-2">From: {email.from.name}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">
+                        {new Date(email.receivedDateTime).toLocaleDateString()}
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        {!email.isRead && <div className="w-2 h-2 bg-red-500 rounded-full"></div>}
+                        {email.importance === 'high' && (
+                          <span className="text-xs px-2 py-1 bg-red-100 text-red-600 rounded-full">High</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
                 <Button 
                   variant="ghost" 
-                  size="sm" 
-                  className="w-full mt-2 text-xs"
+                  className="w-full mt-4 text-red-600 hover:bg-red-50"
                   onClick={() => handleViewMore('email')}
                 >
-                  View More
+                  View More →
                 </Button>
               </>
             ) : (
-              <p className="text-sm text-gray-500 text-center py-4">No emails found</p>
+              <div className="text-center py-8">
+                <Mail className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500">No emails found</p>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Active Polls */}
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center space-x-2 text-lg">
-              <Vote className="h-5 w-5 text-green-500" />
-              <span>Active Polls</span>
+        {/* Upcoming Meetings - Top Right */}
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-blue-50 to-white">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center justify-between text-xl">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <CalendarDays className="h-6 w-6 text-blue-600" />
+                </div>
+                <span className="text-gray-800">Upcoming Meetings</span>
+              </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
+            {upcomingMeetings.length > 0 ? (
+              <>
+                {upcomingMeetings.map((meeting) => (
+                  <div key={meeting.id} className="bg-white p-4 rounded-lg border border-blue-100 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold text-gray-900 truncate flex-1 mr-2">{meeting.title}</h4>
+                      {meeting.teams_join_url && (
+                        <Button
+                          size="sm"
+                          className="shrink-0 bg-blue-600 hover:bg-blue-700"
+                          onClick={() => handleJoinMeeting(meeting)}
+                        >
+                          <Play className="h-3 w-3 mr-1" />
+                          Join Now
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {new Date(meeting.start_time).toLocaleDateString()} at {new Date(meeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <span className="inline-block text-xs px-3 py-1 bg-blue-100 text-blue-600 rounded-full">
+                      Upcoming
+                    </span>
+                  </div>
+                ))}
+                <Button 
+                  variant="ghost" 
+                  className="w-full mt-4 text-blue-600 hover:bg-blue-50"
+                  onClick={() => handleViewMore('meetings')}
+                >
+                  View More →
+                </Button>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <CalendarDays className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500">No upcoming meetings</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Important Documents - Bottom Left */}
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-green-50 to-white">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center justify-between text-xl">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <FileText className="h-6 w-6 text-green-600" />
+                </div>
+                <span className="text-gray-800">Important Documents</span>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {recentDocuments.length > 0 ? (
+              <>
+                {recentDocuments.map((doc) => (
+                  <div key={doc.id} className="bg-white p-4 rounded-lg border border-green-100 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold text-gray-900 truncate flex-1 mr-2">{doc.name}</h4>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 text-green-600 border-green-200 hover:bg-green-50"
+                        onClick={() => handleOpenDocument(doc)}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Open
+                      </Button>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {new Date(doc.created_at).toLocaleDateString()} • {doc.folder || 'General'}
+                    </p>
+                    <span className="inline-block text-xs px-3 py-1 bg-green-100 text-green-600 rounded-full">
+                      {doc.mime_type?.includes('pdf') ? 'PDF' : 'Document'}
+                    </span>
+                  </div>
+                ))}
+                <Button 
+                  variant="ghost" 
+                  className="w-full mt-4 text-green-600 hover:bg-green-50"
+                  onClick={() => handleViewMore('documents')}
+                >
+                  View More →
+                </Button>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500">No documents uploaded</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Active Voting - Bottom Right */}
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-purple-50 to-white">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center justify-between text-xl">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Vote className="h-6 w-6 text-purple-600" />
+                </div>
+                <span className="text-gray-800">Active Voting</span>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             {sortedPolls.length > 0 ? (
               <>
                 {sortedPolls.map((poll) => (
-                  <div key={poll.id} className="border-b pb-2 last:border-b-0">
-                    <h4 className="font-medium text-sm text-gray-900 truncate">{poll.title}</h4>
-                    <p className="text-xs text-gray-500 truncate">{poll.description}</p>
-                    <p className="text-xs text-gray-500">
-                      Deadline: {new Date(poll.deadline).toLocaleDateString()}
-                    </p>
-                    <div className="mt-1 flex justify-between items-center">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        isPastDeadline(poll.deadline) ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'
-                      }`}>
-                        {isPastDeadline(poll.deadline) ? 'Expired' : 'Active'}
-                      </span>
+                  <div key={poll.id} className="bg-white p-4 rounded-lg border border-purple-100 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold text-gray-900 truncate flex-1 mr-2">{poll.title}</h4>
                       {!isPastDeadline(poll.deadline) && (
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="h-6 px-2 text-xs"
+                          className="shrink-0 bg-purple-600 hover:bg-purple-700"
                           onClick={() => handleVoteNow(poll)}
                         >
                           <Vote className="h-3 w-3 mr-1" />
@@ -310,19 +320,32 @@ export const Dashboard: React.FC = () => {
                         </Button>
                       )}
                     </div>
+                    <p className="text-sm text-gray-600 mb-2 truncate">{poll.description}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">
+                        Deadline: {new Date(poll.deadline).toLocaleDateString()}
+                      </span>
+                      <span className={`text-xs px-3 py-1 rounded-full ${
+                        isPastDeadline(poll.deadline) ? 'bg-red-100 text-red-600' : 'bg-purple-100 text-purple-600'
+                      }`}>
+                        {isPastDeadline(poll.deadline) ? 'Expired' : 'Active'}
+                      </span>
+                    </div>
                   </div>
                 ))}
                 <Button 
                   variant="ghost" 
-                  size="sm" 
-                  className="w-full mt-2 text-xs"
+                  className="w-full mt-4 text-purple-600 hover:bg-purple-50"
                   onClick={() => handleViewMore('voting')}
                 >
-                  View More
+                  View More →
                 </Button>
               </>
             ) : (
-              <p className="text-sm text-gray-500 text-center py-4">No active polls</p>
+              <div className="text-center py-8">
+                <Vote className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500">No active polls</p>
+              </div>
             )}
           </CardContent>
         </Card>

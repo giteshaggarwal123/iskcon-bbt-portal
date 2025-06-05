@@ -108,6 +108,11 @@ export const useNotifications = () => {
       title: "Success",
       description: "All notifications marked as read"
     });
+    
+    // Force a re-render to update the count immediately
+    setTimeout(() => {
+      setNotifications(prev => [...prev]);
+    }, 0);
   };
 
   const markAsRead = (notificationId: string) => {

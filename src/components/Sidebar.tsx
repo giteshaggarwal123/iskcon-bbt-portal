@@ -82,14 +82,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const handleLogoClick = () => {
+    onModuleChange('dashboard');
+    if (isMobile) {
+      onClose();
+    }
+  };
+
   return (
     <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ${
       isOpen ? 'translate-x-0' : '-translate-x-full'
     } ${isMobile ? 'z-50' : 'lg:translate-x-0'}`}>
       <div className="flex flex-col h-full">
-        {/* Logo Section */}
+        {/* Logo Section - Now Clickable */}
         <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
+          <button 
+            onClick={handleLogoClick}
+            className="flex items-center space-x-3 w-full hover:bg-gray-50 rounded-lg p-2 transition-colors"
+          >
             <div className="w-12 h-12 flex items-center justify-center">
               <img 
                 src="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" 
@@ -97,11 +107,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="w-full h-full object-contain"
               />
             </div>
-            <div>
+            <div className="text-left">
               <h1 className="text-lg font-semibold text-gray-900">ISKCON</h1>
               <p className="text-sm text-gray-500">Bureau Management</p>
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Navigation */}
