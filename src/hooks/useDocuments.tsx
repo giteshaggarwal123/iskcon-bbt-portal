@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
-import { useSharePoint } from './useSharePoint';
 
 interface Document {
   id: string;
@@ -28,7 +27,6 @@ export const useDocuments = () => {
   const [folders, setFolders] = useState<string[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
-  const { uploadToSharePoint, deleteFromSharePoint, isConnected, syncWithSharePoint } = useSharePoint();
 
   const fetchDocuments = async () => {
     try {
@@ -45,11 +43,6 @@ export const useDocuments = () => {
       // Extract unique folders
       const uniqueFolders = [...new Set(docs.map(doc => doc.folder).filter(Boolean))];
       setFolders(uniqueFolders);
-
-      // Auto-sync with SharePoint if connected
-      if (isConnected) {
-        syncWithSharePoint();
-      }
     } catch (error: any) {
       console.error('Error fetching documents:', error);
       toast({
@@ -63,15 +56,6 @@ export const useDocuments = () => {
   };
 
   const createFolder = async (folderName: string) => {
-    if (!isConnected) {
-      toast({
-        title: "Microsoft Account Required",
-        description: "Please connect your Microsoft account to create folders",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
       // Update folders list immediately
       if (!folders.includes(folderName)) {
@@ -98,29 +82,7 @@ export const useDocuments = () => {
   };
 
   const deleteFolder = async (folderName: string) => {
-    if (!isConnected) {
-      toast({
-        title: "Microsoft Account Required",
-        description: "Please connect your Microsoft account to delete folders",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
-      // Get all documents in the folder
-      const { data: folderDocs, error: fetchError } = await supabase
-        .from('documents')
-        .select('id, is_sharepoint_file')
-        .eq('folder', folderName);
-
-      if (fetchError) throw fetchError;
-
-      // Delete SharePoint files
-      for (const doc of folderDocs || []) {
-        await deleteFromSharePoint(doc.id);
-      }
-
       // Delete all documents in the folder from database
       const { error } = await supabase
         .from('documents')
@@ -159,26 +121,39 @@ export const useDocuments = () => {
       return;
     }
 
-    if (!isConnected) {
-      toast({
-        title: "Microsoft Account Required",
-        description: "Please connect your Microsoft account to upload documents",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
-      const document = await uploadToSharePoint(file, folder);
-      if (document) {
-        toast({
-          title: "Success",
-          description: `Document "${file.name}" uploaded to SharePoint successfully`
-        });
-        // Refresh documents list
-        fetchDocuments();
-      }
-      return document;
+      // For now, we'll just create a document record without actual file upload
+      // In a real implementation, you'd upload to Supabase Storage or another service
+      const document = {
+        name: file.name,
+        file_path: URL.createObjectURL(file), // Temporary URL for demo
+        file_size: file.size,
+        mime_type: file.type,
+        folder: folder,
+        uploaded_by: user.id,
+        is_sharepoint_file: false,
+        sharepoint_id: null,
+        sharepoint_url: null,
+        is_important: false,
+        is_hidden: false
+      };
+
+      const { data, error } = await supabase
+        .from('documents')
+        .insert(document)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Document "${file.name}" uploaded successfully`
+      });
+
+      // Refresh documents list
+      fetchDocuments();
+      return data;
     } catch (error: any) {
       console.error('Error uploading document:', error);
       toast({
@@ -216,10 +191,6 @@ export const useDocuments = () => {
 
   const deleteDocument = async (documentId: string) => {
     try {
-      // Delete from SharePoint first
-      const deleted = await deleteFromSharePoint(documentId);
-      if (!deleted) return;
-
       // Delete from database
       const { error } = await supabase
         .from('documents')
@@ -271,18 +242,7 @@ export const useDocuments = () => {
 
   useEffect(() => {
     fetchDocuments();
-  }, [isConnected]);
-
-  // Set up real-time sync when connected
-  useEffect(() => {
-    if (!isConnected) return;
-
-    const interval = setInterval(() => {
-      syncWithSharePoint();
-    }, 5 * 60 * 1000); // Sync every 5 minutes
-
-    return () => clearInterval(interval);
-  }, [isConnected, syncWithSharePoint]);
+  }, []);
 
   return {
     documents,
