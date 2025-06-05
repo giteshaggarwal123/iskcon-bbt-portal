@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -44,9 +43,24 @@ export const useUserRole = (): UseUserRoleReturn => {
       try {
         console.log('Fetching role for user:', user.email);
         
-        // Check if this is a super admin by email first (faster check)
+        // Check if this is a super admin by email
         if (user.email === 'cs@iskconbureau.in' || user.email === 'admin@iskconbureau.in') {
           console.log('Super admin detected by email');
+          
+          // Ensure super admin role exists in database
+          const { error: upsertError } = await supabase
+            .from('user_roles')
+            .upsert({ 
+              user_id: user.id, 
+              role: 'super_admin' 
+            }, { 
+              onConflict: 'user_id,role' 
+            });
+          
+          if (upsertError) {
+            console.error('Error upserting super admin role:', upsertError);
+          }
+          
           setUserRole('super_admin');
           setLoading(false);
           return;
@@ -57,13 +71,13 @@ export const useUserRole = (): UseUserRoleReturn => {
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
-          .maybeSingle();
+          .single();
 
         if (error) {
           console.error('Error fetching user role:', error);
           setUserRole('member'); // Default to member if no role found
         } else {
-          setUserRole(data?.role as UserRole || 'member');
+          setUserRole(data.role as UserRole);
         }
       } catch (error) {
         console.error('Error in fetchUserRole:', error);
@@ -74,7 +88,7 @@ export const useUserRole = (): UseUserRoleReturn => {
     };
 
     fetchUserRole();
-  }, [user?.id, user?.email]); // Only depend on user id and email
+  }, [user]);
 
   const isSuperAdmin = userRole === 'super_admin';
   const isAdmin = userRole === 'admin' || isSuperAdmin;
