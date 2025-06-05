@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { FileText, Upload, Search, Download, Trash2, Eye, Plus, Folder, Move, Edit, Copy, List, Star, StarOff, Grid3X3 } from 'lucide-react';
+import { FileText, Upload, Search, Download, Trash2, Eye, Plus, Folder, Move, Edit, Copy, Star, StarOff } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -45,7 +45,7 @@ import { CreateFolderDialog } from './CreateFolderDialog';
 import { supabase } from '@/integrations/supabase/client';
 
 export const DocumentsModule: React.FC = () => {
-  const { documents, folders, loading, uploadDocument, deleteDocument, moveDocument, createFolder, searchDocuments, fetchDocuments } = useDocuments();
+  const { documents, folders, loading, uploadDocument, deleteDocument, deleteFolder, moveDocument, createFolder, searchDocuments, fetchDocuments } = useDocuments();
   const { user } = useAuth();
   const { canDeleteContent, isSuperAdmin } = useUserRole();
   const { toast } = useToast();
@@ -128,61 +128,62 @@ export const DocumentsModule: React.FC = () => {
     setUploadDialogOpen(false);
   };
 
-  const handleViewDocument = (documentId: string, documentName: string) => {
-    trackDocumentView(documentId);
-    // Simulate opening document - in real implementation this would open the file
-    window.open('#', '_blank');
+  const handleViewDocument = (document: any) => {
+    trackDocumentView(document.id);
+    
+    // Create a blob URL for the file (demo purposes)
+    const blob = new Blob([`This is a demo file: ${document.name}`], { type: document.mime_type || 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    
+    // Open in new tab
+    window.open(url, '_blank');
+    
     toast({
       title: "Document Opened",
-      description: `Opening "${documentName}". Document view has been tracked.`
+      description: `Opening "${document.name}". Document view has been tracked.`
     });
   };
 
-  const handleDownloadDocument = (documentId: string, documentName: string) => {
-    // Create a temporary download link
+  const handleDownloadDocument = (document: any) => {
+    // Create a blob for download (demo purposes)
+    const blob = new Blob([`This is a demo file: ${document.name}`], { type: document.mime_type || 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    
     const link = document.createElement('a');
-    link.href = '#'; // In real implementation, this would be the actual file URL
-    link.download = documentName;
+    link.href = url;
+    link.download = document.name;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     
     toast({
       title: "Download Started",
-      description: `Downloading "${documentName}"`
+      description: `Downloading "${document.name}"`
     });
   };
 
   const handleDeleteDocument = async (documentId: string) => {
     try {
       await deleteDocument(documentId);
-      toast({
-        title: "Success",
-        description: "Document deleted successfully"
-      });
     } catch (error: any) {
       console.error('Delete error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete document",
-        variant: "destructive"
-      });
     }
   };
 
   const handleFolderCreated = async (folderName: string) => {
     try {
       await createFolder(folderName);
-      toast({
-        title: "Success",
-        description: `Folder "${folderName}" created successfully`
-      });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to create folder",
-        variant: "destructive"
-      });
+      // Error handling is done in the hook
+    }
+  };
+
+  const handleFolderDeleted = async (folderName: string) => {
+    try {
+      await deleteFolder(folderName);
+    } catch (error: any) {
+      // Error handling is done in the hook
     }
   };
 
@@ -199,16 +200,8 @@ export const DocumentsModule: React.FC = () => {
       setMoveDialogOpen(false);
       setDocumentToMove(null);
       setSelectedFolder('');
-      toast({
-        title: "Success",
-        description: "Document moved successfully"
-      });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to move document",
-        variant: "destructive"
-      });
+      // Error handling is done in the hook
     }
   };
 
@@ -226,7 +219,6 @@ export const DocumentsModule: React.FC = () => {
           mime_type: document.mime_type,
           folder: document.folder,
           uploaded_by: user?.id || document.uploaded_by,
-          version: '1.0'
         });
 
       if (error) throw error;
@@ -323,8 +315,9 @@ export const DocumentsModule: React.FC = () => {
     return () => document.removeEventListener('keydown', handleKeydown);
   }, []);
 
-  // Filter and sort documents
+  // Filter and sort documents (exclude hidden placeholder files)
   const filteredAndSortedDocuments = documents
+    .filter(doc => doc.name !== '.folder_placeholder') // Hide placeholder files
     .filter(doc => canAccessDocument(doc))
     .filter(doc => {
       const matchesSearch = !searchTerm || doc.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -408,6 +401,7 @@ export const DocumentsModule: React.FC = () => {
         <div className="flex space-x-2">
           <CreateFolderDialog 
             onFolderCreated={handleFolderCreated}
+            onFolderDeleted={handleFolderDeleted}
             existingFolders={folders}
           />
           <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
@@ -486,25 +480,6 @@ export const DocumentsModule: React.FC = () => {
           >
             {sortOrder === 'asc' ? '↑' : '↓'}
           </Button>
-          
-          <div className="flex border rounded-lg">
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="rounded-r-none"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className="rounded-l-none"
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </div>
 
@@ -546,265 +521,118 @@ export const DocumentsModule: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Documents Display */}
-      {viewMode === 'list' ? (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-8"></TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Last modified</TableHead>
-                <TableHead>File size</TableHead>
-                <TableHead className="w-32">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAndSortedDocuments.map((document) => (
-                <ContextMenu key={document.id}>
-                  <ContextMenuTrigger asChild>
-                    <TableRow className="cursor-pointer hover:bg-gray-50">
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleImportant(document.id, document.is_important || false)}
-                          className="h-6 w-6 p-0"
-                        >
-                          {document.is_important ? (
-                            <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                          ) : (
-                            <StarOff className="h-4 w-4 text-gray-400" />
-                          )}
-                        </Button>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          {getFileIcon(document.mime_type)}
-                          <div>
-                            {renameDocumentId === document.id ? (
-                              <Input
-                                value={newDocumentName}
-                                onChange={(e) => setNewDocumentName(e.target.value)}
-                                onBlur={() => {
+      {/* Documents Display - List View Only */}
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-8"></TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead>Last modified</TableHead>
+              <TableHead>File size</TableHead>
+              <TableHead className="w-32">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredAndSortedDocuments.map((document) => (
+              <ContextMenu key={document.id}>
+                <ContextMenuTrigger asChild>
+                  <TableRow 
+                    className="cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleViewDocument(document)}
+                  >
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleImportant(document.id, document.is_important || false);
+                        }}
+                        className="h-6 w-6 p-0"
+                      >
+                        {document.is_important ? (
+                          <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                        ) : (
+                          <StarOff className="h-4 w-4 text-gray-400" />
+                        )}
+                      </Button>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-3">
+                        {getFileIcon(document.mime_type)}
+                        <div>
+                          {renameDocumentId === document.id ? (
+                            <Input
+                              value={newDocumentName}
+                              onChange={(e) => setNewDocumentName(e.target.value)}
+                              onBlur={() => {
+                                if (newDocumentName.trim()) {
+                                  handleRenameDocument(document.id, newDocumentName);
+                                } else {
+                                  cancelRename();
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
                                   if (newDocumentName.trim()) {
                                     handleRenameDocument(document.id, newDocumentName);
                                   } else {
                                     cancelRename();
                                   }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    if (newDocumentName.trim()) {
-                                      handleRenameDocument(document.id, newDocumentName);
-                                    } else {
-                                      cancelRename();
-                                    }
-                                  } else if (e.key === 'Escape') {
-                                    cancelRename();
-                                  }
-                                }}
-                                className="h-8 text-sm"
-                                autoFocus
-                              />
-                            ) : (
-                              <div className="font-medium">{document.name}</div>
-                            )}
-                            <div className="text-sm text-gray-500 capitalize">
-                              {(document.folder || 'general')}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
-                            <span className="text-xs font-medium">me</span>
-                          </div>
-                          <span className="text-sm">me</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600">
-                        {formatDate(document.updated_at)}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600">
-                        {formatFileSize(document.file_size)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-1">
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="h-8 w-8 p-0"
-                            onClick={() => handleViewDocument(document.id, document.name)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="h-8 w-8 p-0"
-                            onClick={() => handleDownloadDocument(document.id, document.name)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <DocumentAnalytics 
-                            documentId={document.id}
-                            documentName={document.name}
-                          />
-                          {canDeleteDocument(document) && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Document</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete "{document.name}"? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => handleDeleteDocument(document.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  </ContextMenuTrigger>
-                  
-                  <ContextMenuContent>
-                    <ContextMenuItem onClick={() => handleViewDocument(document.id, document.name)}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Document
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => handleDownloadDocument(document.id, document.name)}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem onClick={() => startRename(document.id, document.name)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Rename
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => handleCopyDocument(document.id)}>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copy Document
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => {
-                      setDocumentToMove(document.id);
-                      setMoveDialogOpen(true);
-                    }}>
-                      <Move className="h-4 w-4 mr-2" />
-                      Move to Folder
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => toggleImportant(document.id, document.is_important || false)}>
-                      {document.is_important ? (
-                        <><StarOff className="h-4 w-4 mr-2" />Remove from Important</>
-                      ) : (
-                        <><Star className="h-4 w-4 mr-2" />Mark as Important</>
-                      )}
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    {canDeleteDocument(document) && (
-                      <ContextMenuItem 
-                        onClick={() => handleDeleteDocument(document.id)}
-                        className="text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </ContextMenuItem>
-                    )}
-                  </ContextMenuContent>
-                </ContextMenu>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {filteredAndSortedDocuments.map((document) => (
-            <ContextMenu key={document.id}>
-              <ContextMenuTrigger asChild>
-                <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 border border-gray-200 hover:border-gray-300">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-gray-100 rounded-lg">
-                          {getFileIcon(document.mime_type)}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleImportant(document.id, document.is_important || false);
-                          }}
-                          className="h-8 w-8 p-0"
-                        >
-                          {document.is_important ? (
-                            <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                                } else if (e.key === 'Escape') {
+                                  cancelRename();
+                                }
+                              }}
+                              className="h-8 text-sm"
+                              autoFocus
+                              onClick={(e) => e.stopPropagation()}
+                            />
                           ) : (
-                            <StarOff className="h-4 w-4 text-gray-400" />
+                            <div className="font-medium">{document.name}</div>
                           )}
-                        </Button>
+                          <div className="text-sm text-gray-500 capitalize">
+                            {(document.folder || 'general')}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <CardTitle className="text-base font-semibold line-clamp-2 min-h-[2.5rem]" title={document.name}>
-                      {document.name}
-                    </CardTitle>
-                    <CardDescription className="text-sm space-y-2">
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center space-x-2">
-                        <Folder className="h-3 w-3" />
-                        <span className="capitalize text-gray-600">{document.folder || 'general'}</span>
+                        <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                          <span className="text-xs font-medium">me</span>
+                        </div>
+                        <span className="text-sm">me</span>
                       </div>
-                      <div className="text-gray-500 text-xs">
-                        {formatDate(document.updated_at)}
-                      </div>
-                      <div className="text-gray-500 text-xs">
-                        {formatFileSize(document.file_size)}
-                      </div>
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="flex items-center justify-between border-t pt-4">
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {formatDate(document.updated_at)}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {formatFileSize(document.file_size)}
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center space-x-1">
                         <Button 
                           size="sm" 
                           variant="ghost" 
-                          className="h-8 w-8 p-0 hover:bg-blue-50"
+                          className="h-8 w-8 p-0"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleViewDocument(document.id, document.name);
+                            handleViewDocument(document);
                           }}
-                          title="View"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button 
                           size="sm" 
                           variant="ghost" 
-                          className="h-8 w-8 p-0 hover:bg-green-50"
+                          className="h-8 w-8 p-0"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDownloadDocument(document.id, document.name);
+                            handleDownloadDocument(document);
                           }}
-                          title="Download"
                         >
                           <Download className="h-4 w-4" />
                         </Button>
@@ -812,91 +640,90 @@ export const DocumentsModule: React.FC = () => {
                           documentId={document.id}
                           documentName={document.name}
                         />
-                      </div>
-                      {canDeleteDocument(document) && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
-                              onClick={(e) => e.stopPropagation()}
-                              title="Delete"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Document</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "{document.name}"? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => handleDeleteDocument(document.id)}
-                                className="bg-red-600 hover:bg-red-700"
+                        {canDeleteDocument(document) && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </ContextMenuTrigger>
-              
-              <ContextMenuContent>
-                <ContextMenuItem onClick={() => handleViewDocument(document.id, document.name)}>
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Document
-                </ContextMenuItem>
-                <ContextMenuItem onClick={() => handleDownloadDocument(document.id, document.name)}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem onClick={() => startRename(document.id, document.name)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Rename
-                </ContextMenuItem>
-                <ContextMenuItem onClick={() => handleCopyDocument(document.id)}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy Document
-                </ContextMenuItem>
-                <ContextMenuItem onClick={() => {
-                  setDocumentToMove(document.id);
-                  setMoveDialogOpen(true);
-                }}>
-                  <Move className="h-4 w-4 mr-2" />
-                  Move to Folder
-                </ContextMenuItem>
-                <ContextMenuItem onClick={() => toggleImportant(document.id, document.is_important || false)}>
-                  {document.is_important ? (
-                    <><StarOff className="h-4 w-4 mr-2" />Remove from Important</>
-                  ) : (
-                    <><Star className="h-4 w-4 mr-2" />Mark as Important</>
-                  )}
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                {canDeleteDocument(document) && (
-                  <ContextMenuItem 
-                    onClick={() => handleDeleteDocument(document.id)}
-                    className="text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Document</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{document.name}"? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => handleDeleteDocument(document.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </ContextMenuTrigger>
+                
+                <ContextMenuContent>
+                  <ContextMenuItem onClick={() => handleViewDocument(document)}>
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Document
                   </ContextMenuItem>
-                )}
-              </ContextMenuContent>
-            </ContextMenu>
-          ))}
-        </div>
-      )}
+                  <ContextMenuItem onClick={() => handleDownloadDocument(document)}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem onClick={() => startRename(document.id, document.name)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Rename
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleCopyDocument(document.id)}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Document
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => {
+                    setDocumentToMove(document.id);
+                    setMoveDialogOpen(true);
+                  }}>
+                    <Move className="h-4 w-4 mr-2" />
+                    Move to Folder
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => toggleImportant(document.id, document.is_important || false)}>
+                    {document.is_important ? (
+                      <><StarOff className="h-4 w-4 mr-2" />Remove from Important</>
+                    ) : (
+                      <><Star className="h-4 w-4 mr-2" />Mark as Important</>
+                    )}
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  {canDeleteDocument(document) && (
+                    <ContextMenuItem 
+                      onClick={() => handleDeleteDocument(document.id)}
+                      className="text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </ContextMenuItem>
+                  )}
+                </ContextMenuContent>
+              </ContextMenu>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
 
       {filteredAndSortedDocuments.length === 0 && (
         <div className="text-center py-12">
@@ -910,7 +737,7 @@ export const DocumentsModule: React.FC = () => {
               <Upload className="h-4 w-4 mr-2" />
               Upload Document
             </Button>
-            )}
+          )}
         </div>
       )}
     </div>

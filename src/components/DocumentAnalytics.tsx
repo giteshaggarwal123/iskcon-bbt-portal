@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BarChart3, Clock, User } from 'lucide-react';
+import { BarChart3, Clock, User, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -39,7 +39,10 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
         .eq('document_id', documentId)
         .order('view_started_at', { ascending: false });
 
-      if (viewsError) throw viewsError;
+      if (viewsError) {
+        console.error('Error fetching views:', viewsError);
+        // Don't throw error, just show basic analytics
+      }
 
       const viewData: ViewData[] = views || [];
       
@@ -70,13 +73,27 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
         recentTimeSpent,
         uniqueViewers: uniqueUsers.length,
         lastViewed: viewData.length > 0 ? viewData[0].view_started_at : null,
-        viewDetails: viewData.slice(0, 5) // Show last 5 views
+        viewDetails: viewData.slice(0, 5), // Show last 5 views
+        hasData: viewData.length > 0
       });
     } catch (error: any) {
       console.error('Error fetching analytics:', error);
+      // Set basic analytics even if there's an error
+      setAnalytics({
+        totalViews: 0,
+        totalTimeSpent: 0,
+        averageTimeSpent: 0,
+        recentViews: 0,
+        recentTimeSpent: 0,
+        uniqueViewers: 0,
+        lastViewed: null,
+        viewDetails: [],
+        hasData: false
+      });
+      
       toast({
-        title: "Analytics Error",
-        description: "Failed to load document analytics",
+        title: "Analytics Warning",
+        description: "Analytics data may be incomplete due to database configuration",
         variant: "destructive"
       });
     } finally {
@@ -99,22 +116,24 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
       <DialogTrigger asChild>
         <Button 
           size="sm" 
-          variant="outline" 
-          className="h-8 px-2"
-          onClick={fetchAnalytics}
+          variant="ghost" 
+          className="h-8 w-8 p-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            fetchAnalytics();
+          }}
         >
-          <BarChart3 className="h-3 w-3 mr-1" />
-          Analytics
+          <BarChart3 className="h-4 w-4" />
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <BarChart3 className="h-5 w-5" />
-            <span>Time Analytics</span>
+            <span>Document Analytics</span>
           </DialogTitle>
           <DialogDescription>
-            Time spent analysis for "{documentName}"
+            View analytics for "{documentName}"
           </DialogDescription>
         </DialogHeader>
         
@@ -124,86 +143,124 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           </div>
         ) : analytics ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardDescription className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4" />
-                    <span>Total Time</span>
-                  </CardDescription>
-                  <CardTitle className="text-xl">{formatDuration(analytics.totalTimeSpent)}</CardTitle>
-                </CardHeader>
-              </Card>
-              
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardDescription className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4" />
-                    <span>Avg. Time</span>
-                  </CardDescription>
-                  <CardTitle className="text-xl">{formatDuration(Math.round(analytics.averageTimeSpent))}</CardTitle>
-                </CardHeader>
-              </Card>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardDescription className="flex items-center space-x-2">
-                    <User className="h-4 w-4" />
-                    <span>Total Views</span>
-                  </CardDescription>
-                  <CardTitle className="text-xl">{analytics.totalViews}</CardTitle>
-                </CardHeader>
-              </Card>
-              
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardDescription className="flex items-center space-x-2">
-                    <User className="h-4 w-4" />
-                    <span>Unique Viewers</span>
-                  </CardDescription>
-                  <CardTitle className="text-xl">{analytics.uniqueViewers}</CardTitle>
-                </CardHeader>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription>Recent Activity (7 days)</CardDescription>
-                <div className="space-y-1">
-                  <div className="text-sm font-medium">{analytics.recentViews} views</div>
-                  <div className="text-sm text-gray-600">{formatDuration(analytics.recentTimeSpent)} total time</div>
+            {analytics.hasData ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardDescription className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4" />
+                        <span>Total Time</span>
+                      </CardDescription>
+                      <CardTitle className="text-xl">{formatDuration(analytics.totalTimeSpent)}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardDescription className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4" />
+                        <span>Avg. Time</span>
+                      </CardDescription>
+                      <CardTitle className="text-xl">{formatDuration(Math.round(analytics.averageTimeSpent))}</CardTitle>
+                    </CardHeader>
+                  </Card>
                 </div>
-              </CardHeader>
-            </Card>
-            
-            {analytics.lastViewed && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardDescription>Last Viewed</CardDescription>
-                  <CardTitle className="text-sm">
-                    {new Date(analytics.lastViewed).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </CardTitle>
-                </CardHeader>
-              </Card>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardDescription className="flex items-center space-x-2">
+                        <Eye className="h-4 w-4" />
+                        <span>Total Views</span>
+                      </CardDescription>
+                      <CardTitle className="text-xl">{analytics.totalViews}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardDescription className="flex items-center space-x-2">
+                        <User className="h-4 w-4" />
+                        <span>Unique Viewers</span>
+                      </CardDescription>
+                      <CardTitle className="text-xl">{analytics.uniqueViewers}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardDescription>Recent Activity (7 days)</CardDescription>
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium">{analytics.recentViews} views</div>
+                      <div className="text-sm text-gray-600">{formatDuration(analytics.recentTimeSpent)} total time</div>
+                    </div>
+                  </CardHeader>
+                </Card>
+                
+                {analytics.lastViewed && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardDescription>Last Viewed</CardDescription>
+                      <CardTitle className="text-sm">
+                        {new Date(analytics.lastViewed).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+                )}
+                
+                <div className="pt-2">
+                  <Badge variant="outline" className="text-xs">
+                    {analytics.totalViews > 0 ? `Active document - ${analytics.uniqueViewers} unique viewers` : 'No views yet'}
+                  </Badge>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-3 text-center">
+                    <Eye className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                    <CardDescription>No Analytics Data Available</CardDescription>
+                    <div className="text-sm text-gray-500">
+                      This document hasn't been viewed yet, or analytics tracking needs to be configured.
+                    </div>
+                  </CardHeader>
+                </Card>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardDescription>Total Views</CardDescription>
+                      <CardTitle className="text-xl">0</CardTitle>
+                    </CardHeader>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardDescription>Time Spent</CardDescription>
+                      <CardTitle className="text-xl">0s</CardTitle>
+                    </CardHeader>
+                  </Card>
+                </div>
+                
+                <div className="pt-2">
+                  <Badge variant="outline" className="text-xs">
+                    Analytics will appear after first view
+                  </Badge>
+                </div>
+              </div>
             )}
-            
-            <div className="pt-2">
-              <Badge variant="outline" className="text-xs">
-                {analytics.totalViews > 0 ? `Active document - ${analytics.uniqueViewers} unique viewers` : 'No views yet'}
-              </Badge>
-            </div>
           </div>
         ) : (
           <div className="text-center py-4 text-gray-500">
-            No analytics data available
+            Click to load analytics data
           </div>
         )}
       </DialogContent>

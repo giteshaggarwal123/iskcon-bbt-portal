@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -53,15 +52,77 @@ export const useDocuments = () => {
   };
 
   const createFolder = async (folderName: string) => {
-    // Just add to folders list - folders are created when documents are uploaded to them
-    if (!folders.includes(folderName)) {
-      setFolders(prev => [...prev, folderName]);
+    try {
+      // Create a placeholder document to establish the folder
+      const { data, error } = await supabase
+        .from('documents')
+        .insert({
+          name: '.folder_placeholder',
+          file_path: `/uploads/${folderName}/.folder_placeholder`,
+          file_size: 0,
+          mime_type: 'text/plain',
+          folder: folderName,
+          uploaded_by: user?.id || '',
+          is_important: false,
+          is_hidden: true
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update folders list immediately
+      if (!folders.includes(folderName)) {
+        setFolders(prev => [...prev, folderName]);
+      }
+
       toast({
         title: "Success",
         description: `Folder "${folderName}" created successfully`
       });
+
+      // Refresh documents to show the new folder
+      await fetchDocuments();
+      return folderName;
+    } catch (error: any) {
+      console.error('Error creating folder:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create folder",
+        variant: "destructive"
+      });
+      throw error;
     }
-    return folderName;
+  };
+
+  const deleteFolder = async (folderName: string) => {
+    try {
+      // Delete all documents in the folder
+      const { error } = await supabase
+        .from('documents')
+        .delete()
+        .eq('folder', folderName);
+
+      if (error) throw error;
+
+      // Update folders list
+      setFolders(prev => prev.filter(f => f !== folderName));
+
+      toast({
+        title: "Success",
+        description: `Folder "${folderName}" and all its contents deleted successfully`
+      });
+
+      // Refresh documents
+      await fetchDocuments();
+    } catch (error: any) {
+      console.error('Error deleting folder:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete folder",
+        variant: "destructive"
+      });
+    }
   };
 
   const uploadDocument = async (file: File, folder: string = 'general') => {
@@ -75,6 +136,8 @@ export const useDocuments = () => {
     }
 
     try {
+      // For demo purposes, we'll store file metadata only
+      // In a real implementation, you'd upload to storage first
       const { data, error } = await supabase
         .from('documents')
         .insert({
@@ -195,6 +258,7 @@ export const useDocuments = () => {
     loading,
     uploadDocument,
     deleteDocument,
+    deleteFolder,
     moveDocument,
     createFolder,
     searchDocuments,
