@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -78,8 +77,8 @@ export const usePolls = () => {
       if (error) throw error;
 
       // Get stats for each poll and transform the data to match our interface
-      const pollsWithStats = await Promise.all(
-        pollsData.map(async (poll) => {
+      const pollsWithStats: Poll[] = await Promise.all(
+        pollsData.map(async (poll): Promise<Poll> => {
           const { data: stats } = await supabase.rpc('get_poll_stats', {
             poll_id_param: poll.id
           });
@@ -98,7 +97,7 @@ export const usePolls = () => {
             sub_polls: poll.sub_polls || [],
             attachments: poll.poll_attachments || [],
             stats: stats?.[0] || { total_voters: 0, voted_count: 0, pending_count: 0, sub_poll_count: 0 }
-          } as Poll;
+          };
         })
       );
 
