@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
@@ -18,6 +17,7 @@ const AppContent = () => {
   const { user, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [currentModule, setCurrentModule] = React.useState('dashboard');
+  const [avatarRefreshTrigger, setAvatarRefreshTrigger] = React.useState(0);
 
   if (loading) {
     return (
@@ -53,7 +53,7 @@ const AppContent = () => {
       case 'reports':
         return <ReportsModule />;
       case 'settings':
-        return <SettingsModule />;
+        return <SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />;
       default:
         return <Dashboard />;
     }
@@ -80,6 +80,7 @@ const AppContent = () => {
         onClose={() => setSidebarOpen(false)}
         currentModule={currentModule}
         onModuleChange={setCurrentModule}
+        avatarRefreshTrigger={avatarRefreshTrigger}
       />
       <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
         <Header 

@@ -16,7 +16,11 @@ import { MicrosoftOAuthButton } from './MicrosoftOAuthButton';
 import { Badge } from '@/components/ui/badge';
 import { ProfileImageUpload } from './ProfileImageUpload';
 
-export const SettingsModule: React.FC = () => {
+interface SettingsModuleProps {
+  onAvatarUpdate?: () => void;
+}
+
+export const SettingsModule: React.FC<SettingsModuleProps> = ({ onAvatarUpdate }) => {
   const { user } = useAuth();
   const userRole = useUserRole();
   const { toast } = useToast();
@@ -82,6 +86,10 @@ export const SettingsModule: React.FC = () => {
 
   const handleImageUpdate = (imageUrl: string) => {
     setPersonalInfo(prev => ({ ...prev, avatar_url: imageUrl }));
+    // Trigger avatar refresh in sidebar
+    if (onAvatarUpdate) {
+      onAvatarUpdate();
+    }
   };
 
   const updatePersonalInfo = async () => {

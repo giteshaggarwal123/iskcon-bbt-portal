@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { 
   Calendar, 
   File, 
@@ -22,6 +23,7 @@ interface SidebarProps {
   onClose: () => void;
   currentModule: string;
   onModuleChange: (module: string) => void;
+  avatarRefreshTrigger?: number; // Add prop to trigger avatar refresh
 }
 
 const allMenuItems = [
@@ -35,7 +37,13 @@ const allMenuItems = [
   { id: 'settings', label: 'Settings', icon: Settings, requiredPermission: 'canManageSettings' },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModuleChange, onClose }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ 
+  isOpen, 
+  currentModule, 
+  onModuleChange, 
+  onClose,
+  avatarRefreshTrigger = 0
+}) => {
   const { user, signOut } = useAuth();
   const userRole = useUserRole();
   const isMobile = useIsMobile();
@@ -130,7 +138,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentModule, onModul
             onClick={handleProfileClick}
             className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <ProfileAvatarLoader userName={userName} />
+            <ProfileAvatarLoader 
+              userName={userName} 
+              refreshTrigger={avatarRefreshTrigger}
+            />
             <div className="flex-1 min-w-0 text-left">
               <p className="text-sm font-medium text-gray-900 truncate">
                 {userName}
