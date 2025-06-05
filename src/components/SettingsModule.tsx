@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { User, Bell, Settings, Mail, Save, MessageCircle, Shield, Lock } from 'lucide-react';
+import { User, Bell, Settings, Mail, Save, MessageCircle, Shield, Lock, Edit } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
@@ -40,10 +40,16 @@ export const SettingsModule: React.FC = () => {
     voteNotifications: true
   });
 
-  // Permission checks
-  const canEditPersonalInfo = userRole.isSuperAdmin;
+  // Enhanced Permission Logic
+  const isSuperAdmin = userRole.isSuperAdmin;
+  const isAdmin = userRole.isAdmin;
+  const isRegularMember = !isSuperAdmin && !isAdmin;
+
+  // Field-specific permissions
+  const canEditFirstName = isSuperAdmin;
+  const canEditLastName = isSuperAdmin;
   const canEditEmail = false; // Email can never be changed
-  const canEditPhone = userRole.isSuperAdmin || userRole.isAdmin;
+  const canEditPhone = isSuperAdmin || isAdmin;
   const canEditNotifications = true; // All users can edit their notification preferences
 
   useEffect(() => {
@@ -80,11 +86,11 @@ export const SettingsModule: React.FC = () => {
   const updatePersonalInfo = async () => {
     if (!user) return;
 
-    // Check permissions before updating
-    if (!canEditPersonalInfo && !canEditPhone) {
+    // Check if user has any edit permissions
+    if (!canEditFirstName && !canEditLastName && !canEditPhone) {
       toast({
         title: "Permission Denied",
-        description: "You don't have permission to edit this information. Contact an administrator.",
+        description: "You don't have permission to edit personal information. Please contact an administrator to request changes.",
         variant: "destructive"
       });
       return;
@@ -95,12 +101,16 @@ export const SettingsModule: React.FC = () => {
       // Prepare update object based on permissions
       const updateData: any = {
         id: user.id,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        email: personalInfo.email // Email is always included but never changed
       };
 
-      // Super admins can edit names
-      if (canEditPersonalInfo) {
+      // Super admins can edit all name fields
+      if (canEditFirstName) {
         updateData.first_name = personalInfo.first_name;
+      }
+      
+      if (canEditLastName) {
         updateData.last_name = personalInfo.last_name;
       }
 
@@ -108,9 +118,6 @@ export const SettingsModule: React.FC = () => {
       if (canEditPhone) {
         updateData.phone = personalInfo.phone;
       }
-
-      // Email is never editable
-      updateData.email = personalInfo.email;
 
       const { error } = await supabase
         .from('profiles')
@@ -149,17 +156,17 @@ export const SettingsModule: React.FC = () => {
         .from('emails')
         .insert({
           sender_id: user?.id,
-          recipients: ['admin@iskcon.org'],
-          subject: 'Contact Administrator Request',
-          body: `Message from ${personalInfo.first_name} ${personalInfo.last_name} (${personalInfo.email}):\n\n${contactMessage}`,
+          recipients: ['admin@iskconbureau.in'],
+          subject: 'Profile Change Request',
+          body: `Profile change request from ${personalInfo.first_name} ${personalInfo.last_name} (${personalInfo.email}):\n\n${contactMessage}`,
           status: 'draft'
         });
 
       if (error) throw error;
 
       toast({
-        title: "Message Sent",
-        description: "Your message has been sent to the administrator."
+        title: "Request Sent",
+        description: "Your profile change request has been sent to the administrator."
       });
       
       setContactMessage('');
@@ -167,7 +174,7 @@ export const SettingsModule: React.FC = () => {
     } catch (error: any) {
       toast({
         title: "Send Failed",
-        description: error.message || "Failed to send message",
+        description: error.message || "Failed to send request",
         variant: "destructive"
       });
     } finally {
@@ -180,6 +187,20 @@ export const SettingsModule: React.FC = () => {
       return <Badge className="bg-green-100 text-green-800 text-xs">Editable</Badge>;
     }
     return <Badge className="bg-red-100 text-red-800 text-xs">Read Only</Badge>;
+  };
+
+  const getFieldDescription = (fieldName: string, canEdit: boolean) => {
+    if (canEdit) return null;
+    
+    if (fieldName === 'email') {
+      return "Email cannot be changed for security reasons";
+    }
+    
+    if (isRegularMember) {
+      return "Contact administrator to request changes to this field";
+    }
+    
+    return "You don't have permission to edit this field";
   };
 
   return (
@@ -195,43 +216,45 @@ export const SettingsModule: React.FC = () => {
             </span>
           </div>
         </div>
-        <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline">
-              <MessageCircle className="h-4 w-4 mr-2" />
-              Contact Administrator
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Contact Administrator</DialogTitle>
-              <DialogDescription>
-                Send a message to the bureau administrator
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="message">Message</Label>
-                <Textarea
-                  id="message"
-                  value={contactMessage}
-                  onChange={(e) => setContactMessage(e.target.value)}
-                  placeholder="Type your message here..."
-                  rows={4}
-                />
+        {isRegularMember && (
+          <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Request Profile Changes
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Request Profile Changes</DialogTitle>
+                <DialogDescription>
+                  Send a request to the administrator to modify your profile information
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="message">Describe the changes you need</Label>
+                  <Textarea
+                    id="message"
+                    value={contactMessage}
+                    onChange={(e) => setContactMessage(e.target.value)}
+                    placeholder="Please specify which fields you'd like to change and the new values..."
+                    rows={4}
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setContactDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleContactAdministrator} disabled={loading}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    {loading ? 'Sending...' : 'Send Request'}
+                  </Button>
+                </div>
               </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setContactDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleContactAdministrator} disabled={loading}>
-                  <Mail className="h-4 w-4 mr-2" />
-                  {loading ? 'Sending...' : 'Send Message'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <Tabs defaultValue="personal" className="space-y-6">
@@ -250,11 +273,19 @@ export const SettingsModule: React.FC = () => {
               </CardTitle>
               <CardDescription>
                 Update your personal details and contact information
-                {!canEditPersonalInfo && !canEditPhone && (
+                {isRegularMember && (
+                  <div className="flex items-center space-x-2 mt-2 p-2 bg-blue-50 rounded-md">
+                    <Edit className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm text-blue-700">
+                      To modify your personal information, please use the "Request Profile Changes" button above
+                    </span>
+                  </div>
+                )}
+                {!isSuperAdmin && !isRegularMember && (
                   <div className="flex items-center space-x-2 mt-2 p-2 bg-amber-50 rounded-md">
                     <Lock className="h-4 w-4 text-amber-600" />
                     <span className="text-sm text-amber-700">
-                      Contact an administrator to modify your personal information
+                      You can edit phone numbers but need super admin permissions for name changes
                     </span>
                   </div>
                 )}
@@ -265,30 +296,40 @@ export const SettingsModule: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <Label htmlFor="firstName">First Name</Label>
-                    {getPermissionBadge(canEditPersonalInfo)}
+                    {getPermissionBadge(canEditFirstName)}
                   </div>
                   <Input
                     id="firstName"
                     value={personalInfo.first_name}
-                    onChange={(e) => canEditPersonalInfo && setPersonalInfo(prev => ({ ...prev, first_name: e.target.value }))}
+                    onChange={(e) => canEditFirstName && setPersonalInfo(prev => ({ ...prev, first_name: e.target.value }))}
                     placeholder="Enter your first name"
-                    readOnly={!canEditPersonalInfo}
-                    className={!canEditPersonalInfo ? "bg-gray-100 cursor-not-allowed" : ""}
+                    readOnly={!canEditFirstName}
+                    className={!canEditFirstName ? "bg-gray-100 cursor-not-allowed" : ""}
                   />
+                  {getFieldDescription('firstName', canEditFirstName) && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {getFieldDescription('firstName', canEditFirstName)}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <Label htmlFor="lastName">Last Name</Label>
-                    {getPermissionBadge(canEditPersonalInfo)}
+                    {getPermissionBadge(canEditLastName)}
                   </div>
                   <Input
                     id="lastName"
                     value={personalInfo.last_name}
-                    onChange={(e) => canEditPersonalInfo && setPersonalInfo(prev => ({ ...prev, last_name: e.target.value }))}
+                    onChange={(e) => canEditLastName && setPersonalInfo(prev => ({ ...prev, last_name: e.target.value }))}
                     placeholder="Enter your last name"
-                    readOnly={!canEditPersonalInfo}
-                    className={!canEditPersonalInfo ? "bg-gray-100 cursor-not-allowed" : ""}
+                    readOnly={!canEditLastName}
+                    className={!canEditLastName ? "bg-gray-100 cursor-not-allowed" : ""}
                   />
+                  {getFieldDescription('lastName', canEditLastName) && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {getFieldDescription('lastName', canEditLastName)}
+                    </p>
+                  )}
                 </div>
               </div>
               <div>
@@ -304,7 +345,9 @@ export const SettingsModule: React.FC = () => {
                   className="bg-gray-100 cursor-not-allowed"
                   placeholder="Enter your email address"
                 />
-                <p className="text-xs text-gray-500 mt-1">Email cannot be changed for security reasons</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {getFieldDescription('email', canEditEmail)}
+                </p>
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -319,24 +362,38 @@ export const SettingsModule: React.FC = () => {
                   readOnly={!canEditPhone}
                   className={!canEditPhone ? "bg-gray-100 cursor-not-allowed" : ""}
                 />
-                {!canEditPhone && (
+                {getFieldDescription('phone', canEditPhone) && (
                   <p className="text-xs text-gray-500 mt-1">
-                    Phone number can only be changed by administrators
+                    {getFieldDescription('phone', canEditPhone)}
                   </p>
                 )}
               </div>
-              <Button 
-                onClick={updatePersonalInfo} 
-                disabled={loading || (!canEditPersonalInfo && !canEditPhone)} 
-                className="w-full"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {loading ? 'Saving...' : 'Save Changes'}
-              </Button>
-              {(!canEditPersonalInfo && !canEditPhone) && (
-                <p className="text-sm text-gray-500 text-center">
-                  You don't have permission to edit personal information. Contact an administrator for changes.
-                </p>
+              
+              {(canEditFirstName || canEditLastName || canEditPhone) && (
+                <Button 
+                  onClick={updatePersonalInfo} 
+                  disabled={loading} 
+                  className="w-full"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </Button>
+              )}
+              
+              {isRegularMember && (
+                <div className="text-center pt-4 border-t">
+                  <p className="text-sm text-gray-600 mb-3">
+                    Need to update your personal information?
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setContactDialogOpen(true)}
+                    className="w-full"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Request Profile Changes
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
