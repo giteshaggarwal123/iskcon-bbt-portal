@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { FileText, Upload } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
-import { useFolders } from '@/hooks/useFolders';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { DocumentTable } from './documents/DocumentTable';
 import { DocumentFilters } from './documents/DocumentFilters';
+import { DocumentUploadDialog } from './documents/DocumentUploadDialog';
 import { DocumentRenameDialog } from './documents/DocumentRenameDialog';
-import { FolderManagement } from './folders/FolderManagement';
-import { DocumentHeader } from './documents/DocumentHeader';
-import { DocumentContent } from './documents/DocumentContent';
-import { useDocumentManager } from './documents/DocumentManager';
+import { CreateFolderDialog } from './CreateFolderDialog';
 
 interface Document {
   id: string;
@@ -19,7 +18,6 @@ interface Document {
   file_size: number | null;
   mime_type: string | null;
   folder: string | null;
-  folder_id: string | null;
   uploaded_by: string;
   created_at: string;
   updated_at: string;
@@ -28,8 +26,7 @@ interface Document {
 }
 
 export const DocumentsModule: React.FC = () => {
-  const { documents, loading, uploadDocument, deleteDocument } = useDocuments();
-  const { folders } = useFolders();
+  const { documents, folders, loading, uploadDocument, deleteDocument, createFolder, fetchDocuments } = useDocuments();
   const { user } = useAuth();
   const { isSuperAdmin, canDeleteContent } = useUserRole();
   const { toast } = useToast();
@@ -38,16 +35,51 @@ export const DocumentsModule: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [peopleFilter, setPeopleFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [userProfiles, setUserProfiles] = useState<{[key: string]: {first_name: string, last_name: string}}>({});
 
-  const {
-    renameDialogOpen,
-    setRenameDialogOpen,
-    selectedDocument,
-    setSelectedDocument,
-    handleRename
-  } = useDocumentManager({ user });
+  // Auto-refresh setup with realtime subscriptions
+  useEffect(() => {
+    // Set up realtime subscription for documents table
+    const documentsChannel = supabase
+      .channel('documents-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'documents'
+        },
+        (payload) => {
+          console.log('Documents table changed:', payload);
+          fetchDocuments();
+        }
+      )
+      .subscribe();
+
+    // Set up realtime subscription for recycle_bin table
+    const recycleBinChannel = supabase
+      .channel('recycle-bin-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'recycle_bin'
+        },
+        (payload) => {
+          console.log('Recycle bin changed:', payload);
+          fetchDocuments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(documentsChannel);
+      supabase.removeChannel(recycleBinChannel);
+    };
+  }, [fetchDocuments]);
 
   // Fetch user profiles for displaying names
   useEffect(() => {
@@ -80,7 +112,9 @@ export const DocumentsModule: React.FC = () => {
   const uniqueUploaders = [...new Set(documents.map(doc => doc.uploaded_by))];
 
   const handleUpload = async (file: File) => {
-    await uploadDocument(file, selectedFolderId);
+    // Upload to 'general' folder by default, or 'personal' if it's a member
+    const folder = isSuperAdmin ? 'general' : 'personal';
+    await uploadDocument(file, folder);
   };
 
   const handleToggleImportant = async (documentId: string, currentStatus: boolean) => {
@@ -96,10 +130,40 @@ export const DocumentsModule: React.FC = () => {
         title: "Document Updated",
         description: `Document ${!currentStatus ? 'marked as important' : 'unmarked as important'}`
       });
+
+      // No need to manually refresh - realtime will handle it
     } catch (error: any) {
       toast({
         title: "Update Failed",
         description: error.message || "Failed to update document",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRename = async (newName: string) => {
+    if (!selectedDocument || !newName.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .update({ name: newName, updated_at: new Date().toISOString() })
+        .eq('id', selectedDocument.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Document Renamed",
+        description: "Document has been renamed successfully"
+      });
+
+      setRenameDialogOpen(false);
+      setSelectedDocument(null);
+      // No need to manually refresh - realtime will handle it
+    } catch (error: any) {
+      toast({
+        title: "Rename Failed",
+        description: error.message || "Failed to rename document",
         variant: "destructive"
       });
     }
@@ -117,7 +181,6 @@ export const DocumentsModule: React.FC = () => {
           file_path: document.file_path,
           file_size: document.file_size,
           mime_type: document.mime_type,
-          folder_id: document.folder_id,
           folder: document.folder,
           uploaded_by: user?.id || document.uploaded_by,
         });
@@ -128,6 +191,8 @@ export const DocumentsModule: React.FC = () => {
         title: "Document Copied",
         description: "Document has been copied successfully"
       });
+
+      // No need to manually refresh - realtime will handle it
     } catch (error: any) {
       toast({
         title: "Copy Failed",
@@ -144,6 +209,7 @@ export const DocumentsModule: React.FC = () => {
         title: "Document Moved to Recycle Bin",
         description: `"${documentName}" has been moved to the recycle bin. You can restore it from Settings > Recycle Bin within 30 days.`
       });
+      // No need to manually refresh - realtime will handle it
     } catch (error: any) {
       toast({
         title: "Delete Failed",
@@ -154,12 +220,16 @@ export const DocumentsModule: React.FC = () => {
   };
 
   const handleViewDocument = (document: Document) => {
+    // Create a download URL for the document
     const downloadUrl = `${document.file_path}`;
     window.open(downloadUrl, '_blank');
+    
+    // Track the view in analytics
     trackDocumentView(document.id);
   };
 
   const handleDownloadDocument = (document: Document) => {
+    // Create a download link and trigger download
     const link = window.document.createElement('a');
     link.href = document.file_path;
     link.download = document.name;
@@ -189,27 +259,16 @@ export const DocumentsModule: React.FC = () => {
     }
   };
 
-  // Filter documents based on access control, folder selection, and filters
+  // Filter documents based on access control and filters
   const filteredDocuments = documents.filter(doc => {
     // Access control
     if (!isSuperAdmin) {
+      // Members can only see non-hidden documents and their own documents
       if (doc.is_hidden && doc.uploaded_by !== user?.id) {
         return false;
       }
+      // Members can't see other people's personal folders
       if (doc.folder === 'personal' && doc.uploaded_by !== user?.id) {
-        return false;
-      }
-    }
-
-    // Folder filter
-    if (selectedFolderId === null) {
-      // Show documents in "general" folder or without folder assignment
-      if (doc.folder_id !== null && doc.folder !== 'general') {
-        return false;
-      }
-    } else {
-      // Show documents in selected folder
-      if (doc.folder_id !== selectedFolderId) {
         return false;
       }
     }
@@ -241,13 +300,6 @@ export const DocumentsModule: React.FC = () => {
     return canDeleteContent || user?.id === document.uploaded_by;
   };
 
-  // Get current folder name for display
-  const getCurrentFolderName = () => {
-    if (selectedFolderId === null) return 'General';
-    const folder = folders.find(f => f.id === selectedFolderId);
-    return folder?.name || 'Unknown Folder';
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -257,42 +309,59 @@ export const DocumentsModule: React.FC = () => {
   }
 
   return (
-    <div className="flex h-full">
-      {/* Sidebar for folder management */}
-      <div className="w-64 border-r bg-gray-50 p-4">
-        <FolderManagement 
-          onFolderSelect={setSelectedFolderId}
-          selectedFolderId={selectedFolderId}
-        />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold text-gray-900">Document Repository</h1>
+          <p className="text-gray-600">
+            Manage and organize your documents • {filteredDocuments.length} documents
+          </p>
+        </div>
+        
+        <div className="flex space-x-2">
+          <CreateFolderDialog 
+            onFolderCreated={createFolder}
+            existingFolders={folders}
+          />
+          <DocumentUploadDialog onUpload={handleUpload} />
+        </div>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 p-6 space-y-6">
-        {/* Header */}
-        <DocumentHeader 
-          currentFolderName={getCurrentFolderName()}
-          documentCount={filteredDocuments.length}
-          onUpload={handleUpload}
-        />
+      {/* Filters */}
+      <DocumentFilters
+        searchTerm={searchTerm}
+        typeFilter={typeFilter}
+        peopleFilter={peopleFilter}
+        dateFilter={dateFilter}
+        uniqueUploaders={uniqueUploaders}
+        userProfiles={userProfiles}
+        currentUserId={user?.id}
+        onSearchChange={setSearchTerm}
+        onTypeFilterChange={setTypeFilter}
+        onPeopleFilterChange={setPeopleFilter}
+        onDateFilterChange={setDateFilter}
+      />
 
-        {/* Filters */}
-        <DocumentFilters
-          searchTerm={searchTerm}
-          typeFilter={typeFilter}
-          peopleFilter={peopleFilter}
-          dateFilter={dateFilter}
-          uniqueUploaders={uniqueUploaders}
-          userProfiles={userProfiles}
-          currentUserId={user?.id}
-          onSearchChange={setSearchTerm}
-          onTypeFilterChange={setTypeFilter}
-          onPeopleFilterChange={setPeopleFilter}
-          onDateFilterChange={setDateFilter}
-        />
-
-        {/* Documents Content */}
-        <DocumentContent
-          filteredDocuments={filteredDocuments}
+      {/* Documents Table */}
+      {filteredDocuments.length === 0 ? (
+        <div className="bg-white rounded-lg border">
+          <div className="text-center py-12">
+            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
+            <p className="text-gray-500 mb-4">
+              {searchTerm || typeFilter !== 'all' || peopleFilter !== 'all' || dateFilter !== 'all'
+                ? 'Try adjusting your search or filter criteria'
+                : 'Get started by uploading your first document'}
+            </p>
+            {!searchTerm && (
+              <DocumentUploadDialog onUpload={handleUpload} />
+            )}
+          </div>
+        </div>
+      ) : (
+        <DocumentTable
+          documents={filteredDocuments}
           userProfiles={userProfiles}
           currentUserId={user?.id}
           canDeleteDocument={canDeleteDocument}
@@ -305,25 +374,19 @@ export const DocumentsModule: React.FC = () => {
           }}
           onCopyDocument={handleCopyDocument}
           onDeleteDocument={handleDeleteDocument}
-          onUpload={handleUpload}
-          searchTerm={searchTerm}
-          typeFilter={typeFilter}
-          peopleFilter={peopleFilter}
-          dateFilter={dateFilter}
-          getCurrentFolderName={getCurrentFolderName}
         />
+      )}
 
-        {/* Rename Dialog */}
-        <DocumentRenameDialog
-          isOpen={renameDialogOpen}
-          document={selectedDocument}
-          onClose={() => {
-            setRenameDialogOpen(false);
-            setSelectedDocument(null);
-          }}
-          onRename={handleRename}
-        />
-      </div>
+      {/* Rename Dialog */}
+      <DocumentRenameDialog
+        isOpen={renameDialogOpen}
+        document={selectedDocument}
+        onClose={() => {
+          setRenameDialogOpen(false);
+          setSelectedDocument(null);
+        }}
+        onRename={handleRename}
+      />
     </div>
   );
 };

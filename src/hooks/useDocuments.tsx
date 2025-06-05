@@ -11,7 +11,6 @@ interface Document {
   file_size: number | null;
   mime_type: string | null;
   folder: string | null;
-  folder_id: string | null;
   uploaded_by: string;
   created_at: string;
   updated_at: string;
@@ -22,6 +21,7 @@ interface Document {
 export const useDocuments = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [folders, setFolders] = useState<string[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -29,24 +29,17 @@ export const useDocuments = () => {
     try {
       const { data, error } = await supabase
         .from('documents')
-        .select(`
-          *,
-          folders!documents_folder_id_fkey(
-            id,
-            name
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      // Transform data to include folder information
-      const transformedDocs = (data || []).map(doc => ({
-        ...doc,
-        folder: doc.folders?.name || doc.folder || 'general'
-      }));
+      const docs = data || [];
+      setDocuments(docs);
       
-      setDocuments(transformedDocs);
+      // Extract unique folders
+      const uniqueFolders = [...new Set(docs.map(doc => doc.folder).filter(Boolean))];
+      setFolders(uniqueFolders);
     } catch (error: any) {
       console.error('Error fetching documents:', error);
       toast({
@@ -59,7 +52,19 @@ export const useDocuments = () => {
     }
   };
 
-  const uploadDocument = async (file: File, folderId?: string | null) => {
+  const createFolder = async (folderName: string) => {
+    // Just add to folders list - folders are created when documents are uploaded to them
+    if (!folders.includes(folderName)) {
+      setFolders(prev => [...prev, folderName]);
+      toast({
+        title: "Success",
+        description: `Folder "${folderName}" created successfully`
+      });
+    }
+    return folderName;
+  };
+
+  const uploadDocument = async (file: File, folder: string = 'general') => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -74,11 +79,10 @@ export const useDocuments = () => {
         .from('documents')
         .insert({
           name: file.name,
-          file_path: `/uploads/${folderId || 'general'}/${file.name}`,
+          file_path: `/uploads/${folder}/${file.name}`,
           file_size: file.size,
           mime_type: file.type,
-          folder_id: folderId || null,
-          folder: folderId ? null : 'general', // Keep old folder field for backward compatibility
+          folder: folder,
           uploaded_by: user.id
         })
         .select()
@@ -102,15 +106,11 @@ export const useDocuments = () => {
     }
   };
 
-  const moveDocument = async (documentId: string, folderId: string | null) => {
+  const moveDocument = async (documentId: string, newFolder: string) => {
     try {
       const { error } = await supabase
         .from('documents')
-        .update({ 
-          folder_id: folderId,
-          folder: folderId ? null : 'general', // Keep old folder field for backward compatibility
-          updated_at: new Date().toISOString() 
-        })
+        .update({ folder: newFolder, updated_at: new Date().toISOString() })
         .eq('id', documentId);
 
       if (error) throw error;
@@ -162,24 +162,12 @@ export const useDocuments = () => {
     try {
       const { data, error } = await supabase
         .from('documents')
-        .select(`
-          *,
-          folders!documents_folder_id_fkey(
-            id,
-            name
-          )
-        `)
+        .select('*')
         .ilike('name', `%${searchTerm}%`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
-      const transformedDocs = (data || []).map(doc => ({
-        ...doc,
-        folder: doc.folders?.name || doc.folder || 'general'
-      }));
-      
-      setDocuments(transformedDocs);
+      setDocuments(data || []);
     } catch (error: any) {
       console.error('Error searching documents:', error);
       toast({
@@ -190,56 +178,18 @@ export const useDocuments = () => {
     }
   };
 
-  // Set up realtime subscription for auto-refresh
   useEffect(() => {
     fetchDocuments();
-
-    // Set up realtime subscription for documents table
-    const documentsChannel = supabase
-      .channel('documents-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'documents'
-        },
-        (payload) => {
-          console.log('Documents table changed:', payload);
-          fetchDocuments();
-        }
-      )
-      .subscribe();
-
-    // Set up realtime subscription for recycle_bin table
-    const recycleBinChannel = supabase
-      .channel('recycle-bin-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'recycle_bin'
-        },
-        (payload) => {
-          console.log('Recycle bin changed:', payload);
-          fetchDocuments();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(documentsChannel);
-      supabase.removeChannel(recycleBinChannel);
-    };
   }, []);
 
   return {
     documents,
+    folders,
     loading,
     uploadDocument,
     deleteDocument,
     moveDocument,
+    createFolder,
     searchDocuments,
     fetchDocuments
   };
