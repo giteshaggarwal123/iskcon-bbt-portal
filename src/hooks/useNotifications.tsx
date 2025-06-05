@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -96,7 +95,9 @@ export const useNotifications = () => {
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 6);
 
-      setNotifications(sortedNotifications);
+      // Only show unread notifications
+      const unreadNotifications = sortedNotifications.filter(n => !n.read);
+      setNotifications(unreadNotifications);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
@@ -105,7 +106,8 @@ export const useNotifications = () => {
   };
 
   const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    // Remove all notifications when marked as read
+    setNotifications([]);
     toast({
       title: "Success",
       description: "All notifications marked as read"
@@ -113,9 +115,8 @@ export const useNotifications = () => {
   };
 
   const markAsRead = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-    );
+    // Remove the specific notification when marked as read
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
   };
 
   const handleNotificationClick = (notification: Notification) => {
@@ -129,7 +130,8 @@ export const useNotifications = () => {
   };
 
   const getUnreadCount = () => {
-    const unreadCount = notifications.filter(n => !n.read).length;
+    // Since we only keep unread notifications, the count is just the length
+    const unreadCount = notifications.length;
     console.log('Unread notifications count:', unreadCount, 'Total notifications:', notifications.length);
     return unreadCount;
   };
