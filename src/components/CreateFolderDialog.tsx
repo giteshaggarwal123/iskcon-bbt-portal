@@ -4,20 +4,35 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Folder, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+interface Folder {
+  id: string;
+  name: string;
+  parent_folder_id: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  is_hidden: boolean;
+}
+
 interface CreateFolderDialogProps {
-  onFolderCreated: (folderName: string) => void;
-  existingFolders: string[];
+  onFolderCreated: (folderName: string, parentFolderId?: string) => Promise<any>;
+  existingFolders: Folder[];
+  currentFolderId?: string | null;
 }
 
 export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({ 
   onFolderCreated, 
-  existingFolders 
+  existingFolders,
+  currentFolderId
 }) => {
   const [open, setOpen] = useState(false);
   const [folderName, setFolderName] = useState('');
+  const [parentFolderId, setParentFolderId] = useState<string | undefined>(currentFolderId || undefined);
+  const [isCreating, setIsCreating] = useState(false);
   const { toast } = useToast();
 
   const handleCreate = async () => {
@@ -30,19 +45,17 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
       return;
     }
 
-    const normalizedFolderName = folderName.toLowerCase().trim();
-    if (existingFolders.map(f => f.toLowerCase()).includes(normalizedFolderName)) {
-      toast({
-        title: "Folder Exists",
-        description: "A folder with this name already exists",
-        variant: "destructive"
-      });
-      return;
+    setIsCreating(true);
+    try {
+      const result = await onFolderCreated(folderName.trim(), parentFolderId);
+      if (result) {
+        setFolderName('');
+        setParentFolderId(currentFolderId || undefined);
+        setOpen(false);
+      }
+    } finally {
+      setIsCreating(false);
     }
-
-    await onFolderCreated(normalizedFolderName);
-    setFolderName('');
-    setOpen(false);
   };
 
   return (
@@ -69,19 +82,39 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
               onChange={(e) => setFolderName(e.target.value)}
               placeholder="Enter folder name"
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === 'Enter' && !isCreating) {
                   handleCreate();
                 }
               }}
             />
           </div>
+          
+          {existingFolders.length > 0 && (
+            <div>
+              <Label htmlFor="parentFolder">Parent Folder (Optional)</Label>
+              <Select value={parentFolderId || ''} onValueChange={(value) => setParentFolderId(value || undefined)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select parent folder (or leave empty for root)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Root (No parent)</SelectItem>
+                  {existingFolders.map(folder => (
+                    <SelectItem key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isCreating}>
               Cancel
             </Button>
-            <Button onClick={handleCreate}>
+            <Button onClick={handleCreate} disabled={isCreating}>
               <Folder className="h-4 w-4 mr-2" />
-              Create Folder
+              {isCreating ? 'Creating...' : 'Create Folder'}
             </Button>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Upload } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -10,6 +10,7 @@ import { DocumentFilters } from './documents/DocumentFilters';
 import { DocumentUploadDialog } from './documents/DocumentUploadDialog';
 import { DocumentRenameDialog } from './documents/DocumentRenameDialog';
 import { CreateFolderDialog } from './CreateFolderDialog';
+import { FolderManager } from './documents/FolderManager';
 
 interface Document {
   id: string;
@@ -18,6 +19,7 @@ interface Document {
   file_size: number | null;
   mime_type: string | null;
   folder: string | null;
+  folder_id: string | null;
   uploaded_by: string;
   created_at: string;
   updated_at: string;
@@ -26,7 +28,17 @@ interface Document {
 }
 
 export const DocumentsModule: React.FC = () => {
-  const { documents, folders, loading, uploadDocument, deleteDocument, createFolder, fetchDocuments } = useDocuments();
+  const { 
+    documents, 
+    folders, 
+    loading, 
+    uploadDocument, 
+    deleteDocument, 
+    createFolder,
+    deleteFolder,
+    moveDocument,
+    fetchDocuments 
+  } = useDocuments();
   const { user } = useAuth();
   const { isSuperAdmin, canDeleteContent } = useUserRole();
   const { toast } = useToast();
@@ -35,6 +47,7 @@ export const DocumentsModule: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [peopleFilter, setPeopleFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
+  const [folderFilter, setFolderFilter] = useState<string | null>(null);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [userProfiles, setUserProfiles] = useState<{[key: string]: {first_name: string, last_name: string}}>({});
@@ -58,26 +71,26 @@ export const DocumentsModule: React.FC = () => {
       )
       .subscribe();
 
-    // Set up realtime subscription for recycle_bin table
-    const recycleBinChannel = supabase
-      .channel('recycle-bin-changes')
+    // Set up realtime subscription for folders table
+    const foldersChannel = supabase
+      .channel('folders-changes')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'recycle_bin'
+          table: 'folders'
         },
         (payload) => {
-          console.log('Recycle bin changed:', payload);
-          fetchDocuments();
+          console.log('Folders table changed:', payload);
+          // Refresh will happen through useDocuments hook
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(documentsChannel);
-      supabase.removeChannel(recycleBinChannel);
+      supabase.removeChannel(foldersChannel);
     };
   }, [fetchDocuments]);
 
@@ -111,10 +124,8 @@ export const DocumentsModule: React.FC = () => {
   // Get unique uploaders for people filter
   const uniqueUploaders = [...new Set(documents.map(doc => doc.uploaded_by))];
 
-  const handleUpload = async (file: File) => {
-    // Upload to 'general' folder by default, or 'personal' if it's a member
-    const folder = isSuperAdmin ? 'general' : 'personal';
-    await uploadDocument(file, folder);
+  const handleUpload = async (file: File, folderId?: string) => {
+    await uploadDocument(file, folderId || folderFilter || undefined);
   };
 
   const handleToggleImportant = async (documentId: string, currentStatus: boolean) => {
@@ -130,8 +141,6 @@ export const DocumentsModule: React.FC = () => {
         title: "Document Updated",
         description: `Document ${!currentStatus ? 'marked as important' : 'unmarked as important'}`
       });
-
-      // No need to manually refresh - realtime will handle it
     } catch (error: any) {
       toast({
         title: "Update Failed",
@@ -159,7 +168,6 @@ export const DocumentsModule: React.FC = () => {
 
       setRenameDialogOpen(false);
       setSelectedDocument(null);
-      // No need to manually refresh - realtime will handle it
     } catch (error: any) {
       toast({
         title: "Rename Failed",
@@ -181,6 +189,7 @@ export const DocumentsModule: React.FC = () => {
           file_path: document.file_path,
           file_size: document.file_size,
           mime_type: document.mime_type,
+          folder_id: document.folder_id,
           folder: document.folder,
           uploaded_by: user?.id || document.uploaded_by,
         });
@@ -191,8 +200,6 @@ export const DocumentsModule: React.FC = () => {
         title: "Document Copied",
         description: "Document has been copied successfully"
       });
-
-      // No need to manually refresh - realtime will handle it
     } catch (error: any) {
       toast({
         title: "Copy Failed",
@@ -209,7 +216,6 @@ export const DocumentsModule: React.FC = () => {
         title: "Document Moved to Recycle Bin",
         description: `"${documentName}" has been moved to the recycle bin. You can restore it from Settings > Recycle Bin within 30 days.`
       });
-      // No need to manually refresh - realtime will handle it
     } catch (error: any) {
       toast({
         title: "Delete Failed",
@@ -220,16 +226,12 @@ export const DocumentsModule: React.FC = () => {
   };
 
   const handleViewDocument = (document: Document) => {
-    // Create a download URL for the document
     const downloadUrl = `${document.file_path}`;
     window.open(downloadUrl, '_blank');
-    
-    // Track the view in analytics
     trackDocumentView(document.id);
   };
 
   const handleDownloadDocument = (document: Document) => {
-    // Create a download link and trigger download
     const link = window.document.createElement('a');
     link.href = document.file_path;
     link.download = document.name;
@@ -263,13 +265,22 @@ export const DocumentsModule: React.FC = () => {
   const filteredDocuments = documents.filter(doc => {
     // Access control
     if (!isSuperAdmin) {
-      // Members can only see non-hidden documents and their own documents
       if (doc.is_hidden && doc.uploaded_by !== user?.id) {
         return false;
       }
-      // Members can't see other people's personal folders
       if (doc.folder === 'personal' && doc.uploaded_by !== user?.id) {
         return false;
+      }
+    }
+
+    // Folder filter
+    if (folderFilter !== null) {
+      if (folderFilter === 'root') {
+        // Show documents with no folder_id (root level)
+        if (doc.folder_id !== null) return false;
+      } else {
+        // Show documents in specific folder
+        if (doc.folder_id !== folderFilter) return false;
       }
     }
 
@@ -323,10 +334,22 @@ export const DocumentsModule: React.FC = () => {
           <CreateFolderDialog 
             onFolderCreated={createFolder}
             existingFolders={folders}
+            currentFolderId={folderFilter}
           />
           <DocumentUploadDialog onUpload={handleUpload} />
         </div>
       </div>
+
+      {/* Folder Management */}
+      {folders.length > 0 && (
+        <FolderManager
+          folders={folders}
+          onCreateFolder={createFolder}
+          onDeleteFolder={deleteFolder}
+          currentFolderId={folderFilter}
+          showCreateButton={false}
+        />
+      )}
 
       {/* Filters */}
       <DocumentFilters

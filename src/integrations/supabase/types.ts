@@ -112,6 +112,7 @@ export type Database = {
           file_path: string
           file_size: number | null
           folder: string | null
+          folder_id: string | null
           id: string
           is_hidden: boolean | null
           is_important: boolean | null
@@ -132,6 +133,7 @@ export type Database = {
           file_path: string
           file_size?: number | null
           folder?: string | null
+          folder_id?: string | null
           id?: string
           is_hidden?: boolean | null
           is_important?: boolean | null
@@ -152,6 +154,7 @@ export type Database = {
           file_path?: string
           file_size?: number | null
           folder?: string | null
+          folder_id?: string | null
           id?: string
           is_hidden?: boolean | null
           is_important?: boolean | null
@@ -167,7 +170,15 @@ export type Database = {
           uploaded_by?: string
           version?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "documents_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       emails: {
         Row: {
@@ -204,6 +215,44 @@ export type Database = {
           subject?: string
         }
         Relationships: []
+      }
+      folders: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_hidden: boolean | null
+          name: string
+          parent_folder_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_hidden?: boolean | null
+          name: string
+          parent_folder_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_hidden?: boolean | null
+          name?: string
+          parent_folder_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folders_parent_folder_id_fkey"
+            columns: ["parent_folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       meeting_attendees: {
         Row: {
@@ -649,6 +698,10 @@ export type Database = {
           _user_agent?: string
         }
         Returns: boolean
+      }
+      get_folder_path: {
+        Args: { folder_id: string }
+        Returns: string
       }
       get_user_role: {
         Args: { _user_id: string }
