@@ -10,8 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
 export const RealAuthPage: React.FC = () => {
-  const { signIn, sendLoginOTP, verifyLoginOTP, sendOTP, verifyOTP, loading } = useAuth();
-  const [step, setStep] = useState<'login' | 'otp-verification' | 'forgot-phone' | 'forgot-otp' | 'forgot-newPassword'>('login');
+  const { signIn, sendOTP, verifyOTP, loading } = useAuth();
+  const [step, setStep] = useState<'login' | 'forgot-phone' | 'forgot-otp' | 'forgot-newPassword'>('login');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -23,35 +23,14 @@ export const RealAuthPage: React.FC = () => {
   });
   const [forgotPassword, setForgotPassword] = useState(false);
   const [storedOTP, setStoredOTP] = useState('');
-  const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '', rememberMe: false });
 
-  const handleInitialLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (forgotPassword) {
       setStep('forgot-phone');
     } else {
-      // Store credentials and send OTP for login verification
-      setLoginCredentials({
-        email: formData.email,
-        password: formData.password,
-        rememberMe: formData.rememberMe
-      });
-      
-      const { error, otp } = await sendLoginOTP(formData.email);
-      if (!error && otp) {
-        setStoredOTP(otp);
-        setStep('otp-verification');
-      }
-    }
-  };
-
-  const handleOTPVerification = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.otp === storedOTP) {
-      // OTP verified, now complete the login
-      await signIn(loginCredentials.email, loginCredentials.password, loginCredentials.rememberMe);
-    } else {
-      alert('Invalid OTP. Please try again.');
+      // Direct login without OTP verification
+      await signIn(formData.email, formData.password, formData.rememberMe);
     }
   };
 
@@ -99,12 +78,7 @@ export const RealAuthPage: React.FC = () => {
   };
 
   const handleResendOTP = async () => {
-    if (step === 'otp-verification') {
-      const { error, otp } = await sendLoginOTP(loginCredentials.email);
-      if (!error && otp) {
-        setStoredOTP(otp);
-      }
-    } else if (step === 'forgot-otp') {
+    if (step === 'forgot-otp') {
       const { error, otp } = await sendOTP(formData.phoneNumber);
       if (!error && otp) {
         setStoredOTP(otp);
@@ -133,14 +107,12 @@ export const RealAuthPage: React.FC = () => {
             <CardTitle className="flex items-center justify-center space-x-2">
               <Shield className="h-5 w-5 text-primary" />
               <span>
-                {step === 'otp-verification' ? 'Verify OTP' : 
-                 step.startsWith('forgot-') ? 'Reset Password' : 'Secure Login'}
+                {step.startsWith('forgot-') ? 'Reset Password' : 'Secure Login'}
               </span>
             </CardTitle>
             <CardDescription>
               {step === 'login' && !forgotPassword && 'Enter your credentials to sign in'}
               {step === 'login' && forgotPassword && 'Enter your email to reset password'}
-              {step === 'otp-verification' && 'Enter the OTP sent to your registered mobile number'}
               {step === 'forgot-phone' && 'Enter your registered mobile number'}
               {step === 'forgot-otp' && 'Enter the OTP sent to your mobile'}
               {step === 'forgot-newPassword' && 'Set your new password'}
@@ -149,7 +121,7 @@ export const RealAuthPage: React.FC = () => {
           
           <CardContent>
             {step === 'login' ? (
-              <form onSubmit={handleInitialLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
                   <div className="relative">
@@ -200,7 +172,7 @@ export const RealAuthPage: React.FC = () => {
                   disabled={loading}
                   className="w-full bg-primary hover:bg-primary/90"
                 >
-                  {loading ? 'Processing...' : forgotPassword ? 'Continue' : 'Continue to OTP'}
+                  {loading ? 'Processing...' : forgotPassword ? 'Continue' : 'Sign In'}
                 </Button>
 
                 <div className="text-center">
@@ -210,63 +182,6 @@ export const RealAuthPage: React.FC = () => {
                     className="text-sm text-primary hover:underline"
                   >
                     {forgotPassword ? 'Back to Login' : 'Forgot Password?'}
-                  </button>
-                </div>
-              </form>
-            ) : step === 'otp-verification' ? (
-              <form onSubmit={handleOTPVerification} className="space-y-6">
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <Phone className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">
-                      We've sent a 6-digit verification code to your registered mobile number
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="otp" className="text-center block">Enter Verification Code</Label>
-                    <div className="flex justify-center">
-                      <InputOTP
-                        maxLength={6}
-                        value={formData.otp}
-                        onChange={(value) => updateFormData('otp', value)}
-                      >
-                        <InputOTPGroup>
-                          <InputOTPSlot index={0} />
-                          <InputOTPSlot index={1} />
-                          <InputOTPSlot index={2} />
-                          <InputOTPSlot index={3} />
-                          <InputOTPSlot index={4} />
-                          <InputOTPSlot index={5} />
-                        </InputOTPGroup>
-                      </InputOTP>
-                    </div>
-                  </div>
-                </div>
-                
-                <Button 
-                  type="submit"
-                  disabled={loading || formData.otp.length !== 6}
-                  className="w-full bg-primary hover:bg-primary/90"
-                >
-                  {loading ? 'Verifying...' : 'Verify & Sign In'}
-                </Button>
-                
-                <div className="flex items-center justify-between text-sm">
-                  <button
-                    type="button"
-                    onClick={() => setStep('login')}
-                    className="flex items-center text-gray-600 hover:text-primary"
-                  >
-                    <ArrowLeft className="h-4 w-4 mr-1" />
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleResendOTP}
-                    className="text-primary hover:underline"
-                  >
-                    Resend OTP
                   </button>
                 </div>
               </form>
