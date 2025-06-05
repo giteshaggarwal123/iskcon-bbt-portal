@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Eye, Clock } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { BarChart3, Eye, Clock, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface DocumentAnalyticsProps {
@@ -11,9 +12,18 @@ interface DocumentAnalyticsProps {
   documentName: string;
 }
 
+interface MemberAnalytics {
+  user_id: string;
+  user_name: string;
+  total_views: number;
+  total_time_spent: number;
+  last_viewed: string;
+}
+
 interface AnalyticsData {
   totalViews: number;
   totalTimeSpent: number;
+  memberAnalytics: MemberAnalytics[];
 }
 
 export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ 
@@ -22,26 +32,64 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
 }) => {
   const [analytics, setAnalytics] = useState<AnalyticsData>({
     totalViews: 0,
-    totalTimeSpent: 0
+    totalTimeSpent: 0,
+    memberAnalytics: []
   });
   const [loading, setLoading] = useState(false);
 
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Fetch document views with user profiles
+      const { data: viewsData, error: viewsError } = await supabase
         .from('document_views')
-        .select('time_spent_seconds')
+        .select(`
+          user_id,
+          time_spent_seconds,
+          view_started_at,
+          profiles!inner (
+            first_name,
+            last_name
+          )
+        `)
         .eq('document_id', documentId);
 
-      if (error) throw error;
+      if (viewsError) throw viewsError;
 
-      const totalViews = data?.length || 0;
-      const totalTimeSpent = data?.reduce((sum, view) => sum + (view.time_spent_seconds || 0), 0) || 0;
+      // Process the data to get member-by-member analytics
+      const memberMap = new Map<string, MemberAnalytics>();
+      
+      viewsData?.forEach(view => {
+        const userId = view.user_id;
+        const profile = (view as any).profiles;
+        const userName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'User' : 'User';
+        
+        if (memberMap.has(userId)) {
+          const existing = memberMap.get(userId)!;
+          existing.total_views += 1;
+          existing.total_time_spent += view.time_spent_seconds || 0;
+          if (new Date(view.view_started_at) > new Date(existing.last_viewed)) {
+            existing.last_viewed = view.view_started_at;
+          }
+        } else {
+          memberMap.set(userId, {
+            user_id: userId,
+            user_name: userName,
+            total_views: 1,
+            total_time_spent: view.time_spent_seconds || 0,
+            last_viewed: view.view_started_at
+          });
+        }
+      });
+
+      const memberAnalytics = Array.from(memberMap.values()).sort((a, b) => b.total_views - a.total_views);
+      const totalViews = viewsData?.length || 0;
+      const totalTimeSpent = viewsData?.reduce((sum, view) => sum + (view.time_spent_seconds || 0), 0) || 0;
 
       setAnalytics({
         totalViews,
-        totalTimeSpent
+        totalTimeSpent,
+        memberAnalytics
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -51,9 +99,22 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
   };
 
   const formatDuration = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
-    return `${minutes}m ${remainingSeconds}s`;
+    if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
@@ -69,7 +130,7 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           Analytics
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Document Analytics</DialogTitle>
           <DialogDescription>
@@ -82,32 +143,80 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : (
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center">
-                  <Eye className="h-4 w-4 mr-2" />
-                  Total Views
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{analytics.totalViews}</div>
-              </CardContent>
-            </Card>
+          <div className="space-y-6">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center">
+                    <Eye className="h-4 w-4 mr-2" />
+                    Total Views
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics.totalViews}</div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center">
-                  <Clock className="h-4 w-4 mr-2" />
-                  Total Time Spent
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatDuration(analytics.totalTimeSpent)}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center">
+                    <Clock className="h-4 w-4 mr-2" />
+                    Total Time Spent
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {formatDuration(analytics.totalTimeSpent)}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Member-by-Member Analytics */}
+            <div>
+              <h3 className="text-lg font-semibold mb-3 flex items-center">
+                <User className="h-5 w-5 mr-2" />
+                Member Analytics
+              </h3>
+              
+              {analytics.memberAnalytics.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No analytics data available yet
                 </div>
-              </CardContent>
-            </Card>
+              ) : (
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Member</TableHead>
+                        <TableHead className="text-center">Views</TableHead>
+                        <TableHead className="text-center">Time Spent</TableHead>
+                        <TableHead className="text-center">Last Viewed</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {analytics.memberAnalytics.map((member) => (
+                        <TableRow key={member.user_id}>
+                          <TableCell className="font-medium">
+                            {member.user_name}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {member.total_views}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {formatDuration(member.total_time_spent)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {formatDate(member.last_viewed)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </DialogContent>
