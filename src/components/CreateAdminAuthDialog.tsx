@@ -15,7 +15,7 @@ export const CreateAdminAuthDialog: React.FC<CreateAdminAuthDialogProps> = ({
   open,
   onOpenChange
 }) => {
-  const [password, setPassword] = useState('Admin@Iskcon');
+  const [password, setPassword] = useState('123456789');
   const [loading, setLoading] = useState(false);
   const { createAuthAccountForExistingProfile } = useMembers();
 
