@@ -232,7 +232,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                             <AlertDialogHeader>
                               <AlertDialogTitle>Move to Recycle Bin</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to move "{document.name}" to the recycle bin? You can restore it from Settings > Recycle Bin within 30 days.
+                                Are you sure you want to move "{document.name}" to the recycle bin? You can restore it from Settings &gt; Recycle Bin within 30 days.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

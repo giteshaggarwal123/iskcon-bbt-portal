@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -51,6 +50,48 @@ export const useMeetings = () => {
       setLoading(false);
     }
   };
+
+  // Set up realtime subscription for auto-refresh
+  useEffect(() => {
+    fetchMeetings();
+
+    const meetingsChannel = supabase
+      .channel('meetings-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'meetings'
+        },
+        (payload) => {
+          console.log('Meetings table changed:', payload);
+          fetchMeetings();
+        }
+      )
+      .subscribe();
+
+    const attendeesChannel = supabase
+      .channel('meeting-attendees-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'meeting_attendees'
+        },
+        (payload) => {
+          console.log('Meeting attendees changed:', payload);
+          fetchMeetings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(meetingsChannel);
+      supabase.removeChannel(attendeesChannel);
+    };
+  }, []);
 
   const createMeeting = async (meetingData: {
     title: string;
@@ -267,13 +308,12 @@ export const useMeetings = () => {
 
       if (error) throw error;
 
-      // Update local state immediately to prevent restoration
-      setMeetings(prev => prev.filter(meeting => meeting.id !== meetingId));
-
       toast({
         title: "Success",
         description: "Meeting deleted successfully from all platforms"
       });
+
+      // The realtime subscription will handle the UI update automatically
 
     } catch (error: any) {
       console.error('Error deleting meeting:', error);
@@ -360,12 +400,6 @@ export const useMeetings = () => {
       console.error('Error auto-saving transcript:', error);
     }
   };
-
-  useEffect(() => {
-    if (user) {
-      fetchMeetings();
-    }
-  }, [user]);
 
   return {
     meetings,

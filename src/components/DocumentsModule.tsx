@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { FileText, Upload } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
@@ -10,6 +9,7 @@ import { DocumentTable } from './documents/DocumentTable';
 import { DocumentFilters } from './documents/DocumentFilters';
 import { DocumentUploadDialog } from './documents/DocumentUploadDialog';
 import { DocumentRenameDialog } from './documents/DocumentRenameDialog';
+import { CreateFolderDialog } from './CreateFolderDialog';
 
 interface Document {
   id: string;
@@ -26,7 +26,7 @@ interface Document {
 }
 
 export const DocumentsModule: React.FC = () => {
-  const { documents, loading, uploadDocument, deleteDocument, fetchDocuments } = useDocuments();
+  const { documents, folders, loading, uploadDocument, deleteDocument, createFolder, fetchDocuments } = useDocuments();
   const { user } = useAuth();
   const { isSuperAdmin, canDeleteContent } = useUserRole();
   const { toast } = useToast();
@@ -320,6 +320,10 @@ export const DocumentsModule: React.FC = () => {
         </div>
         
         <div className="flex space-x-2">
+          <CreateFolderDialog 
+            onFolderCreated={createFolder}
+            existingFolders={folders}
+          />
           <DocumentUploadDialog onUpload={handleUpload} />
         </div>
       </div>
