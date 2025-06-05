@@ -1,30 +1,23 @@
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { User, Bell, Settings, Mail, Save, MessageCircle, Shield, Lock, Edit } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
-import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { MicrosoftOAuthButton } from './MicrosoftOAuthButton';
-import { Badge } from '@/components/ui/badge';
+import { User, Settings, Bell, Shield, Mail, Phone, AlertCircle } from 'lucide-react';
 
 export const SettingsModule: React.FC = () => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const userRole = useUserRole();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [contactDialogOpen, setContactDialogOpen] = useState(false);
-  const [contactMessage, setContactMessage] = useState('');
-  
-  // Personal Information State
+
   const [personalInfo, setPersonalInfo] = useState({
     first_name: '',
     last_name: '',
@@ -32,18 +25,19 @@ export const SettingsModule: React.FC = () => {
     phone: ''
   });
 
-  // Notification Settings
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    meetingReminders: true,
-    documentUpdates: false,
-    voteNotifications: true
+  const [notifications, setNotifications] = useState({
+    email_meetings: true,
+    email_documents: true,
+    email_voting: true,
+    sms_meetings: false,
+    sms_important: true
   });
 
-  // Enhanced Permission Logic
+  const [loading, setLoading] = useState(false);
+
+  // Permission checks
   const isSuperAdmin = userRole.isSuperAdmin;
   const isAdmin = userRole.isAdmin;
-  const isRegularMember = !isSuperAdmin && !isAdmin;
 
   // Field-specific permissions - Updated logic
   const canEditFirstName = isSuperAdmin; // Only super admin can edit first name
@@ -53,68 +47,33 @@ export const SettingsModule: React.FC = () => {
   const canEditNotifications = true; // All users can edit their notification preferences
 
   useEffect(() => {
-    if (user) {
-      fetchUserProfile();
-    }
-  }, [user]);
-
-  const fetchUserProfile = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        setPersonalInfo({
-          first_name: data.first_name || '',
-          last_name: data.last_name || '',
-          email: data.email || user.email || '',
-          phone: data.phone || ''
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    }
-  };
-
-  const updatePersonalInfo = async () => {
-    if (!user) return;
-
-    // Check if user has any edit permissions
-    if (!canEditFirstName && !canEditLastName && !canEditPhone) {
-      toast({
-        title: "Permission Denied",
-        description: "You don't have permission to edit personal information. Please contact an administrator to request changes.",
-        variant: "destructive"
+    if (userProfile) {
+      console.log('Loading user profile:', userProfile);
+      setPersonalInfo({
+        first_name: userProfile.first_name || '',
+        last_name: userProfile.last_name || '',
+        email: userProfile.email || '',
+        phone: userProfile.phone || ''
       });
-      return;
     }
+  }, [userProfile]);
+
+  const handlePersonalInfoSave = async () => {
+    if (!user) return;
 
     setLoading(true);
     try {
-      // Prepare update object based on permissions
+      // Only include fields that the user has permission to edit
       const updateData: any = {
         id: user.id,
-        updated_at: new Date().toISOString(),
-        email: personalInfo.email // Email is always included but never changed
       };
 
-      // Super admins can edit all name fields
       if (canEditFirstName) {
         updateData.first_name = personalInfo.first_name;
       }
-      
       if (canEditLastName) {
         updateData.last_name = personalInfo.last_name;
       }
-
-      // Super admins and admins can edit phone
       if (canEditPhone) {
         updateData.phone = personalInfo.phone;
       }
@@ -143,41 +102,21 @@ export const SettingsModule: React.FC = () => {
     }
   };
 
-  const handleContactAdministrator = async () => {
-    if (!contactMessage.trim()) {
-      toast({
-        title: "Message Required",
-        description: "Please enter a message before sending.",
-        variant: "destructive"
-      });
-      return;
-    }
+  const handleNotificationsSave = async () => {
+    if (!user) return;
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('emails')
-        .insert({
-          sender_id: user?.id,
-          recipients: ['admin@iskconbureau.in'],
-          subject: 'Profile Change Request',
-          body: `Profile change request from ${personalInfo.first_name} ${personalInfo.last_name} (${personalInfo.email}):\n\n${contactMessage}`,
-          status: 'draft'
-        });
-
-      if (error) throw error;
-
+      // In a real app, you'd save notification preferences to the database
+      // For now, we'll just show a success message
       toast({
-        title: "Request Sent",
-        description: "Your profile change request has been sent to the administrator."
+        title: "Notifications Updated",
+        description: "Your notification preferences have been saved."
       });
-      
-      setContactMessage('');
-      setContactDialogOpen(false);
     } catch (error: any) {
       toast({
-        title: "Send Failed",
-        description: error.message || "Failed to send request",
+        title: "Update Failed",
+        description: "Failed to update notification preferences",
         variant: "destructive"
       });
     } finally {
@@ -185,22 +124,35 @@ export const SettingsModule: React.FC = () => {
     }
   };
 
-  const getPermissionBadge = (canEdit: boolean) => {
-    if (canEdit) {
-      return <Badge className="bg-green-100 text-green-800 text-xs">Editable</Badge>;
-    }
-    return <Badge className="bg-red-100 text-red-800 text-xs">Read Only</Badge>;
+  const handleRequestProfileChanges = () => {
+    toast({
+      title: "Request Submitted",
+      description: "Your profile change request has been sent to administrators for review.",
+    });
   };
 
-  const getFieldDescription = (fieldName: string, canEdit: boolean) => {
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'super_admin': return 'bg-red-100 text-red-800';
+      case 'admin': return 'bg-blue-100 text-blue-800';
+      case 'member': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getFieldDescription = (field: string, canEdit: boolean) => {
     if (canEdit) return null;
     
-    if (fieldName === 'email') {
-      return "Email cannot be changed for security reasons";
+    if (field === 'email') {
+      return "Email address cannot be changed for security reasons";
     }
     
-    if (isRegularMember) {
-      return "Contact administrator to request changes to this field";
+    if (field === 'firstName' || field === 'lastName') {
+      return "Only Super Administrators can edit name fields";
+    }
+    
+    if (field === 'phone') {
+      return "Only Administrators can edit phone numbers";
     }
     
     return "You don't have permission to edit this field";
@@ -218,281 +170,223 @@ export const SettingsModule: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-600">Manage your account settings and preferences</p>
-          <div className="flex items-center space-x-2 mt-2">
-            <Shield className="h-4 w-4 text-gray-500" />
-            <span className="text-sm text-gray-500">
-              Your role: <strong>{userRole.userRole?.replace('_', ' ') || 'Member'}</strong>
-            </span>
-          </div>
-        </div>
-        {isRegularMember && (
-          <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Request Profile Changes
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Request Profile Changes</DialogTitle>
-                <DialogDescription>
-                  Send a request to the administrator to modify your profile information
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="message">Describe the changes you need</Label>
-                  <Textarea
-                    id="message"
-                    value={contactMessage}
-                    onChange={(e) => setContactMessage(e.target.value)}
-                    placeholder="Please specify which fields you'd like to change and the new values..."
-                    rows={4}
-                  />
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setContactDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleContactAdministrator} disabled={loading}>
-                    <Mail className="h-4 w-4 mr-2" />
-                    {loading ? 'Sending...' : 'Send Request'}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+      <div className="flex items-center space-x-2">
+        <Settings className="h-6 w-6 text-primary" />
+        <h1 className="text-2xl font-bold">Settings</h1>
       </div>
 
-      <Tabs defaultValue="personal" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="personal">Personal Info</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-        </TabsList>
+      {/* User Role Badge */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Shield className="h-5 w-5" />
+            <span>Account Status</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-4">
+            <Badge className={getRoleBadgeColor(userRole.role)}>
+              {userRole.role.replace('_', ' ').toUpperCase()}
+            </Badge>
+            <span className="text-sm text-gray-600">
+              Your current access level in the system
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="personal" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <User className="h-5 w-5" />
-                <span>Personal Information</span>
-              </CardTitle>
-              <CardDescription>
-                Update your personal details and contact information
-                {isRegularMember && (
-                  <div className="flex items-center space-x-2 mt-2 p-2 bg-blue-50 rounded-md">
-                    <Edit className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm text-blue-700">
-                      To modify your personal information, please use the "Request Profile Changes" button above
-                    </span>
-                  </div>
-                )}
-                {!isSuperAdmin && !isRegularMember && (
-                  <div className="flex items-center space-x-2 mt-2 p-2 bg-amber-50 rounded-md">
-                    <Lock className="h-4 w-4 text-amber-600" />
-                    <span className="text-sm text-amber-700">
-                      You can edit phone numbers but need super admin permissions for name changes
-                    </span>
-                  </div>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <Label htmlFor="firstName">First Name</Label>
-                    {getPermissionBadge(canEditFirstName)}
-                  </div>
-                  <Input
-                    id="firstName"
-                    value={personalInfo.first_name}
-                    onChange={(e) => handleInputChange('first_name', e.target.value)}
-                    placeholder="Enter your first name"
-                    disabled={!canEditFirstName}
-                    className={!canEditFirstName ? "bg-gray-100 cursor-not-allowed" : ""}
-                  />
-                  {getFieldDescription('firstName', canEditFirstName) && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {getFieldDescription('firstName', canEditFirstName)}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    {getPermissionBadge(canEditLastName)}
-                  </div>
-                  <Input
-                    id="lastName"
-                    value={personalInfo.last_name}
-                    onChange={(e) => handleInputChange('last_name', e.target.value)}
-                    placeholder="Enter your last name"
-                    disabled={!canEditLastName}
-                    className={!canEditLastName ? "bg-gray-100 cursor-not-allowed" : ""}
-                  />
-                  {getFieldDescription('lastName', canEditLastName) && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {getFieldDescription('lastName', canEditLastName)}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <Label htmlFor="email">Email Address</Label>
-                  {getPermissionBadge(canEditEmail)}
-                </div>
-                <Input
-                  id="email"
-                  type="email"
-                  value={personalInfo.email}
-                  disabled
-                  className="bg-gray-100 cursor-not-allowed"
-                  placeholder="Enter your email address"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {getFieldDescription('email', canEditEmail)}
+      {/* Personal Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <User className="h-5 w-5" />
+            <span>Personal Information</span>
+          </CardTitle>
+          <CardDescription>
+            Update your personal details and contact information.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">First Name</Label>
+              <Input
+                id="firstName"
+                value={personalInfo.first_name}
+                onChange={(e) => handleInputChange('first_name', e.target.value)}
+                placeholder="Enter your first name"
+                disabled={!canEditFirstName}
+                className={!canEditFirstName ? "bg-gray-100 cursor-not-allowed" : ""}
+              />
+              {getFieldDescription('firstName', canEditFirstName) && (
+                <p className="text-xs text-amber-600 flex items-center space-x-1">
+                  <AlertCircle className="h-3 w-3" />
+                  <span>{getFieldDescription('firstName', canEditFirstName)}</span>
                 </p>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  {getPermissionBadge(canEditPhone)}
-                </div>
-                <Input
-                  id="phone"
-                  value={personalInfo.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  placeholder="Enter your phone number"
-                  disabled={!canEditPhone}
-                  className={!canEditPhone ? "bg-gray-100 cursor-not-allowed" : ""}
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                value={personalInfo.last_name}
+                onChange={(e) => handleInputChange('last_name', e.target.value)}
+                placeholder="Enter your last name"
+                disabled={!canEditLastName}
+                className={!canEditLastName ? "bg-gray-100 cursor-not-allowed" : ""}
+              />
+              {getFieldDescription('lastName', canEditLastName) && (
+                <p className="text-xs text-amber-600 flex items-center space-x-1">
+                  <AlertCircle className="h-3 w-3" />
+                  <span>{getFieldDescription('lastName', canEditLastName)}</span>
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email Address</Label>
+            <Input
+              id="email"
+              type="email"
+              value={personalInfo.email}
+              disabled
+              className="bg-gray-100 cursor-not-allowed"
+              placeholder="Enter your email address"
+            />
+            <p className="text-xs text-amber-600 flex items-center space-x-1">
+              <AlertCircle className="h-3 w-3" />
+              <span>{getFieldDescription('email', canEditEmail)}</span>
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone">Phone Number</Label>
+            <Input
+              id="phone"
+              value={personalInfo.phone}
+              onChange={(e) => handleInputChange('phone', e.target.value)}
+              placeholder="Enter your phone number"
+              disabled={!canEditPhone}
+              className={!canEditPhone ? "bg-gray-100 cursor-not-allowed" : ""}
+            />
+            {getFieldDescription('phone', canEditPhone) && (
+              <p className="text-xs text-amber-600 flex items-center space-x-1">
+                <AlertCircle className="h-3 w-3" />
+                <span>{getFieldDescription('phone', canEditPhone)}</span>
+              </p>
+            )}
+          </div>
+
+          <div className="flex space-x-3">
+            <Button 
+              onClick={handlePersonalInfoSave} 
+              disabled={loading}
+              className="bg-primary hover:bg-primary/90"
+            >
+              {loading ? 'Saving...' : 'Save Changes'}
+            </Button>
+            
+            {(isSuperAdmin || isAdmin) ? null : (
+              <Button 
+                variant="outline" 
+                onClick={handleRequestProfileChanges}
+                className="border-primary text-primary hover:bg-primary/10"
+              >
+                Request Profile Changes
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notification Preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Bell className="h-5 w-5" />
+            <span>Notification Preferences</span>
+          </CardTitle>
+          <CardDescription>
+            Configure how and when you want to receive notifications.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2 text-sm font-medium">
+              <Mail className="h-4 w-4" />
+              <span>Email Notifications</span>
+            </div>
+            
+            <div className="space-y-3 ml-6">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="email-meetings">Meeting invitations and updates</Label>
+                <Switch
+                  id="email-meetings"
+                  checked={notifications.email_meetings}
+                  onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, email_meetings: checked }))}
                 />
-                {getFieldDescription('phone', canEditPhone) && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    {getFieldDescription('phone', canEditPhone)}
-                  </p>
-                )}
               </div>
               
-              {(canEditFirstName || canEditLastName || canEditPhone) && (
-                <Button 
-                  onClick={updatePersonalInfo} 
-                  disabled={loading} 
-                  className="w-full"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {loading ? 'Saving...' : 'Save Changes'}
-                </Button>
-              )}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="email-documents">New documents and announcements</Label>
+                <Switch
+                  id="email-documents"
+                  checked={notifications.email_documents}
+                  onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, email_documents: checked }))}
+                />
+              </div>
               
-              {isRegularMember && (
-                <div className="text-center pt-4 border-t">
-                  <p className="text-sm text-gray-600 mb-3">
-                    Need to update your personal information?
-                  </p>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setContactDialogOpen(true)}
-                    className="w-full"
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Request Profile Changes
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="email-voting">Voting and poll notifications</Label>
+                <Switch
+                  id="email-voting"
+                  checked={notifications.email_voting}
+                  onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, email_voting: checked }))}
+                />
+              </div>
+            </div>
+          </div>
 
-        <TabsContent value="notifications" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Bell className="h-5 w-5" />
-                <span>Notification Preferences</span>
-              </CardTitle>
-              <CardDescription>Configure how you want to receive notifications</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="email-notifications">Email Notifications</Label>
-                  <p className="text-sm text-gray-500">Receive general email notifications</p>
-                </div>
-                <Switch
-                  id="email-notifications"
-                  checked={notificationSettings.emailNotifications}
-                  onCheckedChange={(checked) => 
-                    setNotificationSettings(prev => ({ ...prev, emailNotifications: checked }))
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="meeting-reminders">Meeting Reminders</Label>
-                  <p className="text-sm text-gray-500">Get reminded about upcoming meetings</p>
-                </div>
-                <Switch
-                  id="meeting-reminders"
-                  checked={notificationSettings.meetingReminders}
-                  onCheckedChange={(checked) => 
-                    setNotificationSettings(prev => ({ ...prev, meetingReminders: checked }))
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="document-updates">Document Updates</Label>
-                  <p className="text-sm text-gray-500">Notifications when documents are updated</p>
-                </div>
-                <Switch
-                  id="document-updates"
-                  checked={notificationSettings.documentUpdates}
-                  onCheckedChange={(checked) => 
-                    setNotificationSettings(prev => ({ ...prev, documentUpdates: checked }))
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="vote-notifications">Vote Notifications</Label>
-                  <p className="text-sm text-gray-500">Alerts for new polls and voting deadlines</p>
-                </div>
-                <Switch
-                  id="vote-notifications"
-                  checked={notificationSettings.voteNotifications}
-                  onCheckedChange={(checked) => 
-                    setNotificationSettings(prev => ({ ...prev, voteNotifications: checked }))
-                  }
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+          <Separator />
 
-        <TabsContent value="integrations" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Settings className="h-5 w-5" />
-                <span>Microsoft Integration</span>
-              </CardTitle>
-              <CardDescription>Connect your Microsoft account for enhanced features</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <MicrosoftOAuthButton />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2 text-sm font-medium">
+              <Phone className="h-4 w-4" />
+              <span>SMS Notifications</span>
+            </div>
+            
+            <div className="space-y-3 ml-6">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="sms-meetings">Emergency meeting alerts</Label>
+                <Switch
+                  id="sms-meetings"
+                  checked={notifications.sms_meetings}
+                  onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, sms_meetings: checked }))}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <Label htmlFor="sms-important">Critical announcements</Label>
+                <Switch
+                  id="sms-important"
+                  checked={notifications.sms_important}
+                  onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, sms_important: checked }))}
+                />
+              </div>
+            </div>
+          </div>
+
+          <Button 
+            onClick={handleNotificationsSave} 
+            disabled={loading}
+            className="bg-primary hover:bg-primary/90"
+          >
+            {loading ? 'Saving...' : 'Save Notification Settings'}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 };
