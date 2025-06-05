@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -17,6 +18,7 @@ interface Notification {
 export const useNotifications = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [readNotifications, setReadNotifications] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -95,8 +97,8 @@ export const useNotifications = () => {
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 6);
 
-      // Only show unread notifications
-      const unreadNotifications = sortedNotifications.filter(n => !n.read);
+      // Filter out notifications that have been marked as read
+      const unreadNotifications = sortedNotifications.filter(n => !readNotifications.has(n.id));
       setNotifications(unreadNotifications);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -106,7 +108,12 @@ export const useNotifications = () => {
   };
 
   const markAllAsRead = () => {
-    // Remove all notifications when marked as read
+    // Add all current notification IDs to read set
+    const newReadNotifications = new Set(readNotifications);
+    notifications.forEach(n => newReadNotifications.add(n.id));
+    setReadNotifications(newReadNotifications);
+    
+    // Clear notifications list
     setNotifications([]);
     toast({
       title: "Success",
@@ -115,6 +122,9 @@ export const useNotifications = () => {
   };
 
   const markAsRead = (notificationId: string) => {
+    // Add to read notifications set
+    setReadNotifications(prev => new Set([...prev, notificationId]));
+    
     // Remove the specific notification when marked as read
     setNotifications(prev => prev.filter(n => n.id !== notificationId));
   };
@@ -130,7 +140,7 @@ export const useNotifications = () => {
   };
 
   const getUnreadCount = () => {
-    // Since we only keep unread notifications, the count is just the length
+    // The count is the length of currently displayed notifications
     const unreadCount = notifications.length;
     console.log('Unread notifications count:', unreadCount, 'Total notifications:', notifications.length);
     return unreadCount;
@@ -149,7 +159,7 @@ export const useNotifications = () => {
 
   useEffect(() => {
     fetchNotifications();
-  }, [user]);
+  }, [user, readNotifications]);
 
   return {
     notifications,
