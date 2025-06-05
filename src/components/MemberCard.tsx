@@ -73,10 +73,13 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
     setShowSettingsDialog(open);
   };
 
-  const handleMemberUpdated = () => {
+  const handleMemberUpdated = async () => {
     console.log('Member updated, refreshing list...');
+    // Close the dialog first
+    setShowSettingsDialog(false);
+    // Then refresh the members list to get updated data
     if (onRefreshMembers) {
-      onRefreshMembers();
+      await onRefreshMembers();
     }
   };
 

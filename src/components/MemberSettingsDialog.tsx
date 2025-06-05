@@ -100,11 +100,6 @@ export const MemberSettingsDialog: React.FC<MemberSettingsDialogProps> = ({
       if (onMemberUpdated) {
         onMemberUpdated();
       }
-      
-      // Close dialog after a short delay to allow the toast to show
-      setTimeout(() => {
-        onOpenChange(false);
-      }, 500);
     } catch (error: any) {
       console.error('Error updating member:', error);
       toast({
