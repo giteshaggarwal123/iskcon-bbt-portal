@@ -39,6 +39,9 @@ serve(async (req) => {
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
     const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
 
+    // Improved message format to avoid fraud detection
+    const smsBody = `ISKCON Bureau: Your password reset code is ${otp}. Valid for 10 minutes. Do not share this code.`;
+
     const response = await fetch(twilioUrl, {
       method: 'POST',
       headers: {
@@ -48,19 +51,36 @@ serve(async (req) => {
       body: new URLSearchParams({
         From: twilioPhoneNumber,
         To: phoneNumber,
-        Body: `Your ISKCON Bureau password reset OTP is: ${otp}. This code will expire in 10 minutes.`
+        Body: smsBody
       }),
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error('Twilio error:', error);
+      const errorData = await response.text();
+      console.error('Twilio error response:', errorData);
+      
+      // Parse Twilio error for better user feedback
+      let userFriendlyMessage = 'Unable to send verification code. Please try again later.';
+      
+      if (errorData.includes('30485')) {
+        userFriendlyMessage = 'SMS delivery temporarily blocked. Please try again in a few minutes or contact support.';
+      } else if (errorData.includes('21211')) {
+        userFriendlyMessage = 'Invalid phone number format. Please check and try again.';
+      } else if (errorData.includes('21614')) {
+        userFriendlyMessage = 'Phone number is not valid for SMS delivery.';
+      }
+      
       return new Response(
-        JSON.stringify({ error: 'Failed to send OTP' }),
+        JSON.stringify({ 
+          error: userFriendlyMessage,
+          twilioError: errorData
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const responseData = await response.json();
+    console.log('Twilio response:', responseData);
     console.log('OTP sent successfully to:', phoneNumber);
     
     return new Response(

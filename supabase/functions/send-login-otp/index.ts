@@ -111,12 +111,12 @@ serve(async (req) => {
       );
     }
 
-    // Send SMS via Twilio
+    // Send SMS via Twilio with improved message format
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
     const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
 
-    const userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
-    const smsBody = `Hello ${userName}, your ISKCON Bureau login verification code is: ${otp}. This code will expire in 5 minutes.`;
+    // Improved message format to avoid fraud detection
+    const smsBody = `ISKCON Bureau: Your login code is ${otp}. Valid for 5 minutes. Do not share this code.`;
 
     const response = await fetch(twilioUrl, {
       method: 'POST',
@@ -132,17 +132,32 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error('Twilio error:', error);
+      const errorData = await response.text();
+      console.error('Twilio error response:', errorData);
+      
+      // Parse Twilio error for better user feedback
+      let userFriendlyMessage = 'Unable to send verification code. Please try again later.';
+      
+      if (errorData.includes('30485')) {
+        userFriendlyMessage = 'SMS delivery temporarily blocked. Please try again in a few minutes or contact support.';
+      } else if (errorData.includes('21211')) {
+        userFriendlyMessage = 'Invalid phone number format. Please contact administrator to update your phone number.';
+      } else if (errorData.includes('21614')) {
+        userFriendlyMessage = 'Phone number is not valid for SMS delivery.';
+      }
+      
       return new Response(
         JSON.stringify({ 
-          error: 'Failed to send verification code.',
-          details: 'Unable to send SMS to your registered phone number. Please check if your phone number is correct or contact the administrator.'
+          error: userFriendlyMessage,
+          details: 'SMS service temporarily unavailable. Please try again later or contact the administrator.',
+          twilioError: errorData
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const responseData = await response.json();
+    console.log('Twilio response:', responseData);
     console.log('Login OTP sent successfully to:', formattedPhone, 'for email:', email);
     
     return new Response(
