@@ -122,6 +122,7 @@ export const MemberSettingsDialog: React.FC<MemberSettingsDialogProps> = ({
     setIsEditing(false);
   };
 
+  // Only super admin can edit all member information including email and phone
   const canEdit = userRole.isSuperAdmin;
 
   return (
@@ -190,10 +191,10 @@ export const MemberSettingsDialog: React.FC<MemberSettingsDialogProps> = ({
                       className="mt-1"
                     />
                   ) : (
-                    <p className="text-gray-900 flex items-center space-x-2 mt-1">
+                    <div className="flex items-center space-x-2 mt-1">
                       <Mail className="h-4 w-4" />
-                      <span>{member.email}</span>
-                    </p>
+                      <span className="text-gray-900">{member.email}</span>
+                    </div>
                   )}
                 </div>
                 <div>
@@ -207,25 +208,25 @@ export const MemberSettingsDialog: React.FC<MemberSettingsDialogProps> = ({
                       placeholder="Enter phone number"
                     />
                   ) : (
-                    <p className="text-gray-900 flex items-center space-x-2 mt-1">
+                    <div className="flex items-center space-x-2 mt-1">
                       <Phone className="h-4 w-4" />
-                      <span>{member.phone || 'Not provided'}</span>
-                    </p>
+                      <span className="text-gray-900">{member.phone || 'Not provided'}</span>
+                    </div>
                   )}
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-500">Join Date</Label>
-                  <p className="text-gray-900 flex items-center space-x-2 mt-1">
+                  <div className="flex items-center space-x-2 mt-1">
                     <Calendar className="h-4 w-4" />
-                    <span>{joinDate}</span>
-                  </p>
+                    <span className="text-gray-900">{joinDate}</span>
+                  </div>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-500">Role</Label>
-                  <p className="text-gray-900 flex items-center space-x-2 mt-1">
+                  <div className="flex items-center space-x-2 mt-1">
                     <Shield className="h-4 w-4" />
                     <Badge>{primaryRole}</Badge>
-                  </p>
+                  </div>
                 </div>
               </div>
 

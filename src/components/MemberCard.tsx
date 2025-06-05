@@ -77,10 +77,13 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
     console.log('Member updated, refreshing list...');
     // Close the dialog first
     setShowSettingsDialog(false);
-    // Then refresh the members list to get updated data
-    if (onRefreshMembers) {
-      await onRefreshMembers();
-    }
+    
+    // Add a small delay to ensure the dialog closes before refreshing
+    setTimeout(() => {
+      if (onRefreshMembers) {
+        onRefreshMembers();
+      }
+    }, 100);
   };
 
   // Role change permissions - enhanced with more granular control
