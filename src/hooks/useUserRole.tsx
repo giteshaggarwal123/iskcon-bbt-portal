@@ -235,17 +235,4 @@ export const useUserRole = (): UseUserRoleReturn => {
     canViewMemberSettings,
   };
 };
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key   # only needed for seeding
-// scripts/seedAdmin.ts (for example)
-import { seedInitialAdmin } from '../src/lib/authService';
-seedInitialAdmin().then(() => process.exit());
-node scripts/seedAdmin.ts     # run once, then delete or comment out
-import { signInWithEmail } from '@/lib/authService';
-import { useUserRole } from '@/hooks/useUserRole';
-
-// …
-await signInWithEmail(email, password); // logs user in
-const { isSuperAdmin } = useUserRole(); // role info auto-updates
 
