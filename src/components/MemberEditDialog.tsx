@@ -97,13 +97,9 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
         description: `${firstName} ${lastName}'s information has been updated successfully`
       });
 
-      // Close dialog first
+      // Close dialog and refresh data immediately
       onOpenChange(false);
-      
-      // Then trigger the refresh to show updated data
-      setTimeout(() => {
-        onMemberUpdated();
-      }, 100);
+      onMemberUpdated();
 
     } catch (error: any) {
       console.error('Error updating member:', error);
