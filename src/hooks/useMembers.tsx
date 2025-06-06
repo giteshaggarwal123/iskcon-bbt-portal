@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
@@ -31,7 +30,7 @@ export const useMembers = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     try {
       console.log('Fetching members...');
       
@@ -98,7 +97,7 @@ export const useMembers = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   const addMember = async (memberData: {
     email: string;
@@ -506,7 +505,7 @@ export const useMembers = () => {
     if (user) {
       fetchMembers();
     }
-  }, [user]);
+  }, [user, fetchMembers]);
 
   return {
     members,

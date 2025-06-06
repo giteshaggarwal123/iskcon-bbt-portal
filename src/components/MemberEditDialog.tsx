@@ -90,13 +90,21 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
         throw error;
       }
 
+      console.log('Member profile updated successfully');
+
       toast({
         title: "Member Updated",
-        description: "Member information has been updated successfully"
+        description: `${firstName} ${lastName}'s information has been updated successfully`
       });
 
-      onMemberUpdated();
+      // Close dialog first
       onOpenChange(false);
+      
+      // Then trigger the refresh to show updated data
+      setTimeout(() => {
+        onMemberUpdated();
+      }, 100);
+
     } catch (error: any) {
       console.error('Error updating member:', error);
       toast({
@@ -127,7 +135,7 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
             <span>Edit Member Information</span>
           </DialogTitle>
           <DialogDescription>
-            Update member details. Only super admins can edit member information.
+            Update member details. Changes will be reflected immediately across the system.
           </DialogDescription>
         </DialogHeader>
 
