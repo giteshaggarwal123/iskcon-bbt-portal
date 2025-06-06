@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -47,42 +47,46 @@ export const VotingModule: React.FC = () => {
     }
   }, [polls, getPollResults]);
 
-  const handleVoteClick = (poll: Poll) => {
+  const handleVoteClick = useCallback((poll: Poll) => {
     setSelectedPoll(poll);
     setShowVotingDialog(true);
-  };
+  }, []);
 
-  const handleEditPoll = (poll: Poll) => {
+  const handleCreateClick = useCallback(() => {
+    setShowCreateDialog(true);
+  }, []);
+
+  const handleEditPoll = useCallback((poll: Poll) => {
     console.log('Edit poll:', poll.id);
     // TODO: Implement edit poll functionality
-  };
+  }, []);
 
-  const handleDeletePoll = async (poll: Poll) => {
+  const handleDeletePoll = useCallback(async (poll: Poll) => {
     if (confirm(`Are you sure you want to delete the poll "${poll.title}"?`)) {
       await deletePoll(poll.id);
     }
-  };
+  }, [deletePoll]);
 
-  const handleReopenPoll = async (poll: Poll) => {
+  const handleReopenPoll = useCallback(async (poll: Poll) => {
     if (confirm(`Are you sure you want to reopen the poll "${poll.title}"?`)) {
       await updatePollStatus(poll.id, 'active');
     }
-  };
+  }, [updatePollStatus]);
 
-  const handleViewAttachment = (attachmentPath: string) => {
+  const handleViewAttachment = useCallback((attachmentPath: string) => {
     window.open(`https://daiimiznlkffbbadhodw.supabase.co/storage/v1/object/public/poll-attachments/${attachmentPath}`, '_blank');
-  };
+  }, []);
 
-  const handleDownloadAttachment = (attachmentPath: string, fileName: string) => {
+  const handleDownloadAttachment = useCallback((attachmentPath: string, fileName: string) => {
     downloadAttachment(attachmentPath, fileName);
-  };
+  }, [downloadAttachment]);
 
-  const getProgressPercentage = (poll: Poll) => {
+  const getProgressPercentage = useCallback((poll: Poll) => {
     if (!poll.stats) return 0;
     return poll.stats.total_voters > 0 ? (poll.stats.voted_count / poll.stats.total_voters) * 100 : 0;
-  };
+  }, []);
 
-  const getVoteIcon = (voteType: string) => {
+  const getVoteIcon = useCallback((voteType: string) => {
     switch (voteType) {
       case 'favor':
         return <CheckCircle className="h-4 w-4 text-green-600" />;
@@ -93,9 +97,9 @@ export const VotingModule: React.FC = () => {
       default:
         return null;
     }
-  };
+  }, []);
 
-  const getVoteColor = (voteType: string) => {
+  const getVoteColor = useCallback((voteType: string) => {
     switch (voteType) {
       case 'favor':
         return 'text-green-600 bg-green-50';
@@ -106,7 +110,7 @@ export const VotingModule: React.FC = () => {
       default:
         return 'text-gray-600 bg-gray-50';
     }
-  };
+  }, []);
 
   const activePolls = polls.filter(poll => poll.status === 'active');
   const completedPolls = polls.filter(poll => poll.status === 'completed');
@@ -130,7 +134,7 @@ export const VotingModule: React.FC = () => {
           {canCreatePolls && (
             <Button 
               className="bg-primary hover:bg-primary/90"
-              onClick={() => setShowCreateDialog(true)}
+              onClick={handleCreateClick}
             >
               <Plus className="h-4 w-4 mr-2" />
               Create Poll
@@ -153,7 +157,7 @@ export const VotingModule: React.FC = () => {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Polls</h3>
                   <p className="text-gray-500 mb-4">There are currently no active polls to vote on.</p>
                   {canCreatePolls && (
-                    <Button onClick={() => setShowCreateDialog(true)}>
+                    <Button onClick={handleCreateClick}>
                       <Plus className="h-4 w-4 mr-2" />
                       Create First Poll
                     </Button>
