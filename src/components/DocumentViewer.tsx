@@ -23,7 +23,7 @@ interface DocumentViewerProps {
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   isOpen,
   onClose,
-  document
+  document: documentProp
 }) => {
   const [zoom, setZoom] = useState(100);
   const [loading, setLoading] = useState(false);
@@ -32,14 +32,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
   // Check if file exists when document changes
   useEffect(() => {
-    if (document?.file_path) {
+    if (documentProp?.file_path) {
       setLoading(true);
       setFileExists(true);
       
       // Create an image element to test if the file exists
-      const testElement = document.mime_type?.includes('image') 
+      const testElement = documentProp.mime_type?.includes('image') 
         ? new Image()
-        : document.createElement('iframe');
+        : window.document.createElement('iframe');
       
       testElement.onload = () => {
         setFileExists(true);
@@ -52,12 +52,12 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       };
       
       if (testElement instanceof HTMLImageElement) {
-        testElement.src = document.file_path;
+        testElement.src = documentProp.file_path;
       } else {
-        testElement.src = document.file_path;
+        testElement.src = documentProp.file_path;
       }
     }
-  }, [document]);
+  }, [documentProp]);
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return 'Unknown';
@@ -77,27 +77,27 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   };
 
   const handleDownload = () => {
-    if (!document) return;
+    if (!documentProp) return;
     
     // For demo purposes, show a download message
     toast({
       title: "Download Started",
-      description: `Downloading "${document.name}"`
+      description: `Downloading "${documentProp.name}"`
     });
   };
 
   const handleExternalView = () => {
-    if (!document) return;
+    if (!documentProp) return;
     
     // For demo purposes, show an external view message
     toast({
       title: "External View",
-      description: `Opening "${document.name}" in new tab`
+      description: `Opening "${documentProp.name}" in new tab`
     });
   };
 
   const renderDocumentContent = () => {
-    if (!document) return null;
+    if (!documentProp) return null;
 
     if (loading) {
       return (
@@ -123,9 +123,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
             <div className="flex items-center space-x-3 mb-4">
               <FileText className="h-8 w-8 text-blue-500" />
               <div>
-                <h4 className="font-medium">{document.name}</h4>
+                <h4 className="font-medium">{documentProp.name}</h4>
                 <p className="text-sm text-gray-500">
-                  {document.mime_type?.split('/')[1] || 'file'} • {formatFileSize(document.file_size)}
+                  {documentProp.mime_type?.split('/')[1] || 'file'} • {formatFileSize(documentProp.file_size)}
                 </p>
               </div>
             </div>
@@ -144,7 +144,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       );
     }
 
-    const mimeType = document.mime_type || '';
+    const mimeType = documentProp.mime_type || '';
     
     // For demo purposes, show a simulated document viewer
     return (
@@ -153,7 +153,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
           <FileText className="h-24 w-24 text-blue-500 mx-auto mb-6" />
           <h3 className="text-xl font-semibold text-gray-700 mb-2">Document Viewer</h3>
           <p className="text-gray-500 mb-4">
-            This is a demo document viewer for "{document.name}"
+            This is a demo document viewer for "{documentProp.name}"
           </p>
           <div className="bg-gray-50 p-4 rounded-lg mb-6">
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -161,13 +161,13 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                 <span className="font-medium">Type:</span> {mimeType.split('/')[1] || 'file'}
               </div>
               <div>
-                <span className="font-medium">Size:</span> {formatFileSize(document.file_size)}
+                <span className="font-medium">Size:</span> {formatFileSize(documentProp.file_size)}
               </div>
               <div>
-                <span className="font-medium">Created:</span> {formatDate(document.created_at)}
+                <span className="font-medium">Created:</span> {formatDate(documentProp.created_at)}
               </div>
               <div>
-                <span className="font-medium">Format:</span> {document.name.split('.').pop()?.toUpperCase()}
+                <span className="font-medium">Format:</span> {documentProp.name.split('.').pop()?.toUpperCase()}
               </div>
             </div>
           </div>
@@ -189,9 +189,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     );
   };
 
-  if (!document) return null;
+  if (!documentProp) return null;
 
-  const isImage = document.mime_type?.includes('image');
+  const isImage = documentProp.mime_type?.includes('image');
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -200,14 +200,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
               <DialogTitle className="text-lg font-semibold truncate">
-                {document.name}
+                {documentProp.name}
               </DialogTitle>
               <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
                 <Badge variant="secondary">
-                  {document.mime_type?.split('/')[1] || 'file'}
+                  {documentProp.mime_type?.split('/')[1] || 'file'}
                 </Badge>
-                <span>{formatFileSize(document.file_size)}</span>
-                <span>Created {formatDate(document.created_at)}</span>
+                <span>{formatFileSize(documentProp.file_size)}</span>
+                <span>Created {formatDate(documentProp.created_at)}</span>
               </div>
             </div>
             
