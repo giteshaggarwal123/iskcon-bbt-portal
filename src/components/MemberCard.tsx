@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -127,11 +126,10 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
 
   const handleSuspendAccount = async () => {
     try {
-      // Use a direct SQL query since TypeScript types may not be updated yet
       const { error } = await supabase
-        .rpc('exec', {
-          sql: `UPDATE profiles SET is_suspended = true WHERE id = '${member.id}'`
-        });
+        .from('profiles')
+        .update({ is_suspended: true })
+        .eq('id', member.id);
 
       if (error) throw error;
 
@@ -143,7 +141,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
       console.error('Suspend error:', error);
       toast({
         title: "Suspension Failed",
-        description: "Failed to suspend account. Feature will be available after database sync.",
+        description: error.message || "Failed to suspend account",
         variant: "destructive"
       });
     }
