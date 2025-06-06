@@ -68,21 +68,23 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
     try {
       console.log('Updating member profile:', {
         id: member.id,
-        firstName,
-        lastName,
-        email,
-        phone
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        phone: phone.trim()
       });
+
+      const updateData = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        email: email.trim(),
+        phone: phone.trim() || null,
+        updated_at: new Date().toISOString()
+      };
 
       const { error } = await supabase
         .from('profiles')
-        .update({
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          email: email.trim(),
-          phone: phone.trim() || null,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', member.id);
 
       if (error) {
@@ -93,13 +95,15 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
       console.log('Member profile updated successfully');
 
       toast({
-        title: "Member Updated",
-        description: `${firstName} ${lastName}'s information has been updated successfully`
+        title: "Success!",
+        description: `${firstName} ${lastName}'s information has been updated`
       });
 
-      // Close dialog and refresh data immediately
+      // Immediately close dialog and trigger refresh
       onOpenChange(false);
-      onMemberUpdated();
+      
+      // Force immediate refresh of members list
+      await onMemberUpdated();
 
     } catch (error: any) {
       console.error('Error updating member:', error);
@@ -131,7 +135,7 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
             <span>Edit Member Information</span>
           </DialogTitle>
           <DialogDescription>
-            Update member details. Changes will be reflected immediately across the system.
+            Update member details. Changes will be reflected immediately.
           </DialogDescription>
         </DialogHeader>
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,8 +85,9 @@ export const MembersModule: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  const handleMemberUpdated = () => {
-    fetchMembers(); // Refresh the members list
+  const handleMemberUpdated = async () => {
+    console.log('Member updated, refreshing list...');
+    await fetchMembers();
   };
 
   if (loading) {
