@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -85,6 +86,10 @@ export const MembersModule: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleMemberUpdated = () => {
+    fetchMembers(); // Refresh the members list
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -160,6 +165,7 @@ export const MembersModule: React.FC = () => {
                       resetPassword(memberId);
                     }
                   }}
+                  onMemberUpdated={handleMemberUpdated}
                 />
               ))}
             </div>

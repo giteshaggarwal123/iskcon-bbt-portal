@@ -44,6 +44,16 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  // Reset form when member changes or dialog opens
+  React.useEffect(() => {
+    if (open) {
+      setFirstName(member.first_name);
+      setLastName(member.last_name);
+      setEmail(member.email);
+      setPhone(member.phone || '');
+    }
+  }, [member, open]);
+
   const handleSave = async () => {
     if (!firstName.trim() || !lastName.trim() || !email.trim()) {
       toast({

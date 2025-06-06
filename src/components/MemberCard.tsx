@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +46,7 @@ interface MemberCardProps {
   onDeleteMember: (memberId: string) => void;
   onSuspendMember?: (memberId: string, suspend: boolean) => void;
   onResetPassword?: (memberId: string) => void;
+  onMemberUpdated?: () => void;
 }
 
 export const MemberCard: React.FC<MemberCardProps> = ({ 
@@ -52,7 +54,8 @@ export const MemberCard: React.FC<MemberCardProps> = ({
   onRoleChange, 
   onDeleteMember, 
   onSuspendMember,
-  onResetPassword 
+  onResetPassword,
+  onMemberUpdated 
 }) => {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
@@ -90,6 +93,12 @@ export const MemberCard: React.FC<MemberCardProps> = ({
   const handleResetPassword = () => {
     if (onResetPassword) {
       onResetPassword(member.id);
+    }
+  };
+
+  const handleMemberUpdated = () => {
+    if (onMemberUpdated) {
+      onMemberUpdated();
     }
   };
 
@@ -283,10 +292,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({
           open={showEditDialog}
           onOpenChange={setShowEditDialog}
           member={member}
-          onMemberUpdated={() => {
-            // Refresh the members list
-            window.location.reload();
-          }}
+          onMemberUpdated={handleMemberUpdated}
         />
       )}
 
