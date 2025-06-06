@@ -26,38 +26,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   document: documentProp
 }) => {
   const [zoom, setZoom] = useState(100);
-  const [loading, setLoading] = useState(false);
-  const [fileExists, setFileExists] = useState(true);
   const { toast } = useToast();
 
-  // Check if file exists when document changes
+  // Reset zoom when document changes
   useEffect(() => {
-    if (documentProp?.file_path) {
-      setLoading(true);
-      setFileExists(true);
-      
-      // Create an image element to test if the file exists
-      const testElement = documentProp.mime_type?.includes('image') 
-        ? new Image()
-        : window.document.createElement('iframe');
-      
-      testElement.onload = () => {
-        setFileExists(true);
-        setLoading(false);
-      };
-      
-      testElement.onerror = () => {
-        setFileExists(false);
-        setLoading(false);
-      };
-      
-      if (testElement instanceof HTMLImageElement) {
-        testElement.src = documentProp.file_path;
-      } else {
-        testElement.src = documentProp.file_path;
-      }
+    if (documentProp) {
+      setZoom(100);
     }
-  }, [documentProp]);
+  }, [documentProp?.id]); // Only depend on document ID to prevent unnecessary re-renders
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return 'Unknown';
@@ -98,51 +74,6 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
   const renderDocumentContent = () => {
     if (!documentProp) return null;
-
-    if (loading) {
-      return (
-        <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading document...</p>
-          </div>
-        </div>
-      );
-    }
-
-    if (!fileExists) {
-      return (
-        <div className="w-full h-full bg-gray-50 rounded-lg flex flex-col items-center justify-center p-8">
-          <AlertCircle className="h-16 w-16 text-orange-500 mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">Document Preview Not Available</h3>
-          <p className="text-gray-500 mb-6 text-center">
-            The document file could not be loaded for preview.<br />
-            This is a demo system - in production, actual file storage would be implemented.
-          </p>
-          <div className="bg-white p-6 rounded-lg border shadow-sm w-full max-w-md">
-            <div className="flex items-center space-x-3 mb-4">
-              <FileText className="h-8 w-8 text-blue-500" />
-              <div>
-                <h4 className="font-medium">{documentProp.name}</h4>
-                <p className="text-sm text-gray-500">
-                  {documentProp.mime_type?.split('/')[1] || 'file'} • {formatFileSize(documentProp.file_size)}
-                </p>
-              </div>
-            </div>
-            <div className="flex space-x-2">
-              <Button onClick={handleDownload} variant="outline" size="sm" className="flex-1">
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
-              <Button onClick={handleExternalView} size="sm" className="flex-1">
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open
-              </Button>
-            </div>
-          </div>
-        </div>
-      );
-    }
 
     const mimeType = documentProp.mime_type || '';
     
@@ -212,7 +143,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
             </div>
             
             <div className="flex items-center space-x-2 ml-4">
-              {isImage && fileExists && (
+              {isImage && (
                 <>
                   <Button
                     size="sm"
