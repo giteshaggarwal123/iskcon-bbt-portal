@@ -28,103 +28,15 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
   const mimeType = document.mime_type || '';
   
   const renderFilePreview = () => {
-    // Image files
-    if (mimeType.includes('image')) {
-      return (
-        <div className="w-full h-full flex items-center justify-center bg-gray-100">
-          <img 
-            src={document.file_path} 
-            alt={document.name}
-            className="max-w-full max-h-full object-contain"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-        </div>
-      );
-    }
-    
-    // PDF files
-    if (mimeType.includes('pdf')) {
-      return (
-        <div className="w-full h-full">
-          <iframe
-            src={`${document.file_path}#toolbar=1&navpanes=1&scrollbar=1`}
-            className="w-full h-full border-0"
-            title={document.name}
-          />
-        </div>
-      );
-    }
-    
-    // Text files
-    if (mimeType.includes('text') || mimeType.includes('json') || mimeType.includes('xml')) {
-      return (
-        <div className="w-full h-full bg-white p-6 overflow-auto">
-          <iframe
-            src={document.file_path}
-            className="w-full h-full border border-gray-200 rounded"
-            title={document.name}
-          />
-        </div>
-      );
-    }
-    
-    // Office documents (Word, Excel, PowerPoint)
-    if (mimeType.includes('officedocument') || mimeType.includes('msword') || mimeType.includes('excel') || mimeType.includes('powerpoint')) {
-      const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(window.location.origin + document.file_path)}`;
-      return (
-        <div className="w-full h-full">
-          <iframe
-            src={officeViewerUrl}
-            className="w-full h-full border-0"
-            title={document.name}
-          />
-        </div>
-      );
-    }
-    
-    // Video files
-    if (mimeType.includes('video')) {
-      return (
-        <div className="w-full h-full flex items-center justify-center bg-black">
-          <video 
-            controls 
-            className="max-w-full max-h-full"
-            src={document.file_path}
-          >
-            Your browser does not support the video tag.
-          </video>
-        </div>
-      );
-    }
-    
-    // Audio files
-    if (mimeType.includes('audio')) {
-      return (
-        <div className="w-full h-full flex items-center justify-center bg-gray-100">
-          <div className="text-center">
-            <div className="mb-6">
-              <FileText className="h-16 w-16 text-blue-500 mx-auto" />
-            </div>
-            <audio controls className="mb-4">
-              <source src={document.file_path} type={mimeType} />
-              Your browser does not support the audio element.
-            </audio>
-            <p className="text-gray-600">{document.name}</p>
-          </div>
-        </div>
-      );
-    }
-    
-    // Fallback for unsupported file types
+    // For now, show a consistent preview unavailable message for all file types
+    // since the actual file URLs are not accessible
     return (
       <div className="w-full h-full bg-white rounded-lg border flex items-center justify-center p-8">
         <div className="text-center max-w-md">
           <File className="h-24 w-24 text-gray-400 mx-auto mb-6" />
           <h3 className="text-xl font-semibold text-gray-700 mb-2">Preview Not Available</h3>
           <p className="text-gray-500 mb-4">
-            This file type cannot be previewed in the browser.
+            File preview is not available in this demo environment.
           </p>
           <div className="bg-gray-50 p-4 rounded-lg mb-6">
             <div className="grid grid-cols-2 gap-4 text-sm">
