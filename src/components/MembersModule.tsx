@@ -14,7 +14,16 @@ import { useUserRole } from '@/hooks/useUserRole';
 export const MembersModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
-  const { members, loading, addMember, updateMemberRole, deleteMember, searchMembers } = useMembers();
+  const { 
+    members, 
+    loading, 
+    addMember, 
+    updateMemberRole, 
+    deleteMember, 
+    suspendMember,
+    resetPassword,
+    searchMembers 
+  } = useMembers();
   const userRole = useUserRole();
 
   // Use the search function from the hook
@@ -137,6 +146,8 @@ export const MembersModule: React.FC = () => {
                   member={member} 
                   onRoleChange={updateMemberRole}
                   onDeleteMember={deleteMember}
+                  onSuspendMember={suspendMember}
+                  onResetPassword={resetPassword}
                 />
               ))}
             </div>

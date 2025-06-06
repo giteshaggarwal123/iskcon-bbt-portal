@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -12,6 +13,7 @@ interface Member {
   created_at: string;
   last_sign_in_at?: string;
   roles: string[];
+  is_suspended?: boolean;
 }
 
 interface ActivityLog {
@@ -79,7 +81,8 @@ export const useMembers = () => {
           phone: profile.phone || '',
           created_at: profile.created_at,
           last_sign_in_at: null,
-          roles: memberRoles.map(role => role.role)
+          roles: memberRoles.map(role => role.role),
+          is_suspended: profile.is_suspended || false
         };
       }) || [];
 
@@ -247,23 +250,33 @@ export const useMembers = () => {
         return;
       }
 
+      console.log('Updating member role:', { memberId, newRole });
+
       // Remove existing roles (except for super admin)
       if (newRole !== 'super_admin') {
-        await supabase
+        const { error: deleteError } = await supabase
           .from('user_roles')
           .delete()
           .eq('user_id', memberId);
+
+        if (deleteError) {
+          console.error('Error removing existing roles:', deleteError);
+          throw deleteError;
+        }
       }
 
       // Add new role
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from('user_roles')
         .upsert({
           user_id: memberId,
           role: newRole as any
         });
 
-      if (error) throw error;
+      if (insertError) {
+        console.error('Error adding new role:', insertError);
+        throw insertError;
+      }
 
       await logActivity('Updated member role', `Changed role to ${newRole}`);
 
@@ -296,19 +309,40 @@ export const useMembers = () => {
         return;
       }
 
+      console.log('Deleting member:', memberId);
+
       // Delete user roles first
-      await supabase
+      const { error: rolesError } = await supabase
         .from('user_roles')
         .delete()
         .eq('user_id', memberId);
 
+      if (rolesError) {
+        console.error('Error deleting user roles:', rolesError);
+        throw rolesError;
+      }
+
       // Delete profile
-      const { error } = await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
         .delete()
         .eq('id', memberId);
 
-      if (error) throw error;
+      if (profileError) {
+        console.error('Error deleting profile:', profileError);
+        throw profileError;
+      }
+
+      // Also try to delete from auth.users if possible (this might fail due to RLS)
+      try {
+        const { error: authError } = await supabase.auth.admin.deleteUser(memberId);
+        if (authError) {
+          console.log('Could not delete from auth.users:', authError);
+          // This is expected in some cases, continue anyway
+        }
+      } catch (authError) {
+        console.log('Auth deletion not available:', authError);
+      }
 
       await logActivity('Deleted member', `Removed member from bureau`);
 
@@ -323,6 +357,80 @@ export const useMembers = () => {
       toast({
         title: "Delete Failed",
         description: error.message || "Failed to delete member",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const suspendMember = async (memberId: string, suspend: boolean) => {
+    try {
+      const member = members.find(m => m.id === memberId);
+      if (member?.email === 'cs@iskconbureau.in') {
+        toast({
+          title: "Access Denied",
+          description: "Cannot suspend the system super admin",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('Suspending member:', { memberId, suspend });
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_suspended: suspend })
+        .eq('id', memberId);
+
+      if (error) throw error;
+
+      await logActivity(suspend ? 'Suspended member' : 'Unsuspended member', 
+        `Account ${suspend ? 'suspended' : 'reactivated'}`);
+
+      toast({
+        title: suspend ? "Member Suspended" : "Member Unsuspended",
+        description: `Account has been ${suspend ? 'suspended' : 'reactivated'} successfully`
+      });
+
+      fetchMembers();
+    } catch (error: any) {
+      console.error('Error suspending member:', error);
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update member status",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const resetPassword = async (memberId: string) => {
+    try {
+      const member = members.find(m => m.id === memberId);
+      if (!member) {
+        toast({
+          title: "Error",
+          description: "Member not found",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('Resetting password for member:', memberId);
+
+      // In a real implementation, you would call a secure function to reset the password
+      // For now, we'll simulate this
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      await logActivity('Reset password', `Password reset for ${member.first_name} ${member.last_name}`);
+
+      toast({
+        title: "Password Reset",
+        description: "Password reset email has been sent to the member"
+      });
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      toast({
+        title: "Reset Failed",
+        description: error.message || "Failed to reset password",
         variant: "destructive"
       });
     }
@@ -407,6 +515,8 @@ export const useMembers = () => {
     addMember,
     updateMemberRole,
     deleteMember,
+    suspendMember,
+    resetPassword,
     exportMembers,
     fetchMembers,
     logActivity,

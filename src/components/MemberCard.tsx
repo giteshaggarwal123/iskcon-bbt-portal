@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Mail, Phone, Settings, MessageCircle, Trash2, Lock } from 'lucide-react';
+import { User, Mail, Phone, Settings, MessageCircle, Trash2, Lock, UserX, RotateCcw, Activity } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -20,10 +20,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MemberSettingsDialog } from './MemberSettingsDialog';
 import { MemberMessageDialog } from './MemberMessageDialog';
+import { MemberActivityDialog } from './MemberActivityDialog';
 import { useUserRole } from '@/hooks/useUserRole';
 
 interface Member {
@@ -34,17 +36,27 @@ interface Member {
   phone?: string;
   created_at: string;
   roles: string[];
+  is_suspended?: boolean;
 }
 
 interface MemberCardProps {
   member: Member;
   onRoleChange: (memberId: string, newRole: string) => void;
   onDeleteMember: (memberId: string) => void;
+  onSuspendMember?: (memberId: string, suspend: boolean) => void;
+  onResetPassword?: (memberId: string) => void;
 }
 
-export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, onDeleteMember }) => {
+export const MemberCard: React.FC<MemberCardProps> = ({ 
+  member, 
+  onRoleChange, 
+  onDeleteMember, 
+  onSuspendMember,
+  onResetPassword 
+}) => {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
+  const [showActivityDialog, setShowActivityDialog] = useState(false);
   const userRole = useUserRole();
 
   const getRoleBadge = (role: string) => {
@@ -68,11 +80,26 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
     onDeleteMember(member.id);
   };
 
+  const handleSuspendMember = () => {
+    if (onSuspendMember) {
+      onSuspendMember(member.id, !member.is_suspended);
+    }
+  };
+
+  const handleResetPassword = () => {
+    if (onResetPassword) {
+      onResetPassword(member.id);
+    }
+  };
+
   // Role change permissions - enhanced with more granular control
   const canChangeRole = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin' && actualRole !== 'admin');
   const canDeleteMember = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin' && actualRole !== 'admin');
   const canViewSettings = userRole.isSuperAdmin || userRole.isAdmin || userRole.isSecretary;
   const canSendMessage = true; // All users can send messages
+  const canSuspendMember = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin' && actualRole !== 'admin');
+  const canResetPassword = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin');
+  const canViewActivity = userRole.isSuperAdmin || userRole.isAdmin;
   
   // Super admin can never be deleted or have role changed by others
   const isSuperAdminMember = actualRole === 'super_admin';
@@ -108,6 +135,12 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
                   <Badge variant="outline">Joined {joinDate}</Badge>
                   {isSuperAdminMember && (
                     <Badge className="bg-gold-500 text-white">System Admin</Badge>
+                  )}
+                  {member.is_suspended && (
+                    <Badge className="bg-red-100 text-red-800">
+                      <UserX className="h-3 w-3 mr-1" />
+                      Suspended
+                    </Badge>
                   )}
                   {isProtectedMember && (
                     <Badge className="bg-amber-100 text-amber-800">
@@ -159,14 +192,30 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                       <DropdownMenuItem onClick={() => setShowSettingsDialog(true)}>
+                        <Settings className="h-4 w-4 mr-2" />
                         Member Settings
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        View Activity
-                      </DropdownMenuItem>
-                      {!isSuperAdminMember && userRole.isSuperAdmin && (
-                        <DropdownMenuItem>
+                      
+                      {canViewActivity && (
+                        <DropdownMenuItem onClick={() => setShowActivityDialog(true)}>
+                          <Activity className="h-4 w-4 mr-2" />
+                          View Activity
+                        </DropdownMenuItem>
+                      )}
+                      
+                      {canResetPassword && (
+                        <DropdownMenuItem onClick={handleResetPassword}>
+                          <RotateCcw className="h-4 w-4 mr-2" />
                           Reset Password
+                        </DropdownMenuItem>
+                      )}
+                      
+                      <DropdownMenuSeparator />
+                      
+                      {canSuspendMember && !isProtectedMember && (
+                        <DropdownMenuItem onClick={handleSuspendMember}>
+                          <UserX className="h-4 w-4 mr-2" />
+                          {member.is_suspended ? 'Unsuspend' : 'Suspend'} Account
                         </DropdownMenuItem>
                       )}
                     </DropdownMenuContent>
@@ -228,6 +277,14 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
         <MemberMessageDialog 
           open={showMessageDialog}
           onOpenChange={setShowMessageDialog}
+          member={member}
+        />
+      )}
+
+      {canViewActivity && (
+        <MemberActivityDialog 
+          open={showActivityDialog}
+          onOpenChange={setShowActivityDialog}
           member={member}
         />
       )}
