@@ -15,24 +15,41 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [currentModule, setCurrentModule] = useState('dashboard');
   const [showProfile, setShowProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [avatarRefreshTrigger, setAvatarRefreshTrigger] = useState(0);
   const isMobile = useIsMobile();
 
   const handleProfileClick = () => {
     setShowProfile(true);
+    setShowSettings(false);
     setCurrentModule('profile');
   };
 
   const handleSettingsClick = () => {
     setShowSettings(true);
+    setShowProfile(false);
     setCurrentModule('settings');
+  };
+
+  const handleModuleChange = (module: string) => {
+    setCurrentModule(module);
+    setShowProfile(false);
+    setShowSettings(false);
+    if (isMobile) setSidebarOpen(false);
+  };
+
+  const handleNavigateFromNotification = (module: string, id?: string) => {
+    setCurrentModule(module);
+    setShowProfile(false);
+    setShowSettings(false);
+    console.log(`Navigating to ${module}${id ? ` with ID: ${id}` : ''}`);
   };
 
   const renderContent = () => {
     if (showProfile || currentModule === 'profile') {
-      return <SettingsModule />;
+      return <SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />;
     }
     if (showSettings || currentModule === 'settings') {
-      return <SettingsModule />;
+      return <SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />;
     }
     return children;
   };
@@ -51,12 +68,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)}
         currentModule={currentModule}
-        onModuleChange={(module) => {
-          setCurrentModule(module);
-          setShowProfile(false);
-          setShowSettings(false);
-          if (isMobile) setSidebarOpen(false);
-        }}
+        onModuleChange={handleModuleChange}
+        avatarRefreshTrigger={avatarRefreshTrigger}
       />
       
       <div className={`flex-1 flex flex-col transition-all duration-300 ${
@@ -66,6 +79,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           onMenuClick={() => setSidebarOpen(!sidebarOpen)}
           onProfileClick={handleProfileClick}
           onSettingsClick={handleSettingsClick}
+          onNavigate={handleNavigateFromNotification}
         />
         <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
           {renderContent()}
