@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +21,8 @@ export const MembersModule: React.FC = () => {
     deleteMember, 
     suspendMember,
     resetPassword,
-    searchMembers 
+    searchMembers,
+    fetchMembers
   } = useMembers();
   const userRole = useUserRole();
 
@@ -144,10 +144,22 @@ export const MembersModule: React.FC = () => {
                 <MemberCard 
                   key={member.id} 
                   member={member} 
-                  onRoleChange={updateMemberRole}
-                  onDeleteMember={deleteMember}
-                  onSuspendMember={suspendMember}
-                  onResetPassword={resetPassword}
+                  onRoleChange={(memberId, newRole) => {
+                    updateMemberRole(memberId, newRole);
+                  }}
+                  onDeleteMember={(memberId) => {
+                    deleteMember(memberId);
+                  }}
+                  onSuspendMember={(memberId, suspend) => {
+                    if (suspendMember) {
+                      suspendMember(memberId, suspend);
+                    }
+                  }}
+                  onResetPassword={(memberId) => {
+                    if (resetPassword) {
+                      resetPassword(memberId);
+                    }
+                  }}
                 />
               ))}
             </div>
@@ -215,6 +227,7 @@ export const MembersModule: React.FC = () => {
           onOpenChange={setShowAddMemberDialog}
           onMemberAdded={() => {
             setShowAddMemberDialog(false);
+            fetchMembers(); // Refresh the members list
           }}
         />
       )}

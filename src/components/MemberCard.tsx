@@ -1,9 +1,8 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Mail, Phone, Settings, MessageCircle, Trash2, Lock, UserX, RotateCcw, Activity } from 'lucide-react';
+import { User, Mail, Phone, Settings, MessageCircle, Trash2, Lock, UserX, RotateCcw, Activity, Edit3 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -26,6 +25,7 @@ import {
 import { MemberSettingsDialog } from './MemberSettingsDialog';
 import { MemberMessageDialog } from './MemberMessageDialog';
 import { MemberActivityDialog } from './MemberActivityDialog';
+import { MemberEditDialog } from './MemberEditDialog';
 import { useUserRole } from '@/hooks/useUserRole';
 
 interface Member {
@@ -57,6 +57,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [showActivityDialog, setShowActivityDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const userRole = useUserRole();
 
   const getRoleBadge = (role: string) => {
@@ -100,6 +101,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({
   const canSuspendMember = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin' && actualRole !== 'admin');
   const canResetPassword = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin');
   const canViewActivity = userRole.isSuperAdmin || userRole.isAdmin;
+  const canEditMember = userRole.isSuperAdmin; // Only super admin can edit member info
   
   // Super admin can never be deleted or have role changed by others
   const isSuperAdminMember = actualRole === 'super_admin';
@@ -183,6 +185,17 @@ export const MemberCard: React.FC<MemberCardProps> = ({
               </div>
               
               <div className="flex space-x-2">
+                {canEditMember && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowEditDialog(true)}
+                    className="text-blue-600 hover:text-blue-700"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                  </Button>
+                )}
+
                 {canViewSettings && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -264,6 +277,18 @@ export const MemberCard: React.FC<MemberCardProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {canEditMember && (
+        <MemberEditDialog 
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          member={member}
+          onMemberUpdated={() => {
+            // Refresh the members list
+            window.location.reload();
+          }}
+        />
+      )}
 
       {canViewSettings && (
         <MemberSettingsDialog 
