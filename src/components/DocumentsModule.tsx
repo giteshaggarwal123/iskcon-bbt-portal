@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { FileText, ChevronRight, Home } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
@@ -9,6 +10,7 @@ import { DocumentTable } from './documents/DocumentTable';
 import { DocumentFilters } from './documents/DocumentFilters';
 import { DocumentUploadDialog } from './documents/DocumentUploadDialog';
 import { DocumentRenameDialog } from './documents/DocumentRenameDialog';
+import { DocumentViewer } from './DocumentViewer';
 import { CreateFolderDialog } from './CreateFolderDialog';
 import { Button } from '@/components/ui/button';
 
@@ -61,6 +63,7 @@ export const DocumentsModule: React.FC = () => {
   const [folderPath, setFolderPath] = useState<Folder[]>([]);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const [userProfiles, setUserProfiles] = useState<{[key: string]: {first_name: string, last_name: string}}>({});
 
   // Auto-refresh setup with realtime subscriptions
@@ -275,8 +278,8 @@ export const DocumentsModule: React.FC = () => {
   };
 
   const handleViewDocument = (document: Document) => {
-    const downloadUrl = `${document.file_path}`;
-    window.open(downloadUrl, '_blank');
+    setSelectedDocument(document);
+    setViewerOpen(true);
     trackDocumentView(document.id);
   };
 
@@ -494,6 +497,16 @@ export const DocumentsModule: React.FC = () => {
           setSelectedDocument(null);
         }}
         onRename={handleRename}
+      />
+
+      {/* Document Viewer */}
+      <DocumentViewer
+        isOpen={viewerOpen}
+        document={selectedDocument}
+        onClose={() => {
+          setViewerOpen(false);
+          setSelectedDocument(null);
+        }}
       />
     </div>
   );
