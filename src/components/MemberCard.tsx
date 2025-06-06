@@ -1,10 +1,9 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { User, Mail, Phone, Settings, MessageCircle, Trash2, Lock, Edit2, Save, X } from 'lucide-react';
+import { User, Mail, Phone, Settings, MessageCircle, Trash2, Lock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -26,8 +25,6 @@ import {
 import { MemberSettingsDialog } from './MemberSettingsDialog';
 import { MemberMessageDialog } from './MemberMessageDialog';
 import { useUserRole } from '@/hooks/useUserRole';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 interface Member {
   id: string;
@@ -48,14 +45,7 @@ interface MemberCardProps {
 export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, onDeleteMember }) => {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedMember, setEditedMember] = useState({
-    first_name: member.first_name,
-    last_name: member.last_name,
-    phone: member.phone || ''
-  });
   const userRole = useUserRole();
-  const { toast } = useToast();
 
   const getRoleBadge = (role: string) => {
     const roleColors: { [key: string]: string } = {
@@ -70,100 +60,19 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
     </Badge>;
   };
 
+  // For super admin detection, check email first
   const actualRole = member.email === 'cs@iskconbureau.in' ? 'super_admin' : (member.roles[0] || 'member');
   const joinDate = new Date(member.created_at).toLocaleDateString();
-
-  const handleSaveMemberInfo = async () => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          first_name: editedMember.first_name,
-          last_name: editedMember.last_name,
-          phone: editedMember.phone
-        })
-        .eq('id', member.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Member Updated",
-        description: "Member information has been updated successfully"
-      });
-
-      setIsEditing(false);
-      // Refresh the page to show updated data
-      window.location.reload();
-    } catch (error: any) {
-      toast({
-        title: "Update Failed",
-        description: error.message || "Failed to update member information",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleResetPassword = async () => {
-    try {
-      const { error } = await supabase.functions.invoke('reset-user-password', {
-        body: { userId: member.id, email: member.email }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Password Reset Email Sent",
-        description: "A password reset email has been sent to the member"
-      });
-    } catch (error: any) {
-      toast({
-        title: "Reset Failed",
-        description: "Failed to reset password. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleSuspendAccount = async () => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_suspended: true })
-        .eq('id', member.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Account Suspended",
-        description: "Member account has been suspended"
-      });
-    } catch (error: any) {
-      console.error('Suspend error:', error);
-      toast({
-        title: "Suspension Failed",
-        description: error.message || "Failed to suspend account",
-        variant: "destructive"
-      });
-    }
-  };
 
   const handleDeleteMember = () => {
     onDeleteMember(member.id);
   };
 
-  const handleViewActivityLog = () => {
-    toast({
-      title: "Activity Log",
-      description: "Activity log feature coming soon"
-    });
-  };
-
-  // Role change permissions
+  // Role change permissions - enhanced with more granular control
   const canChangeRole = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin' && actualRole !== 'admin');
   const canDeleteMember = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin' && actualRole !== 'admin');
   const canViewSettings = userRole.isSuperAdmin || userRole.isAdmin || userRole.isSecretary;
-  const canSendMessage = true;
-  const canEditMemberInfo = userRole.isSuperAdmin;
+  const canSendMessage = true; // All users can send messages
   
   // Super admin can never be deleted or have role changed by others
   const isSuperAdminMember = actualRole === 'super_admin';
@@ -178,93 +87,35 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
               <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
                 <User className="h-8 w-8 text-primary" />
               </div>
-              <div className="flex-1">
-                {isEditing ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label htmlFor="firstName" className="text-xs">First Name</Label>
-                        <Input
-                          id="firstName"
-                          value={editedMember.first_name}
-                          onChange={(e) => setEditedMember(prev => ({ ...prev, first_name: e.target.value }))}
-                          className="h-8"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="lastName" className="text-xs">Last Name</Label>
-                        <Input
-                          id="lastName"
-                          value={editedMember.last_name}
-                          onChange={(e) => setEditedMember(prev => ({ ...prev, last_name: e.target.value }))}
-                          className="h-8"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="phone" className="text-xs">Phone</Label>
-                      <Input
-                        id="phone"
-                        value={editedMember.phone}
-                        onChange={(e) => setEditedMember(prev => ({ ...prev, phone: e.target.value }))}
-                        className="h-8"
-                      />
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button size="sm" onClick={handleSaveMemberInfo}>
-                        <Save className="h-3 w-3 mr-1" />
-                        Save
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>
-                        <X className="h-3 w-3 mr-1" />
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center space-x-2">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {member.first_name} {member.last_name}
-                      </h3>
-                      {canEditMemberInfo && !isProtectedMember && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setIsEditing(true)}
-                          className="h-6 w-6 p-0"
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
-                      <span className="flex items-center space-x-1">
-                        <Mail className="h-4 w-4" />
-                        <span>{member.email}</span>
-                      </span>
-                      {member.phone && (
-                        <span className="flex items-center space-x-1">
-                          <Phone className="h-4 w-4" />
-                          <span>{member.phone}</span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-2 mt-2">
-                      {getRoleBadge(actualRole)}
-                      <Badge variant="outline">Joined {joinDate}</Badge>
-                      {isSuperAdminMember && (
-                        <Badge className="bg-gold-500 text-white">System Admin</Badge>
-                      )}
-                      {isProtectedMember && (
-                        <Badge className="bg-amber-100 text-amber-800">
-                          <Lock className="h-3 w-3 mr-1" />
-                          Protected
-                        </Badge>
-                      )}
-                    </div>
-                  </>
-                )}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {member.first_name} {member.last_name}
+                </h3>
+                <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
+                  <span className="flex items-center space-x-1">
+                    <Mail className="h-4 w-4" />
+                    <span>{member.email}</span>
+                  </span>
+                  {member.phone && (
+                    <span className="flex items-center space-x-1">
+                      <Phone className="h-4 w-4" />
+                      <span>{member.phone}</span>
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-2 mt-2">
+                  {getRoleBadge(actualRole)}
+                  <Badge variant="outline">Joined {joinDate}</Badge>
+                  {isSuperAdminMember && (
+                    <Badge className="bg-gold-500 text-white">System Admin</Badge>
+                  )}
+                  {isProtectedMember && (
+                    <Badge className="bg-amber-100 text-amber-800">
+                      <Lock className="h-3 w-3 mr-1" />
+                      Protected
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
             
@@ -310,18 +161,13 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
                       <DropdownMenuItem onClick={() => setShowSettingsDialog(true)}>
                         Member Settings
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleViewActivityLog}>
-                        View Activity Log
+                      <DropdownMenuItem>
+                        View Activity
                       </DropdownMenuItem>
                       {!isSuperAdminMember && userRole.isSuperAdmin && (
-                        <>
-                          <DropdownMenuItem onClick={handleResetPassword}>
-                            Reset Password
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleSuspendAccount}>
-                            Suspend Account
-                          </DropdownMenuItem>
-                        </>
+                        <DropdownMenuItem>
+                          Reset Password
+                        </DropdownMenuItem>
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>

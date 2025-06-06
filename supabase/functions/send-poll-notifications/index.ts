@@ -19,9 +19,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { pollId, notificationType, voterName } = await req.json()
+    const { pollId, notificationType } = await req.json()
 
-    console.log('Sending poll notifications for:', { pollId, notificationType, voterName })
+    console.log('Sending poll notifications for:', { pollId, notificationType })
 
     // Get poll details
     const { data: poll, error: pollError } = await supabaseClient
@@ -35,7 +35,7 @@ serve(async (req) => {
       throw pollError
     }
 
-    if (!poll.notify_members && notificationType !== 'vote_cast') {
+    if (!poll.notify_members) {
       console.log('Notifications disabled for this poll')
       return new Response(
         JSON.stringify({ success: true, message: 'Notifications disabled' }),
@@ -56,25 +56,20 @@ serve(async (req) => {
 
     console.log(`Found ${profiles.length} users to notify`)
 
-    // For vote_cast notifications, send to all users without checking existing notifications
-    let usersToNotify = profiles;
-    
-    if (notificationType !== 'vote_cast') {
-      // Check which users haven't received this notification type yet
-      const { data: existingNotifications, error: notifError } = await supabaseClient
-        .from('poll_notifications')
-        .select('user_id')
-        .eq('poll_id', pollId)
-        .eq('notification_type', notificationType)
+    // Check which users haven't received this notification type yet
+    const { data: existingNotifications, error: notifError } = await supabaseClient
+      .from('poll_notifications')
+      .select('user_id')
+      .eq('poll_id', pollId)
+      .eq('notification_type', notificationType)
 
-      if (notifError) {
-        console.error('Error fetching existing notifications:', notifError)
-        throw notifError
-      }
-
-      const notifiedUserIds = new Set(existingNotifications.map(n => n.user_id))
-      usersToNotify = profiles.filter(profile => !notifiedUserIds.has(profile.id))
+    if (notifError) {
+      console.error('Error fetching existing notifications:', notifError)
+      throw notifError
     }
+
+    const notifiedUserIds = new Set(existingNotifications.map(n => n.user_id))
+    const usersToNotify = profiles.filter(profile => !notifiedUserIds.has(profile.id))
 
     console.log(`Sending notifications to ${usersToNotify.length} users`)
 
@@ -85,19 +80,17 @@ serve(async (req) => {
         console.log(`Would send email to ${profile.email} about poll: ${poll.title}`)
         
         // For now, just log the notification
-        const emailContent = generateEmailContent(poll, profile, notificationType, voterName)
+        const emailContent = generateEmailContent(poll, profile, notificationType)
         console.log('Email content:', emailContent)
 
-        // Record that we sent the notification (except for vote_cast which are immediate notifications)
-        if (notificationType !== 'vote_cast') {
-          await supabaseClient
-            .from('poll_notifications')
-            .insert({
-              poll_id: pollId,
-              user_id: profile.id,
-              notification_type: notificationType
-            })
-        }
+        // Record that we sent the notification
+        await supabaseClient
+          .from('poll_notifications')
+          .insert({
+            poll_id: pollId,
+            user_id: profile.id,
+            notification_type: notificationType
+          })
 
         return { success: true, email: profile.email }
       } catch (error) {
@@ -134,7 +127,7 @@ serve(async (req) => {
   }
 })
 
-function generateEmailContent(poll: any, profile: any, notificationType: string, voterName?: string) {
+function generateEmailContent(poll: any, profile: any, notificationType: string) {
   const userName = profile.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : profile.email
   const deadline = new Date(poll.deadline).toLocaleString()
   
@@ -142,16 +135,14 @@ function generateEmailContent(poll: any, profile: any, notificationType: string,
     initial: `New Poll: ${poll.title}`,
     reminder_1: `Reminder: Please vote on ${poll.title}`,
     reminder_2: `Second Reminder: Vote needed for ${poll.title}`,
-    final: `Final Reminder: Poll closing soon - ${poll.title}`,
-    vote_cast: `New Vote Cast: ${poll.title}`
+    final: `Final Reminder: Poll closing soon - ${poll.title}`
   }
 
   const bodies = {
     initial: `Dear ${userName},\n\nA new poll has been created: "${poll.title}"\n\n${poll.description || ''}\n\nDeadline: ${deadline}\n\nPlease log in to cast your vote.\n\nBest regards,\nISKCON Bureau`,
     reminder_1: `Dear ${userName},\n\nThis is a reminder to vote on the poll: "${poll.title}"\n\nDeadline: ${deadline}\n\nPlease log in to cast your vote if you haven't already.\n\nBest regards,\nISKCON Bureau`,
     reminder_2: `Dear ${userName},\n\nSecond reminder: Please vote on "${poll.title}"\n\nDeadline: ${deadline}\n\nYour participation is important. Please log in to cast your vote.\n\nBest regards,\nISKCON Bureau`,
-    final: `Dear ${userName},\n\nFinal reminder: The poll "${poll.title}" is closing soon!\n\nDeadline: ${deadline}\n\nThis is your last chance to vote. Please log in immediately.\n\nBest regards,\nISKCON Bureau`,
-    vote_cast: `Dear ${userName},\n\nA new vote has been cast on the poll: "${poll.title}"\n\nVoter: ${voterName || 'Anonymous'}\n\nYou can log in to view the updated results or cast your own vote if you haven't already.\n\nDeadline: ${deadline}\n\nBest regards,\nISKCON Bureau`
+    final: `Dear ${userName},\n\nFinal reminder: The poll "${poll.title}" is closing soon!\n\nDeadline: ${deadline}\n\nThis is your last chance to vote. Please log in immediately.\n\nBest regards,\nISKCON Bureau`
   }
 
   return {

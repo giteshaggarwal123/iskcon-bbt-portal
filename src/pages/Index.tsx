@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { Layout } from '@/components/Layout';
+import { Sidebar } from '@/components/Sidebar';
+import { Header } from '@/components/Header';
 import { Dashboard } from '@/components/Dashboard';
 import { MeetingsModule } from '@/components/MeetingsModule';
 import { DocumentsModule } from '@/components/DocumentsModule';
@@ -9,12 +10,15 @@ import { AttendanceModule } from '@/components/AttendanceModule';
 import { EmailModule } from '@/components/EmailModule';
 import { MembersModule } from '@/components/MembersModule';
 import { ReportsModule } from '@/components/ReportsModule';
+import { SettingsModule } from '@/components/SettingsModule';
 import { RealAuthPage } from '@/components/RealAuthPage';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 
 const AppContent = () => {
   const { user, loading } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [currentModule, setCurrentModule] = React.useState('dashboard');
+  const [avatarRefreshTrigger, setAvatarRefreshTrigger] = React.useState(0);
 
   // Listen for navigation events from dashboard
   React.useEffect(() => {
@@ -24,6 +28,7 @@ const AppContent = () => {
 
     const handleNavigateToPoll = (event: any) => {
       setCurrentModule('voting');
+      // You can pass the pollId to the VotingModule if needed
     };
 
     window.addEventListener('navigate-to-module', handleNavigateToModule);
@@ -68,15 +73,48 @@ const AppContent = () => {
         return <MembersModule />;
       case 'reports':
         return <ReportsModule />;
+      case 'settings':
+        return <SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />;
       default:
         return <Dashboard />;
     }
   };
 
+  const handleNavigateFromNotification = (module: string, id?: string) => {
+    setCurrentModule(module);
+    // You can use the id here to scroll to or highlight specific items
+    console.log(`Navigating to ${module}${id ? ` with ID: ${id}` : ''}`);
+  };
+
+  const handleProfileClick = () => {
+    setCurrentModule('settings');
+  };
+
+  const handleSettingsClick = () => {
+    setCurrentModule('settings');
+  };
+
   return (
-    <Layout>
-      {renderModule()}
-    </Layout>
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        onClose={() => setSidebarOpen(false)}
+        currentModule={currentModule}
+        onModuleChange={setCurrentModule}
+        avatarRefreshTrigger={avatarRefreshTrigger}
+      />
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
+        <Header 
+          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+          onProfileClick={handleProfileClick}
+          onSettingsClick={handleSettingsClick}
+          onNavigate={handleNavigateFromNotification}
+        />
+        <main className="p-6">
+          {renderModule()}
+        </main>
+      </div>
+    </div>
   );
 };
 

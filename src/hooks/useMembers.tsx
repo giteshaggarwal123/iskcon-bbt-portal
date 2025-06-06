@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -297,46 +296,19 @@ export const useMembers = () => {
         return;
       }
 
-      console.log('Deleting member:', memberId);
-
-      // First delete user roles
-      const { error: rolesError } = await supabase
+      // Delete user roles first
+      await supabase
         .from('user_roles')
         .delete()
         .eq('user_id', memberId);
 
-      if (rolesError) {
-        console.error('Error deleting user roles:', rolesError);
-        // Continue even if this fails
-      }
-
-      // Delete from other related tables that might reference the user
-      await supabase.from('attendance_records').delete().eq('user_id', memberId);
-      await supabase.from('poll_votes').delete().eq('user_id', memberId);
-      await supabase.from('meeting_attendees').delete().eq('user_id', memberId);
-
       // Delete profile
-      const { error: profileError } = await supabase
+      const { error } = await supabase
         .from('profiles')
         .delete()
         .eq('id', memberId);
 
-      if (profileError) {
-        console.error('Error deleting profile:', profileError);
-        throw profileError;
-      }
-
-      // Try to delete from auth.users using admin API (this might fail in some environments)
-      try {
-        const { error: authError } = await supabase.auth.admin.deleteUser(memberId);
-        if (authError) {
-          console.error('Error deleting auth user:', authError);
-          // Don't throw error here as the main deletion was successful
-        }
-      } catch (authError) {
-        console.error('Could not delete auth user:', authError);
-        // This is expected in some environments where admin API is not available
-      }
+      if (error) throw error;
 
       await logActivity('Deleted member', `Removed member from bureau`);
 

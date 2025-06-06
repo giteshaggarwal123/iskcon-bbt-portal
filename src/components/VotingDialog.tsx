@@ -37,7 +37,6 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
   }, [poll, open, checkVotingEligibility]);
 
   const handleSubPollVote = (subPollId: string, vote: 'favor' | 'against' | 'abstain') => {
-    console.log('Handling vote:', { subPollId, vote });
     setSubPollVotes(prev => {
       const existing = prev.find(v => v.subPollId === subPollId);
       if (existing) {
@@ -144,48 +143,26 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                       value={getSubPollVote(subPoll.id) || ''} 
                       onValueChange={(value) => handleSubPollVote(subPoll.id, value as any)}
                       disabled={!eligibility.canVote}
-                      className="space-y-3"
                     >
-                      <div className="flex items-center space-x-3 cursor-pointer">
-                        <RadioGroupItem 
-                          value="favor" 
-                          id={`${subPoll.id}-favor`}
-                          className="cursor-pointer"
-                        />
-                        <Label 
-                          htmlFor={`${subPoll.id}-favor`} 
-                          className="flex items-center space-x-2 cursor-pointer flex-1 p-2 rounded hover:bg-gray-50"
-                        >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="favor" id={`${subPoll.id}-favor`} />
+                        <Label htmlFor={`${subPoll.id}-favor`} className="flex items-center space-x-2 cursor-pointer">
                           <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="font-medium">For</span>
+                          <span>For</span>
                         </Label>
                       </div>
-                      <div className="flex items-center space-x-3 cursor-pointer">
-                        <RadioGroupItem 
-                          value="against" 
-                          id={`${subPoll.id}-against`}
-                          className="cursor-pointer"
-                        />
-                        <Label 
-                          htmlFor={`${subPoll.id}-against`} 
-                          className="flex items-center space-x-2 cursor-pointer flex-1 p-2 rounded hover:bg-gray-50"
-                        >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="against" id={`${subPoll.id}-against`} />
+                        <Label htmlFor={`${subPoll.id}-against`} className="flex items-center space-x-2 cursor-pointer">
                           <XCircle className="h-4 w-4 text-red-600" />
-                          <span className="font-medium">Against</span>
+                          <span>Against</span>
                         </Label>
                       </div>
-                      <div className="flex items-center space-x-3 cursor-pointer">
-                        <RadioGroupItem 
-                          value="abstain" 
-                          id={`${subPoll.id}-abstain`}
-                          className="cursor-pointer"
-                        />
-                        <Label 
-                          htmlFor={`${subPoll.id}-abstain`} 
-                          className="flex items-center space-x-2 cursor-pointer flex-1 p-2 rounded hover:bg-gray-50"
-                        >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="abstain" id={`${subPoll.id}-abstain`} />
+                        <Label htmlFor={`${subPoll.id}-abstain`} className="flex items-center space-x-2 cursor-pointer">
                           <MinusCircle className="h-4 w-4 text-yellow-600" />
-                          <span className="font-medium">Abstain</span>
+                          <span>Abstain</span>
                         </Label>
                       </div>
                     </RadioGroup>

@@ -58,24 +58,6 @@ export const useVoting = () => {
 
       if (insertError) throw insertError;
 
-      // Send notification emails to all members
-      try {
-        const { error: notificationError } = await supabase.functions.invoke('send-poll-notifications', {
-          body: { 
-            pollId: data.pollId, 
-            notificationType: 'vote_cast',
-            voterName: user.email
-          }
-        });
-
-        if (notificationError) {
-          console.error('Error sending vote notifications:', notificationError);
-          // Don't fail the vote submission if notifications fail
-        }
-      } catch (notifError) {
-        console.error('Failed to send vote notifications:', notifError);
-      }
-
       toast.success('Your votes have been submitted successfully');
       return true;
     } catch (error) {
@@ -163,49 +145,10 @@ export const useVoting = () => {
     }
   };
 
-  const getPollResults = async (pollId: string) => {
-    try {
-      const { data: results, error } = await supabase
-        .from('poll_votes')
-        .select(`
-          vote,
-          sub_poll_id,
-          sub_polls!inner(title, order_index)
-        `)
-        .eq('poll_id', pollId);
-
-      if (error) throw error;
-
-      // Group votes by sub-poll and vote type
-      const resultsBySubPoll = results.reduce((acc: any, vote: any) => {
-        const subPollId = vote.sub_poll_id;
-        if (!acc[subPollId]) {
-          acc[subPollId] = {
-            title: vote.sub_polls.title,
-            order_index: vote.sub_polls.order_index,
-            favor: 0,
-            against: 0,
-            abstain: 0,
-            total: 0
-          };
-        }
-        acc[subPollId][vote.vote]++;
-        acc[subPollId].total++;
-        return acc;
-      }, {});
-
-      return Object.values(resultsBySubPoll).sort((a: any, b: any) => a.order_index - b.order_index);
-    } catch (error) {
-      console.error('Error fetching poll results:', error);
-      return [];
-    }
-  };
-
   return {
     submitVotes,
     getUserVotes,
     checkVotingEligibility,
-    getPollResults,
     submitting
   };
 };
