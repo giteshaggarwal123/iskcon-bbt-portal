@@ -37,22 +37,7 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
             alt={document.name}
             className="max-w-full max-h-full object-contain"
             onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.style.display = 'none';
-              target.parentElement?.appendChild(
-                Object.assign(document.createElement('div'), {
-                  className: 'text-center p-8',
-                  innerHTML: `
-                    <div class="text-red-500 mb-2">
-                      <svg class="h-12 w-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 15.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                      </svg>
-                    </div>
-                    <p class="text-gray-600">Unable to load image preview</p>
-                    <p class="text-sm text-gray-400 mt-2">The image file may be corrupted or the path is invalid</p>
-                  `
-                })
-              );
+              e.currentTarget.style.display = 'none';
             }}
           />
         </div>
