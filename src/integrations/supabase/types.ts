@@ -569,6 +569,7 @@ export type Database = {
           email: string | null
           first_name: string | null
           id: string
+          is_suspended: boolean | null
           last_name: string | null
           microsoft_access_token: string | null
           microsoft_refresh_token: string | null
@@ -583,6 +584,7 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id: string
+          is_suspended?: boolean | null
           last_name?: string | null
           microsoft_access_token?: string | null
           microsoft_refresh_token?: string | null
@@ -597,6 +599,7 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id?: string
+          is_suspended?: boolean | null
           last_name?: string | null
           microsoft_access_token?: string | null
           microsoft_refresh_token?: string | null

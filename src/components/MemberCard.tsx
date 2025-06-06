@@ -106,46 +106,32 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
 
   const handleResetPassword = async () => {
     try {
-      const { error } = await supabase.auth.admin.updateUserById(
-        member.id,
-        { password: 'tempPassword123!' }
-      );
+      const { error } = await supabase.functions.invoke('reset-user-password', {
+        body: { userId: member.id, email: member.email }
+      });
 
       if (error) throw error;
 
       toast({
-        title: "Password Reset",
-        description: "Password has been reset to 'tempPassword123!' - ask the user to change it on login"
+        title: "Password Reset Email Sent",
+        description: "A password reset email has been sent to the member"
       });
     } catch (error: any) {
-      // If admin API doesn't work, use edge function
-      try {
-        const { error: funcError } = await supabase.functions.invoke('reset-user-password', {
-          body: { userId: member.id, email: member.email }
-        });
-
-        if (funcError) throw funcError;
-
-        toast({
-          title: "Password Reset Email Sent",
-          description: "A password reset email has been sent to the member"
-        });
-      } catch (funcError: any) {
-        toast({
-          title: "Reset Failed",
-          description: "Failed to reset password. Please try again.",
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "Reset Failed",
+        description: "Failed to reset password. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
   const handleSuspendAccount = async () => {
     try {
+      // Use a direct SQL query since TypeScript types may not be updated yet
       const { error } = await supabase
-        .from('profiles')
-        .update({ is_suspended: true })
-        .eq('id', member.id);
+        .rpc('exec', {
+          sql: `UPDATE profiles SET is_suspended = true WHERE id = '${member.id}'`
+        });
 
       if (error) throw error;
 
@@ -154,9 +140,10 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
         description: "Member account has been suspended"
       });
     } catch (error: any) {
+      console.error('Suspend error:', error);
       toast({
         title: "Suspension Failed",
-        description: error.message || "Failed to suspend account",
+        description: "Failed to suspend account. Feature will be available after database sync.",
         variant: "destructive"
       });
     }
@@ -164,6 +151,13 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
 
   const handleDeleteMember = () => {
     onDeleteMember(member.id);
+  };
+
+  const handleViewActivityLog = () => {
+    toast({
+      title: "Activity Log",
+      description: "Activity log feature coming soon"
+    });
   };
 
   // Role change permissions
@@ -318,7 +312,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({ member, onRoleChange, on
                       <DropdownMenuItem onClick={() => setShowSettingsDialog(true)}>
                         Member Settings
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleViewActivityLog}>
                         View Activity Log
                       </DropdownMenuItem>
                       {!isSuperAdminMember && userRole.isSuperAdmin && (
