@@ -139,8 +139,8 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
             </Button>
           </div>
         </div>
-      );
-    }
+      </div>
+    );
   };
 
   return (
