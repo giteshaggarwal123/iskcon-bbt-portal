@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -37,6 +38,7 @@ export const useDocuments = () => {
 
   const fetchDocuments = async () => {
     try {
+      console.log('Fetching documents...');
       const { data, error } = await supabase
         .from('documents')
         .select('*')
@@ -44,6 +46,7 @@ export const useDocuments = () => {
 
       if (error) throw error;
       
+      console.log('Fetched documents:', data);
       setDocuments(data || []);
     } catch (error: any) {
       console.error('Error fetching documents:', error);
@@ -57,6 +60,7 @@ export const useDocuments = () => {
 
   const fetchFolders = async () => {
     try {
+      console.log('Fetching folders...');
       const { data, error } = await supabase
         .from('folders')
         .select('*')
@@ -64,6 +68,7 @@ export const useDocuments = () => {
 
       if (error) throw error;
       
+      console.log('Fetched folders:', data);
       setFolders(data || []);
     } catch (error: any) {
       console.error('Error fetching folders:', error);
@@ -198,15 +203,22 @@ export const useDocuments = () => {
     }
 
     try {
+      console.log('Uploading document:', file.name, 'Size:', file.size, 'Type:', file.type);
+      console.log('Target folder ID:', folderId);
+      
+      // For now, we're creating a demo entry since there's no actual file storage
+      const demoPath = `/uploads/${folderId || 'general'}/${file.name}`;
+      console.log('Demo file path:', demoPath);
+      
       const { data, error } = await supabase
         .from('documents')
         .insert({
           name: file.name,
-          file_path: `/uploads/${folderId || 'general'}/${file.name}`,
+          file_path: demoPath,
           file_size: file.size,
           mime_type: file.type,
           folder_id: folderId || null,
-          folder: folderId ? null : 'general', // Keep legacy folder field for backward compatibility
+          folder: folderId ? null : 'general',
           uploaded_by: user.id
         })
         .select()
@@ -214,12 +226,14 @@ export const useDocuments = () => {
 
       if (error) throw error;
 
+      console.log('Document record created:', data);
+
       toast({
-        title: "Success",
-        description: `Document "${file.name}" uploaded successfully`
+        title: "Demo Upload Complete",
+        description: `Document "${file.name}" added to demo system (file storage not configured)`
       });
 
-      await fetchDocuments(); // Refresh documents list
+      await fetchDocuments();
       return data;
     } catch (error: any) {
       console.error('Error uploading document:', error);
@@ -325,6 +339,7 @@ export const useDocuments = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      console.log('useDocuments - Initial data fetch');
       setLoading(true);
       await Promise.all([fetchDocuments(), fetchFolders()]);
       setLoading(false);
