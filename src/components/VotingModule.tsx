@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Vote, Clock, Users, CheckCircle, XCircle, MinusCircle, Plus, BarChart3, Download, Eye, Edit, Trash2, RotateCcw } from 'lucide-react';
 import { VotingDialog } from './VotingDialog';
 import { CreatePollDialog } from './CreatePollDialog';
+import { EditPollDialog } from './EditPollDialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { usePolls, Poll } from '@/hooks/usePolls';
 import { format } from 'date-fns';
@@ -15,6 +16,7 @@ import { format } from 'date-fns';
 export const VotingModule: React.FC = () => {
   const [showVotingDialog, setShowVotingDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
   const userRole = useUserRole();
   const { polls, loading, deletePoll, updatePollStatus, downloadAttachment } = usePolls();
@@ -23,13 +25,15 @@ export const VotingModule: React.FC = () => {
   const canManagePolls = userRole.isSuperAdmin || userRole.isAdmin;
 
   const handleVoteClick = (poll: Poll) => {
+    console.log('Opening voting dialog for poll:', poll.id);
     setSelectedPoll(poll);
     setShowVotingDialog(true);
   };
 
   const handleEditPoll = (poll: Poll) => {
-    console.log('Edit poll:', poll.id);
-    // TODO: Implement edit poll functionality
+    console.log('Opening edit dialog for poll:', poll.id);
+    setSelectedPoll(poll);
+    setShowEditDialog(true);
   };
 
   const handleDeletePoll = async (poll: Poll) => {
@@ -133,6 +137,7 @@ export const VotingModule: React.FC = () => {
                                 size="icon"
                                 onClick={() => handleEditPoll(poll)}
                                 className="h-8 w-8"
+                                title="Edit poll"
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -141,6 +146,7 @@ export const VotingModule: React.FC = () => {
                                 size="icon"
                                 onClick={() => handleDeletePoll(poll)}
                                 className="h-8 w-8 text-red-500 hover:text-red-700"
+                                title="Delete poll"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -474,6 +480,11 @@ export const VotingModule: React.FC = () => {
       <CreatePollDialog 
         open={showCreateDialog} 
         onOpenChange={setShowCreateDialog}
+      />
+      <EditPollDialog 
+        open={showEditDialog} 
+        onOpenChange={setShowEditDialog}
+        poll={selectedPoll}
       />
     </>
   );

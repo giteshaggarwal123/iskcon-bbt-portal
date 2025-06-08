@@ -30,13 +30,18 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
 
   useEffect(() => {
     if (poll && open) {
-      checkVotingEligibility(poll.id).then(setEligibility);
+      console.log('Checking eligibility for poll:', poll.id);
+      checkVotingEligibility(poll.id).then(result => {
+        console.log('Eligibility result:', result);
+        setEligibility(result);
+      });
       setSubPollVotes([]);
       setComment('');
     }
   }, [poll, open, checkVotingEligibility]);
 
   const handleSubPollVote = (subPollId: string, vote: 'favor' | 'against' | 'abstain') => {
+    console.log('Vote selected:', { subPollId, vote });
     setSubPollVotes(prev => {
       const existing = prev.find(v => v.subPollId === subPollId);
       if (existing) {
@@ -61,6 +66,8 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
       return;
     }
 
+    console.log('Submitting votes:', { pollId: poll.id, votes: subPollVotes, comment });
+    
     const success = await submitVotes({
       pollId: poll.id,
       votes: subPollVotes,
@@ -127,48 +134,74 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
             <div className="space-y-4">
               <h4 className="font-medium text-gray-900">Questions to Vote On:</h4>
               
-              {poll.sub_polls.map((subPoll, index) => (
-                <Card key={subPoll.id} className="border-2">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center justify-between">
-                      <span>Question {index + 1}: {subPoll.title}</span>
-                      {getSubPollVote(subPoll.id) && getVoteIcon(getSubPollVote(subPoll.id)!)}
-                    </CardTitle>
-                    {subPoll.description && (
-                      <p className="text-sm text-gray-600">{subPoll.description}</p>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <RadioGroup 
-                      value={getSubPollVote(subPoll.id) || ''} 
-                      onValueChange={(value) => handleSubPollVote(subPoll.id, value as any)}
-                      disabled={!eligibility.canVote}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="favor" id={`${subPoll.id}-favor`} />
-                        <Label htmlFor={`${subPoll.id}-favor`} className="flex items-center space-x-2 cursor-pointer">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span>For</span>
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="against" id={`${subPoll.id}-against`} />
-                        <Label htmlFor={`${subPoll.id}-against`} className="flex items-center space-x-2 cursor-pointer">
-                          <XCircle className="h-4 w-4 text-red-600" />
-                          <span>Against</span>
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="abstain" id={`${subPoll.id}-abstain`} />
-                        <Label htmlFor={`${subPoll.id}-abstain`} className="flex items-center space-x-2 cursor-pointer">
-                          <MinusCircle className="h-4 w-4 text-yellow-600" />
-                          <span>Abstain</span>
-                        </Label>
-                      </div>
-                    </RadioGroup>
-                  </CardContent>
-                </Card>
-              ))}
+              {poll.sub_polls.map((subPoll, index) => {
+                const currentVote = getSubPollVote(subPoll.id);
+                return (
+                  <Card key={subPoll.id} className="border-2">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center justify-between">
+                        <span>Question {index + 1}: {subPoll.title}</span>
+                        {currentVote && getVoteIcon(currentVote)}
+                      </CardTitle>
+                      {subPoll.description && (
+                        <p className="text-sm text-gray-600">{subPoll.description}</p>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <RadioGroup 
+                        value={currentVote || ''} 
+                        onValueChange={(value) => {
+                          console.log('RadioGroup value changed:', value, 'for subPoll:', subPoll.id);
+                          handleSubPollVote(subPoll.id, value as 'favor' | 'against' | 'abstain');
+                        }}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem 
+                            value="favor" 
+                            id={`${subPoll.id}-favor`}
+                            className="cursor-pointer"
+                          />
+                          <Label 
+                            htmlFor={`${subPoll.id}-favor`} 
+                            className="flex items-center space-x-2 cursor-pointer hover:bg-green-50 p-2 rounded"
+                          >
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <span>For</span>
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem 
+                            value="against" 
+                            id={`${subPoll.id}-against`}
+                            className="cursor-pointer"
+                          />
+                          <Label 
+                            htmlFor={`${subPoll.id}-against`} 
+                            className="flex items-center space-x-2 cursor-pointer hover:bg-red-50 p-2 rounded"
+                          >
+                            <XCircle className="h-4 w-4 text-red-600" />
+                            <span>Against</span>
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem 
+                            value="abstain" 
+                            id={`${subPoll.id}-abstain`}
+                            className="cursor-pointer"
+                          />
+                          <Label 
+                            htmlFor={`${subPoll.id}-abstain`} 
+                            className="flex items-center space-x-2 cursor-pointer hover:bg-yellow-50 p-2 rounded"
+                          >
+                            <MinusCircle className="h-4 w-4 text-yellow-600" />
+                            <span>Abstain</span>
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
 
