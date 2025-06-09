@@ -9,7 +9,8 @@ import {
   Clock,
   User,
   Check,
-  LogOut
+  LogOut,
+  Home
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -39,7 +40,7 @@ interface SidebarProps {
 }
 
 const allMenuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: Calendar, requiredPermission: null },
+  { id: 'dashboard', label: 'Dashboard', icon: Home, requiredPermission: null },
   { id: 'meetings', label: 'Meetings', icon: Calendar, requiredPermission: 'canManageMeetings' },
   { id: 'documents', label: 'Documents', icon: File, requiredPermission: 'canManageDocuments' },
   { id: 'voting', label: 'Voting', icon: Check, requiredPermission: null }, // All can access voting
