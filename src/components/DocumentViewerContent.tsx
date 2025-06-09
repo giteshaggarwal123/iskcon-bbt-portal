@@ -16,12 +16,14 @@ interface Document {
 
 interface DocumentViewerContentProps {
   document: Document;
+  zoom?: number;
   onDownload: () => void;
   onExternalView: () => void;
 }
 
 export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
   document,
+  zoom = 100,
   onDownload,
   onExternalView
 }) => {
@@ -34,21 +36,21 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
   const renderFilePreview = () => {
     console.log('Rendering file preview for:', document.name, 'Type:', mimeType);
     
-    // Check if this looks like a real file URL or a placeholder
-    const isPlaceholderPath = document.file_path.startsWith('/uploads/') || 
-                             !document.file_path.startsWith('http');
+    // Check if this is a Supabase storage URL
+    const isSupabaseStorage = document.file_path.includes('supabase.co/storage') || 
+                             document.file_path.includes('/storage/v1/object/public/');
     
-    console.log('Is placeholder path?', isPlaceholderPath);
+    console.log('Is Supabase storage URL?', isSupabaseStorage);
     
-    if (isPlaceholderPath) {
-      // Show demo message for placeholder paths
+    if (!isSupabaseStorage) {
+      // Show demo message for non-storage paths
       return (
         <div className="w-full h-full bg-white rounded-lg border flex items-center justify-center p-8">
           <div className="text-center max-w-md">
             <File className="h-24 w-24 text-gray-400 mx-auto mb-6" />
             <h3 className="text-xl font-semibold text-gray-700 mb-2">Demo Environment</h3>
             <p className="text-gray-500 mb-4">
-              This is a demo system. File storage is not configured yet.
+              This document was created before storage was configured.
             </p>
             <div className="bg-gray-50 p-4 rounded-lg mb-6">
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -67,7 +69,7 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
               </div>
             </div>
             <div className="text-xs text-gray-400 mb-4">
-              Debug info: {document.file_path}
+              File path: {document.file_path}
             </div>
             <div className="flex space-x-2 justify-center">
               <Button onClick={onDownload} variant="outline" size="sm">
@@ -84,7 +86,7 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
       );
     }
 
-    // If it's a real URL, try to render the file
+    // Handle real files from Supabase Storage
     if (mimeType.includes('image')) {
       return (
         <div className="w-full h-full flex items-center justify-center bg-gray-100">
@@ -92,6 +94,10 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
             src={document.file_path} 
             alt={document.name}
             className="max-w-full max-h-full object-contain"
+            style={{ 
+              transform: `scale(${zoom / 100})`,
+              transformOrigin: 'center'
+            }}
             onError={(e) => {
               console.error('Image failed to load:', document.file_path);
               e.currentTarget.style.display = 'none';
@@ -108,7 +114,7 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
       return (
         <div className="w-full h-full">
           <iframe
-            src={`${document.file_path}#toolbar=1&navpanes=1&scrollbar=1`}
+            src={`${document.file_path}#toolbar=1&navpanes=1&scrollbar=1&zoom=${zoom}`}
             className="w-full h-full border-0"
             title={document.name}
             onError={() => {
@@ -118,8 +124,21 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
         </div>
       );
     }
+
+    if (mimeType.includes('text')) {
+      return (
+        <div className="w-full h-full p-4 bg-white overflow-auto">
+          <iframe
+            src={document.file_path}
+            className="w-full h-full border-0"
+            title={document.name}
+            style={{ fontSize: `${zoom}%` }}
+          />
+        </div>
+      );
+    }
     
-    // Fallback for other file types with real URLs
+    // Fallback for other file types
     return (
       <div className="w-full h-full bg-white rounded-lg border flex items-center justify-center p-8">
         <div className="text-center max-w-md">
@@ -128,6 +147,22 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
           <p className="text-gray-500 mb-4">
             Click download to access this {mimeType.split('/')[1] || 'file'} file.
           </p>
+          <div className="bg-gray-50 p-4 rounded-lg mb-6">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="font-medium">Type:</span> {mimeType.split('/')[1] || 'file'}
+              </div>
+              <div>
+                <span className="font-medium">Size:</span> {formatFileSize(document.file_size)}
+              </div>
+              <div>
+                <span className="font-medium">Created:</span> {formatDate(document.created_at)}
+              </div>
+              <div>
+                <span className="font-medium">Format:</span> {document.name.split('.').pop()?.toUpperCase()}
+              </div>
+            </div>
+          </div>
           <div className="flex space-x-2 justify-center">
             <Button onClick={onDownload} size="sm">
               <Download className="h-4 w-4 mr-2" />

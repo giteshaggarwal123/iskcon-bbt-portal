@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -206,15 +205,38 @@ export const useDocuments = () => {
       console.log('Uploading document:', file.name, 'Size:', file.size, 'Type:', file.type);
       console.log('Target folder ID:', folderId);
       
-      // For now, we're creating a demo entry since there's no actual file storage
-      const demoPath = `/uploads/${folderId || 'general'}/${file.name}`;
-      console.log('Demo file path:', demoPath);
+      // Create a unique file path
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = folderId ? `folders/${folderId}/${fileName}` : `root/${fileName}`;
       
+      console.log('Uploading to storage path:', filePath);
+      
+      // Upload file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('File uploaded successfully:', uploadData);
+
+      // Get the public URL for the uploaded file
+      const { data: urlData } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+
+      console.log('Public URL:', urlData.publicUrl);
+      
+      // Create document record in database
       const { data, error } = await supabase
         .from('documents')
         .insert({
           name: file.name,
-          file_path: demoPath,
+          file_path: urlData.publicUrl,
           file_size: file.size,
           mime_type: file.type,
           folder_id: folderId || null,
@@ -229,8 +251,8 @@ export const useDocuments = () => {
       console.log('Document record created:', data);
 
       toast({
-        title: "Demo Upload Complete",
-        description: `Document "${file.name}" added to demo system (file storage not configured)`
+        title: "Upload Complete",
+        description: `Document "${file.name}" uploaded successfully`
       });
 
       await fetchDocuments();

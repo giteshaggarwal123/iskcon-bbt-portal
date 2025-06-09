@@ -37,7 +37,16 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const handleDownload = () => {
     if (!documentProp) return;
     
-    // For demo purposes, show a download message
+    // Create a download link
+    const link = document.createElement('a');
+    link.href = documentProp.file_path;
+    link.download = documentProp.name;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
     toast({
       title: "Download Started",
       description: `Downloading "${documentProp.name}"`
@@ -47,7 +56,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const handleExternalView = () => {
     if (!documentProp) return;
     
-    // For demo purposes, show an external view message
+    // Open in new tab
+    window.open(documentProp.file_path, '_blank', 'noopener,noreferrer');
+    
     toast({
       title: "External View",
       description: `Opening "${documentProp.name}" in new tab`
@@ -82,6 +93,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
         <div className="flex-1 p-6 overflow-auto bg-gray-50">
           <DocumentViewerContent
             document={documentProp}
+            zoom={zoom}
             onDownload={handleDownload}
             onExternalView={handleExternalView}
           />
