@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { User } from 'lucide-react';
+import { User, Calendar, File, Users, Settings, Mail, Clock, Check } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { SettingsModule } from './SettingsModule';
@@ -37,6 +37,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return children;
   };
 
+  // Mobile bottom navigation items
+  const mobileNavItems = [
+    { id: 'dashboard', icon: Calendar, label: 'Home' },
+    { id: 'meetings', icon: Calendar, label: 'Meetings' },
+    { id: 'documents', icon: File, label: 'Docs' },
+    { id: 'members', icon: Users, label: 'Members' },
+    { id: 'settings', icon: Settings, label: 'Settings' }
+  ];
+
+  const handleMobileNavigation = (moduleId: string) => {
+    setCurrentModule(moduleId);
+    setShowProfile(false);
+    setShowSettings(false);
+    setSidebarOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex mobile-layout">
       {/* Mobile sidebar overlay */}
@@ -71,20 +87,36 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           {renderContent()}
         </main>
         
-        {/* Mobile bottom profile button */}
+        {/* Mobile Bottom Navigation Bar */}
         {isMobile && (
-          <div className="fixed bottom-4 left-4 z-30 mobile-profile-btn">
-            <button
-              onClick={handleProfileClick}
-              className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow"
-            >
-              <User className="h-6 w-6 text-white" />
-            </button>
+          <div className="mobile-bottom-nav fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+            <div className="flex items-center justify-around py-2 px-4">
+              {mobileNavItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleMobileNavigation(item.id)}
+                  className={`flex flex-col items-center justify-center min-w-0 flex-1 py-2 px-1 ${
+                    currentModule === item.id
+                      ? 'text-primary'
+                      : 'text-gray-500'
+                  }`}
+                >
+                  <item.icon className={`h-5 w-5 mb-1 ${
+                    currentModule === item.id ? 'text-primary' : 'text-gray-500'
+                  }`} />
+                  <span className={`text-xs font-medium truncate ${
+                    currentModule === item.id ? 'text-primary' : 'text-gray-500'
+                  }`}>
+                    {item.label}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         @media (max-width: 767px) {
           .mobile-layout {
             position: relative;
@@ -99,6 +131,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             width: 100%;
             margin-left: 0 !important;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
           }
           
           .mobile-main {
@@ -107,19 +141,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             overflow-x: hidden;
             width: 100%;
             max-width: 100vw;
+            flex: 1;
           }
           
-          .mobile-profile-btn {
-            animation: pulse 2s infinite;
-          }
-          
-          @keyframes pulse {
-            0%, 100% {
-              transform: scale(1);
-            }
-            50% {
-              transform: scale(1.05);
-            }
+          .mobile-bottom-nav {
+            height: 60px;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            background-color: rgba(255, 255, 255, 0.95);
           }
           
           /* Ensure content doesn't overflow horizontally */
@@ -156,7 +185,53 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           .mobile-main input,
           .mobile-main select,
           .mobile-main textarea {
-            font-size: 16px; /* Prevents zoom on iOS */
+            font-size: 16px;
+          }
+          
+          /* Hide scrollbars but keep functionality */
+          .mobile-main::-webkit-scrollbar {
+            display: none;
+          }
+          
+          .mobile-main {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          
+          /* Improve card layouts for mobile */
+          .mobile-main .card,
+          .mobile-main [class*="card"] {
+            margin-bottom: 1rem;
+            border-radius: 12px;
+          }
+          
+          /* Better button spacing */
+          .mobile-main .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+          }
+          
+          /* Responsive tables */
+          .mobile-main table {
+            font-size: 0.875rem;
+          }
+          
+          .mobile-main td,
+          .mobile-main th {
+            padding: 0.5rem;
+          }
+        }
+        
+        /* Tablet responsive (768px - 1023px) */
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .mobile-main {
+            padding: 1rem;
+          }
+          
+          .mobile-main .grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
           }
         }
       `}</style>
