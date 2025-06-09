@@ -64,7 +64,14 @@ export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({
         .order('rsvp_submitted_at', { ascending: false, nullsFirst: false });
 
       if (error) throw error;
-      setAttendeeResponses(data || []);
+      
+      // Cast the response to ensure proper typing
+      const typedData = (data || []).map(item => ({
+        ...item,
+        rsvp_response: item.rsvp_response as 'yes' | 'no' | 'maybe' | null
+      }));
+      
+      setAttendeeResponses(typedData);
     } catch (error: any) {
       console.error('Error fetching RSVP responses:', error);
       toast({
