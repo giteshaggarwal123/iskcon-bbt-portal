@@ -26,6 +26,13 @@ interface UseUserRoleReturn {
   canDeleteUsers: boolean;
   canEditPhoneNumbers: boolean;
   canViewMemberSettings: boolean;
+  canViewMembers: boolean;
+  canScheduleMeetings: boolean;
+  canDeleteMeetings: boolean;
+  canEditVoting: boolean;
+  canCreateVoting: boolean;
+  canVoteOnly: boolean;
+  canMarkAttendanceOnly: boolean;
 }
 
 export const useUserRole = (): UseUserRoleReturn => {
@@ -97,8 +104,8 @@ export const useUserRole = (): UseUserRoleReturn => {
   const isTreasurer = userRole === 'treasurer' || isAdmin;
   const isMember = userRole === 'member' || isSecretary || isTreasurer || isAdmin || isSuperAdmin;
 
-  // Basic permissions
-  const canManageMembers = isSuperAdmin || isAdmin;
+  // Restricted permissions for member role
+  const canManageMembers = isSuperAdmin || isAdmin || isSecretary || isTreasurer; // Members can't see members screen
   const canManageMeetings = isSuperAdmin || isAdmin || isSecretary;
   const canManageDocuments = isSuperAdmin || isAdmin || isSecretary;
   const canViewReports = isSuperAdmin || isAdmin || isTreasurer;
@@ -110,11 +117,20 @@ export const useUserRole = (): UseUserRoleReturn => {
   const canEditContent = isSuperAdmin || isAdmin || isSecretary;
 
   // Enhanced user management permissions
-  const canEditAllUserInfo = isSuperAdmin; // Only super admin can edit names, etc.
-  const canEditUserRoles = isSuperAdmin || isAdmin; // Admins can edit roles but not super admin roles
-  const canDeleteUsers = isSuperAdmin || isAdmin; // Admins can delete users but not super admins
-  const canEditPhoneNumbers = isSuperAdmin || isAdmin; // Phone numbers can be edited by admins+
-  const canViewMemberSettings = isSuperAdmin || isAdmin || isSecretary; // Settings access
+  const canEditAllUserInfo = isSuperAdmin;
+  const canEditUserRoles = isSuperAdmin || isAdmin;
+  const canDeleteUsers = isSuperAdmin || isAdmin;
+  const canEditPhoneNumbers = isSuperAdmin || isAdmin;
+  const canViewMemberSettings = isSuperAdmin || isAdmin || isSecretary;
+
+  // New specific permissions for members
+  const canViewMembers = isSuperAdmin || isAdmin || isSecretary || isTreasurer; // Members can't see members screen
+  const canScheduleMeetings = isSuperAdmin || isAdmin || isSecretary; // Members can't schedule meetings
+  const canDeleteMeetings = isSuperAdmin || isAdmin || isSecretary; // Members can't delete meetings
+  const canEditVoting = isSuperAdmin || isAdmin || isSecretary; // Members can't edit active voting
+  const canCreateVoting = isSuperAdmin || isAdmin || isSecretary; // Members can't create voting
+  const canVoteOnly = userRole === 'member'; // Members can only vote
+  const canMarkAttendanceOnly = userRole === 'member'; // Members can only mark attendance
 
   return {
     userRole,
@@ -136,6 +152,13 @@ export const useUserRole = (): UseUserRoleReturn => {
     canEditUserRoles,
     canDeleteUsers,
     canEditPhoneNumbers,
-    canViewMemberSettings
+    canViewMemberSettings,
+    canViewMembers,
+    canScheduleMeetings,
+    canDeleteMeetings,
+    canEditVoting,
+    canCreateVoting,
+    canVoteOnly,
+    canMarkAttendanceOnly
   };
 };

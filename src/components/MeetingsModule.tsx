@@ -13,6 +13,7 @@ import { CalendarView } from './CalendarView';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, compareAsc, compareDesc } from 'date-fns';
+import { useUserRole } from '@/hooks/use-user-role';
 
 export const MeetingsModule: React.FC = () => {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
@@ -25,6 +26,7 @@ export const MeetingsModule: React.FC = () => {
   
   const { meetings, loading, deleteMeeting, fetchMeetings } = useMeetings();
   const { toast } = useToast();
+  const userRole = useUserRole();
 
   // Filter and sort meetings properly by date and time
   const now = new Date();
@@ -61,6 +63,15 @@ export const MeetingsModule: React.FC = () => {
   };
 
   const handleDeleteMeeting = async (meetingId: string) => {
+    if (!userRole.canDeleteMeetings) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to delete meetings",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (confirm('Are you sure you want to delete this meeting? This will also remove it from Teams and Outlook calendar.')) {
       await deleteMeeting(meetingId);
     }
@@ -154,15 +165,17 @@ export const MeetingsModule: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">Meeting Management</h1>
             <p className="text-sm sm:text-base text-gray-600 mt-1">Schedule, track, and manage all ISKCON meetings with Teams integration</p>
           </div>
-          <div className="flex-shrink-0">
-            <Button 
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
-              onClick={() => setShowScheduleDialog(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Schedule Meeting
-            </Button>
-          </div>
+          {userRole.canScheduleMeetings && (
+            <div className="flex-shrink-0">
+              <Button 
+                className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+                onClick={() => setShowScheduleDialog(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Schedule Meeting
+              </Button>
+            </div>
+          )}
         </div>
 
         <Tabs defaultValue="upcoming" className="space-y-4 sm:space-y-6">
@@ -179,15 +192,7 @@ export const MeetingsModule: React.FC = () => {
           </TabsList>
 
           <TabsContent value="upcoming" className="space-y-4 sm:space-y-6">
-            {upcomingMeetings.length === 0 ? (
-              <Card>
-                <CardContent className="p-6 sm:p-8 text-center">
-                  <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">No upcoming meetings</p>
-                  <p className="text-sm text-gray-500 mt-2">Schedule your first Teams meeting to get started</p>
-                </CardContent>
-              </Card>
-            ) : (
+            {upcomingMeetings.length > 0 ? (
               <div className="space-y-4 sm:space-y-6">
                 {upcomingMeetings.map((meeting) => {
                   const timeInfo = formatMeetingTime(meeting.start_time, meeting.end_time);
@@ -321,21 +326,31 @@ export const MeetingsModule: React.FC = () => {
                             Attach Files
                           </Button>
                           
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleDeleteMeeting(meeting.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[40px]"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </Button>
+                          {userRole.canDeleteMeetings && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleDeleteMeeting(meeting.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[40px]"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
                   );
                 })}
               </div>
+            ) : (
+              <Card>
+                <CardContent className="p-6 sm:p-8 text-center">
+                  <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No upcoming meetings</p>
+                  <p className="text-sm text-gray-500 mt-2">Schedule your first Teams meeting to get started</p>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
 
@@ -425,11 +440,13 @@ export const MeetingsModule: React.FC = () => {
       </div>
 
       {/* Dialogs */}
-      <ScheduleMeetingDialog 
-        open={showScheduleDialog} 
-        onOpenChange={handleScheduleMeetingClose}
-        preselectedDate={preselectedDate}
-      />
+      {userRole.canScheduleMeetings && (
+        <ScheduleMeetingDialog 
+          open={showScheduleDialog} 
+          onOpenChange={handleScheduleMeetingClose}
+          preselectedDate={preselectedDate}
+        />
+      )}
       <ViewAgendaDialog 
         open={showAgendaDialog} 
         onOpenChange={setShowAgendaDialog}
