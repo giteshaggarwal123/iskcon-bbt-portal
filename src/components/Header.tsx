@@ -64,12 +64,12 @@ export const Header: React.FC<HeaderProps> = ({
             )}
             {!isMobile && (
               <h1 className="text-xl font-semibold text-gray-900">
-                Hare Krishna, {userName}
+                ISKCON BBT
               </h1>
             )}
             {isMobile && (
               <h1 className="text-lg font-semibold text-gray-900">
-                Hare Krishna
+                ISKCON BBT
               </h1>
             )}
           </div>
