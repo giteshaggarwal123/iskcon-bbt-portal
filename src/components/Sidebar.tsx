@@ -108,7 +108,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <div className={`fixed inset-y-0 left-0 z-50 bg-white shadow-xl transform transition-all duration-300 ${
       isOpen ? 'translate-x-0' : '-translate-x-full'
     } ${isMobile ? 'z-50 w-64' : 'lg:translate-x-0'} ${
-      !isMobile && isCollapsed ? 'w-16' : 'w-64'
+      !isMobile && isCollapsed ? 'w-20' : 'w-64'
     }`}>
       <div className="flex flex-col h-full">
         {/* Logo Section - Now Clickable */}
@@ -145,11 +145,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 currentModule === item.id
                   ? 'bg-primary text-white shadow-sm'
                   : 'text-gray-600 hover:bg-secondary hover:text-gray-900'
-              } ${!isMobile && isCollapsed ? 'justify-center' : ''}`}
+              } ${!isMobile && isCollapsed ? 'justify-center px-2' : ''}`}
               title={!isMobile && isCollapsed ? item.label : undefined}
             >
-              <item.icon className={`h-5 w-5 ${(!isCollapsed || isMobile) ? 'mr-3' : ''}`} />
-              {(!isCollapsed || isMobile) && item.label}
+              <item.icon className={`h-5 w-5 flex-shrink-0 ${(!isCollapsed || isMobile) ? 'mr-3' : ''}`} />
+              {(!isCollapsed || isMobile) && (
+                <span className="truncate">{item.label}</span>
+              )}
             </button>
           ))}
           
@@ -159,11 +161,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <Button
                 variant="ghost"
                 className={`w-full flex items-center px-4 py-3 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors mt-4 ${
-                  !isMobile && isCollapsed ? 'justify-center' : 'justify-start'
+                  !isMobile && isCollapsed ? 'justify-center px-2' : 'justify-start'
                 }`}
                 title={!isMobile && isCollapsed ? 'Logout' : undefined}
               >
-                <LogOut className={`h-5 w-5 ${(!isCollapsed || isMobile) ? 'mr-3' : ''}`} />
+                <LogOut className={`h-5 w-5 flex-shrink-0 ${(!isCollapsed || isMobile) ? 'mr-3' : ''}`} />
                 {(!isCollapsed || isMobile) && 'Logout'}
               </Button>
             </AlertDialogTrigger>
