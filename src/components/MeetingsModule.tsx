@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, Paperclip, ExternalLink, Copy } from 'lucide-react';
+import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy } from 'lucide-react';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 import { ViewAgendaDialog } from './ViewAgendaDialog';
 import { ManageAttendeesDialog } from './ManageAttendeesDialog';
@@ -95,11 +95,6 @@ export const MeetingsModule: React.FC = () => {
         variant: "destructive"
       });
     }
-  };
-
-  const handleAttachFiles = (meeting: any) => {
-    // This will be implemented with file attachment functionality
-    alert(`Attach files to ${meeting.title}`);
   };
 
   const handleScheduleMeetingClose = (meetingCreated: boolean) => {
@@ -314,16 +309,6 @@ export const MeetingsModule: React.FC = () => {
                           >
                             <FileText className="h-4 w-4 mr-2" />
                             View Details
-                          </Button>
-                          
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleAttachFiles(meeting)}
-                            className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
-                          >
-                            <Paperclip className="h-4 w-4 mr-2" />
-                            Attach Files
                           </Button>
                           
                           {userRole.canDeleteMeetings && (
