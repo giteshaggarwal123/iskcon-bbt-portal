@@ -15,7 +15,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProfileAvatarLoader } from './ProfileAvatarLoader';
 import {
   AlertDialog,
@@ -66,7 +65,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return userRole[item.requiredPermission as keyof typeof userRole];
   });
 
-  // Extract user info from the authenticated user
   const userName = user?.user_metadata?.first_name 
     ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim()
     : user?.email?.split('@')[0] || 'User';
@@ -107,13 +105,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       isOpen ? 'translate-x-0' : '-translate-x-full'
     } ${isMobile ? 'z-50' : 'lg:translate-x-0'}`}>
       <div className="flex flex-col h-full">
-        {/* Logo Section - Now Clickable */}
-        <div className="p-6 border-b border-gray-200">
+        {/* Logo Section */}
+        <div className={`border-b border-gray-200 ${isMobile ? 'p-4' : 'p-6'}`}>
           <button 
             onClick={handleLogoClick}
             className="flex items-center space-x-3 w-full hover:bg-gray-50 rounded-lg p-2 transition-colors"
           >
-            <div className="w-12 h-12 flex items-center justify-center">
+            <div className={`flex items-center justify-center ${isMobile ? 'w-10 h-10' : 'w-12 h-12'}`}>
               <img 
                 src="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" 
                 alt="ISKCON Logo" 
@@ -121,37 +119,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
               />
             </div>
             <div className="text-left">
-              <h1 className="text-lg font-semibold text-gray-900">ISKCON</h1>
-              <p className="text-sm text-gray-500">Bureau Management</p>
+              <h1 className={`font-semibold text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>ISKCON</h1>
+              <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>Bureau Management</p>
             </div>
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+        <nav className={`flex-1 space-y-1 overflow-y-auto ${isMobile ? 'px-3 py-4' : 'px-4 py-6'}`}>
           {menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => handleItemClick(item.id)}
-              className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+              className={`w-full flex items-center text-sm font-medium rounded-lg transition-colors ${
+                isMobile ? 'px-3 py-2' : 'px-4 py-3'
+              } ${
                 currentModule === item.id
                   ? 'bg-primary text-white shadow-sm'
                   : 'text-gray-600 hover:bg-secondary hover:text-gray-900'
               }`}
             >
-              <item.icon className="mr-3 h-5 w-5" />
+              <item.icon className={`h-5 w-5 ${isMobile ? 'mr-2' : 'mr-3'}`} />
               {item.label}
             </button>
           ))}
           
-          {/* Logout Button with Confirmation Dialog */}
+          {/* Logout Button */}
           <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
             <AlertDialogTrigger asChild>
               <Button
                 variant="ghost"
-                className="w-full flex items-center justify-start px-4 py-3 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors mt-4"
+                className={`w-full flex items-center justify-start text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors mt-4 ${
+                  isMobile ? 'px-3 py-2' : 'px-4 py-3'
+                }`}
               >
-                <LogOut className="mr-3 h-5 w-5" />
+                <LogOut className={`h-5 w-5 ${isMobile ? 'mr-2' : 'mr-3'}`} />
                 Logout
               </Button>
             </AlertDialogTrigger>
@@ -173,25 +175,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* User Profile Section */}
-        <div className="border-t border-gray-200 p-4">
+        <div className={`border-t border-gray-200 ${isMobile ? 'p-3' : 'p-4'}`}>
           <button 
             onClick={handleProfileClick}
-            className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+            className={`w-full flex items-center space-x-3 rounded-lg hover:bg-gray-50 transition-colors ${
+              isMobile ? 'p-2' : 'p-3'
+            }`}
           >
             <ProfileAvatarLoader 
               userName={userName} 
               refreshTrigger={avatarRefreshTrigger}
             />
             <div className="flex-1 min-w-0 text-left">
-              <p className="text-sm font-medium text-gray-900 truncate">
+              <p className={`font-medium text-gray-900 truncate ${isMobile ? 'text-xs' : 'text-sm'}`}>
                 {userName}
               </p>
               <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500 truncate">
+                <p className={`text-gray-500 truncate ${isMobile ? 'text-xs' : 'text-xs'}`}>
                   {userEmail}
                 </p>
                 {userRole.userRole && (
-                  <span className={`text-xs px-2 py-1 rounded ml-2 flex-shrink-0 ${
+                  <span className={`px-2 py-1 rounded ml-2 flex-shrink-0 ${
+                    isMobile ? 'text-xs' : 'text-xs'
+                  } ${
                     userRole.isSuperAdmin ? 'bg-red-100 text-red-700' :
                     userRole.isAdmin ? 'bg-blue-100 text-blue-700' :
                     userRole.isSecretary ? 'bg-green-100 text-green-700' :

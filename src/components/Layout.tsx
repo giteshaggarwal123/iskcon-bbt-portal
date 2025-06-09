@@ -1,14 +1,34 @@
 
 import React, { useState } from 'react';
-import { User } from 'lucide-react';
+import { 
+  Calendar, 
+  File, 
+  Users, 
+  Settings, 
+  Mail, 
+  Clock,
+  User,
+  Check,
+  Home
+} from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { SettingsModule } from './SettingsModule';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
+
+const mobileMenuItems = [
+  { id: 'dashboard', label: 'Home', icon: Home },
+  { id: 'meetings', label: 'Meetings', icon: Calendar },
+  { id: 'voting', label: 'Voting', icon: Check },
+  { id: 'documents', label: 'Files', icon: File },
+  { id: 'members', label: 'Members', icon: Users },
+];
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -16,6 +36,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [showProfile, setShowProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const isMobile = useIsMobile();
+  const userRole = useUserRole();
 
   const handleProfileClick = () => {
     setShowProfile(true);
@@ -25,6 +46,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleSettingsClick = () => {
     setShowSettings(true);
     setCurrentModule('settings');
+  };
+
+  const handleModuleChange = (module: string) => {
+    setCurrentModule(module);
+    setShowProfile(false);
+    setShowSettings(false);
+    if (isMobile) setSidebarOpen(false);
   };
 
   const renderContent = () => {
@@ -37,10 +65,76 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return children;
   };
 
+  // Filter mobile menu items based on user permissions
+  const filteredMobileItems = mobileMenuItems.filter(item => {
+    // Add permission logic here if needed
+    return true;
+  });
+
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        {/* Mobile Header */}
+        <Header 
+          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+          onProfileClick={handleProfileClick}
+          onSettingsClick={handleSettingsClick}
+        />
+        
+        {/* Mobile sidebar overlay */}
+        {sidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        
+        <Sidebar 
+          isOpen={sidebarOpen} 
+          onClose={() => setSidebarOpen(false)}
+          currentModule={currentModule}
+          onModuleChange={handleModuleChange}
+        />
+        
+        {/* Main Content */}
+        <main className="flex-1 p-4 pb-20 overflow-y-auto">
+          {renderContent()}
+        </main>
+        
+        {/* Bottom Navigation */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30">
+          <div className="flex justify-around items-center py-2">
+            {filteredMobileItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => handleModuleChange(item.id)}
+                className={`flex flex-col items-center justify-center p-2 min-w-0 flex-1 ${
+                  currentModule === item.id
+                    ? 'text-primary'
+                    : 'text-gray-500'
+                }`}
+              >
+                <item.icon className={`h-6 w-6 mb-1 ${
+                  currentModule === item.id ? 'text-primary' : 'text-gray-500'
+                }`} />
+                <span className={`text-xs font-medium ${
+                  currentModule === item.id ? 'text-primary' : 'text-gray-500'
+                }`}>
+                  {item.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop/Tablet Layout
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Mobile sidebar overlay */}
-      {isMobile && sidebarOpen && (
+      {/* Tablet sidebar overlay */}
+      {!isMobile && sidebarOpen && window.innerWidth < 1024 && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={() => setSidebarOpen(false)}
@@ -51,16 +145,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)}
         currentModule={currentModule}
-        onModuleChange={(module) => {
-          setCurrentModule(module);
-          setShowProfile(false);
-          setShowSettings(false);
-          if (isMobile) setSidebarOpen(false);
-        }}
+        onModuleChange={handleModuleChange}
       />
       
       <div className={`flex-1 flex flex-col transition-all duration-300 ${
-        !isMobile && sidebarOpen ? 'ml-64' : 'ml-0'
+        sidebarOpen && window.innerWidth >= 1024 ? 'lg:ml-64' : 'ml-0'
       }`}>
         <Header 
           onMenuClick={() => setSidebarOpen(!sidebarOpen)}
@@ -70,18 +159,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
           {renderContent()}
         </main>
-        
-        {/* Mobile bottom profile button */}
-        {isMobile && (
-          <div className="fixed bottom-4 left-4 z-30">
-            <button
-              onClick={handleProfileClick}
-              className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg"
-            >
-              <User className="h-6 w-6 text-white" />
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
