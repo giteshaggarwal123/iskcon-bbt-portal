@@ -21,9 +21,14 @@ interface SubPollVote {
   vote: 'favor' | 'against' | 'abstain';
 }
 
+interface VoteSelections {
+  [questionId: string]: 'favor' | 'against' | 'abstain';
+}
+
 export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, poll }) => {
   const [comment, setComment] = useState('');
-  const [subPollVotes, setSubPollVotes] = useState<SubPollVote[]>([]);
+  const [voteSelections, setVoteSelections] = useState<VoteSelections>({});
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [eligibility, setEligibility] = useState<{ canVote: boolean; reason: string | null }>({ canVote: true, reason: null });
   
   const { submitVotes, checkVotingEligibility, submitting } = useVoting();
@@ -35,29 +40,32 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
         console.log('Eligibility result:', result);
         setEligibility(result);
       });
-      setSubPollVotes([]);
+      setVoteSelections({});
       setComment('');
+      setIsSubmitted(false);
     }
   }, [poll, open, checkVotingEligibility]);
 
-  const handleSubPollVote = (subPollId: string, vote: 'favor' | 'against' | 'abstain') => {
+  const handleVoteSelection = (subPollId: string, vote: 'favor' | 'against' | 'abstain') => {
+    if (isSubmitted) return; // Prevent changes after submission
+    
     console.log('Vote selected:', { subPollId, vote });
-    setSubPollVotes(prev => {
-      const existing = prev.find(v => v.subPollId === subPollId);
-      if (existing) {
-        return prev.map(v => v.subPollId === subPollId ? { ...v, vote } : v);
-      } else {
-        return [...prev, { subPollId, vote }];
-      }
-    });
+    setVoteSelections(prev => ({
+      ...prev,
+      [subPollId]: vote
+    }));
   };
 
-  const getSubPollVote = (subPollId: string): 'favor' | 'against' | 'abstain' | undefined => {
-    return subPollVotes.find(v => v.subPollId === subPollId)?.vote;
+  // Convert voteSelections object to array format for submission
+  const getSubPollVotes = (): SubPollVote[] => {
+    return Object.entries(voteSelections).map(([subPollId, vote]) => ({
+      subPollId,
+      vote
+    }));
   };
 
   const allSubPollsVoted = poll?.sub_polls?.every(subPoll => 
-    subPollVotes.some(vote => vote.subPollId === subPoll.id)
+    voteSelections.hasOwnProperty(subPoll.id)
   ) || false;
 
   const handleSubmit = async () => {
@@ -66,18 +74,24 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
       return;
     }
 
-    console.log('Submitting votes:', { pollId: poll.id, votes: subPollVotes, comment });
+    const votes = getSubPollVotes();
+    console.log('Submitting votes:', { pollId: poll.id, votes, comment });
+    
+    setIsSubmitted(true); // Lock the form
     
     const success = await submitVotes({
       pollId: poll.id,
-      votes: subPollVotes,
+      votes: votes,
       comment: comment.trim() || undefined
     });
 
     if (success) {
       onOpenChange(false);
-      setSubPollVotes([]);
+      setVoteSelections({});
       setComment('');
+      setIsSubmitted(false);
+    } else {
+      setIsSubmitted(false); // Unlock if submission failed
     }
   };
 
@@ -95,15 +109,17 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
   };
 
   const getVoteStats = () => {
-    const favorCount = subPollVotes.filter(v => v.vote === 'favor').length;
-    const againstCount = subPollVotes.filter(v => v.vote === 'against').length;
-    const abstainCount = subPollVotes.filter(v => v.vote === 'abstain').length;
+    const votes = getSubPollVotes();
+    const favorCount = votes.filter(v => v.vote === 'favor').length;
+    const againstCount = votes.filter(v => v.vote === 'against').length;
+    const abstainCount = votes.filter(v => v.vote === 'abstain').length;
     return { favorCount, againstCount, abstainCount };
   };
 
   if (!poll) return null;
 
   const { favorCount, againstCount, abstainCount } = getVoteStats();
+  const votesCount = Object.keys(voteSelections).length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -130,14 +146,24 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
             </div>
           )}
 
+          {isSubmitted && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-blue-800 font-medium">
+                Votes submitted! Your selections are now locked.
+              </p>
+            </div>
+          )}
+
           {eligibility.canVote && poll.sub_polls && poll.sub_polls.length > 0 && (
             <div className="space-y-4">
               <h4 className="font-medium text-gray-900">Questions to Vote On:</h4>
               
               {poll.sub_polls.map((subPoll, index) => {
-                const currentVote = getSubPollVote(subPoll.id);
+                const currentVote = voteSelections[subPoll.id];
+                const isLocked = isSubmitted;
+                
                 return (
-                  <Card key={subPoll.id} className="border-2">
+                  <Card key={subPoll.id} className={`border-2 ${currentVote ? 'border-blue-300 bg-blue-50' : 'border-gray-200'} ${isLocked ? 'opacity-75' : ''}`}>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base flex items-center justify-between">
                         <span>Question {index + 1}: {subPoll.title}</span>
@@ -148,59 +174,79 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                       )}
                     </CardHeader>
                     <CardContent>
-                      <RadioGroup 
-                        value={currentVote || ''} 
-                        onValueChange={(value) => {
-                          console.log('RadioGroup value changed:', value, 'for subPoll:', subPoll.id);
-                          if (value === 'favor' || value === 'against' || value === 'abstain') {
-                            handleSubPollVote(subPoll.id, value);
-                          }
-                        }}
-                        className="space-y-3"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem 
-                            value="favor" 
-                            id={`${subPoll.id}-favor`}
-                            className="cursor-pointer"
-                          />
-                          <Label 
-                            htmlFor={`${subPoll.id}-favor`} 
-                            className="flex items-center space-x-2 cursor-pointer hover:bg-green-50 p-2 rounded flex-1 transition-colors"
+                      <div className="space-y-3">
+                        {/* For Option */}
+                        <div 
+                          className={`flex items-center space-x-3 p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                            currentVote === 'favor' 
+                              ? 'border-green-500 bg-green-50' 
+                              : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
+                          } ${isLocked ? 'cursor-not-allowed opacity-60' : ''}`}
+                          onClick={() => !isLocked && handleVoteSelection(subPoll.id, 'favor')}
+                        >
+                          <div 
+                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                              currentVote === 'favor' 
+                                ? 'border-green-500 bg-green-500' 
+                                : 'border-gray-300'
+                            }`}
                           >
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                            <span className="font-medium">For</span>
-                          </Label>
+                            {currentVote === 'favor' && (
+                              <div className="w-2 h-2 rounded-full bg-white"></div>
+                            )}
+                          </div>
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="font-medium flex-1">For</span>
                         </div>
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem 
-                            value="against" 
-                            id={`${subPoll.id}-against`}
-                            className="cursor-pointer"
-                          />
-                          <Label 
-                            htmlFor={`${subPoll.id}-against`} 
-                            className="flex items-center space-x-2 cursor-pointer hover:bg-red-50 p-2 rounded flex-1 transition-colors"
+
+                        {/* Against Option */}
+                        <div 
+                          className={`flex items-center space-x-3 p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                            currentVote === 'against' 
+                              ? 'border-red-500 bg-red-50' 
+                              : 'border-gray-200 hover:border-red-300 hover:bg-red-50'
+                          } ${isLocked ? 'cursor-not-allowed opacity-60' : ''}`}
+                          onClick={() => !isLocked && handleVoteSelection(subPoll.id, 'against')}
+                        >
+                          <div 
+                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                              currentVote === 'against' 
+                                ? 'border-red-500 bg-red-500' 
+                                : 'border-gray-300'
+                            }`}
                           >
-                            <XCircle className="h-4 w-4 text-red-600" />
-                            <span className="font-medium">Against</span>
-                          </Label>
+                            {currentVote === 'against' && (
+                              <div className="w-2 h-2 rounded-full bg-white"></div>
+                            )}
+                          </div>
+                          <XCircle className="h-4 w-4 text-red-600" />
+                          <span className="font-medium flex-1">Against</span>
                         </div>
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem 
-                            value="abstain" 
-                            id={`${subPoll.id}-abstain`}
-                            className="cursor-pointer"
-                          />
-                          <Label 
-                            htmlFor={`${subPoll.id}-abstain`} 
-                            className="flex items-center space-x-2 cursor-pointer hover:bg-yellow-50 p-2 rounded flex-1 transition-colors"
+
+                        {/* Abstain Option */}
+                        <div 
+                          className={`flex items-center space-x-3 p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                            currentVote === 'abstain' 
+                              ? 'border-yellow-500 bg-yellow-50' 
+                              : 'border-gray-200 hover:border-yellow-300 hover:bg-yellow-50'
+                          } ${isLocked ? 'cursor-not-allowed opacity-60' : ''}`}
+                          onClick={() => !isLocked && handleVoteSelection(subPoll.id, 'abstain')}
+                        >
+                          <div 
+                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                              currentVote === 'abstain' 
+                                ? 'border-yellow-500 bg-yellow-500' 
+                                : 'border-gray-300'
+                            }`}
                           >
-                            <MinusCircle className="h-4 w-4 text-yellow-600" />
-                            <span className="font-medium">Abstain</span>
-                          </Label>
+                            {currentVote === 'abstain' && (
+                              <div className="w-2 h-2 rounded-full bg-white"></div>
+                            )}
+                          </div>
+                          <MinusCircle className="h-4 w-4 text-yellow-600" />
+                          <span className="font-medium flex-1">Abstain</span>
                         </div>
-                      </RadioGroup>
+                      </div>
                     </CardContent>
                   </Card>
                 );
@@ -208,7 +254,7 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
             </div>
           )}
 
-          {eligibility.canVote && subPollVotes.length > 0 && (
+          {eligibility.canVote && votesCount > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="font-medium text-blue-900 mb-2">Your Vote Summary</h4>
               <div className="grid grid-cols-3 gap-4 text-sm">
@@ -226,7 +272,7 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                 </div>
               </div>
               <div className="mt-2 text-center text-sm text-blue-800">
-                {subPollVotes.length} of {poll.sub_polls?.length || 0} questions answered
+                {votesCount} of {poll.sub_polls?.length || 0} questions answered
               </div>
             </div>
           )}
@@ -240,6 +286,7 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                 placeholder="Add any comments about your votes (optional)..."
                 rows={3}
                 className="mt-2"
+                disabled={isSubmitted}
               />
             </div>
           )}
@@ -251,17 +298,17 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
               Cancel
             </Button>
             {eligibility.canVote && (
               <Button 
                 onClick={handleSubmit}
-                disabled={!allSubPollsVoted || submitting}
+                disabled={!allSubPollsVoted || submitting || isSubmitted}
                 className="bg-primary hover:bg-primary/90"
               >
                 <Vote className="h-4 w-4 mr-2" />
-                {submitting ? 'Submitting...' : `Submit All Votes (${subPollVotes.length}/${poll.sub_polls?.length || 0})`}
+                {submitting ? 'Submitting...' : `Submit All Votes (${votesCount}/${poll.sub_polls?.length || 0})`}
               </Button>
             )}
           </div>
