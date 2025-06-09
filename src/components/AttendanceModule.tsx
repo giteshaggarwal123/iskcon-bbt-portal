@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +8,7 @@ import { CheckCircle, Clock, Users, Calendar, MapPin, Video, Download, UserCheck
 import { MarkAttendanceDialog } from './MarkAttendanceDialog';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useMeetings } from '@/hooks/useMeetings';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { format } from 'date-fns';
 
 export const AttendanceModule: React.FC = () => {
@@ -16,6 +16,7 @@ export const AttendanceModule: React.FC = () => {
   const [attendanceData, setAttendanceData] = useState<any>({});
   const { generateAttendanceReport, fetchAttendanceForMeeting } = useAttendance();
   const { meetings } = useMeetings();
+  const isMobile = useIsMobile();
 
   // Fetch attendance data for each meeting
   useEffect(() => {
@@ -140,65 +141,103 @@ export const AttendanceModule: React.FC = () => {
 
   return (
     <>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
+      <div className={`w-full mx-auto space-y-4 ${isMobile ? 'px-4 py-4' : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-6'}`}>
+        <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'justify-between items-center'}`}>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
-            <p className="text-gray-600">Track and manage meeting attendance across all sessions</p>
+            <h1 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-3xl'}`}>Attendance Management</h1>
+            <p className={`text-gray-600 ${isMobile ? 'text-sm mt-1' : 'text-base'}`}>Track and manage meeting attendance across all sessions</p>
           </div>
           <Button 
-            className="bg-primary hover:bg-primary/90"
+            className={`bg-primary hover:bg-primary/90 ${isMobile ? 'w-full' : ''}`}
             onClick={() => setShowMarkAttendanceDialog(true)}
+            size={isMobile ? "sm" : "default"}
           >
             <UserCheck className="h-4 w-4 mr-2" />
             Mark Attendance
           </Button>
         </div>
 
-        <Tabs defaultValue="current" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="current">Current Meetings</TabsTrigger>
-            <TabsTrigger value="members">Member Records</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
+        <Tabs defaultValue="current" className="space-y-4">
+          <TabsList className={`grid w-full grid-cols-4 ${isMobile ? 'h-9' : ''}`}>
+            <TabsTrigger value="current" className={isMobile ? 'text-xs px-2' : ''}>
+              Current ({meetings.length})
+            </TabsTrigger>
+            <TabsTrigger value="members" className={isMobile ? 'text-xs px-2' : ''}>
+              Members
+            </TabsTrigger>
+            <TabsTrigger value="history" className={isMobile ? 'text-xs px-2' : ''}>
+              History
+            </TabsTrigger>
+            <TabsTrigger value="reports" className={isMobile ? 'text-xs px-2' : ''}>
+              Reports
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="current" className="space-y-6">
-            <div className="grid gap-6">
-              {meetings.map((meeting) => {
-                const meetingInfo = formatMeetingInfo(meeting);
-                const attendance = attendanceData[meeting.id] || { present: 0, late: 0, absent: 0, totalMembers: 0 };
-                
-                return (
-                  <Card key={meeting.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-xl">{meeting.title}</CardTitle>
-                          <CardDescription className="flex items-center space-x-4 mt-2">
-                            <span className="flex items-center space-x-1">
-                              <Calendar className="h-4 w-4" />
-                              <span>{meetingInfo.date}</span>
-                            </span>
-                            <span className="flex items-center space-x-1">
-                              <Clock className="h-4 w-4" />
-                              <span>{meetingInfo.time}</span>
-                            </span>
-                            <span className="flex items-center space-x-1">
-                              {meetingInfo.type === 'online' ? (
-                                <Video className="h-4 w-4" />
-                              ) : (
-                                <MapPin className="h-4 w-4" />
-                              )}
-                              <span>{meetingInfo.location}</span>
-                            </span>
-                          </CardDescription>
+          <TabsContent value="current" className="space-y-4">
+            {meetings.length === 0 ? (
+              <Card>
+                <CardContent className={`text-center ${isMobile ? 'p-6' : 'p-8'}`}>
+                  <Calendar className={`text-gray-400 mx-auto mb-4 ${isMobile ? 'h-8 w-8' : 'h-12 w-12'}`} />
+                  <p className={`text-gray-600 ${isMobile ? 'text-sm' : ''}`}>No meetings found</p>
+                  <p className={`text-gray-500 mt-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                    Schedule your first meeting to track attendance
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {meetings.map((meeting) => {
+                  const meetingInfo = formatMeetingInfo(meeting);
+                  const attendance = attendanceData[meeting.id] || { present: 0, late: 0, absent: 0, totalMembers: 0 };
+                  
+                  return (
+                    <Card key={meeting.id} className="hover:shadow-md transition-shadow">
+                      <CardHeader className={isMobile ? 'pb-3' : ''}>
+                        <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'justify-between items-start'}`}>
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className={`flex items-center space-x-2 flex-wrap ${
+                              isMobile ? 'text-lg' : 'text-xl'
+                            }`}>
+                              <span className="break-words">{meeting.title}</span>
+                              {getStatusBadge(meeting)}
+                            </CardTitle>
+                            <CardDescription className={`mt-2 break-words ${isMobile ? 'text-sm' : ''}`}>
+                              {meeting.description || 'No description provided'}
+                            </CardDescription>
+                          </div>
                         </div>
-                        {getStatusBadge(meeting)}
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
+                      </CardHeader>
+                      <CardContent className={`space-y-4 ${isMobile ? 'pt-0' : ''}`}>
+                        {/* Meeting Info Grid */}
+                        <div className={`grid gap-3 ${
+                          isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+                        }`}>
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="h-4 w-4 text-gray-500 shrink-0" />
+                            <span className={`break-words ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                              {meetingInfo.date}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Clock className="h-4 w-4 text-gray-500 shrink-0" />
+                            <span className={`break-words ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                              {meetingInfo.time}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Users className="h-4 w-4 text-gray-500 shrink-0" />
+                            <span className={isMobile ? 'text-sm' : 'text-sm'}>
+                              {meeting.attendees?.length || 0} attendees
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Video className="h-4 w-4 text-gray-500 shrink-0" />
+                            <span className={`break-words ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                              {meeting.location || 'No location'}
+                            </span>
+                          </div>
+                        </div>
+
                         {isOngoingMeeting(meeting) && attendance.totalMembers > 0 && (
                           <div>
                             <div className="flex justify-between text-sm mb-2">
@@ -212,91 +251,105 @@ export const AttendanceModule: React.FC = () => {
                           </div>
                         )}
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className={`grid gap-4 ${
+                          isMobile ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4'
+                        }`}>
                           <div className="text-center">
                             <div className="text-2xl font-bold text-green-600">{attendance.present}</div>
-                            <div className="text-sm text-gray-500">Present</div>
+                            <div className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>Present</div>
                           </div>
                           <div className="text-center">
                             <div className="text-2xl font-bold text-yellow-600">{attendance.late}</div>
-                            <div className="text-sm text-gray-500">Late</div>
+                            <div className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>Late</div>
                           </div>
                           <div className="text-center">
                             <div className="text-2xl font-bold text-red-600">{attendance.absent}</div>
-                            <div className="text-sm text-gray-500">Absent</div>
+                            <div className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>Absent</div>
                           </div>
                           <div className="text-center">
                             <div className="text-2xl font-bold text-blue-600">{attendance.totalMembers}</div>
-                            <div className="text-sm text-gray-500">Total</div>
+                            <div className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>Total</div>
                           </div>
                         </div>
 
                         {isOngoingMeeting(meeting) && (
-                          <div className="flex space-x-2 pt-4 border-t">
+                          <div className={`flex pt-4 border-t gap-2 ${
+                            isMobile ? 'grid grid-cols-1' : 'flex-wrap'
+                          }`}>
                             <Button 
-                              size="sm" 
-                              className="bg-green-500 hover:bg-green-600"
+                              size={isMobile ? "sm" : "sm"}
+                              className={`bg-green-500 hover:bg-green-600 ${
+                                isMobile ? 'text-xs w-full' : ''
+                              }`}
                               onClick={() => setShowMarkAttendanceDialog(true)}
                             >
                               <CheckCircle className="h-4 w-4 mr-2" />
                               Quick Check-in
                             </Button>
-                            <Button variant="outline" size="sm">
+                            <Button 
+                              variant="outline" 
+                              size={isMobile ? "sm" : "sm"}
+                              className={isMobile ? 'text-xs' : ''}
+                            >
                               <Users className="h-4 w-4 mr-2" />
                               View Details
                             </Button>
-                            <Button variant="outline" size="sm">
+                            <Button 
+                              variant="outline" 
+                              size={isMobile ? "sm" : "sm"}
+                              className={isMobile ? 'text-xs' : ''}
+                            >
                               <Clock className="h-4 w-4 mr-2" />
                               Late Arrivals
                             </Button>
                           </div>
                         )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </TabsContent>
 
-          <TabsContent value="members" className="space-y-6">
-            <div className="grid gap-4">
+          <TabsContent value="members" className="space-y-4">
+            <div className="space-y-4">
               {memberAttendance.map((member, index) => (
                 <Card key={index} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
+                  <CardContent className={isMobile ? 'p-4' : 'p-6'}>
+                    <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'items-center justify-between'}`}>
                       <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
                           <Users className="h-6 w-6 text-primary" />
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                          <p className="text-sm text-gray-500">{member.role}</p>
+                        <div className="min-w-0 flex-1">
+                          <h3 className={`font-semibold text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>{member.name}</h3>
+                          <p className={`text-gray-500 ${isMobile ? 'text-sm' : 'text-base'}`}>{member.role}</p>
                         </div>
                       </div>
-                      <div className="text-right space-y-2">
-                        <div className="flex items-center space-x-4">
-                          <div className="text-center">
-                            <div className={`text-2xl font-bold ${getAttendanceColor(member.percentage)}`}>
-                              {member.percentage}%
-                            </div>
-                            <div className="text-sm text-gray-500">Attendance</div>
+                      <div className={`${isMobile ? 'grid grid-cols-3 gap-4 w-full' : 'flex items-center space-x-4'}`}>
+                        <div className="text-center">
+                          <div className={`font-bold ${getAttendanceColor(member.percentage)} ${
+                            isMobile ? 'text-xl' : 'text-2xl'
+                          }`}>
+                            {member.percentage}%
                           </div>
-                          <div className="text-center">
-                            <div className="text-lg font-semibold">{member.present}/{member.total}</div>
-                            <div className="text-sm text-gray-500">Meetings</div>
-                          </div>
-                          <div className="text-center">
-                            <Badge 
-                              className={
-                                member.lastMeeting === 'Present' ? 'bg-green-500 text-white' :
-                                member.lastMeeting === 'Late' ? 'bg-yellow-500 text-white' :
-                                'bg-red-500 text-white'
-                              }
-                            >
-                              {member.lastMeeting}
-                            </Badge>
-                          </div>
+                          <div className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>Attendance</div>
+                        </div>
+                        <div className="text-center">
+                          <div className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>{member.present}/{member.total}</div>
+                          <div className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>Meetings</div>
+                        </div>
+                        <div className="text-center">
+                          <Badge 
+                            className={`${
+                              member.lastMeeting === 'Present' ? 'bg-green-500 text-white' :
+                              member.lastMeeting === 'Late' ? 'bg-yellow-500 text-white' :
+                              'bg-red-500 text-white'
+                            } ${isMobile ? 'text-xs' : ''}`}
+                          >
+                            {member.lastMeeting}
+                          </Badge>
                         </div>
                       </div>
                     </div>
@@ -306,32 +359,34 @@ export const AttendanceModule: React.FC = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="history" className="space-y-6">
-            <div className="grid gap-6">
+          <TabsContent value="history" className="space-y-4">
+            <div className="space-y-4">
               {attendanceHistory.map((record, index) => (
                 <Card key={index} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
+                  <CardHeader className={isMobile ? 'pb-3' : ''}>
+                    <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'justify-between items-start'}`}>
                       <div>
-                        <CardTitle className="text-lg">{record.meeting}</CardTitle>
-                        <CardDescription>{record.date}</CardDescription>
+                        <CardTitle className={isMobile ? 'text-lg' : 'text-xl'}>{record.meeting}</CardTitle>
+                        <CardDescription className={isMobile ? 'text-sm' : ''}>{record.date}</CardDescription>
                       </div>
-                      <Badge className="bg-primary text-white">{record.attendance}%</Badge>
+                      <Badge className={`bg-primary text-white ${isMobile ? 'self-start' : ''}`}>{record.attendance}%</Badge>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <CardContent className={isMobile ? 'pt-0' : ''}>
+                    <div className={`grid gap-4 ${
+                      isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'
+                    }`}>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-primary">{record.present}/{record.total}</div>
-                        <div className="text-sm text-gray-500">Attendance</div>
+                        <div className={`font-bold text-primary ${isMobile ? 'text-xl' : 'text-2xl'}`}>{record.present}/{record.total}</div>
+                        <div className={`text-gray-500 ${isMobile ? 'text-sm' : 'text-sm'}`}>Attendance</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">{record.attendance}%</div>
-                        <div className="text-sm text-gray-500">Rate</div>
+                        <div className={`font-bold text-green-600 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{record.attendance}%</div>
+                        <div className={`text-gray-500 ${isMobile ? 'text-sm' : 'text-sm'}`}>Rate</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-yellow-600">{record.avgDuration}</div>
-                        <div className="text-sm text-gray-500">Avg Duration</div>
+                        <div className={`font-bold text-yellow-600 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{record.avgDuration}</div>
+                        <div className={`text-gray-500 ${isMobile ? 'text-sm' : 'text-sm'}`}>Avg Duration</div>
                       </div>
                     </div>
                   </CardContent>
@@ -340,17 +395,18 @@ export const AttendanceModule: React.FC = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="reports" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <TabsContent value="reports" className="space-y-4">
+            <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
               <Card>
                 <CardHeader>
-                  <CardTitle>Generate Reports</CardTitle>
-                  <CardDescription>Export attendance data and analytics</CardDescription>
+                  <CardTitle className={isMobile ? 'text-lg' : 'text-xl'}>Generate Reports</CardTitle>
+                  <CardDescription className={isMobile ? 'text-sm' : ''}>Export attendance data and analytics</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Button 
                     className="w-full" 
                     variant="outline"
+                    size={isMobile ? "sm" : "default"}
                     onClick={() => handleDownloadReport('member')}
                   >
                     <Download className="h-4 w-4 mr-2" />
@@ -359,6 +415,7 @@ export const AttendanceModule: React.FC = () => {
                   <Button 
                     className="w-full" 
                     variant="outline"
+                    size={isMobile ? "sm" : "default"}
                     onClick={() => handleDownloadReport('meeting')}
                   >
                     <Download className="h-4 w-4 mr-2" />
@@ -367,6 +424,7 @@ export const AttendanceModule: React.FC = () => {
                   <Button 
                     className="w-full" 
                     variant="outline"
+                    size={isMobile ? "sm" : "default"}
                     onClick={() => handleDownloadReport('detailed')}
                   >
                     <Download className="h-4 w-4 mr-2" />
@@ -377,26 +435,26 @@ export const AttendanceModule: React.FC = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Quick Stats</CardTitle>
-                  <CardDescription>Overall attendance overview</CardDescription>
+                  <CardTitle className={isMobile ? 'text-lg' : 'text-xl'}>Quick Stats</CardTitle>
+                  <CardDescription className={isMobile ? 'text-sm' : ''}>Overall attendance overview</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex justify-between">
-                      <span>Overall Attendance</span>
-                      <span className="font-semibold text-green-600">87%</span>
+                      <span className={isMobile ? 'text-sm' : ''}>Overall Attendance</span>
+                      <span className={`font-semibold text-green-600 ${isMobile ? 'text-sm' : ''}`}>87%</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Most Attended Meeting</span>
-                      <span className="font-semibold">Monthly Bureau (93%)</span>
+                      <span className={isMobile ? 'text-sm' : ''}>Most Attended Meeting</span>
+                      <span className={`font-semibold ${isMobile ? 'text-sm' : ''}`}>Monthly Bureau (93%)</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Best Attendee</span>
-                      <span className="font-semibold">Radha Krishna Das (92%)</span>
+                      <span className={isMobile ? 'text-sm' : ''}>Best Attendee</span>
+                      <span className={`font-semibold ${isMobile ? 'text-sm' : ''}`}>Radha Krishna Das (92%)</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Auto-Tracked Sessions</span>
-                      <span className="font-semibold text-blue-600">12 Teams meetings</span>
+                      <span className={isMobile ? 'text-sm' : ''}>Auto-Tracked Sessions</span>
+                      <span className={`font-semibold text-blue-600 ${isMobile ? 'text-sm' : ''}`}>12 Teams meetings</span>
                     </div>
                   </div>
                 </CardContent>
