@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -130,13 +131,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         
         {/* Mobile Bottom Navigation Bar */}
         {isMobile && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-pb">
-            <div className="flex items-center justify-around py-2 px-4">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+            <div className="flex items-center justify-between px-2 py-2 max-w-full overflow-hidden">
               {mobileNavItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handleMobileNavigation(item.id)}
-                  className={`flex flex-col items-center justify-center min-w-0 flex-1 py-2 px-1 transition-colors mobile-nav-button ${
+                  className={`flex flex-col items-center justify-center flex-1 py-2 px-1 transition-colors ${
                     currentModule === item.id
                       ? 'text-primary'
                       : 'text-gray-500 hover:text-gray-700'
@@ -145,7 +146,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <item.icon className={`h-5 w-5 mb-1 ${
                     currentModule === item.id ? 'text-primary' : 'text-gray-500'
                   }`} />
-                  <span className={`text-xs font-medium truncate ${
+                  <span className={`text-xs font-medium ${
                     currentModule === item.id ? 'text-primary' : 'text-gray-500'
                   }`}>
                     {item.label}
@@ -160,10 +161,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <style>{`
         /* Mobile-only styles */
         @media (max-width: 767px) {
-          .safe-area-pb {
-            padding-bottom: env(safe-area-inset-bottom);
-          }
-          
           /* Ensure proper touch targets */
           .mobile-nav-button {
             min-height: 48px;
@@ -243,6 +240,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           .flex-1 {
             min-width: 0;
             max-width: 100%;
+          }
+
+          /* Prevent horizontal scroll in bottom navigation */
+          .fixed.bottom-0 {
+            width: 100vw;
+            max-width: 100vw;
+            overflow-x: hidden;
+          }
+
+          .fixed.bottom-0 .flex {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
           }
         }
         
