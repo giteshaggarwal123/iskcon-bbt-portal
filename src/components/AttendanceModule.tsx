@@ -18,7 +18,7 @@ export const AttendanceModule: React.FC = () => {
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
 
   const { meetings, loading: meetingsLoading } = useMeetings();
-  const { attendance, loading: attendanceLoading, markAttendance } = useAttendance();
+  const { attendanceRecords, loading: attendanceLoading, markAttendance } = useAttendance();
   const userRole = useUserRole();
   const { toast } = useToast();
 
@@ -54,6 +54,7 @@ export const AttendanceModule: React.FC = () => {
     const start = new Date(meeting.start_time);
     const end = new Date(meeting.end_time);
     const hourBefore = new Date(start.getTime() - 60 * 60 * 1000);
+    const now = new Date();
     return now >= hourBefore && now <= end;
   };
 
