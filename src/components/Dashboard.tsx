@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,17 +27,17 @@ interface DashboardStats {
 interface Meeting {
   id: string;
   title: string;
-  scheduled_date: string;
-  scheduled_time: string;
+  start_time: string;
+  end_time: string;
   status: string;
 }
 
 interface Poll {
   id: string;
-  question: string;
+  title: string;
   status: string;
   created_at: string;
-  ends_at: string;
+  deadline: string;
 }
 
 export const Dashboard: React.FC = () => {
@@ -72,8 +73,8 @@ export const Dashboard: React.FC = () => {
         const { data: meetingsData, error: meetingsError } = await supabase
           .from('meetings')
           .select('*')
-          .gte('scheduled_date', new Date().toISOString().split('T')[0])
-          .order('scheduled_date', { ascending: true })
+          .gte('start_time', new Date().toISOString())
+          .order('start_time', { ascending: true })
           .limit(5);
 
         // Fetch active polls
@@ -84,30 +85,37 @@ export const Dashboard: React.FC = () => {
           .order('created_at', { ascending: false })
           .limit(5);
 
-        // Fetch recent activity (example, you might need to adjust the query)
-        const { data: activityData, error: activityError } = await supabase
-          .from('activity_log')
-          .select('*')
-          .order('timestamp', { ascending: false })
-          .limit(5);
+        // Create some sample recent activity since we don't have an activity_log table
+        const recentActivity = [
+          {
+            id: '1',
+            type: 'meeting' as const,
+            title: 'Board Meeting Scheduled',
+            description: 'Monthly board meeting scheduled for next week',
+            timestamp: new Date().toISOString(),
+            user: 'Admin'
+          },
+          {
+            id: '2',
+            type: 'document' as const,
+            title: 'New Document Uploaded',
+            description: 'Financial report for Q1 uploaded',
+            timestamp: new Date(Date.now() - 3600000).toISOString(),
+            user: 'Secretary'
+          }
+        ];
 
-        if (membersError || documentsError || meetingsError || pollsError || activityError) {
-          console.error('Error fetching data:', membersError, documentsError, meetingsError, pollsError, activityError);
+        if (membersError || documentsError || meetingsError || pollsError) {
+          console.error('Error fetching data:', membersError, documentsError, meetingsError, pollsError);
         }
 
         setStats(prev => ({
           ...prev,
           totalMembers: membersData ? membersData[0].count : 0,
           totalDocuments: documentsData ? documentsData[0].count : 0,
+          upcomingMeetings: meetingsData ? meetingsData.length : 0,
           activePreviousPolls: pollsData ? pollsData.length : 0,
-          recentActivity: activityData ? activityData.map(activity => ({
-            id: activity.id,
-            type: activity.type,
-            title: activity.title,
-            description: activity.description,
-            timestamp: activity.timestamp,
-            user: activity.user
-          })) : []
+          recentActivity: recentActivity
         }));
 
         setUpcomingMeetings(meetingsData || []);
@@ -184,7 +192,7 @@ export const Dashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-xl lg:text-2xl font-bold">{stats.upcomingMeetings}</div>
-            <p className="text-xs text-muted-foreground">This month</p>
+            <p className="text-xs text-muted-foreground">Upcoming</p>
           </CardContent>
         </Card>
 
@@ -210,7 +218,7 @@ export const Dashboard: React.FC = () => {
                 <CardTitle className="text-lg lg:text-xl">Upcoming Meetings</CardTitle>
                 <CardDescription className="text-sm">Next scheduled meetings</CardDescription>
               </div>
-              {userRole.canScheduleMeetings && (
+              {userRole.canManageMeetings && (
                 <Button 
                   size="sm" 
                   onClick={() => navigateToModule('meetings')}
@@ -235,10 +243,13 @@ export const Dashboard: React.FC = () => {
                     <h4 className="font-medium text-sm lg:text-base truncate">{meeting.title}</h4>
                     <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-2 space-y-1 lg:space-y-0">
                       <p className="text-xs lg:text-sm text-gray-500">
-                        {new Date(meeting.scheduled_date).toLocaleDateString()}
+                        {new Date(meeting.start_time).toLocaleDateString()}
                       </p>
                       <p className="text-xs lg:text-sm text-gray-500">
-                        {meeting.scheduled_time}
+                        {new Date(meeting.start_time).toLocaleTimeString([], { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
                       </p>
                     </div>
                   </div>
@@ -266,7 +277,7 @@ export const Dashboard: React.FC = () => {
                 <CardTitle className="text-lg lg:text-xl">Active Polls</CardTitle>
                 <CardDescription className="text-sm">Polls awaiting your vote</CardDescription>
               </div>
-              {userRole.canCreatePolls && (
+              {userRole.canCreateContent && (
                 <Button 
                   size="sm" 
                   onClick={() => navigateToModule('voting')}
@@ -293,13 +304,13 @@ export const Dashboard: React.FC = () => {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm lg:text-base line-clamp-2">{poll.question}</h4>
+                      <h4 className="font-medium text-sm lg:text-base line-clamp-2">{poll.title}</h4>
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge variant="secondary" className="text-xs">
                           {poll.status}
                         </Badge>
                         <span className="text-xs text-gray-500">
-                          Ends {new Date(poll.ends_at).toLocaleDateString()}
+                          Ends {new Date(poll.deadline).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
