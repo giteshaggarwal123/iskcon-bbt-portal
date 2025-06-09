@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -332,6 +331,7 @@ export const useMeetings = () => {
 
       if (attachmentsError) {
         console.error('Error deleting meeting attachments:', attachmentsError);
+        // Continue anyway
       }
 
       // Delete attendance records
@@ -342,6 +342,7 @@ export const useMeetings = () => {
 
       if (attendanceError) {
         console.error('Error deleting attendance records:', attendanceError);
+        // Continue anyway
       }
 
       // Delete meeting attendees
@@ -352,6 +353,7 @@ export const useMeetings = () => {
 
       if (attendeesError) {
         console.error('Error deleting meeting attendees:', attendeesError);
+        // Continue anyway
       }
 
       // Delete meeting transcripts
@@ -362,38 +364,45 @@ export const useMeetings = () => {
 
       if (transcriptsError) {
         console.error('Error deleting meeting transcripts:', transcriptsError);
+        // Continue anyway
       }
 
-      // Finally delete the meeting itself
+      // Finally delete the meeting itself - this is the critical part
       console.log('Deleting main meeting record...');
       const { error: meetingError } = await supabase
         .from('meetings')
         .delete()
         .eq('id', meetingId)
-        .eq('created_by', user.id); // Extra security check
+        .eq('created_by', user.id);
 
       if (meetingError) {
-        console.error('Error deleting meeting:', meetingError);
-        throw meetingError;
+        console.error('Critical error deleting meeting from database:', meetingError);
+        throw new Error(`Failed to delete meeting from database: ${meetingError.message}`);
       }
 
-      console.log('Meeting deleted successfully');
+      console.log('Meeting deleted successfully from database');
+
+      // Update local state immediately to remove the meeting from UI
+      setMeetings(prev => prev.filter(m => m.id !== meetingId));
 
       toast({
         title: "Success",
-        description: "Meeting deleted successfully"
+        description: "Meeting deleted successfully from all platforms"
       });
 
-      // Refresh meetings list
+      // Also refresh from server to ensure consistency
       await fetchMeetings();
 
     } catch (error: any) {
       console.error('Error deleting meeting:', error);
       toast({
         title: "Delete Failed",
-        description: error.message || "Failed to delete meeting",
+        description: error.message || "Failed to delete meeting from platform",
         variant: "destructive"
       });
+      
+      // Refresh meetings to show current state
+      await fetchMeetings();
     }
   };
 
