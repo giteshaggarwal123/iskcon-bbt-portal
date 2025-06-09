@@ -193,6 +193,7 @@ export const MeetingsModule: React.FC = () => {
                   const timeInfo = formatMeetingTime(meeting.start_time, meeting.end_time);
                   const isLive = isLiveMeeting(meeting);
                   const canDoCheckIn = canCheckIn(meeting);
+                  const attendeeCount = meeting.attendee_count || meeting.attendees?.length || 0;
                   
                   return (
                     <Card key={meeting.id} className="w-full hover:shadow-md transition-shadow">
@@ -234,7 +235,7 @@ export const MeetingsModule: React.FC = () => {
                           </div>
                           <div className="flex items-center space-x-2 min-w-0">
                             <Users className="h-4 w-4 text-gray-500 shrink-0" />
-                            <span className="text-sm">{meeting.attendees?.length || 0} attendees</span>
+                            <span className="text-sm">{attendeeCount} attendees</span>
                           </div>
                           <div className="flex items-center space-x-2 min-w-0">
                             <Video className="h-4 w-4 text-gray-500 shrink-0" />

@@ -18,6 +18,7 @@ interface Meeting {
   teams_meeting_id: string | null;
   outlook_event_id: string | null;
   attendees?: { user_id: string; status: string }[];
+  attendee_count?: number;
 }
 
 export const useMeetings = () => {
@@ -37,8 +38,16 @@ export const useMeetings = () => {
         .order('start_time', { ascending: true });
 
       if (error) throw error;
-      console.log('Fetched meetings:', data);
-      setMeetings(data || []);
+      
+      // Process the data to include attendee count
+      const processedMeetings = (data || []).map(meeting => ({
+        ...meeting,
+        attendees: meeting.meeting_attendees || [],
+        attendee_count: meeting.meeting_attendees ? meeting.meeting_attendees.length : 0
+      }));
+      
+      console.log('Fetched meetings with attendee counts:', processedMeetings);
+      setMeetings(processedMeetings);
     } catch (error: any) {
       console.error('Error fetching meetings:', error);
       toast({
@@ -174,6 +183,11 @@ export const useMeetings = () => {
               await saveTranscriptReference(meeting.id, teamsData.meetingId);
             }
 
+            // Add attendees to meeting_attendees table
+            if (meetingData.attendees && meeting) {
+              await addAttendeesToMeeting(meeting.id, meetingData.attendees);
+            }
+
             fetchMeetings();
             return meeting;
           }
@@ -210,11 +224,9 @@ export const useMeetings = () => {
         description: `"${meetingData.title}" has been scheduled successfully`
       });
 
-      // Add attendees if provided
+      // Add attendees to meeting_attendees table
       if (meetingData.attendees && meeting) {
-        const emails = meetingData.attendees.split(',').map(email => email.trim());
-        console.log('Meeting attendees:', emails);
-        // For now, we'll just log the attendees. In production, you'd look up user IDs by email
+        await addAttendeesToMeeting(meeting.id, meetingData.attendees);
       }
 
       fetchMeetings();
@@ -226,6 +238,33 @@ export const useMeetings = () => {
         description: error.message || "Failed to create meeting",
         variant: "destructive"
       });
+    }
+  };
+
+  const addAttendeesToMeeting = async (meetingId: string, attendeeEmails: string) => {
+    try {
+      const emails = attendeeEmails.split(',').map(email => email.trim());
+      
+      // For each email, try to find the user and add them as attendee
+      for (const email of emails) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (profile) {
+          await supabase
+            .from('meeting_attendees')
+            .insert({
+              meeting_id: meetingId,
+              user_id: profile.id,
+              status: 'pending'
+            });
+        }
+      }
+    } catch (error) {
+      console.error('Error adding attendees:', error);
     }
   };
 
