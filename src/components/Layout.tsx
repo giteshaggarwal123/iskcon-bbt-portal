@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -12,6 +11,7 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true); // Default to open on desktop
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentModule, setCurrentModule] = useState('dashboard');
   const [showProfile, setShowProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -52,7 +52,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
+    if (isMobile) {
+      setSidebarOpen(!sidebarOpen);
+    } else {
+      // On desktop, toggle between collapsed and expanded
+      setSidebarCollapsed(!sidebarCollapsed);
+    }
   };
 
   const renderContent = () => {
@@ -125,10 +130,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           });
           window.dispatchEvent(event);
         }}
+        isCollapsed={!isMobile && sidebarCollapsed}
       />
       
       <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${
-        !isMobile && sidebarOpen ? 'ml-64' : 'ml-0'
+        !isMobile && sidebarOpen && !sidebarCollapsed ? 'ml-64' : 
+        !isMobile && sidebarOpen && sidebarCollapsed ? 'ml-16' : 'ml-0'
       }`}>
         <Header 
           onMenuClick={toggleSidebar}
@@ -139,7 +146,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         />
         <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
           isMobile ? 'p-2 pb-20' : 'p-4 lg:p-6'
-        } ${!isMobile && sidebarOpen ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
+        } ${!isMobile && sidebarOpen && !sidebarCollapsed ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
           <div className="w-full max-w-none">
             {renderContent()}
           </div>

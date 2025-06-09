@@ -35,6 +35,7 @@ interface SidebarProps {
   currentModule: string;
   onModuleChange: (module: string) => void;
   avatarRefreshTrigger?: number;
+  isCollapsed?: boolean;
 }
 
 const allMenuItems = [
@@ -53,7 +54,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentModule, 
   onModuleChange, 
   onClose,
-  avatarRefreshTrigger = 0
+  avatarRefreshTrigger = 0,
+  isCollapsed = false
 }) => {
   const { user, signOut } = useAuth();
   const userRole = useUserRole();
@@ -103,27 +105,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ${
+    <div className={`fixed inset-y-0 left-0 z-50 bg-white shadow-xl transform transition-all duration-300 ${
       isOpen ? 'translate-x-0' : '-translate-x-full'
-    } ${isMobile ? 'z-50' : 'lg:translate-x-0'}`}>
+    } ${isMobile ? 'z-50 w-64' : 'lg:translate-x-0'} ${
+      !isMobile && isCollapsed ? 'w-16' : 'w-64'
+    }`}>
       <div className="flex flex-col h-full">
         {/* Logo Section - Now Clickable */}
         <div className="p-6 border-b border-gray-200">
           <button 
             onClick={handleLogoClick}
-            className="flex items-center space-x-3 w-full hover:bg-gray-50 rounded-lg p-2 transition-colors"
+            className={`flex items-center space-x-3 w-full hover:bg-gray-50 rounded-lg p-2 transition-colors ${
+              !isMobile && isCollapsed ? 'justify-center' : ''
+            }`}
           >
-            <div className="w-12 h-12 flex items-center justify-center">
+            <div className="w-12 h-12 flex items-center justify-center flex-shrink-0">
               <img 
                 src="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" 
                 alt="ISKCON Logo" 
                 className="w-full h-full object-contain"
               />
             </div>
-            <div className="text-left">
-              <h1 className="text-lg font-semibold text-gray-900">ISKCON</h1>
-              <p className="text-sm text-gray-500">Bureau Management</p>
-            </div>
+            {(!isCollapsed || isMobile) && (
+              <div className="text-left">
+                <h1 className="text-lg font-semibold text-gray-900">ISKCON</h1>
+                <p className="text-sm text-gray-500">Bureau Management</p>
+              </div>
+            )}
           </button>
         </div>
 
@@ -137,10 +145,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 currentModule === item.id
                   ? 'bg-primary text-white shadow-sm'
                   : 'text-gray-600 hover:bg-secondary hover:text-gray-900'
-              }`}
+              } ${!isMobile && isCollapsed ? 'justify-center' : ''}`}
+              title={!isMobile && isCollapsed ? item.label : undefined}
             >
-              <item.icon className="mr-3 h-5 w-5" />
-              {item.label}
+              <item.icon className={`h-5 w-5 ${(!isCollapsed || isMobile) ? 'mr-3' : ''}`} />
+              {(!isCollapsed || isMobile) && item.label}
             </button>
           ))}
           
@@ -149,10 +158,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <AlertDialogTrigger asChild>
               <Button
                 variant="ghost"
-                className="w-full flex items-center justify-start px-4 py-3 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors mt-4"
+                className={`w-full flex items-center px-4 py-3 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors mt-4 ${
+                  !isMobile && isCollapsed ? 'justify-center' : 'justify-start'
+                }`}
+                title={!isMobile && isCollapsed ? 'Logout' : undefined}
               >
-                <LogOut className="mr-3 h-5 w-5" />
-                Logout
+                <LogOut className={`h-5 w-5 ${(!isCollapsed || isMobile) ? 'mr-3' : ''}`} />
+                {(!isCollapsed || isMobile) && 'Logout'}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -173,38 +185,56 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* User Profile Section */}
-        <div className="border-t border-gray-200 p-4">
-          <button 
-            onClick={handleProfileClick}
-            className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <ProfileAvatarLoader 
-              userName={userName} 
-              refreshTrigger={avatarRefreshTrigger}
-            />
-            <div className="flex-1 min-w-0 text-left">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {userName}
-              </p>
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500 truncate">
-                  {userEmail}
+        {(!isCollapsed || isMobile) && (
+          <div className="border-t border-gray-200 p-4">
+            <button 
+              onClick={handleProfileClick}
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <ProfileAvatarLoader 
+                userName={userName} 
+                refreshTrigger={avatarRefreshTrigger}
+              />
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {userName}
                 </p>
-                {userRole.userRole && (
-                  <span className={`text-xs px-2 py-1 rounded ml-2 flex-shrink-0 ${
-                    userRole.isSuperAdmin ? 'bg-red-100 text-red-700' :
-                    userRole.isAdmin ? 'bg-blue-100 text-blue-700' :
-                    userRole.isSecretary ? 'bg-green-100 text-green-700' :
-                    userRole.isTreasurer ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {userRole.userRole.replace('_', ' ')}
-                  </span>
-                )}
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-500 truncate">
+                    {userEmail}
+                  </p>
+                  {userRole.userRole && (
+                    <span className={`text-xs px-2 py-1 rounded ml-2 flex-shrink-0 ${
+                      userRole.isSuperAdmin ? 'bg-red-100 text-red-700' :
+                      userRole.isAdmin ? 'bg-blue-100 text-blue-700' :
+                      userRole.isSecretary ? 'bg-green-100 text-green-700' :
+                      userRole.isTreasurer ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {userRole.userRole.replace('_', ' ')}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          </button>
-        </div>
+            </button>
+          </div>
+        )}
+        
+        {/* Collapsed user profile - just avatar */}
+        {!isMobile && isCollapsed && (
+          <div className="border-t border-gray-200 p-4 flex justify-center">
+            <button 
+              onClick={handleProfileClick}
+              className="p-2 rounded-lg hover:bg-gray-50 transition-colors"
+              title={userName}
+            >
+              <ProfileAvatarLoader 
+                userName={userName} 
+                refreshTrigger={avatarRefreshTrigger}
+              />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
