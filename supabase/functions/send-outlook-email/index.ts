@@ -30,7 +30,7 @@ serve(async (req) => {
       )
     }
 
-    const { subject, body, recipients, attachments = [] } = await req.json()
+    const { subject, body, recipients, attachments = [], meetingId = null } = await req.json()
 
     // Get user's Microsoft tokens
     const { data: profile, error: profileError } = await supabase
@@ -49,8 +49,45 @@ serve(async (req) => {
     // Check if token needs refresh
     let accessToken = profile.microsoft_access_token
     if (new Date(profile.token_expires_at) <= new Date()) {
-      // Refresh token logic here
       console.log('Token expired, would refresh here')
+    }
+
+    // Process attachments if provided
+    let emailAttachments = []
+    if (attachments && attachments.length > 0) {
+      for (const attachment of attachments) {
+        try {
+          // If it's a meeting attachment, get from storage
+          if (meetingId && attachment.file_path) {
+            const { data: fileData } = await supabase.storage
+              .from('meeting-attachments')
+              .download(attachment.file_path)
+            
+            if (fileData) {
+              const arrayBuffer = await fileData.arrayBuffer()
+              const base64Content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+              
+              emailAttachments.push({
+                "@odata.type": "#microsoft.graph.fileAttachment",
+                name: attachment.name,
+                contentType: attachment.mime_type,
+                contentBytes: base64Content
+              })
+            }
+          } else if (attachment.contentBytes) {
+            // Direct attachment with base64 content
+            emailAttachments.push({
+              "@odata.type": "#microsoft.graph.fileAttachment",
+              name: attachment.name,
+              contentType: attachment.contentType || 'application/octet-stream',
+              contentBytes: attachment.contentBytes
+            })
+          }
+        } catch (error) {
+          console.error('Error processing attachment:', attachment.name, error)
+          // Continue with other attachments even if one fails
+        }
+      }
     }
 
     // Prepare email data
@@ -66,7 +103,7 @@ serve(async (req) => {
             address: email
           }
         })),
-        attachments: attachments
+        attachments: emailAttachments
       }
     }
 
@@ -98,7 +135,8 @@ serve(async (req) => {
         recipients,
         sender_id: user.id,
         status: 'sent',
-        sent_at: new Date().toISOString()
+        sent_at: new Date().toISOString(),
+        meeting_id: meetingId
       })
 
     if (logError) {
@@ -106,7 +144,11 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Email sent successfully' }),
+      JSON.stringify({ 
+        success: true, 
+        message: 'Email sent successfully',
+        attachmentCount: emailAttachments.length
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 

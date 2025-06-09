@@ -188,6 +188,11 @@ export const useMeetings = () => {
               await addAttendeesToMeeting(meeting.id, meetingData.attendees);
             }
 
+            // Send email invitations with attachments
+            if (meetingData.attendees && meeting) {
+              await sendMeetingInvitations(meeting, meetingData.attendees, meetingData.attachments);
+            }
+
             fetchMeetings();
             return meeting;
           }
@@ -229,6 +234,11 @@ export const useMeetings = () => {
         await addAttendeesToMeeting(meeting.id, meetingData.attendees);
       }
 
+      // Send email invitations with attachments
+      if (meetingData.attendees && meeting) {
+        await sendMeetingInvitations(meeting, meetingData.attendees, meetingData.attachments);
+      }
+
       fetchMeetings();
       return meeting;
     } catch (error: any) {
@@ -238,6 +248,125 @@ export const useMeetings = () => {
         description: error.message || "Failed to create meeting",
         variant: "destructive"
       });
+    }
+  };
+
+  const sendMeetingInvitations = async (meeting: any, attendeeEmails: string, attachments?: any[]) => {
+    try {
+      const emails = attendeeEmails.split(',').map(email => email.trim());
+      
+      // Get meeting attachments from database if any were uploaded
+      let meetingAttachments = [];
+      if (attachments && attachments.length > 0) {
+        const { data: dbAttachments } = await supabase
+          .from('meeting_attachments')
+          .select('*')
+          .eq('meeting_id', meeting.id);
+        
+        meetingAttachments = dbAttachments || [];
+      }
+
+      // Format meeting time
+      const startTime = new Date(meeting.start_time);
+      const endTime = new Date(meeting.end_time);
+      const meetingDate = startTime.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      const timeRange = `${startTime.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })} - ${endTime.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })}`;
+
+      // Create email body
+      const emailBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb; margin-bottom: 20px;">Meeting Invitation</h2>
+          
+          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 15px 0; color: #1e293b;">${meeting.title}</h3>
+            
+            <div style="margin-bottom: 10px;">
+              <strong>📅 Date:</strong> ${meetingDate}
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+              <strong>🕒 Time:</strong> ${timeRange}
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+              <strong>📍 Location:</strong> ${meeting.location || 'TBD'}
+            </div>
+            
+            ${meeting.teams_join_url ? `
+              <div style="margin-bottom: 10px;">
+                <strong>💻 Join Online:</strong> 
+                <a href="${meeting.teams_join_url}" style="color: #2563eb;">Click to join Teams meeting</a>
+              </div>
+            ` : ''}
+            
+            ${meeting.description ? `
+              <div style="margin-top: 15px;">
+                <strong>📋 Description:</strong>
+                <p style="margin: 5px 0 0 0; color: #64748b;">${meeting.description}</p>
+              </div>
+            ` : ''}
+          </div>
+          
+          ${meetingAttachments.length > 0 ? `
+            <div style="margin-bottom: 20px;">
+              <strong>📎 Attachments:</strong>
+              <ul style="margin: 10px 0; padding-left: 20px;">
+                ${meetingAttachments.map(att => `<li>${att.name}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+          
+          <p style="color: #64748b; font-size: 14px;">
+            Please mark your calendar and let us know if you cannot attend.
+          </p>
+          
+          <hr style="border: none; height: 1px; background-color: #e2e8f0; margin: 20px 0;">
+          
+          <p style="color: #94a3b8; font-size: 12px;">
+            This invitation was sent automatically by the meeting management system.
+          </p>
+        </div>
+      `;
+
+      // Send email with attachments
+      const { data, error } = await supabase.functions.invoke('send-outlook-email', {
+        body: {
+          subject: `Meeting Invitation: ${meeting.title}`,
+          body: emailBody,
+          recipients: emails,
+          attachments: meetingAttachments,
+          meetingId: meeting.id
+        }
+      });
+
+      if (error) {
+        console.error('Error sending invitations:', error);
+        toast({
+          title: "Invitation Email Failed",
+          description: "Meeting created but email invitations could not be sent",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Invitations Sent",
+          description: `Meeting invitations sent to ${emails.length} attendee(s)${meetingAttachments.length > 0 ? ` with ${meetingAttachments.length} attachment(s)` : ''}`,
+        });
+      }
+    } catch (error) {
+      console.error('Error sending meeting invitations:', error);
     }
   };
 
