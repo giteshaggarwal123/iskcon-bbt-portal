@@ -3,13 +3,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy } from 'lucide-react';
+import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy, CheckSquare } from 'lucide-react';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 import { ViewAgendaDialog } from './ViewAgendaDialog';
 import { ManageAttendeesDialog } from './ManageAttendeesDialog';
 import { CheckInDialog } from './CheckInDialog';
 import { PostMeetingDialog } from './PostMeetingDialog';
 import { CalendarView } from './CalendarView';
+import { RSVPResponseDialog } from './RSVPResponseDialog';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, compareAsc, compareDesc } from 'date-fns';
@@ -21,6 +22,7 @@ export const MeetingsModule: React.FC = () => {
   const [showAttendeesDialog, setShowAttendeesDialog] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [showPostMeetingDialog, setShowPostMeetingDialog] = useState(false);
+  const [showRSVPDialog, setShowRSVPDialog] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
   const [preselectedDate, setPreselectedDate] = useState<Date | undefined>(undefined);
   
@@ -60,6 +62,11 @@ export const MeetingsModule: React.FC = () => {
   const handlePostMeeting = (meeting: any) => {
     setSelectedMeeting(meeting);
     setShowPostMeetingDialog(true);
+  };
+
+  const handleViewRSVP = (meeting: any) => {
+    setSelectedMeeting(meeting);
+    setShowRSVPDialog(true);
   };
 
   const handleDeleteMeeting = async (meetingId: string) => {
@@ -384,15 +391,15 @@ export const MeetingsModule: React.FC = () => {
                             <FileText className="h-4 w-4 mr-2" />
                             View Details
                           </Button>
-                          
+
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => alert('View meeting transcript and documents')}
-                            className="bg-blue-50 hover:bg-blue-100 text-blue-700 min-h-[40px]"
+                            onClick={() => handleViewRSVP(meeting)}
+                            className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
                           >
-                            <FileText className="h-4 w-4 mr-2" />
-                            View Transcript
+                            <CheckSquare className="h-4 w-4 mr-2" />
+                            View RSVP
                           </Button>
                           
                           <Button 
@@ -451,6 +458,11 @@ export const MeetingsModule: React.FC = () => {
       <PostMeetingDialog
         open={showPostMeetingDialog}
         onOpenChange={setShowPostMeetingDialog}
+        meeting={selectedMeeting}
+      />
+      <RSVPResponseDialog
+        open={showRSVPDialog}
+        onOpenChange={setShowRSVPDialog}
         meeting={selectedMeeting}
       />
 

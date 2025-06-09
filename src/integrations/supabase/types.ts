@@ -312,18 +312,24 @@ export type Database = {
         Row: {
           id: string
           meeting_id: string
+          rsvp_response: string | null
+          rsvp_submitted_at: string | null
           status: string | null
           user_id: string
         }
         Insert: {
           id?: string
           meeting_id: string
+          rsvp_response?: string | null
+          rsvp_submitted_at?: string | null
           status?: string | null
           user_id: string
         }
         Update: {
           id?: string
           meeting_id?: string
+          rsvp_response?: string | null
+          rsvp_submitted_at?: string | null
           status?: string | null
           user_id?: string
         }
@@ -391,6 +397,7 @@ export type Database = {
           location: string | null
           meeting_type: string | null
           outlook_event_id: string | null
+          rsvp_enabled: boolean | null
           start_time: string
           status: string | null
           teams_join_url: string | null
@@ -406,6 +413,7 @@ export type Database = {
           location?: string | null
           meeting_type?: string | null
           outlook_event_id?: string | null
+          rsvp_enabled?: boolean | null
           start_time: string
           status?: string | null
           teams_join_url?: string | null
@@ -421,6 +429,7 @@ export type Database = {
           location?: string | null
           meeting_type?: string | null
           outlook_event_id?: string | null
+          rsvp_enabled?: boolean | null
           start_time?: string
           status?: string | null
           teams_join_url?: string | null

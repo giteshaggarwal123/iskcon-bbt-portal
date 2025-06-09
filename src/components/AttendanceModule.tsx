@@ -3,9 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, UserCheck, Calendar, Download, Eye, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Users, UserCheck, Calendar, Download, Eye, CheckCircle, XCircle, Clock, CheckSquare } from 'lucide-react';
 import { MarkAttendanceDialog } from './MarkAttendanceDialog';
 import { AttendanceReportDialog } from './AttendanceReportDialog';
+import { RSVPResponseDialog } from './RSVPResponseDialog';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -15,6 +16,7 @@ import { format, parseISO } from 'date-fns';
 export const AttendanceModule: React.FC = () => {
   const [showMarkDialog, setShowMarkDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showRSVPDialog, setShowRSVPDialog] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
 
   const { meetings, loading: meetingsLoading } = useMeetings();
@@ -40,6 +42,11 @@ export const AttendanceModule: React.FC = () => {
   const handleViewReport = (meeting: any) => {
     setSelectedMeeting(meeting);
     setShowReportDialog(true);
+  };
+
+  const handleViewRSVP = (meeting: any) => {
+    setSelectedMeeting(meeting);
+    setShowRSVPDialog(true);
   };
 
   const handleDownloadReport = (meeting: any) => {
@@ -158,6 +165,14 @@ export const AttendanceModule: React.FC = () => {
                           </Button>
                         )}
 
+                        <Button
+                          variant="outline"
+                          onClick={() => handleViewRSVP(meeting)}
+                        >
+                          <CheckSquare className="h-4 w-4 mr-2" />
+                          View RSVP
+                        </Button>
+
                         {userRole.canViewReports && (
                           <Button
                             variant="outline"
@@ -221,6 +236,15 @@ export const AttendanceModule: React.FC = () => {
                              'Not Marked'}
                           </Badge>
 
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewRSVP(meeting)}
+                          >
+                            <CheckSquare className="h-4 w-4 mr-2" />
+                            RSVP
+                          </Button>
+
                           {userRole.canViewReports && (
                             <>
                               <Button
@@ -268,6 +292,12 @@ export const AttendanceModule: React.FC = () => {
       <AttendanceReportDialog
         open={showReportDialog}
         onOpenChange={setShowReportDialog}
+        meeting={selectedMeeting}
+      />
+
+      <RSVPResponseDialog
+        open={showRSVPDialog}
+        onOpenChange={setShowRSVPDialog}
         meeting={selectedMeeting}
       />
     </div>
