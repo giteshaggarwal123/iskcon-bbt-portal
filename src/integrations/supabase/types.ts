@@ -254,6 +254,60 @@ export type Database = {
           },
         ]
       }
+      meeting_attachments: {
+        Row: {
+          created_at: string
+          download_count: number | null
+          file_path: string
+          file_size: number | null
+          id: string
+          meeting_id: string
+          mime_type: string | null
+          name: string
+          uploaded_by: string
+          view_count: number | null
+        }
+        Insert: {
+          created_at?: string
+          download_count?: number | null
+          file_path: string
+          file_size?: number | null
+          id?: string
+          meeting_id: string
+          mime_type?: string | null
+          name: string
+          uploaded_by: string
+          view_count?: number | null
+        }
+        Update: {
+          created_at?: string
+          download_count?: number | null
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          meeting_id?: string
+          mime_type?: string | null
+          name?: string
+          uploaded_by?: string
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_attachments_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_attendees: {
         Row: {
           id: string

@@ -46,7 +46,8 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
     
     setLoadingFiles(true);
     try {
-      const { data, error } = await supabase
+      // Use type assertion since the table is newly created
+      const { data, error } = await (supabase as any)
         .from('meeting_attachments')
         .select('*')
         .eq('meeting_id', meeting.id)
@@ -84,7 +85,7 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
         if (uploadError) throw uploadError;
 
         // Save file metadata to database
-        const { error: dbError } = await supabase
+        const { error: dbError } = await (supabase as any)
           .from('meeting_attachments')
           .insert({
             meeting_id: meeting.id,
@@ -137,7 +138,7 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
       URL.revokeObjectURL(url);
 
       // Update download count
-      await supabase
+      await (supabase as any)
         .from('meeting_attachments')
         .update({ download_count: (file.download_count || 0) + 1 })
         .eq('id', file.id);
@@ -164,7 +165,7 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
       window.open(data.signedUrl, '_blank');
 
       // Update view count
-      await supabase
+      await (supabase as any)
         .from('meeting_attachments')
         .update({ view_count: (file.view_count || 0) + 1 })
         .eq('id', file.id);
@@ -195,7 +196,7 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
       if (storageError) throw storageError;
 
       // Delete from database
-      const { error: dbError } = await supabase
+      const { error: dbError } = await (supabase as any)
         .from('meeting_attachments')
         .delete()
         .eq('id', fileId);
