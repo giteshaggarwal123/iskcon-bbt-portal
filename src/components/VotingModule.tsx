@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +26,7 @@ export const VotingModule: React.FC = () => {
 
   const activePolls = polls.filter(poll => poll.status === 'active');
   const completedPolls = polls.filter(poll => poll.status === 'completed');
-  const draftPolls = polls.filter(poll => poll.status === 'draft');
+  const draftPolls: any[] = [];
 
   const handleVoteNow = (poll: any) => {
     setSelectedPoll(poll);
@@ -107,18 +106,13 @@ export const VotingModule: React.FC = () => {
         </div>
 
         <Tabs defaultValue="active" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="active">
               Active Polls ({activePolls.length})
             </TabsTrigger>
             <TabsTrigger value="completed">
               Completed ({completedPolls.length})
             </TabsTrigger>
-            {userRole.canCreateVoting && (
-              <TabsTrigger value="drafts">
-                Drafts ({draftPolls.length})
-              </TabsTrigger>
-            )}
           </TabsList>
 
           <TabsContent value="active" className="space-y-6">
@@ -269,55 +263,6 @@ export const VotingModule: React.FC = () => {
               </div>
             )}
           </TabsContent>
-
-          {userRole.canCreateVoting && (
-            <TabsContent value="drafts" className="space-y-6">
-              {draftPolls.length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No draft polls</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid gap-6">
-                  {draftPolls.map((poll) => (
-                    <Card key={poll.id} className="hover:shadow-md transition-shadow">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <CardTitle className="text-xl flex items-center gap-2">
-                              {poll.title}
-                              <Badge variant="outline">Draft</Badge>
-                            </CardTitle>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            onClick={() => handleEditPoll(poll)}
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            onClick={() => handleDeletePoll(poll.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          )}
         </Tabs>
       </div>
 
