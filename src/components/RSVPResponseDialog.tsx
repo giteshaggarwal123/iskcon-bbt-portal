@@ -36,44 +36,13 @@ export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (open && meeting) {
-      fetchAttendeeResponses();
-    }
-  }, [open, meeting]);
-
-  // Set up real-time subscription for RSVP updates
-  useEffect(() => {
-    if (!open || !meeting) return;
-
-    const channel = supabase
-      .channel('rsvp-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'meeting_attendees',
-          filter: `meeting_id=eq.${meeting.id}`
-        },
-        (payload) => {
-          console.log('RSVP updated:', payload);
-          // Refresh data when RSVP responses change
-          fetchAttendeeResponses();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [open, meeting]);
-
   const fetchAttendeeResponses = async () => {
     if (!meeting) return;
     
     setLoading(true);
     try {
+      console.log('Fetching RSVP responses for meeting:', meeting.id);
+      
       // First fetch meeting attendees
       const { data: attendeesData, error: attendeesError } = await supabase
         .from('meeting_attendees')
@@ -81,15 +50,22 @@ export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({
         .eq('meeting_id', meeting.id)
         .order('rsvp_submitted_at', { ascending: false, nullsFirst: false });
 
-      if (attendeesError) throw attendeesError;
+      if (attendeesError) {
+        console.error('Error fetching attendees:', attendeesError);
+        throw attendeesError;
+      }
+
+      console.log('Attendees data:', attendeesData);
 
       if (!attendeesData || attendeesData.length === 0) {
+        console.log('No attendees found for this meeting');
         setAttendeeResponses([]);
         return;
       }
 
       // Get user IDs
       const userIds = attendeesData.map(attendee => attendee.user_id);
+      console.log('User IDs to fetch profiles for:', userIds);
 
       // Fetch profiles separately
       const { data: profilesData, error: profilesError } = await supabase
@@ -97,7 +73,12 @@ export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({
         .select('id, first_name, last_name, email')
         .in('id', userIds);
 
-      if (profilesError) throw profilesError;
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
+
+      console.log('Profiles data:', profilesData);
 
       // Combine the data
       const combinedData = attendeesData.map(attendee => {
@@ -113,6 +94,7 @@ export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({
         };
       });
       
+      console.log('Combined RSVP data:', combinedData);
       setAttendeeResponses(combinedData);
     } catch (error: any) {
       console.error('Error fetching RSVP responses:', error);
@@ -125,6 +107,46 @@ export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({
       setLoading(false);
     }
   };
+
+  // Fetch data when dialog opens
+  useEffect(() => {
+    if (open && meeting) {
+      console.log('Dialog opened for meeting:', meeting.title);
+      fetchAttendeeResponses();
+    }
+  }, [open, meeting]);
+
+  // Set up real-time subscription for RSVP updates
+  useEffect(() => {
+    if (!open || !meeting) return;
+
+    console.log('Setting up real-time subscription for meeting:', meeting.id);
+    
+    const channel = supabase
+      .channel(`rsvp-updates-${meeting.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'meeting_attendees',
+          filter: `meeting_id=eq.${meeting.id}`
+        },
+        (payload) => {
+          console.log('Real-time RSVP update received:', payload);
+          // Refresh data when RSVP responses change
+          fetchAttendeeResponses();
+        }
+      )
+      .subscribe((status) => {
+        console.log('Real-time subscription status:', status);
+      });
+
+    return () => {
+      console.log('Cleaning up real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [open, meeting]);
 
   if (!meeting) return null;
 

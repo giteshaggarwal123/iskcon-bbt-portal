@@ -318,6 +318,16 @@ export const MeetingsModule: React.FC = () => {
                             <FileText className="h-4 w-4 mr-2" />
                             View Details
                           </Button>
+
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleViewRSVP(meeting)}
+                            className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
+                          >
+                            <CheckSquare className="h-4 w-4 mr-2" />
+                            View RSVP
+                          </Button>
                           
                           {userRole.canDeleteMeetings && (
                             <Button 
