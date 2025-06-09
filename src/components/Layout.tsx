@@ -133,38 +133,47 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentModule, onModul
     );
   }
 
-  // Desktop/Tablet Layout - Restored proper sidebar layout
+  // Desktop Layout - Optimized responsive design
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Tablet sidebar overlay */}
-      {!isMobile && sidebarOpen && window.innerWidth < 1024 && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-      
-      <Sidebar 
-        isOpen={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)}
-        currentModule={currentModule}
-        onModuleChange={handleModuleChange}
-      />
-      
-      {/* Main content area with proper sidebar spacing */}
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
-        sidebarOpen ? 'lg:ml-64' : 'ml-0'
-      }`}>
-        <Header 
-          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
-          onProfileClick={handleProfileClick}
-          onSettingsClick={handleSettingsClick}
-        />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <div className="max-w-full">
-            {renderContent()}
-          </div>
-        </main>
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex h-screen">
+        {/* Desktop Sidebar - Fixed position */}
+        <div className={`fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } lg:translate-x-0 lg:static lg:inset-0`}>
+          <Sidebar 
+            isOpen={sidebarOpen || !isMobile} 
+            onClose={() => setSidebarOpen(false)}
+            currentModule={currentModule}
+            onModuleChange={handleModuleChange}
+          />
+        </div>
+
+        {/* Overlay for mobile/tablet when sidebar is open */}
+        {sidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        
+        {/* Main content area - Responsive */}
+        <div className="flex-1 flex flex-col min-w-0 lg:ml-0">
+          <Header 
+            onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+            onProfileClick={handleProfileClick}
+            onSettingsClick={handleSettingsClick}
+          />
+          
+          {/* Content area with proper responsive padding */}
+          <main className="flex-1 overflow-y-auto bg-gray-50">
+            <div className="h-full w-full p-4 sm:p-6 lg:p-8 max-w-full">
+              <div className="max-w-7xl mx-auto">
+                {renderContent()}
+              </div>
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );
