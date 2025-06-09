@@ -278,10 +278,43 @@ export const useMeetings = () => {
         return;
       }
 
-      // First, update UI immediately for better user experience
+      // Optimistically remove from UI
       setMeetings(prev => prev.filter(m => m.id !== meetingId));
 
-      // Delete from Teams and Outlook if it's a Teams meeting
+      // First delete from database - this is the most critical part
+      console.log('Deleting meeting from database first...');
+      
+      // Delete related records first to avoid foreign key constraints
+      console.log('Deleting related records...');
+      
+      // Use individual queries with proper error handling
+      try {
+        await supabase.from('meeting_attachments').delete().eq('meeting_id', meetingId);
+        await supabase.from('attendance_records').delete().eq('meeting_id', meetingId);
+        await supabase.from('meeting_attendees').delete().eq('meeting_id', meetingId);
+        await supabase.from('meeting_transcripts').delete().eq('meeting_id', meetingId);
+      } catch (relatedError) {
+        console.error('Error deleting related records:', relatedError);
+        // Continue with main meeting deletion even if related records fail
+      }
+
+      // Now delete the main meeting record
+      const { error: meetingError } = await supabase
+        .from('meetings')
+        .delete()
+        .eq('id', meetingId)
+        .eq('created_by', user.id); // Double check ownership
+
+      if (meetingError) {
+        console.error('Failed to delete meeting from database:', meetingError);
+        // Restore the meeting in UI since database deletion failed
+        setMeetings(prev => [...prev, meeting].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
+        throw new Error(`Database deletion failed: ${meetingError.message}`);
+      }
+
+      console.log('Meeting successfully deleted from database');
+
+      // Now try to delete from Microsoft services (but don't fail if this doesn't work)
       if (meeting.teams_meeting_id || meeting.outlook_event_id) {
         console.log('Attempting to delete from Microsoft services...');
         
@@ -296,93 +329,46 @@ export const useMeetings = () => {
             // Delete Teams meeting
             if (meeting.teams_meeting_id) {
               console.log('Deleting Teams meeting:', meeting.teams_meeting_id);
-              const teamsResponse = await fetch(`https://graph.microsoft.com/v1.0/me/onlineMeetings/${meeting.teams_meeting_id}`, {
+              await fetch(`https://graph.microsoft.com/v1.0/me/onlineMeetings/${meeting.teams_meeting_id}`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${profile.microsoft_access_token}`,
                 }
               });
-              console.log('Teams deletion response:', teamsResponse.status);
             }
 
             // Delete Outlook calendar event
             if (meeting.outlook_event_id) {
               console.log('Deleting Outlook event:', meeting.outlook_event_id);
-              const outlookResponse = await fetch(`https://graph.microsoft.com/v1.0/me/events/${meeting.outlook_event_id}`, {
+              await fetch(`https://graph.microsoft.com/v1.0/me/events/${meeting.outlook_event_id}`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${profile.microsoft_access_token}`,
                 }
               });
-              console.log('Outlook deletion response:', outlookResponse.status);
             }
-          } catch (graphError) {
-            console.error('Error deleting from Microsoft services:', graphError);
-            // Continue with database deletion even if Microsoft deletion fails
+          } catch (microsoftError) {
+            console.error('Error deleting from Microsoft services (non-critical):', microsoftError);
+            // Don't fail the whole operation if Microsoft deletion fails
           }
         }
       }
 
-      // Delete related records from database using a transaction-like approach
-      console.log('Deleting related database records...');
-
-      // Delete in the correct order to avoid foreign key constraints
-      const deleteOperations = [
-        // Delete meeting attachments
-        supabase.from('meeting_attachments').delete().eq('meeting_id', meetingId),
-        // Delete attendance records  
-        supabase.from('attendance_records').delete().eq('meeting_id', meetingId),
-        // Delete meeting attendees
-        supabase.from('meeting_attendees').delete().eq('meeting_id', meetingId),
-        // Delete meeting transcripts
-        supabase.from('meeting_transcripts').delete().eq('meeting_id', meetingId)
-      ];
-
-      // Execute all deletion operations
-      const results = await Promise.allSettled(deleteOperations);
-      
-      // Log any errors but continue
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          console.error(`Error deleting related record ${index}:`, result.reason);
-        }
-      });
-
-      // Finally delete the meeting itself - this is the critical part
-      console.log('Deleting main meeting record...');
-      const { error: meetingError } = await supabase
-        .from('meetings')
-        .delete()
-        .eq('id', meetingId)
-        .eq('created_by', user.id);
-
-      if (meetingError) {
-        console.error('Critical error deleting meeting from database:', meetingError);
-        // Restore the meeting in UI if database deletion failed
-        setMeetings(prev => [...prev, meeting].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
-        throw new Error(`Failed to delete meeting from database: ${meetingError.message}`);
-      }
-
-      console.log('Meeting deleted successfully from database');
-
       toast({
         title: "Success",
-        description: "Meeting deleted successfully from all platforms"
+        description: "Meeting deleted successfully"
       });
-
-      // Force a refresh to ensure consistency
-      setTimeout(() => fetchMeetings(), 1000);
 
     } catch (error: any) {
       console.error('Error deleting meeting:', error);
       toast({
         title: "Delete Failed",
-        description: error.message || "Failed to delete meeting from platform",
+        description: error.message || "Failed to delete meeting",
         variant: "destructive"
       });
       
-      // Refresh meetings to show current state in case of error
-      await fetchMeetings();
+      // Force a refresh to show the current state
+      fetchMeetings();
     }
   };
 
