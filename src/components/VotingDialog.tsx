@@ -152,18 +152,19 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                         value={currentVote || ''} 
                         onValueChange={(value) => {
                           console.log('RadioGroup value changed:', value, 'for subPoll:', subPoll.id);
-                          handleSubPollVote(subPoll.id, value as 'favor' | 'against' | 'abstain');
+                          if (value === 'favor' || value === 'against' || value === 'abstain') {
+                            handleSubPollVote(subPoll.id, value);
+                          }
                         }}
                       >
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem 
                             value="favor" 
                             id={`${subPoll.id}-favor`}
-                            className="cursor-pointer"
                           />
                           <Label 
                             htmlFor={`${subPoll.id}-favor`} 
-                            className="flex items-center space-x-2 cursor-pointer hover:bg-green-50 p-2 rounded"
+                            className="flex items-center space-x-2 cursor-pointer hover:bg-green-50 p-2 rounded flex-1"
                           >
                             <CheckCircle className="h-4 w-4 text-green-600" />
                             <span>For</span>
@@ -173,11 +174,10 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                           <RadioGroupItem 
                             value="against" 
                             id={`${subPoll.id}-against`}
-                            className="cursor-pointer"
                           />
                           <Label 
                             htmlFor={`${subPoll.id}-against`} 
-                            className="flex items-center space-x-2 cursor-pointer hover:bg-red-50 p-2 rounded"
+                            className="flex items-center space-x-2 cursor-pointer hover:bg-red-50 p-2 rounded flex-1"
                           >
                             <XCircle className="h-4 w-4 text-red-600" />
                             <span>Against</span>
@@ -187,11 +187,10 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                           <RadioGroupItem 
                             value="abstain" 
                             id={`${subPoll.id}-abstain`}
-                            className="cursor-pointer"
                           />
                           <Label 
                             htmlFor={`${subPoll.id}-abstain`} 
-                            className="flex items-center space-x-2 cursor-pointer hover:bg-yellow-50 p-2 rounded"
+                            className="flex items-center space-x-2 cursor-pointer hover:bg-yellow-50 p-2 rounded flex-1"
                           >
                             <MinusCircle className="h-4 w-4 text-yellow-600" />
                             <span>Abstain</span>

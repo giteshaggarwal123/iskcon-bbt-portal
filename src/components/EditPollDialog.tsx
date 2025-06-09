@@ -24,7 +24,8 @@ export const EditPollDialog: React.FC<EditPollDialogProps> = ({ open, onOpenChan
   });
 
   const [subPolls, setSubPolls] = useState<Array<{ id: string; title: string; description: string }>>([]);
-  const { refetch } = usePolls();
+  const [submitting, setSubmitting] = useState(false);
+  const { updatePoll } = usePolls();
 
   useEffect(() => {
     if (poll && open) {
@@ -53,26 +54,25 @@ export const EditPollDialog: React.FC<EditPollDialogProps> = ({ open, onOpenChan
     
     if (!poll) return;
 
+    setSubmitting(true);
+    
     try {
-      // Note: This is a basic implementation. In a real app, you'd want to implement
-      // proper poll update functionality in your usePolls hook
-      console.log('Updating poll:', {
-        pollId: poll.id,
-        formData,
-        subPolls
+      const success = await updatePoll(poll.id, {
+        title: formData.title,
+        description: formData.description,
+        deadline: formData.deadline,
+        subPolls: subPolls
       });
 
-      // For now, we'll just show a message that this functionality needs backend implementation
-      toast.error('Poll editing functionality requires backend implementation');
-      
-      // In a real implementation, you would call something like:
-      // await updatePoll(poll.id, { ...formData, subPolls });
-      // await refetch();
-      // onOpenChange(false);
-      
+      if (success) {
+        onOpenChange(false);
+        toast.success('Poll updated successfully');
+      }
     } catch (error) {
       console.error('Error updating poll:', error);
       toast.error('Failed to update poll');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -176,22 +176,14 @@ export const EditPollDialog: React.FC<EditPollDialogProps> = ({ open, onOpenChan
             </p>
           </div>
 
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <h4 className="font-medium text-red-900 mb-2">Implementation Note</h4>
-            <p className="text-sm text-red-800">
-              Poll editing functionality requires additional backend implementation. 
-              This dialog shows the intended interface but does not save changes yet.
-            </p>
-          </div>
-
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90">
+            <Button type="submit" disabled={submitting} className="bg-primary hover:bg-primary/90">
               <Save className="h-4 w-4 mr-2" />
-              Save Changes
+              {submitting ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </form>

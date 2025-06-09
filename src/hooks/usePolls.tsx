@@ -170,6 +170,54 @@ export const usePolls = () => {
     }
   };
 
+  const updatePoll = async (pollId: string, updateData: {
+    title: string;
+    description: string;
+    deadline: string;
+    subPolls: Array<{ id: string; title: string; description: string }>;
+  }) => {
+    if (!user) {
+      toast.error('You must be logged in to update a poll');
+      return false;
+    }
+
+    try {
+      // Update the main poll
+      const { error: pollError } = await supabase
+        .from('polls')
+        .update({
+          title: updateData.title,
+          description: updateData.description,
+          deadline: updateData.deadline,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', pollId);
+
+      if (pollError) throw pollError;
+
+      // Update sub-polls
+      for (const subPoll of updateData.subPolls) {
+        const { error: subPollError } = await supabase
+          .from('sub_polls')
+          .update({
+            title: subPoll.title,
+            description: subPoll.description
+          })
+          .eq('id', subPoll.id);
+
+        if (subPollError) throw subPollError;
+      }
+
+      toast.success('Poll updated successfully');
+      await fetchPolls(); // Refresh the polls list
+      return true;
+    } catch (error) {
+      console.error('Error updating poll:', error);
+      toast.error('Failed to update poll');
+      return false;
+    }
+  };
+
   const uploadPollAttachment = async (pollId: string, file: File) => {
     if (!user) return null;
 
@@ -286,6 +334,7 @@ export const usePolls = () => {
     polls,
     loading,
     createPoll,
+    updatePoll,
     deletePoll,
     updatePollStatus,
     downloadAttachment,
