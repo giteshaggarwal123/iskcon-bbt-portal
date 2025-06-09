@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -74,6 +73,11 @@ export const Dashboard: React.FC = () => {
     .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     .slice(0, 3);
 
+  // Extract user name from the authenticated user
+  const userName = user?.user_metadata?.first_name 
+    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim()
+    : user?.email?.split('@')[0] || 'User';
+
   const handleJoinMeeting = (meeting: any) => {
     if (meeting.teams_join_url) {
       window.open(meeting.teams_join_url, '_blank');
@@ -124,7 +128,7 @@ export const Dashboard: React.FC = () => {
           <div className="space-y-2">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Bureau Dashboard</h1>
             <p className="text-sm sm:text-base text-muted-foreground">
-              Welcome back! @{user?.email?.split('@')[0] || 'user'} - Here's what's happening today.
+              Hare Krishna! {userName} - Here's what's happening today.
             </p>
             
             {/* Microsoft Connection Status - Positioned cleanly */}
