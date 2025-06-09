@@ -179,6 +179,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           /* Prevent content from going under bottom nav */
           main {
             padding-bottom: 5rem !important;
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
+            max-width: 100vw;
+            overflow-x: hidden;
           }
           
           /* Hide scrollbars but keep functionality */
@@ -195,6 +199,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           main * {
             max-width: 100%;
             word-wrap: break-word;
+            box-sizing: border-box;
           }
           
           /* Better form inputs on mobile */
@@ -225,6 +230,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           main h2 {
             font-size: 1.25rem;
             line-height: 1.4;
+          }
+
+          /* Fix container width issues */
+          .min-h-screen {
+            width: 100vw;
+            max-width: 100vw;
+            overflow-x: hidden;
+          }
+
+          /* Ensure flex containers don't overflow */
+          .flex-1 {
+            min-width: 0;
+            max-width: 100%;
           }
         }
         

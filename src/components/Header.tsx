@@ -64,12 +64,12 @@ export const Header: React.FC<HeaderProps> = ({
             )}
             {!isMobile && (
               <h1 className="text-xl font-semibold text-gray-900">
-                Hare Krishna, {userName}
+                ISKCON Bureau Portal
               </h1>
             )}
             {isMobile && (
               <h1 className="text-lg font-semibold text-gray-900">
-                Hare Krishna
+                ISKCON Bureau Portal
               </h1>
             )}
           </div>
@@ -100,6 +100,39 @@ export const Header: React.FC<HeaderProps> = ({
             </Button>
           </div>
         </div>
+
+        {/* Mobile-specific styles to fix layout */}
+        <style>{`
+          @media (max-width: 767px) {
+            /* Ensure proper mobile header spacing */
+            header {
+              padding-left: 1rem;
+              padding-right: 1rem;
+            }
+            
+            /* Fix header text overflow on mobile */
+            header h1 {
+              font-size: 1rem;
+              line-height: 1.25;
+              max-width: calc(100vw - 8rem);
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+            
+            /* Ensure buttons don't get too small */
+            header button {
+              min-width: 2.5rem;
+              min-height: 2.5rem;
+            }
+            
+            /* Fix header container to prevent stretching */
+            header > div {
+              max-width: 100%;
+              overflow: hidden;
+            }
+          }
+        `}</style>
       </header>
 
       {/* Dialogs */}
