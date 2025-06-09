@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -358,7 +357,8 @@ export const Dashboard: React.FC = () => {
           .space-y-8 {
             max-width: 100vw;
             overflow-x: hidden;
-            padding: 0 0.75rem;
+            padding: 0 1rem;
+            margin: 0;
           }
           
           /* Header responsive */
@@ -374,7 +374,7 @@ export const Dashboard: React.FC = () => {
           /* Grid mobile adjustments */
           .grid.grid-cols-1.lg\\:grid-cols-2 {
             grid-template-columns: 1fr;
-            gap: 1rem;
+            gap: 1.25rem;
             width: 100%;
             max-width: 100%;
           }
@@ -385,21 +385,28 @@ export const Dashboard: React.FC = () => {
             max-width: 100%;
             min-width: 0;
             overflow: hidden;
+            margin: 0;
           }
           
-          /* Card content mobile fixes */
+          /* Card content mobile fixes - Better email spacing */
           .grid .bg-white.p-4 {
-            padding: 0.75rem;
-            margin: 0;
+            padding: 1rem;
+            margin: 0 0 1rem 0;
             width: 100%;
             max-width: 100%;
             box-sizing: border-box;
           }
           
+          /* Email cards spacing improvement */
+          .grid .space-y-4 > .bg-white + .bg-white {
+            margin-top: 1.25rem;
+          }
+          
           /* Button spacing mobile */
           .grid .flex.justify-between.items-start {
             flex-wrap: wrap;
-            gap: 0.5rem;
+            gap: 0.75rem;
+            align-items: flex-start;
           }
           
           .grid .shrink-0 {
@@ -407,9 +414,9 @@ export const Dashboard: React.FC = () => {
             min-width: fit-content;
           }
           
-          /* Text truncation mobile */
+          /* Text truncation mobile - Better alignment */
           .grid .truncate {
-            max-width: 60%;
+            max-width: 65%;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -421,16 +428,52 @@ export const Dashboard: React.FC = () => {
             overflow: hidden;
           }
           
-          /* Responsive connection status */
+          /* Better header alignment on mobile */
           .flex.justify-between.items-center {
             flex-direction: column;
             align-items: flex-start;
             gap: 1rem;
+            padding: 0;
+            margin: 0;
+          }
+          
+          /* Microsoft connection status mobile alignment */
+          .flex.justify-between.items-center > div:last-child {
+            align-self: flex-end;
+            width: auto;
           }
           
           /* Better mobile spacing */
           .space-y-8 > * + * {
             margin-top: 1.5rem;
+          }
+          
+          /* Email content better spacing */
+          .grid .space-y-4 {
+            gap: 1.25rem;
+          }
+          
+          /* Card content padding adjustment */
+          .shadow-lg .p-6 {
+            padding: 1rem;
+          }
+          
+          /* Better button alignment in cards */
+          .grid .bg-white .flex.justify-between {
+            align-items: flex-start;
+            gap: 0.5rem;
+          }
+          
+          /* Email subject and content better spacing */
+          .grid .bg-white .mb-2 {
+            margin-bottom: 0.75rem;
+          }
+          
+          /* Perfect card alignment */
+          .grid > .shadow-lg .bg-white {
+            border-radius: 0.5rem;
+            box-shadow: none;
+            border: 1px solid #e5e7eb;
           }
         }
       `}</style>
