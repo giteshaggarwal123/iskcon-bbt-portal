@@ -65,18 +65,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-3 sm:p-6">
+      <CardContent className="p-2 sm:p-6">
         {/* Day headers */}
         <div className="grid grid-cols-7 gap-1 mb-2">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
-              {day}
+            <div key={day} className="p-1 sm:p-2 text-center text-xs sm:text-sm font-medium text-gray-500">
+              <span className="hidden sm:inline">{day}</span>
+              <span className="sm:hidden">{day.charAt(0)}</span>
             </div>
           ))}
         </div>
         
-        {/* Calendar grid - Full desktop-like view for all devices */}
-        <div className="grid grid-cols-7 gap-1">
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
           {calendarDays.map(day => {
             const dayMeetings = getMeetingsForDay(day);
             const isCurrentMonth = isSameMonth(day, currentDate);
@@ -86,7 +87,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
               <div
                 key={day.toISOString()}
                 className={`
-                  min-h-[120px] p-2 border border-gray-200 relative group cursor-pointer
+                  min-h-[60px] sm:min-h-[120px] p-1 sm:p-2 border border-gray-200 relative group cursor-pointer
                   ${isCurrentMonth ? 'bg-white hover:bg-gray-50' : 'bg-gray-50'}
                   ${isDayToday ? 'ring-2 ring-primary' : ''}
                   transition-colors
@@ -95,16 +96,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
               >
                 {/* Date number */}
                 <div className={`
-                  text-sm font-medium mb-2 text-left
+                  text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-left
                   ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
                   ${isDayToday ? 'text-primary font-bold' : ''}
                 `}>
                   {format(day, 'd')}
                 </div>
 
-                {/* Add meeting button */}
+                {/* Add meeting button - Only show on desktop hover */}
                 {isCurrentMonth && onDateClick && (
-                  <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -119,40 +120,65 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
                   </div>
                 )}
                 
-                {/* Meetings - Display up to 3 meetings */}
-                <div className="space-y-1">
-                  {dayMeetings.slice(0, 3).map(meeting => (
-                    <div
-                      key={meeting.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onMeetingClick(meeting);
-                      }}
-                      className="text-xs p-1 rounded cursor-pointer hover:opacity-80 transition-opacity bg-primary/10 text-primary border border-primary/20"
-                    >
-                      <div className="flex items-center space-x-1 mb-1">
-                        {meeting.meeting_type === 'online' ? (
-                          <Video className="h-3 w-3 flex-shrink-0" />
-                        ) : (
-                          <Users className="h-3 w-3 flex-shrink-0" />
+                {/* Meetings - Mobile optimized display */}
+                <div className="space-y-0.5 sm:space-y-1">
+                  {/* Mobile: Show only dots for meetings */}
+                  <div className="sm:hidden">
+                    {dayMeetings.length > 0 && (
+                      <div className="flex flex-wrap gap-0.5">
+                        {dayMeetings.slice(0, 4).map((meeting, index) => (
+                          <div
+                            key={meeting.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onMeetingClick(meeting);
+                            }}
+                            className="w-2 h-2 rounded-full bg-primary cursor-pointer"
+                            title={meeting.title}
+                          />
+                        ))}
+                        {dayMeetings.length > 4 && (
+                          <div className="text-xs text-gray-500">+{dayMeetings.length - 4}</div>
                         )}
-                        <span className="truncate flex-1 text-xs font-medium">
-                          {meeting.title}
-                        </span>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <Clock className="h-3 w-3 flex-shrink-0" />
-                        <span className="text-xs">{format(new Date(meeting.start_time), 'HH:mm')}</span>
+                    )}
+                  </div>
+
+                  {/* Desktop: Show meeting details */}
+                  <div className="hidden sm:block">
+                    {dayMeetings.slice(0, 3).map(meeting => (
+                      <div
+                        key={meeting.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMeetingClick(meeting);
+                        }}
+                        className="text-xs p-1 rounded cursor-pointer hover:opacity-80 transition-opacity bg-primary/10 text-primary border border-primary/20"
+                      >
+                        <div className="flex items-center space-x-1 mb-1">
+                          {meeting.meeting_type === 'online' ? (
+                            <Video className="h-3 w-3 flex-shrink-0" />
+                          ) : (
+                            <Users className="h-3 w-3 flex-shrink-0" />
+                          )}
+                          <span className="truncate flex-1 text-xs font-medium">
+                            {meeting.title}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Clock className="h-3 w-3 flex-shrink-0" />
+                          <span className="text-xs">{format(new Date(meeting.start_time), 'HH:mm')}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                  
-                  {/* Show meeting count if more than 3 */}
-                  {dayMeetings.length > 3 && (
-                    <div className="text-xs text-gray-500 text-center bg-gray-100 rounded px-1 py-0.5">
-                      +{dayMeetings.length - 3} more
-                    </div>
-                  )}
+                    ))}
+                    
+                    {/* Show meeting count if more than 3 */}
+                    {dayMeetings.length > 3 && (
+                      <div className="text-xs text-gray-500 text-center bg-gray-100 rounded px-1 py-0.5">
+                        +{dayMeetings.length - 3} more
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -160,8 +186,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
         </div>
 
         {/* Instruction text */}
-        <div className="mt-4 text-sm text-gray-500 text-center">
-          Click on any date to create a meeting, or click on existing meetings to view details
+        <div className="mt-4 text-xs sm:text-sm text-gray-500 text-center">
+          <span className="hidden sm:inline">Click on any date to create a meeting, or click on existing meetings to view details</span>
+          <span className="sm:hidden">Tap dates to create meetings • Tap dots to view meeting details</span>
         </div>
       </CardContent>
     </Card>
