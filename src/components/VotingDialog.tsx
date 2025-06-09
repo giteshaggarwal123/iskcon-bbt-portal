@@ -190,22 +190,22 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
 
                 {/* Vote Options */}
                 <div className="space-y-3">
-                  <button
+                  <div
                     onClick={() => handleVoteSelection(currentQuestion.id, 'favor')}
-                    className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                    className={`w-full p-4 rounded-lg border-2 transition-all cursor-pointer ${
                       voteSelections[currentQuestion.id] === 'favor'
                         ? 'border-green-500 bg-green-50'
                         : 'border-border hover:border-green-300 hover:bg-green-50/50'
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                         voteSelections[currentQuestion.id] === 'favor'
                           ? 'border-green-500 bg-green-500'
                           : 'border-muted-foreground'
                       }`}>
                         {voteSelections[currentQuestion.id] === 'favor' && (
-                          <div className="w-2 h-2 rounded-full bg-white"></div>
+                          <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
                         )}
                       </div>
                       <CheckCircle className="h-5 w-5 text-green-600" />
@@ -214,24 +214,24 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                         <p className="text-sm text-green-600">I support this proposal</p>
                       </div>
                     </div>
-                  </button>
+                  </div>
 
-                  <button
+                  <div
                     onClick={() => handleVoteSelection(currentQuestion.id, 'against')}
-                    className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                    className={`w-full p-4 rounded-lg border-2 transition-all cursor-pointer ${
                       voteSelections[currentQuestion.id] === 'against'
                         ? 'border-red-500 bg-red-50'
                         : 'border-border hover:border-red-300 hover:bg-red-50/50'
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                         voteSelections[currentQuestion.id] === 'against'
                           ? 'border-red-500 bg-red-500'
                           : 'border-muted-foreground'
                       }`}>
                         {voteSelections[currentQuestion.id] === 'against' && (
-                          <div className="w-2 h-2 rounded-full bg-white"></div>
+                          <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
                         )}
                       </div>
                       <XCircle className="h-5 w-5 text-red-600" />
@@ -240,24 +240,24 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                         <p className="text-sm text-red-600">I oppose this proposal</p>
                       </div>
                     </div>
-                  </button>
+                  </div>
 
-                  <button
+                  <div
                     onClick={() => handleVoteSelection(currentQuestion.id, 'abstain')}
-                    className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                    className={`w-full p-4 rounded-lg border-2 transition-all cursor-pointer ${
                       voteSelections[currentQuestion.id] === 'abstain'
                         ? 'border-yellow-500 bg-yellow-50'
                         : 'border-border hover:border-yellow-300 hover:bg-yellow-50/50'
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                         voteSelections[currentQuestion.id] === 'abstain'
                           ? 'border-yellow-500 bg-yellow-500'
                           : 'border-muted-foreground'
                       }`}>
                         {voteSelections[currentQuestion.id] === 'abstain' && (
-                          <div className="w-2 h-2 rounded-full bg-white"></div>
+                          <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
                         )}
                       </div>
                       <MinusCircle className="h-5 w-5 text-yellow-600" />
@@ -266,7 +266,7 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                         <p className="text-sm text-yellow-600">I choose not to vote on this</p>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 </div>
 
                 {/* Navigation Buttons */}
