@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, File, Users, Settings, Mail, Clock, Check } from 'lucide-react';
+import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { SettingsModule } from './SettingsModule';
@@ -52,13 +51,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return children;
   };
 
-  // Mobile bottom navigation items
+  // Mobile bottom navigation items - Updated to show Home, Meeting, Docs, Attendance, and Voting
   const mobileNavItems = [
-    { id: 'dashboard', icon: Calendar, label: 'Home' },
-    { id: 'meetings', icon: Calendar, label: 'Meetings' },
+    { id: 'dashboard', icon: Home, label: 'Home' },
+    { id: 'meetings', icon: Calendar, label: 'Meeting' },
     { id: 'documents', icon: File, label: 'Docs' },
-    { id: 'members', icon: Users, label: 'Members' },
-    { id: 'settings', icon: Settings, label: 'Settings' }
+    { id: 'attendance', icon: UserCheck, label: 'Attendance' },
+    { id: 'voting', icon: Vote, label: 'Voting' }
   ];
 
   const handleMobileNavigation = (moduleId: string) => {
