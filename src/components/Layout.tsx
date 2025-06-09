@@ -133,7 +133,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentModule, onModul
     );
   }
 
-  // Desktop/Tablet Layout - Fixed with proper sidebar spacing
+  // Desktop/Tablet Layout - Fixed sidebar spacing issue
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Tablet sidebar overlay */}
@@ -152,14 +152,16 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentModule, onModul
       />
       
       <div className={`flex-1 flex flex-col transition-all duration-300 ${
-        sidebarOpen && window.innerWidth >= 1024 ? 'lg:ml-64' : 'ml-0'
+        sidebarOpen ? 'lg:ml-64' : 'ml-0'
       }`}>
         <Header 
           onMenuClick={() => setSidebarOpen(!sidebarOpen)}
           onProfileClick={handleProfileClick}
           onSettingsClick={handleSettingsClick}
         />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className={`flex-1 overflow-y-auto transition-all duration-300 ${
+          sidebarOpen ? 'p-4 lg:p-6' : 'p-4 lg:p-6'
+        }`}>
           {renderContent()}
         </main>
       </div>
