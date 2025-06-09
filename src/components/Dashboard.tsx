@@ -350,6 +350,90 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Mobile-specific responsive styles */}
+      <style>{`
+        @media (max-width: 767px) {
+          /* Dashboard container mobile fixes */
+          .space-y-8 {
+            max-width: 100vw;
+            overflow-x: hidden;
+            padding: 0 0.75rem;
+          }
+          
+          /* Header responsive */
+          .space-y-8 h1 {
+            font-size: 1.5rem;
+            line-height: 1.4;
+          }
+          
+          .space-y-8 p {
+            font-size: 0.875rem;
+          }
+          
+          /* Grid mobile adjustments */
+          .grid.grid-cols-1.lg\\:grid-cols-2 {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            width: 100%;
+            max-width: 100%;
+          }
+          
+          /* Card mobile responsive */
+          .grid > .shadow-lg {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            overflow: hidden;
+          }
+          
+          /* Card content mobile fixes */
+          .grid .bg-white.p-4 {
+            padding: 0.75rem;
+            margin: 0;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+          }
+          
+          /* Button spacing mobile */
+          .grid .flex.justify-between.items-start {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+          }
+          
+          .grid .shrink-0 {
+            flex-shrink: 0;
+            min-width: fit-content;
+          }
+          
+          /* Text truncation mobile */
+          .grid .truncate {
+            max-width: 60%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          
+          /* Card header mobile */
+          .grid .flex.items-center.space-x-3 {
+            max-width: 100%;
+            overflow: hidden;
+          }
+          
+          /* Responsive connection status */
+          .flex.justify-between.items-center {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+          }
+          
+          /* Better mobile spacing */
+          .space-y-8 > * + * {
+            margin-top: 1.5rem;
+          }
+        }
+      `}</style>
     </div>
   );
 };
