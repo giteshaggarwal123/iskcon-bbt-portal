@@ -133,7 +133,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentModule, onModul
     );
   }
 
-  // Desktop/Tablet Layout - Restored to previous clean version
+  // Desktop/Tablet Layout - Fixed with proper sidebar spacing
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Tablet sidebar overlay */}
@@ -159,7 +159,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentModule, onModul
           onProfileClick={handleProfileClick}
           onSettingsClick={handleSettingsClick}
         />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           {renderContent()}
         </main>
       </div>
