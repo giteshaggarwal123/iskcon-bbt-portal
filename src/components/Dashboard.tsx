@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +7,7 @@ import { useMeetings } from '@/hooks/useMeetings';
 import { useMembers } from '@/hooks/useMembers';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useEmails } from '@/hooks/useEmails';
+import { useAuth } from '@/hooks/useAuth';
 import { MicrosoftConnectionStatus } from './MicrosoftConnectionStatus';
 import { DocumentViewer } from './DocumentViewer';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +29,7 @@ export const Dashboard: React.FC = () => {
   const { meetings, loading: meetingsLoading } = useMeetings();
   const { documents, loading: documentsLoading } = useDocuments();
   const { emails, loading: emailsLoading } = useEmails();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   // Fetch active polls
@@ -121,7 +124,7 @@ export const Dashboard: React.FC = () => {
           <div className="space-y-2">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Bureau Dashboard</h1>
             <p className="text-sm sm:text-base text-muted-foreground">
-              Welcome back! Here's what's happening today.
+              Welcome back! @{user?.email?.split('@')[0] || 'user'} - Here's what's happening today.
             </p>
             
             {/* Microsoft Connection Status - Positioned cleanly */}
