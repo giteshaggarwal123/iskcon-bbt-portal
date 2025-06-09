@@ -133,7 +133,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentModule, onModul
     );
   }
 
-  // Desktop/Tablet Layout - Fixed sidebar spacing issue
+  // Desktop/Tablet Layout - Restored proper sidebar layout
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Tablet sidebar overlay */}
@@ -151,7 +151,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentModule, onModul
         onModuleChange={handleModuleChange}
       />
       
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${
+      {/* Main content area with proper sidebar spacing */}
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
         sidebarOpen ? 'lg:ml-64' : 'ml-0'
       }`}>
         <Header 
@@ -159,10 +160,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentModule, onModul
           onProfileClick={handleProfileClick}
           onSettingsClick={handleSettingsClick}
         />
-        <main className={`flex-1 overflow-y-auto transition-all duration-300 ${
-          sidebarOpen ? 'p-4 lg:p-6' : 'p-4 lg:p-6'
-        }`}>
-          {renderContent()}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <div className="max-w-full">
+            {renderContent()}
+          </div>
         </main>
       </div>
     </div>
