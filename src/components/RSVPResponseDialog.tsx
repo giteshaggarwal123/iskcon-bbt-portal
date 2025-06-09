@@ -54,7 +54,7 @@ export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({
           user_id,
           rsvp_response,
           rsvp_submitted_at,
-          profiles!meeting_attendees_user_id_fkey (
+          profiles (
             first_name,
             last_name,
             email
