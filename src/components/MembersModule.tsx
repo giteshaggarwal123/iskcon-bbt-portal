@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,131 +93,171 @@ export const MembersModule: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="w-full h-64 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Member Management</h1>
-            <p className="text-gray-600">Manage bureau members, roles, and permissions</p>
+    <div className="w-full max-w-full min-h-0 flex flex-col">
+      {/* Header Section - Mobile Optimized */}
+      <div className="w-full mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1 truncate">
+              Member Management
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Manage bureau members, roles, and permissions
+            </p>
           </div>
           {userRole.canManageMembers && (
-            <Button 
-              className="bg-primary hover:bg-primary/90"
-              onClick={() => setShowAddMemberDialog(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Member
-            </Button>
+            <div className="flex-shrink-0">
+              <Button 
+                className="w-full sm:w-auto h-10 sm:h-auto"
+                onClick={() => setShowAddMemberDialog(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                <span className="whitespace-nowrap">Add Member</span>
+              </Button>
+            </div>
           )}
         </div>
+      </div>
 
-        <Tabs defaultValue="members" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="members">Members ({members.length})</TabsTrigger>
-            <TabsTrigger value="roles">Roles & Permissions</TabsTrigger>
-          </TabsList>
+      {/* Tabs Section - Mobile Optimized */}
+      <div className="w-full flex-1 min-h-0">
+        <Tabs defaultValue="members" className="w-full h-full flex flex-col">
+          <div className="w-full mb-6">
+            <TabsList className="w-full grid grid-cols-2 h-10">
+              <TabsTrigger value="members" className="text-xs sm:text-sm truncate">
+                Members ({members.length})
+              </TabsTrigger>
+              <TabsTrigger value="roles" className="text-xs sm:text-sm truncate">
+                Roles & Permissions
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value="members" className="space-y-6">
-            <div className="flex space-x-4 mb-6">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search members by name, email, phone, or role..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+          {/* Members Tab */}
+          <TabsContent value="members" className="w-full flex-1 min-h-0 mt-0">
+            {/* Search and Export Section */}
+            <div className="w-full mb-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <Input
+                      placeholder="Search members by name, email, phone, or role..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 h-10"
+                    />
+                  </div>
                 </div>
-              </div>
-              {userRole.canManageMembers && (
-                <Button variant="outline" onClick={handleExportMembers}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Export List
-                </Button>
-              )}
-            </div>
-
-            <div className="grid gap-6">
-              {filteredMembers.map((member) => (
-                <MemberCard 
-                  key={member.id} 
-                  member={member} 
-                  onRoleChange={(memberId, newRole) => {
-                    updateMemberRole(memberId, newRole);
-                  }}
-                  onDeleteMember={(memberId) => {
-                    deleteMember(memberId);
-                  }}
-                  onSuspendMember={(memberId, suspend) => {
-                    if (suspendMember) {
-                      suspendMember(memberId, suspend);
-                    }
-                  }}
-                  onResetPassword={(memberId) => {
-                    if (resetPassword) {
-                      resetPassword(memberId);
-                    }
-                  }}
-                  onMemberUpdated={handleMemberUpdated}
-                />
-              ))}
-            </div>
-
-            {filteredMembers.length === 0 && (
-              <div className="text-center py-12">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {searchTerm ? 'No members found' : 'No members yet'}
-                </h3>
-                <p className="text-gray-500 mb-4">
-                  {searchTerm 
-                    ? 'Try adjusting your search criteria'
-                    : 'Get started by adding your first member'
-                  }
-                </p>
-                {!searchTerm && userRole.canManageMembers && (
-                  <Button onClick={() => setShowAddMemberDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Member
-                  </Button>
+                {userRole.canManageMembers && (
+                  <div className="flex-shrink-0">
+                    <Button 
+                      variant="outline" 
+                      onClick={handleExportMembers}
+                      className="w-full sm:w-auto h-10"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      <span className="whitespace-nowrap">Export List</span>
+                    </Button>
+                  </div>
                 )}
               </div>
-            )}
+            </div>
+
+            {/* Members List */}
+            <div className="w-full">
+              {filteredMembers.length === 0 ? (
+                <Card className="w-full">
+                  <CardContent className="p-6 sm:p-8 text-center">
+                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">
+                      {searchTerm ? 'No members found' : 'No members yet'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {searchTerm 
+                        ? 'Try adjusting your search criteria'
+                        : 'Get started by adding your first member'
+                      }
+                    </p>
+                    {!searchTerm && userRole.canManageMembers && (
+                      <Button onClick={() => setShowAddMemberDialog(true)} className="w-full sm:w-auto">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Member
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="w-full space-y-4 sm:space-y-6">
+                  {filteredMembers.map((member) => (
+                    <MemberCard 
+                      key={member.id} 
+                      member={member} 
+                      onRoleChange={(memberId, newRole) => {
+                        updateMemberRole(memberId, newRole);
+                      }}
+                      onDeleteMember={(memberId) => {
+                        deleteMember(memberId);
+                      }}
+                      onSuspendMember={(memberId, suspend) => {
+                        if (suspendMember) {
+                          suspendMember(memberId, suspend);
+                        }
+                      }}
+                      onResetPassword={(memberId) => {
+                        if (resetPassword) {
+                          resetPassword(memberId);
+                        }
+                      }}
+                      onMemberUpdated={handleMemberUpdated}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </TabsContent>
 
-          <TabsContent value="roles" className="space-y-6">
-            <div className="grid gap-6">
+          {/* Roles Tab */}
+          <TabsContent value="roles" className="w-full flex-1 min-h-0 mt-0">
+            <div className="w-full space-y-4 sm:space-y-6">
               {roles.map((role, index) => (
-                <Card key={index} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-xl">{role.name}</CardTitle>
-                        <CardDescription className="mt-2">{role.description}</CardDescription>
+                <Card key={index} className="w-full hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-lg sm:text-xl mb-2 leading-tight">
+                          {role.name}
+                        </CardTitle>
+                        <CardDescription className="text-sm leading-relaxed">
+                          {role.description}
+                        </CardDescription>
                       </div>
-                      <Badge className="bg-primary text-white">{role.memberCount} members</Badge>
+                      <div className="flex-shrink-0">
+                        <Badge className="bg-primary text-primary-foreground text-xs">
+                          {role.memberCount} member{role.memberCount !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="font-semibold mb-2 flex items-center">
-                          <Shield className="h-4 w-4 mr-2" />
-                          Permissions
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {role.permissions.map((permission, idx) => (
-                            <Badge key={idx} variant="secondary">{permission}</Badge>
-                          ))}
-                        </div>
+                  <CardContent className="pt-0">
+                    <div>
+                      <h4 className="font-semibold mb-3 flex items-center text-sm">
+                        <Shield className="h-4 w-4 mr-2 flex-shrink-0" />
+                        Permissions
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {role.permissions.map((permission, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs">
+                            {permission}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                   </CardContent>
@@ -237,6 +278,6 @@ export const MembersModule: React.FC = () => {
           }}
         />
       )}
-    </>
+    </div>
   );
 };
