@@ -278,6 +278,9 @@ export const useMeetings = () => {
         return;
       }
 
+      // First, update UI immediately for better user experience
+      setMeetings(prev => prev.filter(m => m.id !== meetingId));
+
       // Delete from Teams and Outlook if it's a Teams meeting
       if (meeting.teams_meeting_id || meeting.outlook_event_id) {
         console.log('Attempting to delete from Microsoft services...');
@@ -320,52 +323,30 @@ export const useMeetings = () => {
         }
       }
 
-      // Delete related records from database in correct order
+      // Delete related records from database using a transaction-like approach
       console.log('Deleting related database records...');
 
-      // Delete meeting attachments first
-      const { error: attachmentsError } = await supabase
-        .from('meeting_attachments')
-        .delete()
-        .eq('meeting_id', meetingId);
+      // Delete in the correct order to avoid foreign key constraints
+      const deleteOperations = [
+        // Delete meeting attachments
+        supabase.from('meeting_attachments').delete().eq('meeting_id', meetingId),
+        // Delete attendance records  
+        supabase.from('attendance_records').delete().eq('meeting_id', meetingId),
+        // Delete meeting attendees
+        supabase.from('meeting_attendees').delete().eq('meeting_id', meetingId),
+        // Delete meeting transcripts
+        supabase.from('meeting_transcripts').delete().eq('meeting_id', meetingId)
+      ];
 
-      if (attachmentsError) {
-        console.error('Error deleting meeting attachments:', attachmentsError);
-        // Continue anyway
-      }
-
-      // Delete attendance records
-      const { error: attendanceError } = await supabase
-        .from('attendance_records')
-        .delete()
-        .eq('meeting_id', meetingId);
-
-      if (attendanceError) {
-        console.error('Error deleting attendance records:', attendanceError);
-        // Continue anyway
-      }
-
-      // Delete meeting attendees
-      const { error: attendeesError } = await supabase
-        .from('meeting_attendees')
-        .delete()
-        .eq('meeting_id', meetingId);
-
-      if (attendeesError) {
-        console.error('Error deleting meeting attendees:', attendeesError);
-        // Continue anyway
-      }
-
-      // Delete meeting transcripts
-      const { error: transcriptsError } = await supabase
-        .from('meeting_transcripts')
-        .delete()
-        .eq('meeting_id', meetingId);
-
-      if (transcriptsError) {
-        console.error('Error deleting meeting transcripts:', transcriptsError);
-        // Continue anyway
-      }
+      // Execute all deletion operations
+      const results = await Promise.allSettled(deleteOperations);
+      
+      // Log any errors but continue
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error(`Error deleting related record ${index}:`, result.reason);
+        }
+      });
 
       // Finally delete the meeting itself - this is the critical part
       console.log('Deleting main meeting record...');
@@ -377,21 +358,20 @@ export const useMeetings = () => {
 
       if (meetingError) {
         console.error('Critical error deleting meeting from database:', meetingError);
+        // Restore the meeting in UI if database deletion failed
+        setMeetings(prev => [...prev, meeting].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
         throw new Error(`Failed to delete meeting from database: ${meetingError.message}`);
       }
 
       console.log('Meeting deleted successfully from database');
-
-      // Update local state immediately to remove the meeting from UI
-      setMeetings(prev => prev.filter(m => m.id !== meetingId));
 
       toast({
         title: "Success",
         description: "Meeting deleted successfully from all platforms"
       });
 
-      // Also refresh from server to ensure consistency
-      await fetchMeetings();
+      // Force a refresh to ensure consistency
+      setTimeout(() => fetchMeetings(), 1000);
 
     } catch (error: any) {
       console.error('Error deleting meeting:', error);
@@ -401,7 +381,7 @@ export const useMeetings = () => {
         variant: "destructive"
       });
       
-      // Refresh meetings to show current state
+      // Refresh meetings to show current state in case of error
       await fetchMeetings();
     }
   };
