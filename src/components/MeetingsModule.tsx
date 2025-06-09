@@ -13,7 +13,7 @@ import { CalendarView } from './CalendarView';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, compareAsc, compareDesc } from 'date-fns';
-import { useUserRole } from '@/hooks/use-user-role';
+import { useUserRole } from '@/hooks/useUserRole';
 
 export const MeetingsModule: React.FC = () => {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
