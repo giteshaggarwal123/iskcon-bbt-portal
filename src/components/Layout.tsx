@@ -87,7 +87,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex w-full">
       {/* Mobile sidebar overlay */}
       {isMobile && sidebarOpen && (
         <div 
@@ -114,8 +114,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         }}
       />
       
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${
-        !isMobile && sidebarOpen ? 'ml-64' : 'ml-0'
+      <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${
+        !isMobile && sidebarOpen ? 'ml-0' : 'ml-0'
       }`}>
         <Header 
           onMenuClick={() => setSidebarOpen(!sidebarOpen)}
@@ -123,10 +123,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           onSettingsClick={handleSettingsClick}
           onNavigate={handleNavigateFromNotification}
         />
-        <main className={`flex-1 p-4 lg:p-6 overflow-y-auto ${
-          isMobile ? 'pb-20' : ''
+        <main className={`flex-1 w-full min-w-0 overflow-x-hidden ${
+          isMobile ? 'p-2 pb-20' : 'p-4 lg:p-6'
         }`}>
-          {renderContent()}
+          <div className="w-full max-w-none">
+            {renderContent()}
+          </div>
         </main>
         
         {/* Mobile Bottom Navigation Bar */}
@@ -159,6 +161,27 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </div>
 
       <style>{`
+        /* Desktop styles - ensure full width usage */
+        @media (min-width: 768px) {
+          /* Ensure main content uses full available width */
+          main {
+            width: 100%;
+            max-width: 100%;
+          }
+          
+          /* Remove any artificial constraints */
+          main > div {
+            width: 100%;
+            max-width: 100%;
+          }
+          
+          /* Ensure flex containers expand properly */
+          .flex-1 {
+            min-width: 0;
+            width: 100%;
+          }
+        }
+        
         /* Mobile-only styles */
         @media (max-width: 767px) {
           /* Ensure proper touch targets */
@@ -175,9 +198,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           
           /* Prevent content from going under bottom nav */
           main {
-            padding-bottom: 5rem !important;
-            padding-left: 0.75rem !important;
-            padding-right: 0.75rem !important;
             max-width: 100vw;
             overflow-x: hidden;
           }
@@ -236,12 +256,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             overflow-x: hidden;
           }
 
-          /* Ensure flex containers don't overflow */
-          .flex-1 {
-            min-width: 0;
-            max-width: 100%;
-          }
-
           /* Prevent horizontal scroll in bottom navigation */
           .fixed.bottom-0 {
             width: 100vw;
@@ -254,16 +268,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             max-width: 100%;
             overflow-x: hidden;
           }
-        }
-        
-        /* Tablet responsive (768px - 1023px) - Same as desktop */
-        @media (min-width: 768px) and (max-width: 1023px) {
-          /* Tablet uses same layout as desktop, no bottom nav */
-        }
-        
-        /* Desktop (1024px+) - No changes needed */
-        @media (min-width: 1024px) {
-          /* Desktop layout remains unchanged */
         }
       `}</style>
     </div>
