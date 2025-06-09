@@ -199,18 +199,18 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({ onAvatarUpdate }
   };
 
   return (
-    <div className="w-full max-w-full min-h-0 flex flex-col">
-      {/* Header Section - Mobile Optimized */}
-      <div className="w-full mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+      <div className="space-y-4 sm:space-y-6">
+        {/* Header Section - Mobile Optimized */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1 truncate">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground break-words">
               Settings
             </h1>
-            <p className="text-sm sm:text-base text-muted-foreground mb-2">
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">
               Manage your account settings and preferences
             </p>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 mt-2">
               <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <span className="text-xs sm:text-sm text-muted-foreground">
                 Your role: <strong>{userRole.userRole?.replace('_', ' ') || 'Member'}</strong>
@@ -257,152 +257,142 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({ onAvatarUpdate }
             </Dialog>
           </div>
         </div>
-      </div>
 
-      {/* Tabs Section - Mobile Optimized */}
-      <div className="w-full flex-1 min-h-0">
-        <Tabs defaultValue="personal" className="w-full h-full flex flex-col">
-          <div className="w-full mb-6">
-            <TabsList className="w-full grid grid-cols-3 h-10">
-              <TabsTrigger value="personal" className="text-xs sm:text-sm truncate">
-                Personal
-              </TabsTrigger>
-              <TabsTrigger value="notifications" className="text-xs sm:text-sm truncate">
-                Notifications
-              </TabsTrigger>
-              <TabsTrigger value="integrations" className="text-xs sm:text-sm truncate">
-                Integrations
-              </TabsTrigger>
-            </TabsList>
-          </div>
+        {/* Tabs Section - Mobile Optimized */}
+        <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
+          <TabsList className="w-full grid grid-cols-2 h-10">
+            <TabsTrigger value="profile" className="text-xs sm:text-sm truncate">
+              Profile & Account
+            </TabsTrigger>
+            <TabsTrigger value="integrations" className="text-xs sm:text-sm truncate">
+              Integrations
+            </TabsTrigger>
+          </TabsList>
 
-          <TabsContent value="personal" className="w-full flex-1 min-h-0 mt-0">
-            <div className="w-full space-y-4 sm:space-y-6">
-              {/* Profile Image Section */}
-              <Card className="w-full">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg sm:text-xl flex items-center space-x-2">
-                    <Camera className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                    <span>Profile Image</span>
-                  </CardTitle>
-                  <CardDescription className="text-sm">
-                    Upload your profile picture (PNG, JPEG only, max 5MB)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <ProfileImageUpload 
-                    currentImageUrl={personalInfo.avatar_url}
-                    onImageUpdate={handleImageUpdate}
-                  />
-                </CardContent>
-              </Card>
+          <TabsContent value="profile" className="space-y-4 sm:space-y-6 mt-0">
+            {/* Profile Image Section */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg sm:text-xl flex items-center space-x-2">
+                  <Camera className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                  <span>Profile Image</span>
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Upload your profile picture (PNG, JPEG only, max 5MB)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <ProfileImageUpload 
+                  currentImageUrl={personalInfo.avatar_url}
+                  onImageUpdate={handleImageUpdate}
+                />
+              </CardContent>
+            </Card>
 
-              {/* Personal Information Section */}
-              <Card className="w-full">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg sm:text-xl flex items-center space-x-2">
-                    <User className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                    <span>Personal Information</span>
-                  </CardTitle>
-                  <CardDescription className="text-sm">
-                    Update your personal details and contact information
-                    {!canEditPersonalInfo && !canEditPhone && (
-                      <div className="flex items-start space-x-2 mt-2 p-2 bg-amber-50 rounded-md">
-                        <Lock className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-xs text-amber-700">
-                          Contact an administrator to modify your personal information
-                        </span>
+            {/* Personal Information Section */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg sm:text-xl flex items-center space-x-2">
+                  <User className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                  <span>Personal Information</span>
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Update your personal details and contact information
+                  {!canEditPersonalInfo && !canEditPhone && (
+                    <div className="flex items-start space-x-2 mt-2 p-2 bg-amber-50 rounded-md">
+                      <Lock className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <span className="text-xs text-amber-700">
+                        Contact an administrator to modify your personal information
+                      </span>
+                    </div>
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="firstName" className="text-sm">First Name</Label>
+                        {getPermissionBadge(canEditPersonalInfo)}
                       </div>
-                    )}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="firstName" className="text-sm">First Name</Label>
-                          {getPermissionBadge(canEditPersonalInfo)}
-                        </div>
-                        <Input
-                          id="firstName"
-                          value={personalInfo.first_name}
-                          onChange={(e) => canEditPersonalInfo && setPersonalInfo(prev => ({ ...prev, first_name: e.target.value }))}
-                          placeholder="Enter your first name"
-                          readOnly={!canEditPersonalInfo}
-                          className={`h-10 ${!canEditPersonalInfo ? "bg-muted cursor-not-allowed" : ""}`}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="lastName" className="text-sm">Last Name</Label>
-                          {getPermissionBadge(canEditPersonalInfo)}
-                        </div>
-                        <Input
-                          id="lastName"
-                          value={personalInfo.last_name}
-                          onChange={(e) => canEditPersonalInfo && setPersonalInfo(prev => ({ ...prev, last_name: e.target.value }))}
-                          placeholder="Enter your last name"
-                          readOnly={!canEditPersonalInfo}
-                          className={`h-10 ${!canEditPersonalInfo ? "bg-muted cursor-not-allowed" : ""}`}
-                        />
-                      </div>
+                      <Input
+                        id="firstName"
+                        value={personalInfo.first_name}
+                        onChange={(e) => canEditPersonalInfo && setPersonalInfo(prev => ({ ...prev, first_name: e.target.value }))}
+                        placeholder="Enter your first name"
+                        readOnly={!canEditPersonalInfo}
+                        className={`h-10 ${!canEditPersonalInfo ? "bg-muted cursor-not-allowed" : ""}`}
+                      />
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="email" className="text-sm">Email Address</Label>
-                        {getPermissionBadge(canEditEmail)}
+                        <Label htmlFor="lastName" className="text-sm">Last Name</Label>
+                        {getPermissionBadge(canEditPersonalInfo)}
                       </div>
                       <Input
-                        id="email"
-                        type="email"
-                        value={personalInfo.email}
-                        readOnly
-                        className="h-10 bg-muted cursor-not-allowed"
-                        placeholder="Enter your email address"
+                        id="lastName"
+                        value={personalInfo.last_name}
+                        onChange={(e) => canEditPersonalInfo && setPersonalInfo(prev => ({ ...prev, last_name: e.target.value }))}
+                        placeholder="Enter your last name"
+                        readOnly={!canEditPersonalInfo}
+                        className={`h-10 ${!canEditPersonalInfo ? "bg-muted cursor-not-allowed" : ""}`}
                       />
-                      <p className="text-xs text-muted-foreground">Email cannot be changed for security reasons</p>
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="phone" className="text-sm">Phone Number</Label>
-                        {getPermissionBadge(canEditPhone)}
-                      </div>
-                      <Input
-                        id="phone"
-                        value={personalInfo.phone}
-                        onChange={(e) => canEditPhone && setPersonalInfo(prev => ({ ...prev, phone: e.target.value }))}
-                        placeholder="Enter your phone number"
-                        readOnly={!canEditPhone}
-                        className={`h-10 ${!canEditPhone ? "bg-muted cursor-not-allowed" : ""}`}
-                      />
-                      {!canEditPhone && (
-                        <p className="text-xs text-muted-foreground">
-                          Phone number can only be changed by administrators
-                        </p>
-                      )}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="email" className="text-sm">Email Address</Label>
+                      {getPermissionBadge(canEditEmail)}
                     </div>
-                    <Button 
-                      onClick={updatePersonalInfo} 
-                      disabled={loading || (!canEditPersonalInfo && !canEditPhone)} 
-                      className="w-full h-10"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      {loading ? 'Saving...' : 'Save Changes'}
-                    </Button>
-                    {(!canEditPersonalInfo && !canEditPhone) && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        You don't have permission to edit personal information. Contact an administrator for changes.
+                    <Input
+                      id="email"
+                      type="email"
+                      value={personalInfo.email}
+                      readOnly
+                      className="h-10 bg-muted cursor-not-allowed"
+                      placeholder="Enter your email address"
+                    />
+                    <p className="text-xs text-muted-foreground">Email cannot be changed for security reasons</p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="phone" className="text-sm">Phone Number</Label>
+                      {getPermissionBadge(canEditPhone)}
+                    </div>
+                    <Input
+                      id="phone"
+                      value={personalInfo.phone}
+                      onChange={(e) => canEditPhone && setPersonalInfo(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="Enter your phone number"
+                      readOnly={!canEditPhone}
+                      className={`h-10 ${!canEditPhone ? "bg-muted cursor-not-allowed" : ""}`}
+                    />
+                    {!canEditPhone && (
+                      <p className="text-xs text-muted-foreground">
+                        Phone number can only be changed by administrators
                       </p>
                     )}
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                  <Button 
+                    onClick={updatePersonalInfo} 
+                    disabled={loading || (!canEditPersonalInfo && !canEditPhone)} 
+                    className="w-full h-10"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {loading ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                  {(!canEditPersonalInfo && !canEditPhone) && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      You don't have permission to edit personal information. Contact an administrator for changes.
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-          <TabsContent value="notifications" className="w-full flex-1 min-h-0 mt-0">
-            <Card className="w-full">
+            {/* Notification Preferences Section */}
+            <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg sm:text-xl flex items-center space-x-2">
                   <Bell className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
@@ -469,8 +459,8 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({ onAvatarUpdate }
             </Card>
           </TabsContent>
 
-          <TabsContent value="integrations" className="w-full flex-1 min-h-0 mt-0">
-            <Card className="w-full">
+          <TabsContent value="integrations" className="mt-0">
+            <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg sm:text-xl flex items-center space-x-2">
                   <Settings className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
