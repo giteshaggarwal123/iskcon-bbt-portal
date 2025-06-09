@@ -97,9 +97,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentModule, onModul
           onModuleChange={handleModuleChange}
         />
         
-        {/* Main Content with proper mobile padding and spacing */}
+        {/* Main Content with consistent mobile padding */}
         <main className="flex-1 pb-20 overflow-y-auto">
-          <div className="w-full min-h-full">
+          <div className="w-full min-h-full px-4 py-4">
             {renderContent()}
           </div>
         </main>
@@ -160,7 +160,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentModule, onModul
           onSettingsClick={handleSettingsClick}
         />
         <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
-          {renderContent()}
+          <div className="w-full max-w-full">
+            {renderContent()}
+          </div>
         </main>
       </div>
     </div>

@@ -49,32 +49,34 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+      <header className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
+        <div className="flex items-center justify-between w-full max-w-full">
+          <div className="flex items-center space-x-4 min-w-0 flex-1">
             {onMenuClick && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={onMenuClick}
-                className="lg:hidden"
+                className="lg:hidden flex-shrink-0"
               >
                 <Menu className="h-4 w-4" />
               </Button>
             )}
-            {!isMobile && (
-              <h1 className="text-xl font-semibold text-gray-900">
-                ISKCON Bureau Portal
-              </h1>
-            )}
-            {isMobile && (
-              <h1 className="text-lg font-semibold text-gray-900">
-                ISKCON Bureau Portal
-              </h1>
-            )}
+            <div className="min-w-0 flex-1">
+              {!isMobile && (
+                <h1 className="text-xl font-semibold text-gray-900 truncate">
+                  ISKCON Bureau Portal
+                </h1>
+              )}
+              {isMobile && (
+                <h1 className="text-lg font-semibold text-gray-900 truncate">
+                  ISKCON Bureau Portal
+                </h1>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-shrink-0">
             {/* Notifications - Dynamic count only shows when there are unread notifications */}
             <Button
               variant="ghost"
