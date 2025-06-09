@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -244,38 +245,74 @@ export const useMeetings = () => {
   };
 
   const deleteMeeting = async (meetingId: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to delete meetings",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
+      console.log('Starting deletion process for meeting:', meetingId);
+      
       const meeting = meetings.find(m => m.id === meetingId);
-      if (!meeting) return;
+      if (!meeting) {
+        toast({
+          title: "Meeting Not Found",
+          description: "The meeting you're trying to delete was not found",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('Found meeting to delete:', meeting);
+
+      // Check if user has permission to delete this meeting
+      if (meeting.created_by !== user.id) {
+        toast({
+          title: "Permission Denied",
+          description: "You can only delete meetings you created",
+          variant: "destructive"
+        });
+        return;
+      }
 
       // Delete from Teams and Outlook if it's a Teams meeting
       if (meeting.teams_meeting_id || meeting.outlook_event_id) {
+        console.log('Attempting to delete from Microsoft services...');
+        
         const { data: profile } = await supabase
           .from('profiles')
           .select('microsoft_access_token')
-          .eq('id', user?.id)
-          .single();
+          .eq('id', user.id)
+          .maybeSingle();
 
         if (profile?.microsoft_access_token) {
           try {
             // Delete Teams meeting
             if (meeting.teams_meeting_id) {
-              await fetch(`https://graph.microsoft.com/v1.0/me/onlineMeetings/${meeting.teams_meeting_id}`, {
+              console.log('Deleting Teams meeting:', meeting.teams_meeting_id);
+              const teamsResponse = await fetch(`https://graph.microsoft.com/v1.0/me/onlineMeetings/${meeting.teams_meeting_id}`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${profile.microsoft_access_token}`,
                 }
               });
+              console.log('Teams deletion response:', teamsResponse.status);
             }
 
             // Delete Outlook calendar event
             if (meeting.outlook_event_id) {
-              await fetch(`https://graph.microsoft.com/v1.0/me/events/${meeting.outlook_event_id}`, {
+              console.log('Deleting Outlook event:', meeting.outlook_event_id);
+              const outlookResponse = await fetch(`https://graph.microsoft.com/v1.0/me/events/${meeting.outlook_event_id}`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${profile.microsoft_access_token}`,
                 }
               });
+              console.log('Outlook deletion response:', outlookResponse.status);
             }
           } catch (graphError) {
             console.error('Error deleting from Microsoft services:', graphError);
@@ -284,36 +321,71 @@ export const useMeetings = () => {
         }
       }
 
-      // Delete related records from database
-      await supabase
+      // Delete related records from database in correct order
+      console.log('Deleting related database records...');
+
+      // Delete meeting attachments first
+      const { error: attachmentsError } = await supabase
+        .from('meeting_attachments')
+        .delete()
+        .eq('meeting_id', meetingId);
+
+      if (attachmentsError) {
+        console.error('Error deleting meeting attachments:', attachmentsError);
+      }
+
+      // Delete attendance records
+      const { error: attendanceError } = await supabase
         .from('attendance_records')
         .delete()
         .eq('meeting_id', meetingId);
 
-      await supabase
+      if (attendanceError) {
+        console.error('Error deleting attendance records:', attendanceError);
+      }
+
+      // Delete meeting attendees
+      const { error: attendeesError } = await supabase
         .from('meeting_attendees')
         .delete()
         .eq('meeting_id', meetingId);
 
-      await supabase
+      if (attendeesError) {
+        console.error('Error deleting meeting attendees:', attendeesError);
+      }
+
+      // Delete meeting transcripts
+      const { error: transcriptsError } = await supabase
         .from('meeting_transcripts')
         .delete()
         .eq('meeting_id', meetingId);
 
-      // Delete the meeting
-      const { error } = await supabase
+      if (transcriptsError) {
+        console.error('Error deleting meeting transcripts:', transcriptsError);
+      }
+
+      // Finally delete the meeting itself
+      console.log('Deleting main meeting record...');
+      const { error: meetingError } = await supabase
         .from('meetings')
         .delete()
-        .eq('id', meetingId);
+        .eq('id', meetingId)
+        .eq('created_by', user.id); // Extra security check
 
-      if (error) throw error;
+      if (meetingError) {
+        console.error('Error deleting meeting:', meetingError);
+        throw meetingError;
+      }
+
+      console.log('Meeting deleted successfully');
 
       toast({
         title: "Success",
-        description: "Meeting deleted successfully from all platforms"
+        description: "Meeting deleted successfully"
       });
 
-      // The realtime subscription will handle the UI update automatically
+      // Refresh meetings list
+      await fetchMeetings();
 
     } catch (error: any) {
       console.error('Error deleting meeting:', error);
