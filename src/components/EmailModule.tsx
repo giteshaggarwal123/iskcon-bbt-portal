@@ -6,12 +6,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Mail, Paperclip, Search, RefreshCw, ExternalLink, Circle } from 'lucide-react';
 import { useEmails } from '@/hooks/useEmails';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 export const EmailModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const { emails, loading, fetchEmails, markAsRead } = useEmails();
-  const isMobile = useIsMobile();
 
   const filteredEmails = emails.filter(email => 
     email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -55,16 +53,16 @@ export const EmailModule: React.FC = () => {
   };
 
   return (
-    <div className={`w-full mx-auto space-y-6 ${isMobile ? 'p-4' : 'max-w-7xl p-6'}`}>
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header Section */}
       <div className="flex flex-col space-y-2">
-        <h1 className={`font-semibold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>Email</h1>
-        <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>Manage your communications</p>
+        <h1 className="text-2xl font-semibold text-gray-900">Email</h1>
+        <p className="text-sm text-gray-600">Manage your communications</p>
       </div>
 
       {/* Search and Actions Bar */}
-      <div className={`flex ${isMobile ? 'flex-col' : 'flex-col sm:flex-row'} gap-4 items-start sm:items-center`}>
-        <div className={`${isMobile ? 'w-full' : 'flex-1 max-w-md'}`}>
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <div className="flex-1 max-w-md">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
@@ -79,8 +77,7 @@ export const EmailModule: React.FC = () => {
           variant="outline" 
           onClick={fetchEmails} 
           disabled={loading}
-          className={`flex items-center gap-2 border-gray-300 hover:bg-gray-50 ${isMobile ? 'w-full' : ''}`}
-          size={isMobile ? "sm" : "default"}
+          className="flex items-center gap-2 border-gray-300 hover:bg-gray-50"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh
@@ -90,10 +87,10 @@ export const EmailModule: React.FC = () => {
       {/* Email List */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         {loading ? (
-          <div className={`flex items-center justify-center ${isMobile ? 'py-12' : 'py-16'}`}>
+          <div className="flex items-center justify-center py-16">
             <div className="flex flex-col items-center space-y-4">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <p className={`text-gray-500 ${isMobile ? 'text-sm' : 'text-sm'}`}>Loading emails...</p>
+              <p className="text-sm text-gray-500">Loading emails...</p>
             </div>
           </div>
         ) : filteredEmails.length > 0 ? (
@@ -106,10 +103,10 @@ export const EmailModule: React.FC = () => {
                 }`}
                 onClick={() => markAsRead(email.id)}
               >
-                <div className={`${isMobile ? 'px-4 py-3' : 'px-6 py-4'}`}>
-                  <div className={`flex items-start ${isMobile ? 'gap-2' : 'justify-between gap-4'}`}>
+                <div className="px-6 py-4">
+                  <div className="flex items-start justify-between gap-4">
                     {/* Left side - Email content */}
-                    <div className={`flex items-start flex-1 min-w-0 ${isMobile ? 'gap-2' : 'gap-3'}`}>
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
                       {/* Unread indicator */}
                       {!email.isRead && (
                         <Circle className="h-2 w-2 fill-blue-500 text-blue-500 mt-2 flex-shrink-0" />
@@ -117,10 +114,10 @@ export const EmailModule: React.FC = () => {
                       
                       {/* Email details */}
                       <div className="flex-1 min-w-0">
-                        <div className={`flex items-center gap-2 ${isMobile ? 'mb-1' : 'mb-1'}`}>
-                          <span className={`truncate ${
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-sm truncate ${
                             !email.isRead ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'
-                          } ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                          }`}>
                             {email.from.name}
                           </span>
                           {email.hasAttachments && (
@@ -129,24 +126,24 @@ export const EmailModule: React.FC = () => {
                           {getImportanceBadge(email.importance)}
                         </div>
                         
-                        <div className={isMobile ? 'mb-1' : 'mb-1'}>
-                          <span className={`${
+                        <div className="mb-1">
+                          <span className={`text-sm ${
                             !email.isRead ? 'font-semibold text-gray-900' : 'text-gray-700'
-                          } line-clamp-1 ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                          } line-clamp-1`}>
                             {email.subject || 'No Subject'}
                           </span>
                         </div>
                         
-                        <p className={`text-gray-600 line-clamp-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                          {email.body.replace(/<[^>]*>/g, '').substring(0, isMobile ? 60 : 100)}
-                          {email.body.replace(/<[^>]*>/g, '').length > (isMobile ? 60 : 100) ? '...' : ''}
+                        <p className="text-sm text-gray-600 line-clamp-1">
+                          {email.body.replace(/<[^>]*>/g, '').substring(0, 100)}
+                          {email.body.replace(/<[^>]*>/g, '').length > 100 ? '...' : ''}
                         </p>
                       </div>
                     </div>
 
                     {/* Right side - Date and actions */}
-                    <div className={`flex ${isMobile ? 'flex-col items-end' : 'items-center'} gap-2 flex-shrink-0`}>
-                      <span className={`text-gray-500 min-w-fit ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="text-xs text-gray-500 min-w-fit">
                         {formatDate(email.receivedDateTime)}
                       </span>
                       
@@ -157,12 +154,10 @@ export const EmailModule: React.FC = () => {
                           e.stopPropagation();
                           handleOpenInOutlook(email);
                         }}
-                        className={`transition-opacity text-blue-600 hover:bg-blue-100 ${
-                          isMobile ? 'opacity-100 h-6 px-2 text-xs' : 'opacity-0 group-hover:opacity-100 h-8 px-3'
-                        }`}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity h-8 px-3 text-blue-600 hover:bg-blue-100"
                       >
-                        <ExternalLink className={`${isMobile ? 'h-3 w-3' : 'h-3 w-3 mr-1'}`} />
-                        {!isMobile && 'Open'}
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Open
                       </Button>
                     </div>
                   </div>
@@ -171,18 +166,16 @@ export const EmailModule: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className={`text-center ${isMobile ? 'py-12' : 'py-16'}`}>
+          <div className="text-center py-16">
             <div className="flex flex-col items-center space-y-4">
-              <div className={`bg-gray-100 rounded-full flex items-center justify-center ${
-                isMobile ? 'w-12 h-12' : 'w-16 h-16'
-              }`}>
-                <Mail className={`text-gray-400 ${isMobile ? 'h-6 w-6' : 'h-8 w-8'}`} />
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                <Mail className="h-8 w-8 text-gray-400" />
               </div>
               <div className="space-y-2">
-                <h3 className={`font-medium text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>
+                <h3 className="text-lg font-medium text-gray-900">
                   {searchTerm ? 'No emails found' : 'No emails'}
                 </h3>
-                <p className={`text-gray-500 max-w-sm ${isMobile ? 'text-sm px-4' : 'text-sm'}`}>
+                <p className="text-sm text-gray-500 max-w-sm">
                   {searchTerm 
                     ? 'Try adjusting your search terms' 
                     : emails.length === 0 

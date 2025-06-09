@@ -119,49 +119,42 @@ export const MemberCard: React.FC<MemberCardProps> = ({
   return (
     <>
       <Card className="hover:shadow-md transition-shadow">
-        <CardContent className="p-4 lg:p-6">
-          <div className="flex flex-col space-y-4 lg:flex-row lg:space-y-0 lg:space-x-4">
-            {/* Avatar and Basic Info */}
-            <div className="flex items-start space-x-3 flex-1">
-              <div className="w-12 h-12 lg:w-16 lg:h-16 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                <User className="h-6 w-6 lg:h-8 lg:w-8 text-primary" />
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <User className="h-8 w-8 text-primary" />
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base lg:text-lg font-semibold text-gray-900 truncate">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
                   {member.first_name} {member.last_name}
                 </h3>
-                <div className="space-y-1 mt-1">
-                  <div className="flex items-center space-x-1 text-xs lg:text-sm text-gray-500">
-                    <Mail className="h-3 w-3 lg:h-4 lg:w-4 flex-shrink-0" />
-                    <span className="truncate">{member.email}</span>
-                  </div>
+                <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
+                  <span className="flex items-center space-x-1">
+                    <Mail className="h-4 w-4" />
+                    <span>{member.email}</span>
+                  </span>
                   {member.phone && (
-                    <div className="flex items-center space-x-1 text-xs lg:text-sm text-gray-500">
-                      <Phone className="h-3 w-3 lg:h-4 lg:w-4 flex-shrink-0" />
+                    <span className="flex items-center space-x-1">
+                      <Phone className="h-4 w-4" />
                       <span>{member.phone}</span>
-                    </div>
+                    </span>
                   )}
                 </div>
-                
-                {/* Badges Row */}
-                <div className="flex flex-wrap items-center gap-2 mt-3">
+                <div className="flex items-center space-x-2 mt-2">
                   {getRoleBadge(actualRole)}
-                  <Badge variant="outline" className="text-xs">
-                    Joined {joinDate}
-                  </Badge>
+                  <Badge variant="outline">Joined {joinDate}</Badge>
                   {isSuperAdminMember && (
-                    <Badge className="bg-amber-500 text-white text-xs">
-                      System Admin
-                    </Badge>
+                    <Badge className="bg-gold-500 text-white">System Admin</Badge>
                   )}
                   {member.is_suspended && (
-                    <Badge className="bg-red-100 text-red-800 text-xs">
+                    <Badge className="bg-red-100 text-red-800">
                       <UserX className="h-3 w-3 mr-1" />
                       Suspended
                     </Badge>
                   )}
                   {isProtectedMember && (
-                    <Badge className="bg-amber-100 text-amber-800 text-xs">
+                    <Badge className="bg-amber-100 text-amber-800">
                       <Lock className="h-3 w-3 mr-1" />
                       Protected
                     </Badge>
@@ -170,17 +163,15 @@ export const MemberCard: React.FC<MemberCardProps> = ({
               </div>
             </div>
             
-            {/* Role Selection and Actions */}
-            <div className="flex flex-col space-y-3 lg:items-end lg:justify-start lg:min-w-0 lg:w-auto">
-              {/* Role Selector */}
-              <div className="w-full lg:w-40">
-                <label className="text-xs text-gray-500 block mb-1">Role</label>
+            <div className="text-right space-y-3">
+              <div>
+                <label className="text-sm text-gray-500">Role</label>
                 <Select 
                   value={actualRole} 
                   onValueChange={(value) => onRoleChange(member.id, value)}
                   disabled={!canChangeRole || isProtectedMember}
                 >
-                  <SelectTrigger className="w-full h-9 text-sm">
+                  <SelectTrigger className="w-32">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -202,24 +193,23 @@ export const MemberCard: React.FC<MemberCardProps> = ({
                 )}
               </div>
               
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-2 w-full lg:justify-end">
+              <div className="flex space-x-2">
                 {canEditMember && (
                   <Button 
                     variant="outline" 
                     size="sm"
                     onClick={() => setShowEditDialog(true)}
-                    className="text-blue-600 hover:text-blue-700 h-8 px-3 text-xs lg:text-sm"
+                    className="text-blue-600 hover:text-blue-700"
                   >
-                    <Edit3 className="h-3 w-3 lg:h-4 lg:w-4" />
+                    <Edit3 className="h-4 w-4" />
                   </Button>
                 )}
 
                 {canViewSettings && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-8 px-3 text-xs lg:text-sm">
-                        <Settings className="h-3 w-3 lg:h-4 lg:w-4" />
+                      <Button variant="outline" size="sm">
+                        <Settings className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
@@ -259,17 +249,16 @@ export const MemberCard: React.FC<MemberCardProps> = ({
                     variant="outline" 
                     size="sm"
                     onClick={() => setShowMessageDialog(true)}
-                    className="h-8 px-3 text-xs lg:text-sm"
                   >
-                    <MessageCircle className="h-3 w-3 lg:h-4 lg:w-4" />
+                    <MessageCircle className="h-4 w-4" />
                   </Button>
                 )}
 
                 {canDeleteMember && !isProtectedMember && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 h-8 px-3 text-xs lg:text-sm">
-                        <Trash2 className="h-3 w-3 lg:h-4 lg:w-4" />
+                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>

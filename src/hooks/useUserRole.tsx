@@ -26,8 +26,6 @@ interface UseUserRoleReturn {
   canDeleteUsers: boolean;
   canEditPhoneNumbers: boolean;
   canViewMemberSettings: boolean;
-  canScheduleMeetings: boolean;
-  canCreatePolls: boolean;
 }
 
 export const useUserRole = (): UseUserRoleReturn => {
@@ -118,10 +116,6 @@ export const useUserRole = (): UseUserRoleReturn => {
   const canEditPhoneNumbers = isSuperAdmin || isAdmin; // Phone numbers can be edited by admins+
   const canViewMemberSettings = isSuperAdmin || isAdmin || isSecretary; // Settings access
 
-  // Meeting and poll permissions
-  const canScheduleMeetings = isSuperAdmin || isAdmin || isSecretary;
-  const canCreatePolls = isSuperAdmin || isAdmin || isSecretary;
-
   return {
     userRole,
     isSuperAdmin,
@@ -142,8 +136,6 @@ export const useUserRole = (): UseUserRoleReturn => {
     canEditUserRoles,
     canDeleteUsers,
     canEditPhoneNumbers,
-    canViewMemberSettings,
-    canScheduleMeetings,
-    canCreatePolls
+    canViewMemberSettings
   };
 };

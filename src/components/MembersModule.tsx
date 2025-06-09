@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +9,6 @@ import { AddMemberDialog } from './AddMemberDialog';
 import { MemberCard } from './MemberCard';
 import { useMembers } from '@/hooks/useMembers';
 import { useUserRole } from '@/hooks/useUserRole';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 export const MembersModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,7 +25,6 @@ export const MembersModule: React.FC = () => {
     fetchMembers
   } = useMembers();
   const userRole = useUserRole();
-  const isMobile = useIsMobile();
 
   // Use the search function from the hook
   const filteredMembers = useMemo(() => {
@@ -103,16 +100,15 @@ export const MembersModule: React.FC = () => {
 
   return (
     <>
-      <div className="space-y-4 p-4 lg:p-6">
-        {/* Header - Mobile optimized */}
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Member Management</h1>
-            <p className="text-sm lg:text-base text-gray-600">Manage bureau members, roles, and permissions</p>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Member Management</h1>
+            <p className="text-gray-600">Manage bureau members, roles, and permissions</p>
           </div>
           {userRole.canManageMembers && (
             <Button 
-              className="w-full lg:w-auto bg-primary hover:bg-primary/90 h-12 lg:h-10"
+              className="bg-primary hover:bg-primary/90"
               onClick={() => setShowAddMemberDialog(true)}
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -121,45 +117,34 @@ export const MembersModule: React.FC = () => {
           )}
         </div>
 
-        {/* Tabs - Mobile optimized */}
-        <Tabs defaultValue="members" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2 h-12 lg:h-10">
-            <TabsTrigger value="members" className="text-sm lg:text-base">
-              Members ({members.length})
-            </TabsTrigger>
-            <TabsTrigger value="roles" className="text-sm lg:text-base">
-              Roles & Permissions
-            </TabsTrigger>
+        <Tabs defaultValue="members" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="members">Members ({members.length})</TabsTrigger>
+            <TabsTrigger value="roles">Roles & Permissions</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="members" className="space-y-4">
-            {/* Search and Actions - Mobile optimized */}
-            <div className="space-y-3 lg:space-y-0 lg:flex lg:space-x-4">
+          <TabsContent value="members" className="space-y-6">
+            <div className="flex space-x-4 mb-6">
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Search members..."
+                    placeholder="Search members by name, email, phone, or role..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 h-12 lg:h-10 text-base lg:text-sm"
+                    className="pl-10"
                   />
                 </div>
               </div>
               {userRole.canManageMembers && (
-                <Button 
-                  variant="outline" 
-                  onClick={handleExportMembers}
-                  className="w-full lg:w-auto h-12 lg:h-10 text-base lg:text-sm"
-                >
+                <Button variant="outline" onClick={handleExportMembers}>
                   <Download className="h-4 w-4 mr-2" />
                   Export List
                 </Button>
               )}
             </div>
 
-            {/* Members Grid - Mobile optimized */}
-            <div className="space-y-4">
+            <div className="grid gap-6">
               {filteredMembers.map((member) => (
                 <MemberCard 
                   key={member.id} 
@@ -185,24 +170,20 @@ export const MembersModule: React.FC = () => {
               ))}
             </div>
 
-            {/* Empty State - Mobile optimized */}
             {filteredMembers.length === 0 && (
-              <div className="text-center py-12 px-4">
+              <div className="text-center py-12">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   {searchTerm ? 'No members found' : 'No members yet'}
                 </h3>
-                <p className="text-gray-500 mb-6 text-sm lg:text-base">
+                <p className="text-gray-500 mb-4">
                   {searchTerm 
                     ? 'Try adjusting your search criteria'
                     : 'Get started by adding your first member'
                   }
                 </p>
                 {!searchTerm && userRole.canManageMembers && (
-                  <Button 
-                    onClick={() => setShowAddMemberDialog(true)}
-                    className="w-full lg:w-auto h-12 lg:h-10"
-                  >
+                  <Button onClick={() => setShowAddMemberDialog(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Member
                   </Button>
@@ -211,34 +192,31 @@ export const MembersModule: React.FC = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="roles" className="space-y-4">
-            {/* Roles Grid - Mobile optimized */}
-            <div className="space-y-4">
+          <TabsContent value="roles" className="space-y-6">
+            <div className="grid gap-6">
               {roles.map((role, index) => (
                 <Card key={index} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="space-y-3 lg:space-y-0 lg:flex lg:justify-between lg:items-start">
-                      <div className="space-y-2">
-                        <CardTitle className="text-lg lg:text-xl">{role.name}</CardTitle>
-                        <CardDescription className="text-sm lg:text-base">{role.description}</CardDescription>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-xl">{role.name}</CardTitle>
+                        <CardDescription className="mt-2">{role.description}</CardDescription>
                       </div>
-                      <Badge className="bg-primary text-white text-sm self-start">
-                        {role.memberCount} members
-                      </Badge>
+                      <Badge className="bg-primary text-white">{role.memberCount} members</Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      <h4 className="font-semibold text-sm lg:text-base flex items-center">
-                        <Shield className="h-4 w-4 mr-2" />
-                        Permissions
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {role.permissions.map((permission, idx) => (
-                          <Badge key={idx} variant="secondary" className="text-xs lg:text-sm">
-                            {permission}
-                          </Badge>
-                        ))}
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="font-semibold mb-2 flex items-center">
+                          <Shield className="h-4 w-4 mr-2" />
+                          Permissions
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {role.permissions.map((permission, idx) => (
+                            <Badge key={idx} variant="secondary">{permission}</Badge>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </CardContent>

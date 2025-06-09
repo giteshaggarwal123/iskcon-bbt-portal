@@ -1,376 +1,355 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Calendar, Users, FileText, Vote, Clock, Plus, ChevronRight, Bell, TrendingUp } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useUserRole } from '@/hooks/useUserRole';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { CalendarDays, FileText, Mail, Vote, ExternalLink, Play } from 'lucide-react';
+import { useMeetings } from '@/hooks/useMeetings';
+import { useMembers } from '@/hooks/useMembers';
+import { useDocuments } from '@/hooks/useDocuments';
+import { useEmails } from '@/hooks/useEmails';
+import { MicrosoftConnectionStatus } from './MicrosoftConnectionStatus';
 import { supabase } from '@/integrations/supabase/client';
-
-interface DashboardStats {
-  totalMembers: number;
-  totalDocuments: number;
-  upcomingMeetings: number;
-  activePreviousPolls: number;
-  recentActivity: Array<{
-    id: string;
-    type: 'meeting' | 'document' | 'poll' | 'member';
-    title: string;
-    description: string;
-    timestamp: string;
-    user?: string;
-  }>;
-}
-
-interface Meeting {
-  id: string;
-  title: string;
-  start_time: string;
-  end_time: string;
-  status: string;
-}
+import { useToast } from '@/hooks/use-toast';
 
 interface Poll {
   id: string;
   title: string;
+  description: string;
   status: string;
-  created_at: string;
   deadline: string;
+  created_at: string;
 }
 
 export const Dashboard: React.FC = () => {
-  const { user } = useAuth();
-  const userRole = useUserRole();
-  const isMobile = useIsMobile();
-  
-  const [stats, setStats] = useState<DashboardStats>({
-    totalMembers: 0,
-    totalDocuments: 0,
-    upcomingMeetings: 0,
-    activePreviousPolls: 0,
-    recentActivity: []
-  });
-  const [upcomingMeetings, setUpcomingMeetings] = useState<Meeting[]>([]);
-  const [activePolls, setActivePolls] = useState<Poll[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const { meetings, loading: meetingsLoading } = useMeetings();
+  const { documents, loading: documentsLoading } = useDocuments();
+  const { emails, loading: emailsLoading } = useEmails();
+  const { toast } = useToast();
 
+  // Fetch active polls
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    const fetchActivePolls = async () => {
       try {
-        // Fetch total counts
-        const { data: membersData, error: membersError } = await supabase
-          .from('profiles')
-          .select('count', { count: 'exact' });
-
-        const { data: documentsData, error: documentsError } = await supabase
-          .from('documents')
-          .select('count', { count: 'exact' });
-
-        // Fetch upcoming meetings
-        const { data: meetingsData, error: meetingsError } = await supabase
-          .from('meetings')
-          .select('*')
-          .gte('start_time', new Date().toISOString())
-          .order('start_time', { ascending: true })
-          .limit(5);
-
-        // Fetch active polls
-        const { data: pollsData, error: pollsError } = await supabase
+        const { data, error } = await supabase
           .from('polls')
           .select('*')
           .eq('status', 'active')
           .order('created_at', { ascending: false })
-          .limit(5);
+          .limit(3);
 
-        // Create some sample recent activity since we don't have an activity_log table
-        const recentActivity = [
-          {
-            id: '1',
-            type: 'meeting' as const,
-            title: 'Board Meeting Scheduled',
-            description: 'Monthly board meeting scheduled for next week',
-            timestamp: new Date().toISOString(),
-            user: 'Admin'
-          },
-          {
-            id: '2',
-            type: 'document' as const,
-            title: 'New Document Uploaded',
-            description: 'Financial report for Q1 uploaded',
-            timestamp: new Date(Date.now() - 3600000).toISOString(),
-            user: 'Secretary'
-          }
-        ];
-
-        if (membersError || documentsError || meetingsError || pollsError) {
-          console.error('Error fetching data:', membersError, documentsError, meetingsError, pollsError);
-        }
-
-        setStats(prev => ({
-          ...prev,
-          totalMembers: membersData ? membersData[0].count : 0,
-          totalDocuments: documentsData ? documentsData[0].count : 0,
-          upcomingMeetings: meetingsData ? meetingsData.length : 0,
-          activePreviousPolls: pollsData ? pollsData.length : 0,
-          recentActivity: recentActivity
-        }));
-
-        setUpcomingMeetings(meetingsData || []);
-        setActivePolls(pollsData || []);
-
+        if (error) throw error;
+        setPolls(data || []);
       } catch (error) {
-        console.error('Unexpected error fetching data:', error);
-      } finally {
-        setLoading(false);
+        console.error('Error fetching polls:', error);
       }
     };
 
-    fetchData();
+    fetchActivePolls();
   }, []);
 
-  const navigateToModule = (module: string) => {
+  // Filter and sort meetings - only upcoming meetings, sorted by nearest first
+  const upcomingMeetings = meetings
+    .filter(meeting => new Date(meeting.start_time) > new Date())
+    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+    .slice(0, 3);
+
+  // Sort documents by newest first
+  const recentDocuments = documents
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 3);
+
+  // Sort emails by newest first
+  const recentEmails = emails
+    .sort((a, b) => new Date(b.receivedDateTime).getTime() - new Date(a.receivedDateTime).getTime())
+    .slice(0, 3);
+
+  // Sort polls by newest deadline first
+  const sortedPolls = polls
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+    .slice(0, 3);
+
+  const handleJoinMeeting = (meeting: any) => {
+    if (meeting.teams_join_url) {
+      window.open(meeting.teams_join_url, '_blank');
+    } else {
+      toast({
+        title: "No Teams Link",
+        description: "This meeting doesn't have a Teams link available",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleOpenDocument = (doc: any) => {
+    // Simulate opening document - in real implementation this would open the actual document
+    toast({
+      title: "Opening Document",
+      description: `Opening ${doc.name}...`
+    });
+  };
+
+  const handleOpenEmail = (email: any) => {
+    // Open Outlook web with the specific email
+    const outlookUrl = `https://outlook.office.com/mail/inbox/id/${email.id}`;
+    window.open(outlookUrl, '_blank');
+  };
+
+  const handleVoteNow = (poll: Poll) => {
+    // Navigate to voting module with specific poll
+    const event = new CustomEvent('navigate-to-poll', { detail: { pollId: poll.id } });
+    window.dispatchEvent(event);
+  };
+
+  const handleViewMore = (module: string) => {
     const event = new CustomEvent('navigate-to-module', { detail: { module } });
     window.dispatchEvent(event);
   };
 
-  const navigateToPoll = (pollId: string) => {
-    const event = new CustomEvent('navigate-to-poll', { detail: { pollId } });
-    window.dispatchEvent(event);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  const isPastDeadline = (deadline: string) => new Date(deadline) < new Date();
 
   return (
-    <div className="space-y-4 lg:space-y-6 p-4 lg:p-6">
-      {/* Welcome Header - Mobile optimized */}
-      <div className="space-y-2">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
-          Welcome back, {user?.user_metadata?.first_name || user?.email}!
-        </h1>
-        <p className="text-sm lg:text-base text-gray-600">
-          Here's what's happening in your organization today.
-        </p>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Header with Connection Status */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Bureau Dashboard</h1>
+          <p className="text-gray-600 mt-2">Welcome back! Here's what's happening today.</p>
+        </div>
+        <MicrosoftConnectionStatus />
       </div>
 
-      {/* Quick Stats - Mobile optimized grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
-        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigateToModule('members')}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs lg:text-sm font-medium">Total Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl lg:text-2xl font-bold">{stats.totalMembers}</div>
-            <p className="text-xs text-muted-foreground">Active members</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigateToModule('documents')}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs lg:text-sm font-medium">Documents</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl lg:text-2xl font-bold">{stats.totalDocuments}</div>
-            <p className="text-xs text-muted-foreground">Total files</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigateToModule('meetings')}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs lg:text-sm font-medium">Meetings</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl lg:text-2xl font-bold">{stats.upcomingMeetings}</div>
-            <p className="text-xs text-muted-foreground">Upcoming</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigateToModule('voting')}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs lg:text-sm font-medium">Active Polls</CardTitle>
-            <Vote className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl lg:text-2xl font-bold">{stats.activePreviousPolls}</div>
-            <p className="text-xs text-muted-foreground">Awaiting votes</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Content Grid - Mobile responsive */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-        {/* Upcoming Meetings - Mobile optimized */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg lg:text-xl">Upcoming Meetings</CardTitle>
-                <CardDescription className="text-sm">Next scheduled meetings</CardDescription>
-              </div>
-              {userRole.canManageMeetings && (
-                <Button 
-                  size="sm" 
-                  onClick={() => navigateToModule('meetings')}
-                  className="h-8 lg:h-9 text-xs lg:text-sm"
-                >
-                  <Plus className="h-3 w-3 lg:h-4 lg:w-4 mr-1" />
-                  New
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {upcomingMeetings.length === 0 ? (
-              <div className="text-center py-6 text-gray-500">
-                <Calendar className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                <p className="text-sm">No upcoming meetings</p>
-              </div>
-            ) : (
-              upcomingMeetings.slice(0, isMobile ? 2 : 3).map((meeting) => (
-                <div key={meeting.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-sm lg:text-base truncate">{meeting.title}</h4>
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-2 space-y-1 lg:space-y-0">
-                      <p className="text-xs lg:text-sm text-gray-500">
-                        {new Date(meeting.start_time).toLocaleDateString()}
-                      </p>
-                      <p className="text-xs lg:text-sm text-gray-500">
-                        {new Date(meeting.start_time).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+      {/* Main Grid - Enhanced Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Recent Emails - Top Left */}
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-red-50 to-white">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center justify-between text-xl">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Mail className="h-6 w-6 text-red-600" />
                 </div>
-              ))
-            )}
-            {upcomingMeetings.length > 0 && (
-              <Button 
-                variant="ghost" 
-                className="w-full text-sm" 
-                onClick={() => navigateToModule('meetings')}
-              >
-                View All Meetings
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Active Polls - Mobile optimized */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg lg:text-xl">Active Polls</CardTitle>
-                <CardDescription className="text-sm">Polls awaiting your vote</CardDescription>
+                <span className="text-gray-800">Recent Emails</span>
               </div>
-              {userRole.canCreateContent && (
-                <Button 
-                  size="sm" 
-                  onClick={() => navigateToModule('voting')}
-                  className="h-8 lg:h-9 text-xs lg:text-sm"
-                >
-                  <Plus className="h-3 w-3 lg:h-4 lg:w-4 mr-1" />
-                  New
-                </Button>
-              )}
-            </div>
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {activePolls.length === 0 ? (
-              <div className="text-center py-6 text-gray-500">
-                <Vote className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                <p className="text-sm">No active polls</p>
-              </div>
-            ) : (
-              activePolls.slice(0, isMobile ? 2 : 3).map((poll) => (
-                <div 
-                  key={poll.id} 
-                  className="p-3 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => navigateToPoll(poll.id)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm lg:text-base line-clamp-2">{poll.title}</h4>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant="secondary" className="text-xs">
-                          {poll.status}
-                        </Badge>
-                        <span className="text-xs text-gray-500">
-                          Ends {new Date(poll.deadline).toLocaleDateString()}
-                        </span>
+          <CardContent className="space-y-4">
+            {recentEmails.length > 0 ? (
+              <>
+                {recentEmails.map((email) => (
+                  <div key={email.id} className="bg-white p-4 rounded-lg border border-red-100 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold text-gray-900 truncate flex-1 mr-2">{email.subject}</h4>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 text-red-600 border-red-200 hover:bg-red-50"
+                        onClick={() => handleOpenEmail(email)}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Open
+                      </Button>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">From: {email.from.name}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">
+                        {new Date(email.receivedDateTime).toLocaleDateString()}
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        {!email.isRead && <div className="w-2 h-2 bg-red-500 rounded-full"></div>}
+                        {email.importance === 'high' && (
+                          <span className="text-xs px-2 py-1 bg-red-100 text-red-600 rounded-full">High</span>
+                        )}
                       </div>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0 mt-1" />
                   </div>
-                </div>
-              ))
+                ))}
+                <Button 
+                  variant="ghost" 
+                  className="w-full mt-4 text-red-600 hover:bg-red-50"
+                  onClick={() => handleViewMore('email')}
+                >
+                  View More →
+                </Button>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <Mail className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500">No emails found</p>
+              </div>
             )}
-            {activePolls.length > 0 && (
-              <Button 
-                variant="ghost" 
-                className="w-full text-sm" 
-                onClick={() => navigateToModule('voting')}
-              >
-                View All Polls
-              </Button>
+          </CardContent>
+        </Card>
+
+        {/* Upcoming Meetings - Top Right */}
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-blue-50 to-white">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center justify-between text-xl">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <CalendarDays className="h-6 w-6 text-blue-600" />
+                </div>
+                <span className="text-gray-800">Upcoming Meetings</span>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {upcomingMeetings.length > 0 ? (
+              <>
+                {upcomingMeetings.map((meeting) => (
+                  <div key={meeting.id} className="bg-white p-4 rounded-lg border border-blue-100 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold text-gray-900 truncate flex-1 mr-2">{meeting.title}</h4>
+                      {meeting.teams_join_url && (
+                        <Button
+                          size="sm"
+                          className="shrink-0 bg-blue-600 hover:bg-blue-700"
+                          onClick={() => handleJoinMeeting(meeting)}
+                        >
+                          <Play className="h-3 w-3 mr-1" />
+                          Join Now
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {new Date(meeting.start_time).toLocaleDateString()} at {new Date(meeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <span className="inline-block text-xs px-3 py-1 bg-blue-100 text-blue-600 rounded-full">
+                      Upcoming
+                    </span>
+                  </div>
+                ))}
+                <Button 
+                  variant="ghost" 
+                  className="w-full mt-4 text-blue-600 hover:bg-blue-50"
+                  onClick={() => handleViewMore('meetings')}
+                >
+                  View More →
+                </Button>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <CalendarDays className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500">No upcoming meetings</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Important Documents - Bottom Left */}
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-green-50 to-white">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center justify-between text-xl">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <FileText className="h-6 w-6 text-green-600" />
+                </div>
+                <span className="text-gray-800">Important Documents</span>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {recentDocuments.length > 0 ? (
+              <>
+                {recentDocuments.map((doc) => (
+                  <div key={doc.id} className="bg-white p-4 rounded-lg border border-green-100 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold text-gray-900 truncate flex-1 mr-2">{doc.name}</h4>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 text-green-600 border-green-200 hover:bg-green-50"
+                        onClick={() => handleOpenDocument(doc)}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Open
+                      </Button>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {new Date(doc.created_at).toLocaleDateString()} • {doc.folder || 'General'}
+                    </p>
+                    <span className="inline-block text-xs px-3 py-1 bg-green-100 text-green-600 rounded-full">
+                      {doc.mime_type?.includes('pdf') ? 'PDF' : 'Document'}
+                    </span>
+                  </div>
+                ))}
+                <Button 
+                  variant="ghost" 
+                  className="w-full mt-4 text-green-600 hover:bg-green-50"
+                  onClick={() => handleViewMore('documents')}
+                >
+                  View More →
+                </Button>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500">No documents uploaded</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Active Voting - Bottom Right */}
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-purple-50 to-white">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center justify-between text-xl">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Vote className="h-6 w-6 text-purple-600" />
+                </div>
+                <span className="text-gray-800">Active Voting</span>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {sortedPolls.length > 0 ? (
+              <>
+                {sortedPolls.map((poll) => (
+                  <div key={poll.id} className="bg-white p-4 rounded-lg border border-purple-100 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold text-gray-900 truncate flex-1 mr-2">{poll.title}</h4>
+                      {!isPastDeadline(poll.deadline) && (
+                        <Button
+                          size="sm"
+                          className="shrink-0 bg-purple-600 hover:bg-purple-700"
+                          onClick={() => handleVoteNow(poll)}
+                        >
+                          <Vote className="h-3 w-3 mr-1" />
+                          Vote Now
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2 truncate">{poll.description}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">
+                        Deadline: {new Date(poll.deadline).toLocaleDateString()}
+                      </span>
+                      <span className={`text-xs px-3 py-1 rounded-full ${
+                        isPastDeadline(poll.deadline) ? 'bg-red-100 text-red-600' : 'bg-purple-100 text-purple-600'
+                      }`}>
+                        {isPastDeadline(poll.deadline) ? 'Expired' : 'Active'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                <Button 
+                  variant="ghost" 
+                  className="w-full mt-4 text-purple-600 hover:bg-purple-50"
+                  onClick={() => handleViewMore('voting')}
+                >
+                  View More →
+                </Button>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <Vote className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500">No active polls</p>
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Recent Activity - Mobile optimized */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg lg:text-xl">Recent Activity</CardTitle>
-          <CardDescription className="text-sm">Latest updates and changes</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {stats.recentActivity.length === 0 ? (
-            <div className="text-center py-6 text-gray-500">
-              <Bell className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm">No recent activity</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {stats.recentActivity.slice(0, isMobile ? 3 : 5).map((activity) => (
-                <div key={activity.id} className="flex items-start space-x-3 p-3 border rounded-lg">
-                  <div className="flex-shrink-0 mt-0.5">
-                    {activity.type === 'meeting' && <Calendar className="h-4 w-4 text-blue-500" />}
-                    {activity.type === 'document' && <FileText className="h-4 w-4 text-green-500" />}
-                    {activity.type === 'poll' && <Vote className="h-4 w-4 text-purple-500" />}
-                    {activity.type === 'member' && <Users className="h-4 w-4 text-orange-500" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-sm lg:text-base">{activity.title}</h4>
-                    <p className="text-xs lg:text-sm text-gray-500 line-clamp-2">{activity.description}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {new Date(activity.timestamp).toLocaleDateString()} at{' '}
-                      {new Date(activity.timestamp).toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };

@@ -8,7 +8,6 @@ import { CheckCircle, XCircle, MinusCircle, Vote, Clock, Users, AlertCircle } fr
 import { useVoting } from '@/hooks/useVoting';
 import { Poll } from '@/hooks/usePolls';
 import { format } from 'date-fns';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 interface VotingDialogProps {
   open: boolean;
@@ -27,7 +26,6 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
   const [eligibility, setEligibility] = useState<{ canVote: boolean; reason: string | null }>({ canVote: true, reason: null });
   
   const { submitVotes, checkVotingEligibility, submitting } = useVoting();
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (poll && open) {
@@ -104,16 +102,12 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${
-        isMobile 
-          ? 'w-[95vw] h-[90vh] max-w-none max-h-none m-0 p-4' 
-          : 'sm:max-w-[600px] max-h-[90vh]'
-      } overflow-y-auto`}>
-        <DialogHeader className={`space-y-3 ${isMobile ? 'pb-2' : ''}`}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="space-y-3">
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Vote className="h-5 w-5 text-primary" />
-              <span className={isMobile ? 'text-lg' : ''}>Cast Your Vote</span>
+              <span>Cast Your Vote</span>
             </div>
             <span className="text-sm text-muted-foreground">
               {votesCount}/{poll.sub_polls?.length || 0} Completed
@@ -121,11 +115,9 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
           </DialogTitle>
           
           <div className="bg-muted/50 p-4 rounded-lg">
-            <h3 className={`font-semibold mb-1 ${isMobile ? 'text-base' : 'text-lg'}`}>{poll.title}</h3>
+            <h3 className="font-semibold text-lg mb-1">{poll.title}</h3>
             <p className="text-sm text-muted-foreground mb-2">{poll.description}</p>
-            <div className={`flex items-center text-xs text-muted-foreground ${
-              isMobile ? 'flex-col space-y-1 items-start' : 'space-x-4'
-            }`}>
+            <div className="flex items-center space-x-4 text-xs text-muted-foreground">
               <div className="flex items-center space-x-1">
                 <Clock className="h-3 w-3" />
                 <span>Ends: {format(new Date(poll.deadline), 'MMM dd, yyyy HH:mm')}</span>
@@ -164,12 +156,12 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
           <div className="space-y-6">
             {/* Question Navigation */}
             {poll.sub_polls && poll.sub_polls.length > 1 && (
-              <div className={`flex justify-center ${isMobile ? 'space-x-1' : 'space-x-2'}`}>
+              <div className="flex justify-center space-x-2">
                 {poll.sub_polls.map((_, index) => (
                   <button
                     key={index}
                     onClick={() => setCurrentQuestionIndex(index)}
-                    className={`${isMobile ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-full font-medium transition-all ${
+                    className={`w-8 h-8 rounded-full text-sm font-medium transition-all ${
                       index === currentQuestionIndex
                         ? 'bg-primary text-primary-foreground'
                         : voteSelections[poll.sub_polls![index].id]
@@ -190,7 +182,7 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                   <h4 className="text-sm text-muted-foreground">
                     Question {currentQuestionIndex + 1} of {poll.sub_polls?.length || 0}
                   </h4>
-                  <h3 className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>{currentQuestion.title}</h3>
+                  <h3 className="text-lg font-semibold">{currentQuestion.title}</h3>
                   {currentQuestion.description && (
                     <p className="text-sm text-muted-foreground">{currentQuestion.description}</p>
                   )}
@@ -200,7 +192,7 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                 <div className="space-y-3">
                   <div
                     onClick={() => handleVoteSelection(currentQuestion.id, 'favor')}
-                    className={`w-full ${isMobile ? 'p-3' : 'p-4'} rounded-lg border-2 transition-all cursor-pointer ${
+                    className={`w-full p-4 rounded-lg border-2 transition-all cursor-pointer ${
                       voteSelections[currentQuestion.id] === 'favor'
                         ? 'border-green-500 bg-green-50'
                         : 'border-border hover:border-green-300 hover:bg-green-50/50'
@@ -219,14 +211,14 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                       <CheckCircle className="h-5 w-5 text-green-600" />
                       <div>
                         <p className="font-semibold text-green-700">For</p>
-                        <p className={`text-green-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>I support this proposal</p>
+                        <p className="text-sm text-green-600">I support this proposal</p>
                       </div>
                     </div>
                   </div>
 
                   <div
                     onClick={() => handleVoteSelection(currentQuestion.id, 'against')}
-                    className={`w-full ${isMobile ? 'p-3' : 'p-4'} rounded-lg border-2 transition-all cursor-pointer ${
+                    className={`w-full p-4 rounded-lg border-2 transition-all cursor-pointer ${
                       voteSelections[currentQuestion.id] === 'against'
                         ? 'border-red-500 bg-red-50'
                         : 'border-border hover:border-red-300 hover:bg-red-50/50'
@@ -245,14 +237,14 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                       <XCircle className="h-5 w-5 text-red-600" />
                       <div>
                         <p className="font-semibold text-red-700">Against</p>
-                        <p className={`text-red-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>I oppose this proposal</p>
+                        <p className="text-sm text-red-600">I oppose this proposal</p>
                       </div>
                     </div>
                   </div>
 
                   <div
                     onClick={() => handleVoteSelection(currentQuestion.id, 'abstain')}
-                    className={`w-full ${isMobile ? 'p-3' : 'p-4'} rounded-lg border-2 transition-all cursor-pointer ${
+                    className={`w-full p-4 rounded-lg border-2 transition-all cursor-pointer ${
                       voteSelections[currentQuestion.id] === 'abstain'
                         ? 'border-yellow-500 bg-yellow-50'
                         : 'border-border hover:border-yellow-300 hover:bg-yellow-50/50'
@@ -271,7 +263,7 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                       <MinusCircle className="h-5 w-5 text-yellow-600" />
                       <div>
                         <p className="font-semibold text-yellow-700">Abstain</p>
-                        <p className={`text-yellow-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>I choose not to vote on this</p>
+                        <p className="text-sm text-yellow-600">I choose not to vote on this</p>
                       </div>
                     </div>
                   </div>
@@ -284,14 +276,12 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                       variant="outline"
                       onClick={prevQuestion}
                       disabled={currentQuestionIndex === 0}
-                      size={isMobile ? "sm" : "default"}
                     >
                       Previous
                     </Button>
                     <Button
                       onClick={nextQuestion}
                       disabled={currentQuestionIndex === poll.sub_polls.length - 1}
-                      size={isMobile ? "sm" : "default"}
                     >
                       Next
                     </Button>
@@ -307,27 +297,20 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="Add any comments about your votes (optional)..."
-                rows={isMobile ? 2 : 3}
+                rows={3}
                 className="resize-none"
               />
             </div>
 
             {/* Action Buttons */}
-            <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'justify-between items-center'} pt-4 border-t`}>
-              <Button 
-                variant="outline" 
-                onClick={() => onOpenChange(false)} 
-                disabled={submitting}
-                className={isMobile ? 'w-full' : ''}
-                size={isMobile ? "sm" : "default"}
-              >
+            <div className="flex justify-between items-center pt-4 border-t">
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
                 Cancel
               </Button>
               <Button 
                 onClick={handleSubmit}
                 disabled={!allSubPollsVoted || submitting}
-                className={`${isMobile ? 'w-full' : 'min-w-[150px]'}`}
-                size={isMobile ? "sm" : "default"}
+                className="min-w-[150px]"
               >
                 <Vote className="h-4 w-4 mr-2" />
                 {submitting ? 'Submitting...' : 'Submit All Votes'}
@@ -336,7 +319,7 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
 
             {!allSubPollsVoted && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className={`text-yellow-800 text-center ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                <p className="text-sm text-yellow-800 text-center">
                   <AlertCircle className="h-4 w-4 inline mr-1" />
                   Please vote on all {poll.sub_polls?.length || 0} questions before submitting.
                 </p>

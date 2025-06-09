@@ -5,7 +5,6 @@ import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentTable } from './documents/DocumentTable';
 import { DocumentFilters } from './documents/DocumentFilters';
@@ -55,7 +54,6 @@ export const DocumentsModule: React.FC = () => {
   const { user } = useAuth();
   const { isSuperAdmin, canDeleteContent } = useUserRole();
   const { toast } = useToast();
-  const isMobile = useIsMobile();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -380,18 +378,17 @@ export const DocumentsModule: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4 p-4 lg:p-6">
-      {/* Header - Mobile optimized */}
-      <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start">
         <div className="space-y-2">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Document Repository</h1>
-          <p className="text-sm lg:text-base text-gray-600">
+          <h1 className="text-3xl font-bold text-gray-900">Document Repository</h1>
+          <p className="text-gray-600">
             Manage and organize your documents • {filteredDocuments.length} documents
           </p>
         </div>
         
-        {/* Action Buttons - Mobile optimized */}
-        <div className="flex flex-col lg:flex-row space-y-2 lg:space-y-0 lg:space-x-2">
+        <div className="flex space-x-2">
           <CreateFolderDialog 
             onFolderCreated={createFolder}
             existingFolders={folders}
@@ -401,38 +398,36 @@ export const DocumentsModule: React.FC = () => {
         </div>
       </div>
 
-      {/* Breadcrumb Navigation - Mobile optimized */}
+      {/* Breadcrumb Navigation */}
       {(currentFolderId || folderPath.length > 0) && (
-        <div className="bg-gray-50 px-3 py-2 lg:px-4 lg:py-2 rounded-lg overflow-x-auto">
-          <div className="flex items-center space-x-2 text-xs lg:text-sm text-gray-600 whitespace-nowrap">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => handleBreadcrumbClick(null)}
-              className="flex items-center space-x-1 hover:bg-gray-200 px-2 py-1 rounded h-8 lg:h-auto"
-            >
-              <Home className="h-3 w-3 lg:h-4 lg:w-4" />
-              <span className="hidden lg:inline">Home</span>
-            </Button>
-            
-            {folderPath.map((folder, index) => (
-              <React.Fragment key={folder.id}>
-                <ChevronRight className="h-3 w-3 lg:h-4 lg:w-4 flex-shrink-0" />
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => handleBreadcrumbClick(folder.id)}
-                  className="hover:bg-gray-200 px-2 py-1 rounded h-8 lg:h-auto text-xs lg:text-sm"
-                >
-                  {folder.name}
-                </Button>
-              </React.Fragment>
-            ))}
-          </div>
+        <div className="flex items-center space-x-2 text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => handleBreadcrumbClick(null)}
+            className="flex items-center space-x-1 hover:bg-gray-200 px-2 py-1 rounded"
+          >
+            <Home className="h-4 w-4" />
+            <span>Home</span>
+          </Button>
+          
+          {folderPath.map((folder, index) => (
+            <React.Fragment key={folder.id}>
+              <ChevronRight className="h-4 w-4" />
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => handleBreadcrumbClick(folder.id)}
+                className="hover:bg-gray-200 px-2 py-1 rounded"
+              >
+                {folder.name}
+              </Button>
+            </React.Fragment>
+          ))}
         </div>
       )}
 
-      {/* Filters - Mobile optimized */}
+      {/* Filters */}
       <DocumentFilters
         searchTerm={searchTerm}
         typeFilter={typeFilter}
@@ -447,19 +442,19 @@ export const DocumentsModule: React.FC = () => {
         onDateFilterChange={setDateFilter}
       />
 
-      {/* Documents and Folders Table/List */}
+      {/* Combined Documents and Folders Table */}
       {filteredDocuments.length === 0 && filteredFolders.length === 0 ? (
         <div className="bg-white rounded-lg border">
-          <div className="text-center py-12 px-4">
+          <div className="text-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No documents or folders found</h3>
-            <p className="text-sm lg:text-base text-gray-500 mb-6">
+            <p className="text-gray-500 mb-4">
               {searchTerm || typeFilter !== 'all' || peopleFilter !== 'all' || dateFilter !== 'all'
                 ? 'Try adjusting your search or filter criteria'
                 : 'Get started by uploading your first document or creating a folder'}
             </p>
             {!searchTerm && (
-              <div className="flex flex-col lg:flex-row space-y-2 lg:space-y-0 lg:space-x-2 justify-center">
+              <div className="flex space-x-2 justify-center">
                 <CreateFolderDialog 
                   onFolderCreated={createFolder}
                   existingFolders={folders}
