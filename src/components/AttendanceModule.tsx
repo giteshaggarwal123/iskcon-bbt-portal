@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -140,15 +141,15 @@ export const AttendanceModule: React.FC = () => {
   return (
     <>
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 max-w-7xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
           {/* Header Section */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-2">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Attendance Management</h1>
-              <p className="text-muted-foreground text-sm sm:text-base">Track and manage meeting attendance across all sessions</p>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Attendance Management</h1>
+              <p className="text-muted-foreground">Track and manage meeting attendance across all sessions</p>
             </div>
             <Button 
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90 flex-shrink-0"
+              className="w-full lg:w-auto bg-primary hover:bg-primary/90 shrink-0"
               onClick={() => setShowMarkAttendanceDialog(true)}
             >
               <UserCheck className="h-4 w-4 mr-2" />
@@ -157,102 +158,105 @@ export const AttendanceModule: React.FC = () => {
           </div>
 
           <Tabs defaultValue="current" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-6">
-              <TabsTrigger value="current" className="text-xs sm:text-sm">Current Meetings</TabsTrigger>
-              <TabsTrigger value="members" className="text-xs sm:text-sm">Member Records</TabsTrigger>
-              <TabsTrigger value="history" className="text-xs sm:text-sm">History</TabsTrigger>
-              <TabsTrigger value="reports" className="text-xs sm:text-sm">Reports</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto">
+              <TabsTrigger value="current" className="text-sm">Current Meetings</TabsTrigger>
+              <TabsTrigger value="members" className="text-sm">Member Records</TabsTrigger>
+              <TabsTrigger value="history" className="text-sm">History</TabsTrigger>
+              <TabsTrigger value="reports" className="text-sm">Reports</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="current" className="space-y-6">
-              <div className="grid gap-4 sm:gap-6">
+            <TabsContent value="current" className="mt-8 space-y-6">
+              <div className="grid gap-6">
                 {meetings.map((meeting) => {
                   const meetingInfo = formatMeetingInfo(meeting);
                   const attendance = attendanceData[meeting.id] || { present: 0, late: 0, absent: 0, totalMembers: 0 };
                   
                   return (
-                    <Card key={meeting.id} className="hover:shadow-md transition-shadow">
-                      <CardHeader className="space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                          <div className="space-y-2 flex-1 min-w-0">
-                            <CardTitle className="text-lg sm:text-xl break-words">{meeting.title}</CardTitle>
-                            <CardDescription className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs sm:text-sm">
-                              <span className="flex items-center space-x-1">
-                                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                    <Card key={meeting.id} className="hover:shadow-lg transition-all duration-200 border-border/50">
+                      <CardHeader className="space-y-4 pb-4">
+                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                          <div className="space-y-3 flex-1 min-w-0">
+                            <div className="flex items-start justify-between">
+                              <CardTitle className="text-xl font-semibold leading-7 break-words pr-4">
+                                {meeting.title}
+                              </CardTitle>
+                              <div className="shrink-0">
+                                {getStatusBadge(meeting)}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-muted-foreground">
+                              <div className="flex items-center space-x-2">
+                                <Calendar className="h-4 w-4 shrink-0" />
                                 <span className="truncate">{meetingInfo.date}</span>
-                              </span>
-                              <span className="flex items-center space-x-1">
-                                <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Clock className="h-4 w-4 shrink-0" />
                                 <span className="truncate">{meetingInfo.time}</span>
-                              </span>
-                              <span className="flex items-center space-x-1">
+                              </div>
+                              <div className="flex items-center space-x-2">
                                 {meetingInfo.type === 'online' ? (
-                                  <Video className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                  <Video className="h-4 w-4 shrink-0" />
                                 ) : (
-                                  <MapPin className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                  <MapPin className="h-4 w-4 shrink-0" />
                                 )}
                                 <span className="truncate">{meetingInfo.location}</span>
-                              </span>
-                            </CardDescription>
-                          </div>
-                          <div className="flex-shrink-0">
-                            {getStatusBadge(meeting)}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="space-y-6">
                         {isOngoingMeeting(meeting) && attendance.totalMembers > 0 && (
-                          <div>
-                            <div className="flex justify-between text-sm mb-2">
-                              <span>Current Attendance</span>
-                              <span className="font-medium">{Math.round((attendance.present / attendance.totalMembers) * 100)}%</span>
+                          <div className="space-y-3">
+                            <div className="flex justify-between text-sm">
+                              <span className="font-medium">Current Attendance</span>
+                              <span className="font-semibold text-primary">
+                                {Math.round((attendance.present / attendance.totalMembers) * 100)}%
+                              </span>
                             </div>
                             <Progress 
                               value={(attendance.present / attendance.totalMembers) * 100} 
-                              className="h-2 sm:h-3"
+                              className="h-3"
                             />
                           </div>
                         )}
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                          <div className="text-center p-3 bg-green-50 rounded-lg">
-                            <div className="text-xl sm:text-2xl font-bold text-green-600">{attendance.present}</div>
-                            <div className="text-xs sm:text-sm text-gray-500">Present</div>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div className="text-center p-4 bg-green-50 rounded-xl border border-green-100">
+                            <div className="text-2xl font-bold text-green-600">{attendance.present}</div>
+                            <div className="text-sm text-green-700 font-medium">Present</div>
                           </div>
-                          <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                            <div className="text-xl sm:text-2xl font-bold text-yellow-600">{attendance.late}</div>
-                            <div className="text-xs sm:text-sm text-gray-500">Late</div>
+                          <div className="text-center p-4 bg-yellow-50 rounded-xl border border-yellow-100">
+                            <div className="text-2xl font-bold text-yellow-600">{attendance.late}</div>
+                            <div className="text-sm text-yellow-700 font-medium">Late</div>
                           </div>
-                          <div className="text-center p-3 bg-red-50 rounded-lg">
-                            <div className="text-xl sm:text-2xl font-bold text-red-600">{attendance.absent}</div>
-                            <div className="text-xs sm:text-sm text-gray-500">Absent</div>
+                          <div className="text-center p-4 bg-red-50 rounded-xl border border-red-100">
+                            <div className="text-2xl font-bold text-red-600">{attendance.absent}</div>
+                            <div className="text-sm text-red-700 font-medium">Absent</div>
                           </div>
-                          <div className="text-center p-3 bg-blue-50 rounded-lg">
-                            <div className="text-xl sm:text-2xl font-bold text-blue-600">{attendance.totalMembers}</div>
-                            <div className="text-xs sm:text-sm text-gray-500">Total</div>
+                          <div className="text-center p-4 bg-blue-50 rounded-xl border border-blue-100">
+                            <div className="text-2xl font-bold text-blue-600">{attendance.totalMembers}</div>
+                            <div className="text-sm text-blue-700 font-medium">Total</div>
                           </div>
                         </div>
 
                         {isOngoingMeeting(meeting) && (
-                          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
+                          <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-border/50">
                             <Button 
                               size="sm" 
-                              className="bg-green-500 hover:bg-green-600 flex-1 sm:flex-none"
+                              className="bg-green-500 hover:bg-green-600 text-white flex-1 sm:flex-none"
                               onClick={() => setShowMarkAttendanceDialog(true)}
                             >
                               <CheckCircle className="h-4 w-4 mr-2" />
-                              <span className="hidden sm:inline">Quick Check-in</span>
-                              <span className="sm:hidden">Check-in</span>
+                              Quick Check-in
                             </Button>
                             <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
                               <Users className="h-4 w-4 mr-2" />
-                              <span className="hidden sm:inline">View Details</span>
-                              <span className="sm:hidden">Details</span>
+                              View Details
                             </Button>
                             <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
                               <Clock className="h-4 w-4 mr-2" />
-                              <span className="hidden sm:inline">Late Arrivals</span>
-                              <span className="sm:hidden">Late</span>
+                              Late Arrivals
                             </Button>
                           </div>
                         )}
@@ -263,40 +267,40 @@ export const AttendanceModule: React.FC = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="members" className="space-y-4 sm:space-y-6">
+            <TabsContent value="members" className="mt-8 space-y-6">
               <div className="grid gap-4">
                 {memberAttendance.map((member, index) => (
-                  <Card key={index} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4 sm:p-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
-                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                            <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                  <Card key={index} className="hover:shadow-lg transition-all duration-200 border-border/50">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                        <div className="flex items-center space-x-4 flex-1 min-w-0">
+                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                            <Users className="h-6 w-6 text-primary" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">{member.name}</h3>
-                            <p className="text-xs sm:text-sm text-muted-foreground truncate">{member.role}</p>
+                            <h3 className="font-semibold text-foreground text-lg truncate">{member.name}</h3>
+                            <p className="text-sm text-muted-foreground truncate">{member.role}</p>
                           </div>
                         </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                          <div className="grid grid-cols-3 gap-3 sm:flex sm:items-center sm:space-x-4 sm:gap-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+                          <div className="grid grid-cols-3 gap-6 sm:flex sm:items-center sm:space-x-8">
                             <div className="text-center">
-                              <div className={`text-lg sm:text-2xl font-bold ${getAttendanceColor(member.percentage)}`}>
+                              <div className={`text-2xl font-bold ${getAttendanceColor(member.percentage)}`}>
                                 {member.percentage}%
                               </div>
-                              <div className="text-xs text-muted-foreground">Attendance</div>
+                              <div className="text-xs text-muted-foreground font-medium">Attendance</div>
                             </div>
                             <div className="text-center">
-                              <div className="text-sm sm:text-lg font-semibold">{member.present}/{member.total}</div>
-                              <div className="text-xs text-muted-foreground">Meetings</div>
+                              <div className="text-lg font-semibold text-foreground">{member.present}/{member.total}</div>
+                              <div className="text-xs text-muted-foreground font-medium">Meetings</div>
                             </div>
                             <div className="text-center sm:text-left">
                               <Badge 
-                                className={
+                                className={`${
                                   member.lastMeeting === 'Present' ? 'bg-green-500 text-white' :
                                   member.lastMeeting === 'Late' ? 'bg-yellow-500 text-white' :
                                   'bg-red-500 text-white'
-                                }
+                                } text-xs px-3 py-1`}
                               >
                                 {member.lastMeeting}
                               </Badge>
@@ -310,32 +314,32 @@ export const AttendanceModule: React.FC = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="history" className="space-y-4 sm:space-y-6">
-              <div className="grid gap-4 sm:gap-6">
+            <TabsContent value="history" className="mt-8 space-y-6">
+              <div className="grid gap-6">
                 {attendanceHistory.map((record, index) => (
-                  <Card key={index} className="hover:shadow-md transition-shadow">
-                    <CardHeader className="space-y-2">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                  <Card key={index} className="hover:shadow-lg transition-all duration-200 border-border/50">
+                    <CardHeader className="space-y-3">
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <CardTitle className="text-base sm:text-lg break-words">{record.meeting}</CardTitle>
-                          <CardDescription className="text-sm">{record.date}</CardDescription>
+                          <CardTitle className="text-lg font-semibold break-words">{record.meeting}</CardTitle>
+                          <CardDescription className="text-sm font-medium">{record.date}</CardDescription>
                         </div>
-                        <Badge className="bg-primary text-white w-fit">{record.attendance}%</Badge>
+                        <Badge className="bg-primary text-white w-fit text-sm px-3 py-1">{record.attendance}%</Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="text-center p-3 bg-primary/5 rounded-lg">
-                          <div className="text-xl sm:text-2xl font-bold text-primary">{record.present}/{record.total}</div>
-                          <div className="text-xs sm:text-sm text-muted-foreground">Attendance</div>
+                        <div className="text-center p-4 bg-primary/5 rounded-xl border border-primary/10">
+                          <div className="text-2xl font-bold text-primary">{record.present}/{record.total}</div>
+                          <div className="text-sm text-primary/80 font-medium">Attendance</div>
                         </div>
-                        <div className="text-center p-3 bg-green-50 rounded-lg">
-                          <div className="text-xl sm:text-2xl font-bold text-green-600">{record.attendance}%</div>
-                          <div className="text-xs sm:text-sm text-muted-foreground">Rate</div>
+                        <div className="text-center p-4 bg-green-50 rounded-xl border border-green-100">
+                          <div className="text-2xl font-bold text-green-600">{record.attendance}%</div>
+                          <div className="text-sm text-green-700 font-medium">Rate</div>
                         </div>
-                        <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                          <div className="text-xl sm:text-2xl font-bold text-yellow-600">{record.avgDuration}</div>
-                          <div className="text-xs sm:text-sm text-muted-foreground">Avg Duration</div>
+                        <div className="text-center p-4 bg-yellow-50 rounded-xl border border-yellow-100">
+                          <div className="text-2xl font-bold text-yellow-600">{record.avgDuration}</div>
+                          <div className="text-sm text-yellow-700 font-medium">Avg Duration</div>
                         </div>
                       </div>
                     </CardContent>
@@ -344,63 +348,63 @@ export const AttendanceModule: React.FC = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="reports" className="space-y-4 sm:space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                <Card>
+            <TabsContent value="reports" className="mt-8 space-y-6">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <Card className="border-border/50">
                   <CardHeader>
-                    <CardTitle className="text-lg sm:text-xl">Generate Reports</CardTitle>
-                    <CardDescription className="text-sm">Export attendance data and analytics</CardDescription>
+                    <CardTitle className="text-xl font-semibold">Generate Reports</CardTitle>
+                    <CardDescription>Export attendance data and analytics</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-3 sm:space-y-4">
+                  <CardContent className="space-y-4">
                     <Button 
-                      className="w-full justify-start" 
+                      className="w-full justify-start h-12" 
                       variant="outline"
                       onClick={() => handleDownloadReport('member')}
                     >
-                      <Download className="h-4 w-4 mr-2 flex-shrink-0" />
-                      <span className="text-sm">Member Attendance Report</span>
+                      <Download className="h-4 w-4 mr-3 shrink-0" />
+                      <span className="text-sm font-medium">Member Attendance Report</span>
                     </Button>
                     <Button 
-                      className="w-full justify-start" 
+                      className="w-full justify-start h-12" 
                       variant="outline"
                       onClick={() => handleDownloadReport('meeting')}
                     >
-                      <Download className="h-4 w-4 mr-2 flex-shrink-0" />
-                      <span className="text-sm">Meeting Attendance Summary</span>
+                      <Download className="h-4 w-4 mr-3 shrink-0" />
+                      <span className="text-sm font-medium">Meeting Attendance Summary</span>
                     </Button>
                     <Button 
-                      className="w-full justify-start" 
+                      className="w-full justify-start h-12" 
                       variant="outline"
                       onClick={() => handleDownloadReport('detailed')}
                     >
-                      <Download className="h-4 w-4 mr-2 flex-shrink-0" />
-                      <span className="text-sm">Detailed Analytics</span>
+                      <Download className="h-4 w-4 mr-3 shrink-0" />
+                      <span className="text-sm font-medium">Detailed Analytics</span>
                     </Button>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-border/50">
                   <CardHeader>
-                    <CardTitle className="text-lg sm:text-xl">Quick Stats</CardTitle>
-                    <CardDescription className="text-sm">Overall attendance overview</CardDescription>
+                    <CardTitle className="text-xl font-semibold">Quick Stats</CardTitle>
+                    <CardDescription>Overall attendance overview</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3 sm:space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Overall Attendance</span>
-                        <span className="font-semibold text-green-600">87%</span>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center py-3 border-b border-border/30">
+                        <span className="text-sm text-muted-foreground font-medium">Overall Attendance</span>
+                        <span className="font-semibold text-green-600 text-lg">87%</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Most Attended Meeting</span>
+                      <div className="flex justify-between items-center py-3 border-b border-border/30">
+                        <span className="text-sm text-muted-foreground font-medium">Most Attended Meeting</span>
                         <span className="font-semibold text-right text-sm">Monthly Bureau (93%)</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Best Attendee</span>
+                      <div className="flex justify-between items-center py-3 border-b border-border/30">
+                        <span className="text-sm text-muted-foreground font-medium">Best Attendee</span>
                         <span className="font-semibold text-right text-sm">Radha Krishna Das (92%)</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Auto-Tracked Sessions</span>
-                        <span className="font-semibold text-blue-600">12 Teams meetings</span>
+                      <div className="flex justify-between items-center py-3">
+                        <span className="text-sm text-muted-foreground font-medium">Auto-Tracked Sessions</span>
+                        <span className="font-semibold text-blue-600 text-sm">12 Teams meetings</span>
                       </div>
                     </div>
                   </CardContent>
