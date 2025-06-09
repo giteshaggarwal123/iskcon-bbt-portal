@@ -71,6 +71,15 @@ export const useMembers = () => {
             memberRoles = [{ user_id: profile.id, role: 'super_admin' }, ...memberRoles];
           }
         }
+
+        // Special handling for admin@iskconbureau.in
+        if (profile.email === 'admin@iskconbureau.in') {
+          // Ensure admin role is present
+          const hasAdminRole = memberRoles.some(role => role.role === 'admin');
+          if (!hasAdminRole) {
+            memberRoles = [{ user_id: profile.id, role: 'admin' }, ...memberRoles];
+          }
+        }
         
         return {
           id: profile.id,
@@ -251,23 +260,21 @@ export const useMembers = () => {
 
       console.log('Updating member role:', { memberId, newRole });
 
-      // Remove existing roles (except for super admin)
-      if (newRole !== 'super_admin') {
-        const { error: deleteError } = await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', memberId);
+      // Remove existing roles for this user
+      const { error: deleteError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', memberId);
 
-        if (deleteError) {
-          console.error('Error removing existing roles:', deleteError);
-          throw deleteError;
-        }
+      if (deleteError) {
+        console.error('Error removing existing roles:', deleteError);
+        throw deleteError;
       }
 
       // Add new role
       const { error: insertError } = await supabase
         .from('user_roles')
-        .upsert({
+        .insert({
           user_id: memberId,
           role: newRole as any
         });
@@ -330,17 +337,6 @@ export const useMembers = () => {
       if (profileError) {
         console.error('Error deleting profile:', profileError);
         throw profileError;
-      }
-
-      // Also try to delete from auth.users if possible (this might fail due to RLS)
-      try {
-        const { error: authError } = await supabase.auth.admin.deleteUser(memberId);
-        if (authError) {
-          console.log('Could not delete from auth.users:', authError);
-          // This is expected in some cases, continue anyway
-        }
-      } catch (authError) {
-        console.log('Auth deletion not available:', authError);
       }
 
       await logActivity('Deleted member', `Removed member from bureau`);
@@ -465,8 +461,6 @@ export const useMembers = () => {
     if (!user) return;
 
     try {
-      // For now, we'll just log to console since we don't have an activity table
-      // In a real app, you'd insert into an activity_logs table
       console.log('Activity logged:', {
         user_id: user.id,
         action,
@@ -474,7 +468,6 @@ export const useMembers = () => {
         timestamp: new Date().toISOString()
       });
 
-      // Simulate activity log for demo
       const newLog = {
         id: Date.now().toString(),
         user_id: user.id,
@@ -483,7 +476,7 @@ export const useMembers = () => {
         user_name: `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || user.email || 'Unknown User'
       };
 
-      setActivityLogs(prev => [newLog, ...prev].slice(0, 10)); // Keep only last 10 logs
+      setActivityLogs(prev => [newLog, ...prev].slice(0, 10));
     } catch (error) {
       console.error('Error logging activity:', error);
     }

@@ -77,7 +77,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({
   };
 
   // For super admin detection, check email first
-  const actualRole = member.email === 'cs@iskconbureau.in' ? 'super_admin' : (member.roles[0] || 'member');
+  const actualRole = member.email === 'cs@iskconbureau.in' ? 'super_admin' : (member.roles[0] || 'admin');
   const joinDate = new Date(member.created_at).toLocaleDateString();
 
   const handleDeleteMember = () => {
@@ -102,19 +102,19 @@ export const MemberCard: React.FC<MemberCardProps> = ({
     }
   };
 
-  // Role change permissions - enhanced with more granular control
-  const canChangeRole = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin' && actualRole !== 'admin');
-  const canDeleteMember = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin' && actualRole !== 'admin');
-  const canViewSettings = userRole.isSuperAdmin || userRole.isAdmin || userRole.isSecretary;
-  const canSendMessage = true; // All users can send messages
-  const canSuspendMember = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin' && actualRole !== 'admin');
-  const canResetPassword = userRole.isSuperAdmin || (userRole.isAdmin && actualRole !== 'super_admin');
-  const canViewActivity = userRole.isSuperAdmin || userRole.isAdmin;
+  // Enhanced permission logic for admin accounts
+  const canChangeRole = userRole.isSuperAdmin && member.email !== 'cs@iskconbureau.in';
+  const canDeleteMember = userRole.isSuperAdmin && member.email !== 'cs@iskconbureau.in';
+  const canViewSettings = true; // Both admins can view settings
+  const canSendMessage = true; // Both can send messages
+  const canSuspendMember = false; // Disable suspend for admin accounts
+  const canResetPassword = userRole.isSuperAdmin && member.email !== 'cs@iskconbureau.in';
+  const canViewActivity = true; // Both can view activity
   const canEditMember = userRole.isSuperAdmin; // Only super admin can edit member info
   
-  // Super admin can never be deleted or have role changed by others
-  const isSuperAdminMember = actualRole === 'super_admin';
-  const isProtectedMember = isSuperAdminMember || (actualRole === 'admin' && !userRole.isSuperAdmin);
+  // Super admin protection
+  const isSuperAdminMember = member.email === 'cs@iskconbureau.in';
+  const isProtectedMember = isSuperAdminMember;
 
   return (
     <>
@@ -178,9 +178,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({
                     {userRole.isSuperAdmin && (
                       <SelectItem value="super_admin">Super Admin</SelectItem>
                     )}
-                    {userRole.isSuperAdmin && (
-                      <SelectItem value="admin">Admin</SelectItem>
-                    )}
+                    <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="secretary">Secretary</SelectItem>
                     <SelectItem value="treasurer">Treasurer</SelectItem>
                     <SelectItem value="member">Member</SelectItem>
