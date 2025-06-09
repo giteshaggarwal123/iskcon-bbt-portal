@@ -11,11 +11,20 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true); // Default to open on desktop
   const [currentModule, setCurrentModule] = useState('dashboard');
   const [showProfile, setShowProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const isMobile = useIsMobile();
+
+  // Listen for navigation events from other components
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    } else {
+      setSidebarOpen(true);
+    }
+  }, [isMobile]);
 
   // Listen for navigation events from other components
   useEffect(() => {
@@ -40,6 +49,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleSettingsClick = () => {
     setShowSettings(true);
     setCurrentModule('settings');
+  };
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
   };
 
   const renderContent = () => {
@@ -115,17 +128,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       />
       
       <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${
-        !isMobile && sidebarOpen ? 'ml-0' : 'ml-0'
+        !isMobile && sidebarOpen ? 'ml-64' : 'ml-0'
       }`}>
         <Header 
-          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+          onMenuClick={toggleSidebar}
           onProfileClick={handleProfileClick}
           onSettingsClick={handleSettingsClick}
           onNavigate={handleNavigateFromNotification}
+          showMenuButton={true} // Always show menu button for both mobile and desktop
         />
-        <main className={`flex-1 w-full min-w-0 overflow-x-hidden ${
+        <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
           isMobile ? 'p-2 pb-20' : 'p-4 lg:p-6'
-        }`}>
+        } ${!isMobile && sidebarOpen ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
           <div className="w-full max-w-none">
             {renderContent()}
           </div>
@@ -161,9 +175,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </div>
 
       <style>{`
-        /* Desktop styles - ensure full width usage */
+        /* Desktop styles - responsive sidebar handling */
         @media (min-width: 768px) {
-          /* Ensure main content uses full available width */
+          /* Ensure main content uses available width based on sidebar state */
           main {
             width: 100%;
             max-width: 100%;
@@ -179,6 +193,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           .flex-1 {
             min-width: 0;
             width: 100%;
+          }
+
+          /* Optimize content width when sidebar is collapsed */
+          .sidebar-collapsed main {
+            padding-left: 2rem;
+            padding-right: 2rem;
+          }
+
+          /* Smooth transitions for all layout changes */
+          main, .flex-1 {
+            transition: all 0.3s ease-in-out;
           }
         }
         

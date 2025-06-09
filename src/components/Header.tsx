@@ -13,13 +13,15 @@ interface HeaderProps {
   onProfileClick?: () => void;
   onSettingsClick?: () => void;
   onNavigate?: (module: string, id?: string) => void;
+  showMenuButton?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
   onMenuClick, 
   onProfileClick, 
   onSettingsClick,
-  onNavigate 
+  onNavigate,
+  showMenuButton = true
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const { user } = useAuth();
@@ -52,12 +54,14 @@ export const Header: React.FC<HeaderProps> = ({
       <header className="bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            {onMenuClick && (
+            {/* Hamburger Menu Button - Show on both mobile and desktop */}
+            {onMenuClick && showMenuButton && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={onMenuClick}
-                className="md:hidden"
+                className="hover:bg-gray-100 transition-colors"
+                title={isMobile ? "Open navigation menu" : "Toggle sidebar"}
               >
                 <Menu className="h-4 w-4" />
               </Button>
@@ -130,6 +134,19 @@ export const Header: React.FC<HeaderProps> = ({
             header > div {
               max-width: 100%;
               overflow: hidden;
+            }
+          }
+
+          /* Desktop hamburger button styling */
+          @media (min-width: 768px) {
+            header button[title*="Toggle"] {
+              border-radius: 0.375rem;
+              transition: all 0.2s ease-in-out;
+            }
+            
+            header button[title*="Toggle"]:hover {
+              background-color: rgba(0, 0, 0, 0.05);
+              transform: scale(1.05);
             }
           }
         `}</style>
