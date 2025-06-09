@@ -72,13 +72,15 @@ const AppContent = () => {
         return <ReportsModule />;
       case 'settings':
         return <SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />;
+      case 'profile':
+        return <SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />;
       default:
         return <Dashboard />;
     }
   };
 
   return (
-    <Layout>
+    <Layout currentModule={currentModule} onModuleChange={setCurrentModule}>
       {renderModule()}
     </Layout>
   );

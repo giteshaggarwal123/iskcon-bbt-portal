@@ -20,6 +20,8 @@ import { useUserRole } from '@/hooks/useUserRole';
 
 interface LayoutProps {
   children: React.ReactNode;
+  currentModule: string;
+  onModuleChange: (module: string) => void;
 }
 
 const mobileMenuItems = [
@@ -30,9 +32,8 @@ const mobileMenuItems = [
   { id: 'members', label: 'Members', icon: Users },
 ];
 
-export const Layout: React.FC<LayoutProps> = ({ children }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, currentModule, onModuleChange }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [currentModule, setCurrentModule] = useState('dashboard');
   const [showProfile, setShowProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const isMobile = useIsMobile();
@@ -40,16 +41,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleProfileClick = () => {
     setShowProfile(true);
-    setCurrentModule('profile');
+    onModuleChange('profile');
   };
 
   const handleSettingsClick = () => {
     setShowSettings(true);
-    setCurrentModule('settings');
+    onModuleChange('settings');
   };
 
   const handleModuleChange = (module: string) => {
-    setCurrentModule(module);
+    onModuleChange(module);
     setShowProfile(false);
     setShowSettings(false);
     if (isMobile) setSidebarOpen(false);
