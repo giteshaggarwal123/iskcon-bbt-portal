@@ -42,6 +42,33 @@ export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({
     }
   }, [open, meeting]);
 
+  // Set up real-time subscription for RSVP updates
+  useEffect(() => {
+    if (!open || !meeting) return;
+
+    const channel = supabase
+      .channel('rsvp-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'meeting_attendees',
+          filter: `meeting_id=eq.${meeting.id}`
+        },
+        (payload) => {
+          console.log('RSVP updated:', payload);
+          // Refresh data when RSVP responses change
+          fetchAttendeeResponses();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [open, meeting]);
+
   const fetchAttendeeResponses = async () => {
     if (!meeting) return;
     
