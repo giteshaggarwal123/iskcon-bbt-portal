@@ -97,28 +97,30 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentModule, onModul
           onModuleChange={handleModuleChange}
         />
         
-        {/* Main Content */}
-        <main className="flex-1 p-4 pb-20 overflow-y-auto">
-          {renderContent()}
+        {/* Main Content with proper mobile padding and spacing */}
+        <main className="flex-1 pb-20 overflow-y-auto">
+          <div className="w-full min-h-full">
+            {renderContent()}
+          </div>
         </main>
         
         {/* Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30">
-          <div className="flex justify-around items-center py-2">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 safe-area-pb">
+          <div className="flex justify-around items-center py-2 px-2">
             {filteredMobileItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => handleModuleChange(item.id)}
-                className={`flex flex-col items-center justify-center p-2 min-w-0 flex-1 ${
+                className={`flex flex-col items-center justify-center p-2 min-w-0 flex-1 rounded-lg transition-colors ${
                   currentModule === item.id
-                    ? 'text-primary'
-                    : 'text-gray-500'
+                    ? 'text-primary bg-primary/10'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                <item.icon className={`h-6 w-6 mb-1 ${
+                <item.icon className={`h-5 w-5 mb-1 ${
                   currentModule === item.id ? 'text-primary' : 'text-gray-500'
                 }`} />
-                <span className={`text-xs font-medium ${
+                <span className={`text-xs font-medium truncate ${
                   currentModule === item.id ? 'text-primary' : 'text-gray-500'
                 }`}>
                   {item.label}
