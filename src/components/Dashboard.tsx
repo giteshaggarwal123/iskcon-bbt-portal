@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -108,375 +109,245 @@ export const Dashboard: React.FC = () => {
   const isPastDeadline = (deadline: string) => new Date(deadline) < new Date();
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Header with Connection Status */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Bureau Dashboard</h1>
-          <p className="text-gray-600 mt-2">Welcome back! Here's what's happening today.</p>
+    <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+      <div className="space-y-4 sm:space-y-6">
+        {/* Header Section - Clean and aligned */}
+        <div className="space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Bureau Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Welcome back! Here's what's happening today.
+          </p>
+          
+          {/* Microsoft Connection Status - Positioned cleanly */}
+          <div className="flex justify-start pt-2">
+            <MicrosoftConnectionStatus />
+          </div>
         </div>
-        <MicrosoftConnectionStatus />
-      </div>
 
-      {/* Main Grid - Enhanced Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Emails - Top Left */}
-        <Card className="shadow-lg border-0 bg-gradient-to-br from-red-50 to-white">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center justify-between text-xl">
-              <div className="flex items-center space-x-3">
+        {/* Main Grid - Clean Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          {/* Recent Emails */}
+          <Card className="border border-border bg-card">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center space-x-3 text-lg sm:text-xl">
                 <div className="p-2 bg-red-100 rounded-lg">
-                  <Mail className="h-6 w-6 text-red-600" />
+                  <Mail className="h-5 w-5 text-red-600" />
                 </div>
-                <span className="text-gray-800">Recent Emails</span>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {recentEmails.length > 0 ? (
-              <>
-                {recentEmails.map((email) => (
-                  <div key={email.id} className="bg-white p-4 rounded-lg border border-red-100 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-semibold text-gray-900 truncate flex-1 mr-2">{email.subject}</h4>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="shrink-0 text-red-600 border-red-200 hover:bg-red-50"
-                        onClick={() => handleOpenEmail(email)}
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        Open
-                      </Button>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-2">From: {email.from.name}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">
-                        {new Date(email.receivedDateTime).toLocaleDateString()}
-                      </span>
-                      <div className="flex items-center space-x-2">
-                        {!email.isRead && <div className="w-2 h-2 bg-red-500 rounded-full"></div>}
-                        {email.importance === 'high' && (
-                          <span className="text-xs px-2 py-1 bg-red-100 text-red-600 rounded-full">High</span>
-                        )}
+                <span>Recent Emails</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {recentEmails.length > 0 ? (
+                <div className="space-y-3">
+                  {recentEmails.map((email) => (
+                    <div key={email.id} className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium text-sm truncate flex-1 mr-2">{email.subject}</h4>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="shrink-0 h-7 text-xs"
+                          onClick={() => handleOpenEmail(email)}
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          Open
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">From: {email.from.name}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(email.receivedDateTime).toLocaleDateString()}
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          {!email.isRead && <div className="w-2 h-2 bg-red-500 rounded-full"></div>}
+                          {email.importance === 'high' && (
+                            <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 rounded-full">High</span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-                <Button 
-                  variant="ghost" 
-                  className="w-full mt-4 text-red-600 hover:bg-red-50"
-                  onClick={() => handleViewMore('email')}
-                >
-                  View More →
-                </Button>
-              </>
-            ) : (
-              <div className="text-center py-8">
-                <Mail className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500">No emails found</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                  <Button 
+                    variant="ghost" 
+                    className="w-full mt-3 text-red-600 hover:bg-red-50"
+                    onClick={() => handleViewMore('email')}
+                  >
+                    View More →
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Mail className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">No emails found</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Upcoming Meetings - Top Right */}
-        <Card className="shadow-lg border-0 bg-gradient-to-br from-blue-50 to-white">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center justify-between text-xl">
-              <div className="flex items-center space-x-3">
+          {/* Upcoming Meetings */}
+          <Card className="border border-border bg-card">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center space-x-3 text-lg sm:text-xl">
                 <div className="p-2 bg-blue-100 rounded-lg">
-                  <CalendarDays className="h-6 w-6 text-blue-600" />
+                  <CalendarDays className="h-5 w-5 text-blue-600" />
                 </div>
-                <span className="text-gray-800">Upcoming Meetings</span>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {upcomingMeetings.length > 0 ? (
-              <>
-                {upcomingMeetings.map((meeting) => (
-                  <div key={meeting.id} className="bg-white p-4 rounded-lg border border-blue-100 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-semibold text-gray-900 truncate flex-1 mr-2">{meeting.title}</h4>
-                      {meeting.teams_join_url && (
-                        <Button
-                          size="sm"
-                          className="shrink-0 bg-blue-600 hover:bg-blue-700"
-                          onClick={() => handleJoinMeeting(meeting)}
-                        >
-                          <Play className="h-3 w-3 mr-1" />
-                          Join Now
-                        </Button>
-                      )}
+                <span>Upcoming Meetings</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {upcomingMeetings.length > 0 ? (
+                <div className="space-y-3">
+                  {upcomingMeetings.map((meeting) => (
+                    <div key={meeting.id} className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium text-sm truncate flex-1 mr-2">{meeting.title}</h4>
+                        {meeting.teams_join_url && (
+                          <Button
+                            size="sm"
+                            className="shrink-0 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                            onClick={() => handleJoinMeeting(meeting)}
+                          >
+                            <Play className="h-3 w-3 mr-1" />
+                            Join
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        {new Date(meeting.start_time).toLocaleDateString()} at {new Date(meeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                      <span className="inline-block text-xs px-2 py-0.5 bg-blue-100 text-blue-600 rounded-full">
+                        Upcoming
+                      </span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">
-                      {new Date(meeting.start_time).toLocaleDateString()} at {new Date(meeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                    <span className="inline-block text-xs px-3 py-1 bg-blue-100 text-blue-600 rounded-full">
-                      Upcoming
-                    </span>
-                  </div>
-                ))}
-                <Button 
-                  variant="ghost" 
-                  className="w-full mt-4 text-blue-600 hover:bg-blue-50"
-                  onClick={() => handleViewMore('meetings')}
-                >
-                  View More →
-                </Button>
-              </>
-            ) : (
-              <div className="text-center py-8">
-                <CalendarDays className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500">No upcoming meetings</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                  <Button 
+                    variant="ghost" 
+                    className="w-full mt-3 text-blue-600 hover:bg-blue-50"
+                    onClick={() => handleViewMore('meetings')}
+                  >
+                    View More →
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <CalendarDays className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">No upcoming meetings</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Important Documents - Bottom Left */}
-        <Card className="shadow-lg border-0 bg-gradient-to-br from-green-50 to-white">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center justify-between text-xl">
-              <div className="flex items-center space-x-3">
+          {/* Important Documents */}
+          <Card className="border border-border bg-card">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center space-x-3 text-lg sm:text-xl">
                 <div className="p-2 bg-green-100 rounded-lg">
-                  <FileText className="h-6 w-6 text-green-600" />
+                  <FileText className="h-5 w-5 text-green-600" />
                 </div>
-                <span className="text-gray-800">Important Documents</span>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {recentDocuments.length > 0 ? (
-              <>
-                {recentDocuments.map((doc) => (
-                  <div key={doc.id} className="bg-white p-4 rounded-lg border border-green-100 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-semibold text-gray-900 truncate flex-1 mr-2">{doc.name}</h4>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="shrink-0 text-green-600 border-green-200 hover:bg-green-50"
-                        onClick={() => handleOpenDocument(doc)}
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        Open
-                      </Button>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-2">
-                      {new Date(doc.created_at).toLocaleDateString()} • {doc.folder || 'General'}
-                    </p>
-                    <span className="inline-block text-xs px-3 py-1 bg-green-100 text-green-600 rounded-full">
-                      {doc.mime_type?.includes('pdf') ? 'PDF' : 'Document'}
-                    </span>
-                  </div>
-                ))}
-                <Button 
-                  variant="ghost" 
-                  className="w-full mt-4 text-green-600 hover:bg-green-50"
-                  onClick={() => handleViewMore('documents')}
-                >
-                  View More →
-                </Button>
-              </>
-            ) : (
-              <div className="text-center py-8">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500">No documents uploaded</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Active Voting - Bottom Right */}
-        <Card className="shadow-lg border-0 bg-gradient-to-br from-purple-50 to-white">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center justify-between text-xl">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Vote className="h-6 w-6 text-purple-600" />
-                </div>
-                <span className="text-gray-800">Active Voting</span>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {sortedPolls.length > 0 ? (
-              <>
-                {sortedPolls.map((poll) => (
-                  <div key={poll.id} className="bg-white p-4 rounded-lg border border-purple-100 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-semibold text-gray-900 truncate flex-1 mr-2">{poll.title}</h4>
-                      {!isPastDeadline(poll.deadline) && (
+                <span>Important Documents</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {recentDocuments.length > 0 ? (
+                <div className="space-y-3">
+                  {recentDocuments.map((doc) => (
+                    <div key={doc.id} className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium text-sm truncate flex-1 mr-2">{doc.name}</h4>
                         <Button
                           size="sm"
-                          className="shrink-0 bg-purple-600 hover:bg-purple-700"
-                          onClick={() => handleVoteNow(poll)}
+                          variant="outline"
+                          className="shrink-0 h-7 text-xs"
+                          onClick={() => handleOpenDocument(doc)}
                         >
-                          <Vote className="h-3 w-3 mr-1" />
-                          Vote Now
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          Open
                         </Button>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 mb-2 truncate">{poll.description}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">
-                        Deadline: {new Date(poll.deadline).toLocaleDateString()}
-                      </span>
-                      <span className={`text-xs px-3 py-1 rounded-full ${
-                        isPastDeadline(poll.deadline) ? 'bg-red-100 text-red-600' : 'bg-purple-100 text-purple-600'
-                      }`}>
-                        {isPastDeadline(poll.deadline) ? 'Expired' : 'Active'}
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        {new Date(doc.created_at).toLocaleDateString()} • {doc.folder || 'General'}
+                      </p>
+                      <span className="inline-block text-xs px-2 py-0.5 bg-green-100 text-green-600 rounded-full">
+                        {doc.mime_type?.includes('pdf') ? 'PDF' : 'Document'}
                       </span>
                     </div>
-                  </div>
-                ))}
-                <Button 
-                  variant="ghost" 
-                  className="w-full mt-4 text-purple-600 hover:bg-purple-50"
-                  onClick={() => handleViewMore('voting')}
-                >
-                  View More →
-                </Button>
-              </>
-            ) : (
-              <div className="text-center py-8">
-                <Vote className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500">No active polls</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  ))}
+                  <Button 
+                    variant="ghost" 
+                    className="w-full mt-3 text-green-600 hover:bg-green-50"
+                    onClick={() => handleViewMore('documents')}
+                  >
+                    View More →
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">No documents uploaded</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Mobile-specific responsive styles */}
-      <style>{`
-        @media (max-width: 767px) {
-          /* Dashboard container mobile fixes */
-          .space-y-8 {
-            max-width: 100vw;
-            overflow-x: hidden;
-            padding: 0 1rem;
-            margin: 0;
-          }
-          
-          /* Header responsive */
-          .space-y-8 h1 {
-            font-size: 1.5rem;
-            line-height: 1.4;
-          }
-          
-          .space-y-8 p {
-            font-size: 0.875rem;
-          }
-          
-          /* Grid mobile adjustments */
-          .grid.grid-cols-1.lg\\:grid-cols-2 {
-            grid-template-columns: 1fr;
-            gap: 1.25rem;
-            width: 100%;
-            max-width: 100%;
-          }
-          
-          /* Card mobile responsive */
-          .grid > .shadow-lg {
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-            overflow: hidden;
-            margin: 0;
-          }
-          
-          /* Card content mobile fixes - Better email spacing */
-          .grid .bg-white.p-4 {
-            padding: 1rem;
-            margin: 0 0 1rem 0;
-            width: 100%;
-            max-width: 100%;
-            box-sizing: border-box;
-          }
-          
-          /* Email cards spacing improvement */
-          .grid .space-y-4 > .bg-white + .bg-white {
-            margin-top: 1.25rem;
-          }
-          
-          /* Button spacing mobile */
-          .grid .flex.justify-between.items-start {
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            align-items: flex-start;
-          }
-          
-          .grid .shrink-0 {
-            flex-shrink: 0;
-            min-width: fit-content;
-          }
-          
-          /* Text truncation mobile - Better alignment */
-          .grid .truncate {
-            max-width: 65%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-          
-          /* Card header mobile */
-          .grid .flex.items-center.space-x-3 {
-            max-width: 100%;
-            overflow: hidden;
-          }
-          
-          /* Better header alignment on mobile */
-          .flex.justify-between.items-center {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 1rem;
-            padding: 0;
-            margin: 0;
-          }
-          
-          /* Microsoft connection status mobile alignment */
-          .flex.justify-between.items-center > div:last-child {
-            align-self: flex-end;
-            width: auto;
-          }
-          
-          /* Better mobile spacing */
-          .space-y-8 > * + * {
-            margin-top: 1.5rem;
-          }
-          
-          /* Email content better spacing */
-          .grid .space-y-4 {
-            gap: 1.25rem;
-          }
-          
-          /* Card content padding adjustment */
-          .shadow-lg .p-6 {
-            padding: 1rem;
-          }
-          
-          /* Better button alignment in cards */
-          .grid .bg-white .flex.justify-between {
-            align-items: flex-start;
-            gap: 0.5rem;
-          }
-          
-          /* Email subject and content better spacing */
-          .grid .bg-white .mb-2 {
-            margin-bottom: 0.75rem;
-          }
-          
-          /* Perfect card alignment */
-          .grid > .shadow-lg .bg-white {
-            border-radius: 0.5rem;
-            box-shadow: none;
-            border: 1px solid #e5e7eb;
-          }
-        }
-      `}</style>
+          {/* Active Voting */}
+          <Card className="border border-border bg-card">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center space-x-3 text-lg sm:text-xl">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Vote className="h-5 w-5 text-purple-600" />
+                </div>
+                <span>Active Voting</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {sortedPolls.length > 0 ? (
+                <div className="space-y-3">
+                  {sortedPolls.map((poll) => (
+                    <div key={poll.id} className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium text-sm truncate flex-1 mr-2">{poll.title}</h4>
+                        {!isPastDeadline(poll.deadline) && (
+                          <Button
+                            size="sm"
+                            className="shrink-0 h-7 text-xs bg-purple-600 hover:bg-purple-700"
+                            onClick={() => handleVoteNow(poll)}
+                          >
+                            <Vote className="h-3 w-3 mr-1" />
+                            Vote
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1 truncate">{poll.description}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          Deadline: {new Date(poll.deadline).toLocaleDateString()}
+                        </span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          isPastDeadline(poll.deadline) ? 'bg-red-100 text-red-600' : 'bg-purple-100 text-purple-600'
+                        }`}>
+                          {isPastDeadline(poll.deadline) ? 'Expired' : 'Active'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  <Button 
+                    variant="ghost" 
+                    className="w-full mt-3 text-purple-600 hover:bg-purple-50"
+                    onClick={() => handleViewMore('voting')}
+                  >
+                    View More →
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Vote className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">No active polls</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };
