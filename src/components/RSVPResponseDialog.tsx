@@ -47,31 +47,46 @@ export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // First fetch meeting attendees
+      const { data: attendeesData, error: attendeesError } = await supabase
         .from('meeting_attendees')
-        .select(`
-          id,
-          user_id,
-          rsvp_response,
-          rsvp_submitted_at,
-          profiles (
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('id, user_id, rsvp_response, rsvp_submitted_at')
         .eq('meeting_id', meeting.id)
         .order('rsvp_submitted_at', { ascending: false, nullsFirst: false });
 
-      if (error) throw error;
+      if (attendeesError) throw attendeesError;
+
+      if (!attendeesData || attendeesData.length === 0) {
+        setAttendeeResponses([]);
+        return;
+      }
+
+      // Get user IDs
+      const userIds = attendeesData.map(attendee => attendee.user_id);
+
+      // Fetch profiles separately
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine the data
+      const combinedData = attendeesData.map(attendee => {
+        const profile = profilesData?.find(p => p.id === attendee.user_id);
+        return {
+          ...attendee,
+          rsvp_response: attendee.rsvp_response as 'yes' | 'no' | 'maybe' | null,
+          profiles: profile ? {
+            first_name: profile.first_name || 'Unknown',
+            last_name: profile.last_name || 'User',
+            email: profile.email || 'No email'
+          } : null
+        };
+      });
       
-      // Cast the response to ensure proper typing
-      const typedData = (data || []).map(item => ({
-        ...item,
-        rsvp_response: item.rsvp_response as 'yes' | 'no' | 'maybe' | null
-      }));
-      
-      setAttendeeResponses(typedData);
+      setAttendeeResponses(combinedData);
     } catch (error: any) {
       console.error('Error fetching RSVP responses:', error);
       toast({
