@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -148,88 +147,96 @@ export const MeetingsModule: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Meeting Management</h1>
-            <p className="text-gray-600">Schedule, track, and manage all ISKCON meetings with Teams integration</p>
+    <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">Meeting Management</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">Schedule, track, and manage all ISKCON meetings with Teams integration</p>
           </div>
-          <Button 
-            className="bg-primary hover:bg-primary/90"
-            onClick={() => setShowScheduleDialog(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Schedule Meeting
-          </Button>
+          <div className="flex-shrink-0">
+            <Button 
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              onClick={() => setShowScheduleDialog(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Schedule Meeting
+            </Button>
+          </div>
         </div>
 
-        <Tabs defaultValue="upcoming" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="upcoming">Upcoming ({upcomingMeetings.length})</TabsTrigger>
-            <TabsTrigger value="past">Past Meetings ({pastMeetings.length})</TabsTrigger>
-            <TabsTrigger value="calendar">Calendar</TabsTrigger>
+        <Tabs defaultValue="upcoming" className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-3 h-auto">
+            <TabsTrigger value="upcoming" className="text-xs sm:text-sm px-2 py-2">
+              Upcoming ({upcomingMeetings.length})
+            </TabsTrigger>
+            <TabsTrigger value="past" className="text-xs sm:text-sm px-2 py-2">
+              Past ({pastMeetings.length})
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="text-xs sm:text-sm px-2 py-2">
+              Calendar
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="upcoming" className="space-y-6">
+          <TabsContent value="upcoming" className="space-y-4 sm:space-y-6">
             {upcomingMeetings.length === 0 ? (
               <Card>
-                <CardContent className="p-8 text-center">
+                <CardContent className="p-6 sm:p-8 text-center">
                   <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600">No upcoming meetings</p>
                   <p className="text-sm text-gray-500 mt-2">Schedule your first Teams meeting to get started</p>
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-6">
+              <div className="space-y-4 sm:space-y-6">
                 {upcomingMeetings.map((meeting) => {
                   const timeInfo = formatMeetingTime(meeting.start_time, meeting.end_time);
                   const isLive = isLiveMeeting(meeting);
                   const canDoCheckIn = canCheckIn(meeting);
                   
                   return (
-                    <Card key={meeting.id} className="hover:shadow-md transition-shadow">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <CardTitle className="text-xl flex items-center space-x-2 flex-wrap">
+                    <Card key={meeting.id} className="w-full hover:shadow-md transition-shadow">
+                      <CardHeader className="pb-3 sm:pb-4">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg sm:text-xl flex flex-wrap items-start gap-2">
                               <span className="break-words">{meeting.title}</span>
                               {isLive && (
-                                <Badge className="bg-red-500 text-white animate-pulse ml-2">
+                                <Badge className="bg-red-500 text-white animate-pulse shrink-0">
                                   LIVE
                                 </Badge>
                               )}
                               {meeting.teams_join_url && (
-                                <Badge className="bg-blue-500 text-white ml-2">
+                                <Badge className="bg-blue-500 text-white shrink-0">
                                   <Video className="h-3 w-3 mr-1" />
                                   Teams
                                 </Badge>
                               )}
                             </CardTitle>
-                            <CardDescription className="mt-2 break-words">
+                            <CardDescription className="mt-2 break-words text-sm">
                               {meeting.description || 'No description provided'}
                             </CardDescription>
                           </div>
-                          <Badge className="bg-green-100 text-green-800 ml-4 shrink-0">
+                          <Badge className="bg-green-100 text-green-800 shrink-0 self-start">
                             {meeting.status || 'scheduled'}
                           </Badge>
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                          <div className="flex items-center space-x-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                          <div className="flex items-center space-x-2 min-w-0">
                             <Calendar className="h-4 w-4 text-gray-500 shrink-0" />
                             <span className="text-sm break-words">{timeInfo.date}</span>
                           </div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 min-w-0">
                             <Clock className="h-4 w-4 text-gray-500 shrink-0" />
                             <span className="text-sm break-words">{timeInfo.time} ({timeInfo.duration})</span>
                           </div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 min-w-0">
                             <Users className="h-4 w-4 text-gray-500 shrink-0" />
                             <span className="text-sm">{meeting.attendees?.length || 0} attendees</span>
                           </div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 min-w-0">
                             <Video className="h-4 w-4 text-gray-500 shrink-0" />
                             <span className="text-sm break-words">{meeting.location || 'No location'}</span>
                           </div>
@@ -237,12 +244,12 @@ export const MeetingsModule: React.FC = () => {
 
                         {meeting.teams_join_url && (
                           <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <div className="flex items-center justify-between flex-wrap gap-2">
-                              <div className="flex items-center space-x-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                              <div className="flex items-center space-x-2 min-w-0">
                                 <Video className="h-4 w-4 text-blue-600 shrink-0" />
                                 <span className="text-sm font-medium text-blue-800">Teams Meeting Link</span>
                               </div>
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-2 shrink-0">
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -275,7 +282,7 @@ export const MeetingsModule: React.FC = () => {
                               variant="default" 
                               size="sm"
                               onClick={() => handleJoinNow(meeting)}
-                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                              className="bg-blue-600 hover:bg-blue-700 text-white min-h-[40px]"
                             >
                               <Video className="h-4 w-4 mr-2" />
                               Join Meeting
@@ -287,7 +294,7 @@ export const MeetingsModule: React.FC = () => {
                               variant="outline" 
                               size="sm"
                               onClick={() => handleCheckIn(meeting)}
-                              className="bg-green-50 hover:bg-green-100 text-green-700"
+                              className="bg-green-50 hover:bg-green-100 text-green-700 min-h-[40px]"
                             >
                               <UserCheck className="h-4 w-4 mr-2" />
                               Check In
@@ -298,6 +305,7 @@ export const MeetingsModule: React.FC = () => {
                             variant="outline" 
                             size="sm"
                             onClick={() => handleViewAgenda(meeting)}
+                            className="min-h-[40px]"
                           >
                             <FileText className="h-4 w-4 mr-2" />
                             View Details
@@ -307,7 +315,7 @@ export const MeetingsModule: React.FC = () => {
                             variant="outline" 
                             size="sm"
                             onClick={() => handleAttachFiles(meeting)}
-                            className="bg-purple-50 hover:bg-purple-100 text-purple-700"
+                            className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
                           >
                             <Paperclip className="h-4 w-4 mr-2" />
                             Attach Files
@@ -317,7 +325,7 @@ export const MeetingsModule: React.FC = () => {
                             variant="outline" 
                             size="sm"
                             onClick={() => handleDeleteMeeting(meeting.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[40px]"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
@@ -331,37 +339,37 @@ export const MeetingsModule: React.FC = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="past" className="space-y-6">
+          <TabsContent value="past" className="space-y-4 sm:space-y-6">
             {pastMeetings.length === 0 ? (
               <Card>
-                <CardContent className="p-8 text-center">
+                <CardContent className="p-6 sm:p-8 text-center">
                   <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600">No past meetings</p>
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-6">
+              <div className="space-y-4 sm:space-y-6">
                 {pastMeetings.map((meeting) => {
                   const timeInfo = formatMeetingTime(meeting.start_time, meeting.end_time);
                   return (
-                    <Card key={meeting.id} className="hover:shadow-md transition-shadow">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <CardTitle className="text-xl flex items-center space-x-2 flex-wrap">
+                    <Card key={meeting.id} className="w-full hover:shadow-md transition-shadow">
+                      <CardHeader className="pb-3 sm:pb-4">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg sm:text-xl flex flex-wrap items-start gap-2">
                               <span className="break-words">{meeting.title}</span>
                               {meeting.teams_join_url && (
-                                <Badge variant="outline" className="bg-blue-50 text-blue-700 ml-2">
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 shrink-0">
                                   <Video className="h-3 w-3 mr-1" />
                                   Teams
                                 </Badge>
                               )}
                             </CardTitle>
-                            <CardDescription className="break-words">
+                            <CardDescription className="break-words text-sm">
                               {timeInfo.date} • {timeInfo.duration}
                             </CardDescription>
                           </div>
-                          <Badge variant="secondary" className="ml-4 shrink-0">Completed</Badge>
+                          <Badge variant="secondary" className="shrink-0 self-start">Completed</Badge>
                         </div>
                       </CardHeader>
                       <CardContent>
@@ -370,6 +378,7 @@ export const MeetingsModule: React.FC = () => {
                             variant="outline" 
                             size="sm"
                             onClick={() => handleViewAgenda(meeting)}
+                            className="min-h-[40px]"
                           >
                             <FileText className="h-4 w-4 mr-2" />
                             View Details
@@ -379,7 +388,7 @@ export const MeetingsModule: React.FC = () => {
                             variant="outline" 
                             size="sm"
                             onClick={() => alert('View meeting transcript and documents')}
-                            className="bg-blue-50 hover:bg-blue-100 text-blue-700"
+                            className="bg-blue-50 hover:bg-blue-100 text-blue-700 min-h-[40px]"
                           >
                             <FileText className="h-4 w-4 mr-2" />
                             View Transcript
@@ -389,7 +398,7 @@ export const MeetingsModule: React.FC = () => {
                             variant="outline" 
                             size="sm"
                             onClick={() => handlePostMeeting(meeting)}
-                            className="bg-orange-50 hover:bg-orange-100 text-orange-700"
+                            className="bg-orange-50 hover:bg-orange-100 text-orange-700 min-h-[40px]"
                           >
                             <UserCheck className="h-4 w-4 mr-2" />
                             Update Attendance
@@ -403,12 +412,14 @@ export const MeetingsModule: React.FC = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="calendar" className="space-y-6">
-            <CalendarView 
-              meetings={meetings} 
-              onMeetingClick={handleViewAgenda}
-              onDateClick={handleCalendarDateClick}
-            />
+          <TabsContent value="calendar" className="space-y-4 sm:space-y-6">
+            <div className="w-full overflow-hidden">
+              <CalendarView 
+                meetings={meetings} 
+                onMeetingClick={handleViewAgenda}
+                onDateClick={handleCalendarDateClick}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </div>
