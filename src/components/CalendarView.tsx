@@ -56,7 +56,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
             <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')} className="h-8 w-8 p-0">
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="font-medium min-w-[100px] sm:min-w-[120px] text-center text-sm sm:text-base">
+            <span className="font-medium min-w-[120px] text-center text-sm sm:text-base">
               {format(currentDate, 'MMM yyyy')}
             </span>
             <Button variant="outline" size="sm" onClick={() => navigateMonth('next')} className="h-8 w-8 p-0">
@@ -69,14 +69,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
         {/* Day headers */}
         <div className="grid grid-cols-7 gap-1 mb-2">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="p-2 text-center text-xs sm:text-sm font-medium text-gray-500">
-              <span className="hidden sm:block">{day}</span>
-              <span className="sm:hidden">{day.charAt(0)}</span>
+            <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+              {day}
             </div>
           ))}
         </div>
         
-        {/* Calendar grid */}
+        {/* Calendar grid - Full desktop-like view for all devices */}
         <div className="grid grid-cols-7 gap-1">
           {calendarDays.map(day => {
             const dayMeetings = getMeetingsForDay(day);
@@ -87,7 +86,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
               <div
                 key={day.toISOString()}
                 className={`
-                  min-h-[80px] sm:min-h-[100px] p-1 sm:p-2 border border-gray-200 relative group cursor-pointer
+                  min-h-[120px] p-2 border border-gray-200 relative group cursor-pointer
                   ${isCurrentMonth ? 'bg-white hover:bg-gray-50' : 'bg-gray-50'}
                   ${isDayToday ? 'ring-2 ring-primary' : ''}
                   transition-colors
@@ -96,33 +95,33 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
               >
                 {/* Date number */}
                 <div className={`
-                  text-xs sm:text-sm font-medium mb-1 text-center sm:text-left
+                  text-sm font-medium mb-2 text-left
                   ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
                   ${isDayToday ? 'text-primary font-bold' : ''}
                 `}>
                   {format(day, 'd')}
                 </div>
 
-                {/* Add meeting button - mobile optimized */}
+                {/* Add meeting button */}
                 {isCurrentMonth && onDateClick && (
                   <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-5 w-5 sm:h-6 sm:w-6 p-0 bg-primary text-white hover:bg-primary/90"
+                      className="h-6 w-6 p-0 bg-primary text-white hover:bg-primary/90"
                       onClick={(e) => {
                         e.stopPropagation();
                         onDateClick(day);
                       }}
                     >
-                      <Plus className="h-2 w-2 sm:h-3 sm:w-3" />
+                      <Plus className="h-3 w-3" />
                     </Button>
                   </div>
                 )}
                 
-                {/* Meetings - mobile optimized */}
+                {/* Meetings - Display up to 3 meetings */}
                 <div className="space-y-1">
-                  {dayMeetings.slice(0, 1).map(meeting => (
+                  {dayMeetings.slice(0, 3).map(meeting => (
                     <div
                       key={meeting.id}
                       onClick={(e) => {
@@ -131,27 +130,27 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
                       }}
                       className="text-xs p-1 rounded cursor-pointer hover:opacity-80 transition-opacity bg-primary/10 text-primary border border-primary/20"
                     >
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center space-x-1 mb-1">
                         {meeting.meeting_type === 'online' ? (
-                          <Video className="h-2 w-2 sm:h-3 sm:w-3 flex-shrink-0" />
+                          <Video className="h-3 w-3 flex-shrink-0" />
                         ) : (
-                          <Users className="h-2 w-2 sm:h-3 sm:w-3 flex-shrink-0" />
+                          <Users className="h-3 w-3 flex-shrink-0" />
                         )}
-                        <span className="truncate flex-1 text-xs">
+                        <span className="truncate flex-1 text-xs font-medium">
                           {meeting.title}
                         </span>
                       </div>
-                      <div className="flex items-center space-x-1 mt-0.5">
-                        <Clock className="h-2 w-2 sm:h-3 sm:w-3 flex-shrink-0" />
+                      <div className="flex items-center space-x-1">
+                        <Clock className="h-3 w-3 flex-shrink-0" />
                         <span className="text-xs">{format(new Date(meeting.start_time), 'HH:mm')}</span>
                       </div>
                     </div>
                   ))}
                   
-                  {/* Show meeting count for mobile */}
-                  {dayMeetings.length > 1 && (
+                  {/* Show meeting count if more than 3 */}
+                  {dayMeetings.length > 3 && (
                     <div className="text-xs text-gray-500 text-center bg-gray-100 rounded px-1 py-0.5">
-                      +{dayMeetings.length - 1} more
+                      +{dayMeetings.length - 3} more
                     </div>
                   )}
                 </div>
@@ -160,74 +159,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
           })}
         </div>
 
-        {/* Mobile-friendly instruction */}
-        <div className="mt-4 text-xs sm:text-sm text-gray-500 text-center">
-          <span className="block sm:hidden">Tap dates to create meetings • Tap meetings to view details</span>
-          <span className="hidden sm:block">Click on any date to create a meeting, or click on existing meetings to view details</span>
+        {/* Instruction text */}
+        <div className="mt-4 text-sm text-gray-500 text-center">
+          Click on any date to create a meeting, or click on existing meetings to view details
         </div>
       </CardContent>
-
-      {/* Mobile-specific responsive styles */}
-      <style>{`
-        @media (max-width: 767px) {
-          /* Calendar mobile optimizations */
-          .grid.grid-cols-7 {
-            gap: 0.125rem;
-          }
-          
-          .min-h-\\[80px\\] {
-            min-height: 70px;
-          }
-          
-          /* Better touch targets */
-          .cursor-pointer {
-            min-height: 44px;
-          }
-          
-          /* Improved text sizing */
-          .text-xs {
-            font-size: 0.7rem;
-            line-height: 1.1;
-          }
-          
-          /* Meeting item mobile styling */
-          .bg-primary\\/10 {
-            padding: 0.25rem;
-            margin: 0.125rem 0;
-          }
-          
-          /* Better spacing for mobile */
-          .space-y-1 > * + * {
-            margin-top: 0.125rem;
-          }
-          
-          /* Header mobile adjustments */
-          .flex.items-center.justify-between {
-            gap: 0.5rem;
-          }
-          
-          .min-w-\\[100px\\] {
-            font-size: 0.875rem;
-          }
-          
-          /* Button mobile sizing */
-          .h-5.w-5 {
-            height: 1rem;
-            width: 1rem;
-          }
-        }
-        
-        /* Tablet responsive (768px+) */
-        @media (min-width: 768px) {
-          .grid.grid-cols-7 {
-            gap: 0.25rem;
-          }
-          
-          .min-h-\\[100px\\] {
-            min-height: 100px;
-          }
-        }
-      `}</style>
     </Card>
   );
 };
