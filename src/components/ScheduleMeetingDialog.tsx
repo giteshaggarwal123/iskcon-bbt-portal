@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,8 @@ import { useMeetings } from '@/hooks/useMeetings';
 import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 import { AttendeeSelector } from './AttendeeSelector';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
 interface ScheduleMeetingDialogProps {
@@ -48,9 +51,11 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [rsvpEnabled, setRsvpEnabled] = useState(true);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   
   const { createMeeting } = useMeetings();
   const { isConnected } = useMicrosoftAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   
   const watchType = watch('type');
@@ -142,6 +147,55 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const uploadMeetingFiles = async (meetingId: string) => {
+    if (attachedFiles.length === 0 || !user) return;
+
+    setUploadingFiles(true);
+    try {
+      for (const attachedFile of attachedFiles) {
+        // Upload file to Supabase storage
+        const fileExt = attachedFile.file.name.split('.').pop();
+        const fileName = `${meetingId}/${Date.now()}_${attachedFile.file.name}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('meeting-attachments')
+          .upload(fileName, attachedFile.file);
+
+        if (uploadError) throw uploadError;
+
+        // Save file metadata to database
+        const { error: dbError } = await (supabase as any)
+          .from('meeting_attachments')
+          .insert({
+            meeting_id: meetingId,
+            name: attachedFile.file.name,
+            file_path: uploadData.path,
+            file_size: attachedFile.file.size,
+            mime_type: attachedFile.file.type,
+            uploaded_by: user.id
+          });
+
+        if (dbError) throw dbError;
+      }
+
+      if (attachedFiles.length > 0) {
+        toast({
+          title: "Files Uploaded",
+          description: `${attachedFiles.length} file(s) uploaded successfully`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Error uploading files:', error);
+      toast({
+        title: "File Upload Failed",
+        description: error.message || "Failed to upload some files",
+        variant: "destructive"
+      });
+    } finally {
+      setUploadingFiles(false);
+    }
+  };
+
   const onSubmit = async (data: MeetingFormData) => {
     console.log('Form submission started');
     console.log('Selected date:', selectedDate);
@@ -195,6 +249,11 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
     const meeting = await createMeeting(meetingData);
 
     if (meeting) {
+      // Upload files after meeting is created
+      if (attachedFiles.length > 0) {
+        await uploadMeetingFiles(meeting.id);
+      }
+
       reset();
       setSelectedDate(undefined);
       setSelectedAttendees([]);
@@ -388,6 +447,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
                   onChange={handleFileAttachment}
                   className="hidden"
                   id="file-upload"
+                  disabled={isSubmitting || uploadingFiles}
                 />
                 <label htmlFor="file-upload" className="cursor-pointer">
                   <div className="text-center">
@@ -418,6 +478,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
                         onClick={() => removeFile(index)}
                         className="h-6 w-6 p-0"
                         type="button"
+                        disabled={isSubmitting || uploadingFiles}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -441,14 +502,14 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleDialogClose}>
+            <Button type="button" variant="outline" onClick={handleDialogClose} disabled={isSubmitting || uploadingFiles}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting} className="bg-primary hover:bg-primary/90">
-              {isSubmitting ? (
+            <Button type="submit" disabled={isSubmitting || uploadingFiles} className="bg-primary hover:bg-primary/90">
+              {isSubmitting || uploadingFiles ? (
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                  <span>Creating...</span>
+                  <span>{uploadingFiles ? 'Uploading Files...' : 'Creating...'}</span>
                 </div>
               ) : (
                 <div className="flex items-center space-x-2">
