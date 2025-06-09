@@ -24,7 +24,7 @@ interface AttendeeResponse {
     first_name: string;
     last_name: string;
     email: string;
-  };
+  } | null;
 }
 
 export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({ 
@@ -54,7 +54,7 @@ export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({
           user_id,
           rsvp_response,
           rsvp_submitted_at,
-          profiles:user_id (
+          profiles!meeting_attendees_user_id_fkey (
             first_name,
             last_name,
             email
@@ -86,7 +86,7 @@ export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({
     pending: attendeeResponses.filter(r => !r.rsvp_response).length
   };
 
-  const getRSVPIcon = (response: string | null) => {
+  const getRSVPIcon = (response: 'yes' | 'no' | 'maybe' | null) => {
     switch (response) {
       case 'yes':
         return <CheckCircle className="h-4 w-4 text-green-600" />;
@@ -99,7 +99,7 @@ export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({
     }
   };
 
-  const getRSVPBadge = (response: string | null) => {
+  const getRSVPBadge = (response: 'yes' | 'no' | 'maybe' | null) => {
     switch (response) {
       case 'yes':
         return <Badge className="bg-green-100 text-green-800">Yes</Badge>;
@@ -196,11 +196,11 @@ export const RSVPResponseDialog: React.FC<RSVPResponseDialogProps> = ({
                           <div className="flex items-center space-x-2">
                             {getRSVPIcon(attendee.rsvp_response)}
                             <span>
-                              {attendee.profiles?.first_name} {attendee.profiles?.last_name}
+                              {attendee.profiles?.first_name || 'Unknown'} {attendee.profiles?.last_name || 'User'}
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell>{attendee.profiles?.email}</TableCell>
+                        <TableCell>{attendee.profiles?.email || 'No email'}</TableCell>
                         <TableCell>{getRSVPBadge(attendee.rsvp_response)}</TableCell>
                         <TableCell>
                           {attendee.rsvp_submitted_at 
