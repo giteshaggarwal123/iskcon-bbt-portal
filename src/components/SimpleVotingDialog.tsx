@@ -10,6 +10,7 @@ import { Vote, Clock, Users, AlertCircle, ThumbsUp, ThumbsDown, Minus, CheckCirc
 import { useVoting } from '@/hooks/useVoting';
 import { Poll } from '@/hooks/usePolls';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface SimpleVotingDialogProps {
   open: boolean;
@@ -25,22 +26,72 @@ export const SimpleVotingDialog: React.FC<SimpleVotingDialogProps> = ({ open, on
   const [comment, setComment] = useState('');
   const [voteSelections, setVoteSelections] = useState<VoteSelections>({});
   const [eligibility, setEligibility] = useState<{ canVote: boolean; reason: string | null }>({ canVote: true, reason: null });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { submitVotes, checkVotingEligibility, submitting } = useVoting();
+  const { submitVotes, checkVotingEligibility, getUserVotes } = useVoting();
 
+  // Reset state when dialog opens/closes or poll changes
   useEffect(() => {
     if (poll && open) {
-      checkVotingEligibility(poll.id).then(setEligibility);
+      console.log('Dialog opened for poll:', poll.id);
+      
+      // Reset state
       setVoteSelections({});
       setComment('');
+      setIsSubmitting(false);
+      
+      // Check eligibility and existing votes
+      const initializeDialog = async () => {
+        try {
+          // Check if user can vote
+          const eligibilityResult = await checkVotingEligibility(poll.id);
+          console.log('Eligibility result:', eligibilityResult);
+          setEligibility(eligibilityResult);
+          
+          // If user can't vote, check if they have existing votes to display
+          if (!eligibilityResult.canVote) {
+            const existingVotes = await getUserVotes(poll.id);
+            if (existingVotes && existingVotes.length > 0) {
+              const voteMap: VoteSelections = {};
+              existingVotes.forEach(vote => {
+                voteMap[vote.sub_poll_id] = vote.vote as 'favor' | 'against' | 'abstain';
+              });
+              setVoteSelections(voteMap);
+              
+              // Set comment from first vote that has one
+              const voteWithComment = existingVotes.find(vote => vote.comment);
+              if (voteWithComment) {
+                setComment(voteWithComment.comment || '');
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error initializing dialog:', error);
+          toast.error('Failed to load voting data');
+        }
+      };
+      
+      initializeDialog();
+    } else if (!open) {
+      // Reset when dialog closes
+      setVoteSelections({});
+      setComment('');
+      setEligibility({ canVote: true, reason: null });
+      setIsSubmitting(false);
     }
-  }, [poll, open, checkVotingEligibility]);
+  }, [poll, open, checkVotingEligibility, getUserVotes]);
 
   const handleVoteSelection = (subPollId: string, vote: 'favor' | 'against' | 'abstain') => {
-    setVoteSelections(prev => ({
-      ...prev,
-      [subPollId]: vote
-    }));
+    console.log('Vote selection:', { subPollId, vote });
+    
+    setVoteSelections(prev => {
+      const newSelections = {
+        ...prev,
+        [subPollId]: vote
+      };
+      console.log('Updated vote selections:', newSelections);
+      return newSelections;
+    });
   };
 
   const allQuestionsAnswered = poll?.sub_polls?.every(subPoll => 
@@ -48,25 +99,48 @@ export const SimpleVotingDialog: React.FC<SimpleVotingDialogProps> = ({ open, on
   ) || false;
 
   const handleSubmit = async () => {
-    if (!poll || !allQuestionsAnswered) {
+    if (!poll || !allQuestionsAnswered || isSubmitting) {
+      console.log('Submit blocked:', { poll: !!poll, allQuestionsAnswered, isSubmitting });
       return;
     }
 
-    const votes = Object.entries(voteSelections).map(([subPollId, vote]) => ({
-      subPollId,
-      vote
-    }));
-    
-    const success = await submitVotes({
-      pollId: poll.id,
-      votes: votes,
-      comment: comment.trim() || undefined
-    });
+    console.log('Starting vote submission for poll:', poll.id);
+    console.log('Vote selections:', voteSelections);
+    console.log('Comment:', comment);
 
-    if (success) {
-      onOpenChange(false);
-      setVoteSelections({});
-      setComment('');
+    setIsSubmitting(true);
+
+    try {
+      const votes = Object.entries(voteSelections).map(([subPollId, vote]) => ({
+        subPollId,
+        vote
+      }));
+      
+      console.log('Formatted votes for submission:', votes);
+      
+      const success = await submitVotes({
+        pollId: poll.id,
+        votes: votes,
+        comment: comment.trim() || undefined
+      });
+
+      console.log('Vote submission result:', success);
+
+      if (success) {
+        toast.success('Your votes have been submitted successfully!');
+        onOpenChange(false);
+        
+        // Reset state after successful submission
+        setVoteSelections({});
+        setComment('');
+      } else {
+        toast.error('Failed to submit votes. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      toast.error('An error occurred while submitting votes');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -96,6 +170,9 @@ export const SimpleVotingDialog: React.FC<SimpleVotingDialogProps> = ({ open, on
     }
   ];
 
+  const answeredCount = Object.keys(voteSelections).length;
+  const totalQuestions = poll.sub_polls?.length || 0;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -124,6 +201,9 @@ export const SimpleVotingDialog: React.FC<SimpleVotingDialogProps> = ({ open, on
             <Badge variant={poll.status === 'active' ? 'default' : 'secondary'}>
               {poll.status}
             </Badge>
+            {poll.is_secret && (
+              <Badge variant="outline">Secret Ballot</Badge>
+            )}
           </div>
         </DialogHeader>
 
@@ -132,8 +212,15 @@ export const SimpleVotingDialog: React.FC<SimpleVotingDialogProps> = ({ open, on
             <Card className="max-w-md mx-auto text-center">
               <CardContent className="p-8">
                 <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-red-700 mb-2">Cannot Vote</h3>
+                <h3 className="text-lg font-semibold text-red-700 mb-2">
+                  {eligibility.reason?.includes('already voted') ? 'Already Voted' : 'Cannot Vote'}
+                </h3>
                 <p className="text-gray-600">{eligibility.reason}</p>
+                {eligibility.reason?.includes('already voted') && Object.keys(voteSelections).length > 0 && (
+                  <div className="mt-4 text-sm text-gray-500">
+                    <p>Your submitted votes are shown below for reference.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -169,9 +256,10 @@ export const SimpleVotingDialog: React.FC<SimpleVotingDialogProps> = ({ open, on
                             <button
                               key={option.value}
                               onClick={() => handleVoteSelection(question.id, option.value as 'favor' | 'against' | 'abstain')}
+                              disabled={!eligibility.canVote}
                               className={`p-4 border-2 rounded-lg transition-all duration-200 text-left ${
                                 isSelected ? option.selectedColor : option.color
-                              }`}
+                              } ${!eligibility.canVote ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                             >
                               <div className="flex items-center gap-3">
                                 <Icon className="h-5 w-5" />
@@ -192,7 +280,7 @@ export const SimpleVotingDialog: React.FC<SimpleVotingDialogProps> = ({ open, on
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-blue-900">
-                    Progress: {Object.keys(voteSelections).length} of {poll.sub_polls?.length || 0} questions answered
+                    Progress: {answeredCount} of {totalQuestions} questions answered
                   </span>
                   <Badge variant={allQuestionsAnswered ? "default" : "secondary"}>
                     {allQuestionsAnswered ? "Ready to Submit" : "In Progress"}
@@ -213,19 +301,20 @@ export const SimpleVotingDialog: React.FC<SimpleVotingDialogProps> = ({ open, on
                   placeholder="Share your thoughts about this vote..."
                   rows={3}
                   className="resize-none"
+                  disabled={!eligibility.canVote}
                 />
               </CardContent>
             </Card>
 
             {/* Submit Section */}
             <div className="space-y-4 pt-4 border-t">
-              {!allQuestionsAnswered && (
+              {!allQuestionsAnswered && eligibility.canVote && (
                 <Card className="bg-amber-50 border-amber-200">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3 text-amber-800">
                       <AlertCircle className="h-5 w-5" />
                       <p className="text-sm font-medium">
-                        Please answer all {poll.sub_polls?.length || 0} questions before submitting your vote.
+                        Please answer all {totalQuestions} questions before submitting your vote.
                       </p>
                     </div>
                   </CardContent>
@@ -236,20 +325,87 @@ export const SimpleVotingDialog: React.FC<SimpleVotingDialogProps> = ({ open, on
                 <Button 
                   variant="outline" 
                   onClick={() => onOpenChange(false)} 
-                  disabled={submitting}
+                  disabled={isSubmitting}
                 >
-                  Cancel
+                  {eligibility.canVote ? 'Cancel' : 'Close'}
                 </Button>
-                <Button 
-                  onClick={handleSubmit}
-                  disabled={!allQuestionsAnswered || submitting}
-                  className="min-w-[150px]"
-                >
-                  <Vote className="h-4 w-4 mr-2" />
-                  {submitting ? 'Submitting...' : 'Submit All Votes'}
-                </Button>
+                {eligibility.canVote && (
+                  <Button 
+                    onClick={handleSubmit}
+                    disabled={!allQuestionsAnswered || isSubmitting}
+                    className="min-w-[150px]"
+                  >
+                    <Vote className="h-4 w-4 mr-2" />
+                    {isSubmitting ? 'Submitting...' : 'Submit All Votes'}
+                  </Button>
+                )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Show votes even if user can't vote (for reference) */}
+        {!eligibility.canVote && Object.keys(voteSelections).length > 0 && (
+          <div className="space-y-6 py-4">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-700">Your Submitted Votes</h3>
+              <p className="text-sm text-gray-500">Below are the votes you previously submitted</p>
+            </div>
+            
+            {poll.sub_polls?.map((question, index) => (
+              <Card key={question.id} className="border-2 bg-gray-50">
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold mb-2">
+                          Question {index + 1}: {question.title}
+                        </h3>
+                        {question.description && (
+                          <p className="text-gray-600 text-sm mb-4">{question.description}</p>
+                        )}
+                      </div>
+                      <CheckCircle className="h-5 w-5 text-green-600 ml-4 flex-shrink-0" />
+                    </div>
+
+                    {/* Show submitted vote */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {voteOptions.map((option) => {
+                        const isSelected = voteSelections[question.id] === option.value;
+                        const Icon = option.icon;
+                        
+                        return (
+                          <div
+                            key={option.value}
+                            className={`p-4 border-2 rounded-lg ${
+                              isSelected ? option.selectedColor : 'bg-gray-100 border-gray-300 text-gray-500'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Icon className="h-5 w-5" />
+                              <span className="font-medium">{option.label}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+
+            {comment && (
+              <Card>
+                <CardContent className="p-6">
+                  <Label className="text-base font-medium mb-3 block">
+                    Your Comment
+                  </Label>
+                  <div className="bg-gray-100 p-3 rounded border text-gray-700">
+                    {comment}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </DialogContent>
