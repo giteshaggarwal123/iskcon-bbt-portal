@@ -138,22 +138,19 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
       );
     }
 
-    // For Office documents (Word, Excel, PowerPoint), try using Office Online viewer
+    // For Office documents (Word, Excel, PowerPoint), use multiple viewers with fallbacks
     if (mimeType.includes('word') || mimeType.includes('document') || 
         mimeType.includes('spreadsheet') || mimeType.includes('excel') ||
         mimeType.includes('presentation') || mimeType.includes('powerpoint')) {
       
-      const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(document.file_path)}`;
-      
       return (
         <div className="w-full h-full">
-          <iframe
-            src={officeViewerUrl}
-            className="w-full h-full border-0"
-            title={document.name}
-            onError={() => {
-              console.error('Office document failed to load via Office Online:', document.file_path);
-            }}
+          <OfficeDocumentViewer 
+            fileUrl={document.file_path} 
+            fileName={document.name}
+            mimeType={mimeType}
+            onDownload={onDownload}
+            onExternalView={onExternalView}
           />
         </div>
       );
@@ -202,6 +199,104 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
   return (
     <div className="w-full h-full">
       {renderFilePreview()}
+    </div>
+  );
+};
+
+// Separate component for Office documents with multiple viewer options
+const OfficeDocumentViewer: React.FC<{
+  fileUrl: string;
+  fileName: string;
+  mimeType: string;
+  onDownload: () => void;
+  onExternalView: () => void;
+}> = ({ fileUrl, fileName, mimeType, onDownload, onExternalView }) => {
+  const [viewerError, setViewerError] = React.useState(false);
+  const [currentViewer, setCurrentViewer] = React.useState<'office' | 'google' | 'fallback'>('office');
+
+  const handleViewerError = () => {
+    console.error('Office viewer failed, trying Google viewer');
+    if (currentViewer === 'office') {
+      setCurrentViewer('google');
+    } else if (currentViewer === 'google') {
+      setCurrentViewer('fallback');
+      setViewerError(true);
+    }
+  };
+
+  // Try Office Online viewer first
+  if (currentViewer === 'office' && !viewerError) {
+    const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
+    
+    return (
+      <iframe
+        src={officeViewerUrl}
+        className="w-full h-full border-0"
+        title={fileName}
+        onError={handleViewerError}
+        onLoad={(e) => {
+          // Check if iframe loaded successfully
+          try {
+            const iframe = e.target as HTMLIFrameElement;
+            iframe.onload = () => {
+              console.log('Office viewer loaded successfully');
+            };
+          } catch (error) {
+            console.error('Office viewer error:', error);
+            handleViewerError();
+          }
+        }}
+      />
+    );
+  }
+
+  // Try Google Docs viewer as fallback
+  if (currentViewer === 'google' && !viewerError) {
+    const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+    
+    return (
+      <iframe
+        src={googleViewerUrl}
+        className="w-full h-full border-0"
+        title={fileName}
+        onError={handleViewerError}
+      />
+    );
+  }
+
+  // Final fallback - show download interface
+  return (
+    <div className="w-full h-full bg-white rounded-lg border flex items-center justify-center p-8">
+      <div className="text-center max-w-md">
+        <FileText className="h-24 w-24 text-blue-500 mx-auto mb-6" />
+        <h3 className="text-xl font-semibold text-gray-700 mb-2">Document Preview Unavailable</h3>
+        <p className="text-gray-500 mb-4">
+          Unable to preview this {mimeType.includes('word') ? 'Word' : mimeType.includes('excel') ? 'Excel' : 'Office'} document online. 
+          Please download to view.
+        </p>
+        <div className="bg-gray-50 p-4 rounded-lg mb-6">
+          <div className="text-sm">
+            <div className="mb-2">
+              <span className="font-medium">File:</span> {fileName}
+            </div>
+            <div>
+              <span className="font-medium">Type:</span> {mimeType.includes('word') ? 'Microsoft Word' : 
+                                                          mimeType.includes('excel') ? 'Microsoft Excel' : 
+                                                          mimeType.includes('powerpoint') ? 'Microsoft PowerPoint' : 'Office Document'}
+            </div>
+          </div>
+        </div>
+        <div className="flex space-x-2 justify-center">
+          <Button onClick={onDownload} size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Download
+          </Button>
+          <Button onClick={onExternalView} variant="outline" size="sm">
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Open External
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };

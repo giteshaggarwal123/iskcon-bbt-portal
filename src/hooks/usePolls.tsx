@@ -242,17 +242,24 @@ export const usePolls = () => {
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${pollId}/${fileName}`;
 
+      console.log('Uploading file to storage:', filePath);
+
       // Upload file to storage bucket
       const { error: uploadError } = await supabase.storage
         .from('poll-attachments')
         .upload(filePath, file);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
 
       // Get public URL for the uploaded file
       const { data: { publicUrl } } = supabase.storage
         .from('poll-attachments')
         .getPublicUrl(filePath);
+
+      console.log('File uploaded successfully, public URL:', publicUrl);
 
       // Save attachment record to database
       const { error: dbError } = await supabase
@@ -266,7 +273,10 @@ export const usePolls = () => {
           uploaded_by: user.id
         });
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('Database error:', dbError);
+        throw dbError;
+      }
 
       return filePath;
     } catch (error) {
@@ -326,25 +336,50 @@ export const usePolls = () => {
 
   const downloadAttachment = async (filePath: string, fileName: string) => {
     try {
+      console.log('Downloading attachment:', { filePath, fileName });
+      
       // If it's already a public URL, download directly
-      if (filePath.includes('supabase.co/storage')) {
+      if (filePath.includes('supabase.co/storage') || filePath.includes('/storage/v1/object/public/')) {
+        console.log('Using direct download from public URL');
         const a = document.createElement('a');
         a.href = filePath;
         a.download = fileName;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        toast.success(`Download started: ${fileName}`);
         return;
       }
 
-      // Legacy support for old file paths
+      // Legacy support for old file paths - try to download from storage
+      console.log('Attempting legacy storage download');
       const { data, error } = await supabase.storage
         .from('poll-attachments')
         .download(filePath);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Storage download error:', error);
+        // If storage download fails, try to construct public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('poll-attachments')
+          .getPublicUrl(filePath);
+        
+        console.log('Trying constructed public URL:', publicUrl);
+        const a = document.createElement('a');
+        a.href = publicUrl;
+        a.download = fileName;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast.success(`Download started: ${fileName}`);
+        return;
+      }
 
-      // Create download link
+      // Create download link from blob
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
@@ -353,6 +388,7 @@ export const usePolls = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      toast.success(`Downloaded: ${fileName}`);
     } catch (error) {
       console.error('Error downloading attachment:', error);
       toast.error('Failed to download attachment');
