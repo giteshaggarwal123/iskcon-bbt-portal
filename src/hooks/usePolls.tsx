@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -15,6 +14,7 @@ export interface Poll {
   created_by: string;
   created_at: string;
   updated_at: string;
+  reopen_deadline?: string;
   sub_polls?: SubPoll[];
   attachments?: PollAttachment[];
   stats?: PollStats;
@@ -66,7 +66,7 @@ export const usePolls = () => {
       setLoading(true);
       
       // First, auto-close any reopened polls that have expired
-      await (supabase.rpc as any)('auto_close_reopened_polls');
+      await autoCloseExpiredPolls();
       
       // Fetch polls with sub_polls and attachments
       const { data: pollsData, error } = await supabase
@@ -98,6 +98,7 @@ export const usePolls = () => {
             created_by: poll.created_by,
             created_at: poll.created_at,
             updated_at: poll.updated_at,
+            reopen_deadline: poll.reopen_deadline,
             sub_polls: poll.sub_polls || [],
             attachments: poll.poll_attachments || [],
             stats: stats?.[0] || { total_voters: 0, voted_count: 0, pending_count: 0, sub_poll_count: 0 }
@@ -111,6 +112,22 @@ export const usePolls = () => {
       toast.error('Failed to fetch polls');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const autoCloseExpiredPolls = async () => {
+    try {
+      // Auto-close reopened polls that have expired
+      const { error } = await supabase
+        .from('polls')
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .eq('status', 'active')
+        .not('reopen_deadline', 'is', null)
+        .lt('reopen_deadline', new Date().toISOString());
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error auto-closing expired polls:', error);
     }
   };
 
