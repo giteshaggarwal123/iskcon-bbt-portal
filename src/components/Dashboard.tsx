@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -365,18 +366,26 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile-specific responsive styles - Only affects mobile devices */}
+        {/* Mobile-specific responsive styles - Fixed spacing issues */}
         <style>{`
           /* Mobile-only styles (max-width: 767px) - Dashboard specific fixes */
           @media (max-width: 767px) {
-            /* Dashboard container mobile optimization */
+            /* Dashboard container mobile optimization - FIXED SPACING */
             .dashboard-container {
               width: 100vw;
               max-width: 100vw;
               margin: 0;
-              padding: 0.75rem;
+              padding: 1rem; /* Balanced padding on both sides */
               overflow-x: hidden;
               box-sizing: border-box;
+            }
+
+            /* Ensure main content has proper spacing */
+            .dashboard-container > div {
+              padding-left: 0;
+              padding-right: 0;
+              margin-left: 0;
+              margin-right: 0;
             }
 
             /* Dashboard header mobile spacing */
@@ -404,6 +413,8 @@ export const Dashboard: React.FC = () => {
               gap: 1rem;
               width: 100%;
               max-width: 100%;
+              margin: 0;
+              padding: 0;
             }
 
             /* Dashboard cards mobile optimization */
@@ -551,10 +562,21 @@ export const Dashboard: React.FC = () => {
               width: 0.75rem;
             }
 
-            /* Remove any margins that might cause overflow */
+            /* Remove any auto margins that might cause uneven spacing */
             .dashboard-container .mx-auto {
               margin-left: 0;
               margin-right: 0;
+            }
+
+            /* Ensure proper viewport handling */
+            body {
+              overflow-x: hidden;
+            }
+
+            /* Override any parent container margins/padding that might affect spacing */
+            .dashboard-container {
+              margin-left: 0 !important;
+              margin-right: 0 !important;
             }
           }
 
