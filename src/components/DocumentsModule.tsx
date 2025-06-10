@@ -105,9 +105,28 @@ export const DocumentsModule: React.FC = () => {
       )
       .subscribe();
 
+    // Set up realtime subscription for recycle bin table
+    const recycleBinChannel = supabase
+      .channel('recycle-bin-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'recycle_bin'
+        },
+        (payload) => {
+          console.log('Recycle bin table changed:', payload);
+          // Refresh documents when items are moved to/from recycle bin
+          fetchDocuments();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(documentsChannel);
       supabase.removeChannel(foldersChannel);
+      supabase.removeChannel(recycleBinChannel);
     };
   }, [fetchDocuments]);
 
@@ -268,9 +287,13 @@ export const DocumentsModule: React.FC = () => {
   const handleDeleteDocument = async (documentId: string, documentName: string) => {
     try {
       await deleteDocument(documentId);
+      
+      // Force refresh the documents list to ensure the deleted document disappears
+      await fetchDocuments();
+      
       toast({
         title: "Document Moved to Recycle Bin",
-        description: `"${documentName}" has been moved to the recycle bin. You can restore it from Settings > Recycle Bin within 30 days.`
+        description: `"${documentName}" has been moved to the recycle bin. You can restore it from the Trash within 15 days.`
       });
     } catch (error: any) {
       toast({

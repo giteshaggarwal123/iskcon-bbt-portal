@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -307,6 +308,8 @@ export const useDocuments = () => {
     }
 
     try {
+      console.log('Deleting document:', documentId);
+      
       // Use the database function to move to recycle bin
       const { error } = await supabase.rpc('move_to_recycle_bin', {
         _document_id: documentId,
@@ -314,6 +317,14 @@ export const useDocuments = () => {
       });
 
       if (error) throw error;
+      
+      console.log('Document moved to recycle bin successfully');
+      
+      // Immediately update the local state to remove the document
+      setDocuments(prevDocuments => 
+        prevDocuments.filter(doc => doc.id !== documentId)
+      );
+      
     } catch (error: any) {
       console.error('Error deleting document:', error);
       throw error;
