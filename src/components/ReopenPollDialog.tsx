@@ -64,7 +64,8 @@ export const ReopenPollDialog: React.FC<ReopenPollDialogProps> = ({ open, onOpen
     
     setLoading(true);
     try {
-      const { error } = await supabase.rpc('reopen_poll_with_deadline', {
+      // Use any to bypass TypeScript checking for the RPC function name
+      const { error } = await (supabase.rpc as any)('reopen_poll_with_deadline', {
         poll_id_param: poll.id,
         minutes_param: parseInt(selectedDuration)
       });

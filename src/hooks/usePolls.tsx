@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -65,7 +66,7 @@ export const usePolls = () => {
       setLoading(true);
       
       // First, auto-close any reopened polls that have expired
-      await supabase.rpc('auto_close_reopened_polls');
+      await (supabase.rpc as any)('auto_close_reopened_polls');
       
       // Fetch polls with sub_polls and attachments
       const { data: pollsData, error } = await supabase
