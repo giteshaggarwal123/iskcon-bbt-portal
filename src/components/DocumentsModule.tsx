@@ -398,71 +398,195 @@ export const DocumentsModule: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground animate-pulse">Loading documents...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 max-w-7xl">
-        <div className="space-y-4 sm:space-y-6">
-          {/* Header - Mobile Optimized */}
-          <div className="space-y-4">
-            <div className="text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Document Repository</h1>
-              <p className="text-sm sm:text-base text-muted-foreground">
-                Manage and organize your documents • {filteredDocuments.length} documents
-              </p>
-            </div>
-            
-            {/* Action Buttons - Mobile Optimized */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <Dialog open={trashDialogOpen} onOpenChange={setTrashDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-full sm:w-auto justify-center">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    <span>Trash</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-6xl max-h-[80vh] overflow-auto">
-                  <DialogHeader>
-                    <DialogTitle>Trash</DialogTitle>
-                  </DialogHeader>
-                  <TrashFolder />
-                </DialogContent>
-              </Dialog>
-              <CreateFolderDialog 
-                onFolderCreated={createFolder}
-                existingFolders={folders}
-                currentFolderId={currentFolderId}
-              />
-              <DocumentUploadDialog onUpload={handleUpload} />
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Enhanced Mobile Styles */}
+      <style>{`
+        @media (max-width: 767px) {
+          .documents-container {
+            padding: 0.75rem !important;
+            margin: 0 !important;
+          }
+          
+          .documents-header {
+            background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)/0.8) 100%);
+            color: white;
+            border-radius: 1rem;
+            padding: 1.5rem 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+          }
+          
+          .documents-title {
+            font-size: 1.75rem !important;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+          }
+          
+          .documents-subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+          }
+          
+          .documents-actions {
+            margin-top: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+          }
+          
+          .documents-action-btn {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white !important;
+            font-weight: 500;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            transition: all 0.3s ease;
+          }
+          
+          .documents-action-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+          }
+          
+          .documents-breadcrumb {
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0,0,0,0.05);
+            border-radius: 1rem;
+            padding: 0.75rem 1rem;
+            margin: 0 0.75rem 1rem 0.75rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+          }
+          
+          .documents-filters {
+            margin: 0 0.75rem 1rem 0.75rem;
+            background: white;
+            border-radius: 1rem;
+            padding: 1rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+          }
+          
+          .documents-content {
+            margin: 0 0.75rem;
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+          }
+          
+          .documents-empty-state {
+            padding: 3rem 1.5rem !important;
+            text-align: center;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+          }
+          
+          .documents-empty-icon {
+            width: 4rem;
+            height: 4rem;
+            margin: 0 auto 1rem;
+            color: hsl(var(--primary));
+            opacity: 0.7;
+          }
+        }
+
+        @media (min-width: 768px) {
+          .documents-header {
+            background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)/0.9) 100%);
+            color: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+          }
+          
+          .documents-content {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+          }
+          
+          .documents-filters {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+          }
+        }
+      `}</style>
+      
+      <div className="documents-container container mx-auto px-4 lg:px-6 py-6 max-w-7xl">
+        <div className="space-y-6">
+          {/* Enhanced Header */}
+          <div className="documents-header">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+              <div>
+                <h1 className="documents-title text-3xl font-bold">Document Repository</h1>
+                <p className="documents-subtitle text-sm md:text-base opacity-90">
+                  Manage and organize your documents • {filteredDocuments.length} documents
+                </p>
+              </div>
+              
+              <div className="documents-actions flex flex-col md:flex-row gap-3 mt-4 md:mt-0">
+                <Dialog open={trashDialogOpen} onOpenChange={setTrashDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="documents-action-btn">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      <span>Trash</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-6xl max-h-[80vh] overflow-auto">
+                    <DialogHeader>
+                      <DialogTitle>Trash</DialogTitle>
+                    </DialogHeader>
+                    <TrashFolder />
+                  </DialogContent>
+                </Dialog>
+                <CreateFolderDialog 
+                  onFolderCreated={createFolder}
+                  existingFolders={folders}
+                  currentFolderId={currentFolderId}
+                />
+                <DocumentUploadDialog onUpload={handleUpload} />
+              </div>
             </div>
           </div>
 
-          {/* Breadcrumb Navigation - Mobile Optimized */}
+          {/* Enhanced Breadcrumb Navigation */}
           {(currentFolderId || folderPath.length > 0) && (
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg overflow-x-auto">
+            <div className="documents-breadcrumb flex items-center space-x-2 text-sm text-muted-foreground overflow-x-auto">
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={() => handleBreadcrumbClick(null)}
-                className="flex items-center space-x-1 hover:bg-muted px-2 py-1 rounded whitespace-nowrap flex-shrink-0"
+                className="flex items-center space-x-1 hover:bg-muted/50 px-3 py-2 rounded-lg whitespace-nowrap flex-shrink-0 transition-all duration-200"
               >
                 <Home className="h-4 w-4" />
                 <span>Home</span>
               </Button>
               
-              {folderPath.map((folder, index) => (
+              {folderPath.map((folder) => (
                 <React.Fragment key={folder.id}>
                   <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground/60" />
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={() => handleBreadcrumbClick(folder.id)}
-                    className="hover:bg-muted px-2 py-1 rounded whitespace-nowrap flex-shrink-0"
+                    className="hover:bg-muted/50 px-3 py-2 rounded-lg whitespace-nowrap flex-shrink-0 transition-all duration-200"
                   >
                     {folder.name}
                   </Button>
@@ -471,8 +595,8 @@ export const DocumentsModule: React.FC = () => {
             </div>
           )}
 
-          {/* Filters - Mobile Optimized */}
-          <div className="w-full">
+          {/* Enhanced Filters */}
+          <div className="documents-filters">
             <DocumentFilters
               searchTerm={searchTerm}
               typeFilter={typeFilter}
@@ -488,20 +612,20 @@ export const DocumentsModule: React.FC = () => {
             />
           </div>
 
-          {/* Documents and Folders Content - Mobile Optimized */}
-          <div className="w-full">
+          {/* Enhanced Content Area */}
+          <div className="documents-content">
             {filteredDocuments.length === 0 && filteredFolders.length === 0 ? (
-              <div className="bg-card rounded-lg border">
-                <div className="text-center py-8 sm:py-12 px-4">
-                  <FileText className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg sm:text-xl font-medium text-foreground mb-2">No documents or folders found</h3>
-                  <p className="text-sm sm:text-base text-muted-foreground mb-6 max-w-md mx-auto">
+              <div className="documents-empty-state py-16 px-8">
+                <div className="max-w-md mx-auto">
+                  <FileText className="documents-empty-icon w-16 h-16 mx-auto mb-6 text-primary/60" />
+                  <h3 className="text-xl font-semibold text-foreground mb-3">No documents or folders found</h3>
+                  <p className="text-muted-foreground mb-8 leading-relaxed">
                     {searchTerm || typeFilter !== 'all' || peopleFilter !== 'all' || dateFilter !== 'all'
-                      ? 'Try adjusting your search or filter criteria'
-                      : 'Get started by uploading your first document or creating a folder'}
+                      ? 'Try adjusting your search or filter criteria to find what you\'re looking for'
+                      : 'Get started by uploading your first document or creating a folder to organize your files'}
                   </p>
                   {!searchTerm && (
-                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 justify-center max-w-sm mx-auto">
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
                       <CreateFolderDialog 
                         onFolderCreated={createFolder}
                         existingFolders={folders}
@@ -536,7 +660,7 @@ export const DocumentsModule: React.FC = () => {
             )}
           </div>
 
-          {/* Rename Dialog */}
+          {/* Dialogs */}
           <DocumentRenameDialog
             isOpen={renameDialogOpen}
             document={selectedDocument}
@@ -547,7 +671,6 @@ export const DocumentsModule: React.FC = () => {
             onRename={handleRename}
           />
 
-          {/* Document Viewer */}
           <DocumentViewer
             isOpen={viewerOpen}
             document={selectedDocument}
