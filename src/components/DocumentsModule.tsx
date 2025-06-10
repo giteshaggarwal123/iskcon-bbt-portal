@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { FileText, ChevronRight, Home, Trash2 } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
@@ -405,158 +406,206 @@ export const DocumentsModule: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 max-w-7xl">
-        <div className="space-y-4 sm:space-y-6">
-          {/* Header */}
-          <div className="flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-start sm:space-y-0">
-            <div className="space-y-1 sm:space-y-2">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Document Repository</h1>
-              <p className="text-sm sm:text-base text-muted-foreground">
-                Manage and organize your documents • {filteredDocuments.length} documents
-              </p>
-            </div>
-            
-            <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
-              <Dialog open={trashDialogOpen} onOpenChange={setTrashDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex items-center space-x-2">
-                    <Trash2 className="h-4 w-4" />
-                    <span>Trash</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-6xl max-h-[80vh] overflow-auto">
-                  <DialogHeader>
-                    <DialogTitle>Trash</DialogTitle>
-                  </DialogHeader>
-                  <TrashFolder />
-                </DialogContent>
-              </Dialog>
-              <CreateFolderDialog 
-                onFolderCreated={createFolder}
-                existingFolders={folders}
-                currentFolderId={currentFolderId}
-              />
-              <DocumentUploadDialog onUpload={handleUpload} />
-            </div>
-          </div>
-
-          {/* Breadcrumb Navigation */}
-          {(currentFolderId || folderPath.length > 0) && (
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground bg-muted/50 px-3 sm:px-4 py-2 rounded-lg overflow-x-auto">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => handleBreadcrumbClick(null)}
-                className="flex items-center space-x-1 hover:bg-muted px-2 py-1 rounded whitespace-nowrap"
-              >
-                <Home className="h-4 w-4" />
-                <span>Home</span>
-              </Button>
-              
-              {folderPath.map((folder, index) => (
-                <React.Fragment key={folder.id}>
-                  <ChevronRight className="h-4 w-4 flex-shrink-0" />
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => handleBreadcrumbClick(folder.id)}
-                    className="hover:bg-muted px-2 py-1 rounded whitespace-nowrap"
-                  >
-                    {folder.name}
-                  </Button>
-                </React.Fragment>
-              ))}
-            </div>
-          )}
-
-          {/* Filters */}
-          <div className="w-full">
-            <DocumentFilters
-              searchTerm={searchTerm}
-              typeFilter={typeFilter}
-              peopleFilter={peopleFilter}
-              dateFilter={dateFilter}
-              uniqueUploaders={uniqueUploaders}
-              userProfiles={userProfiles}
-              currentUserId={user?.id}
-              onSearchChange={setSearchTerm}
-              onTypeFilterChange={setTypeFilter}
-              onPeopleFilterChange={setPeopleFilter}
-              onDateFilterChange={setDateFilter}
-            />
-          </div>
-
-          {/* Combined Documents and Folders Table */}
-          <div className="w-full">
-            {filteredDocuments.length === 0 && filteredFolders.length === 0 ? (
-              <div className="bg-card rounded-lg border">
-                <div className="text-center py-8 sm:py-12 px-4">
-                  <FileText className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">No documents or folders found</h3>
-                  <p className="text-sm sm:text-base text-muted-foreground mb-4 max-w-md mx-auto">
-                    {searchTerm || typeFilter !== 'all' || peopleFilter !== 'all' || dateFilter !== 'all'
-                      ? 'Try adjusting your search or filter criteria'
-                      : 'Get started by uploading your first document or creating a folder'}
-                  </p>
-                  {!searchTerm && (
-                    <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2 justify-center">
-                      <CreateFolderDialog 
-                        onFolderCreated={createFolder}
-                        existingFolders={folders}
-                        currentFolderId={currentFolderId}
-                      />
-                      <DocumentUploadDialog onUpload={handleUpload} />
-                    </div>
-                  )}
-                </div>
+    <>
+      <style jsx>{`
+        @media (max-width: 767px) {
+          .documents-container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+          }
+          
+          .documents-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 1rem !important;
+          }
+          
+          .documents-actions {
+            width: 100% !important;
+            flex-direction: column !important;
+            gap: 0.5rem !important;
+          }
+          
+          .documents-title {
+            font-size: 1.5rem !important;
+          }
+          
+          .documents-breadcrumb {
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
+            overflow-x: auto !important;
+            white-space: nowrap !important;
+          }
+          
+          .documents-content {
+            padding: 0 !important;
+          }
+          
+          .documents-filters {
+            margin-bottom: 1rem !important;
+          }
+          
+          .documents-empty-state {
+            padding: 2rem 1rem !important;
+          }
+        }
+      `}</style>
+      
+      <div className="min-h-screen bg-background">
+        <div className="documents-container container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 max-w-7xl">
+          <div className="space-y-4 sm:space-y-6">
+            {/* Header */}
+            <div className="documents-header flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-start sm:space-y-0">
+              <div className="space-y-1 sm:space-y-2">
+                <h1 className="documents-title text-2xl sm:text-3xl font-bold text-foreground">Document Repository</h1>
+                <p className="text-sm sm:text-base text-muted-foreground">
+                  Manage and organize your documents • {filteredDocuments.length} documents
+                </p>
               </div>
-            ) : (
-              <DocumentTable
-                documents={filteredDocuments}
-                folders={filteredFolders}
+              
+              <div className="documents-actions flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
+                <Dialog open={trashDialogOpen} onOpenChange={setTrashDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center space-x-2">
+                      <Trash2 className="h-4 w-4" />
+                      <span>Trash</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-6xl max-h-[80vh] overflow-auto">
+                    <DialogHeader>
+                      <DialogTitle>Trash</DialogTitle>
+                    </DialogHeader>
+                    <TrashFolder />
+                  </DialogContent>
+                </Dialog>
+                <CreateFolderDialog 
+                  onFolderCreated={createFolder}
+                  existingFolders={folders}
+                  currentFolderId={currentFolderId}
+                />
+                <DocumentUploadDialog onUpload={handleUpload} />
+              </div>
+            </div>
+
+            {/* Breadcrumb Navigation */}
+            {(currentFolderId || folderPath.length > 0) && (
+              <div className="documents-breadcrumb flex items-center space-x-2 text-sm text-muted-foreground bg-muted/50 px-3 sm:px-4 py-2 rounded-lg overflow-x-auto">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleBreadcrumbClick(null)}
+                  className="flex items-center space-x-1 hover:bg-muted px-2 py-1 rounded whitespace-nowrap"
+                >
+                  <Home className="h-4 w-4" />
+                  <span>Home</span>
+                </Button>
+                
+                {folderPath.map((folder, index) => (
+                  <React.Fragment key={folder.id}>
+                    <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleBreadcrumbClick(folder.id)}
+                      className="hover:bg-muted px-2 py-1 rounded whitespace-nowrap"
+                    >
+                      {folder.name}
+                    </Button>
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+
+            {/* Filters */}
+            <div className="documents-filters w-full">
+              <DocumentFilters
+                searchTerm={searchTerm}
+                typeFilter={typeFilter}
+                peopleFilter={peopleFilter}
+                dateFilter={dateFilter}
+                uniqueUploaders={uniqueUploaders}
                 userProfiles={userProfiles}
                 currentUserId={user?.id}
-                canDeleteDocument={canDeleteDocument}
-                onViewDocument={handleViewDocument}
-                onDownloadDocument={handleDownloadDocument}
-                onToggleImportant={handleToggleImportant}
-                onRenameDocument={(document) => {
-                  setSelectedDocument(document);
-                  setRenameDialogOpen(true);
-                }}
-                onCopyDocument={handleCopyDocument}
-                onDeleteDocument={handleDeleteDocument}
-                onDeleteFolder={deleteFolder}
-                onFolderClick={handleFolderClick}
-                onMoveDocument={handleMoveDocument}
-                currentFolderId={currentFolderId}
+                onSearchChange={setSearchTerm}
+                onTypeFilterChange={setTypeFilter}
+                onPeopleFilterChange={setPeopleFilter}
+                onDateFilterChange={setDateFilter}
               />
-            )}
+            </div>
+
+            {/* Combined Documents and Folders Table */}
+            <div className="documents-content w-full">
+              {filteredDocuments.length === 0 && filteredFolders.length === 0 ? (
+                <div className="bg-card rounded-lg border">
+                  <div className="documents-empty-state text-center py-8 sm:py-12 px-4">
+                    <FileText className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">No documents or folders found</h3>
+                    <p className="text-sm sm:text-base text-muted-foreground mb-4 max-w-md mx-auto">
+                      {searchTerm || typeFilter !== 'all' || peopleFilter !== 'all' || dateFilter !== 'all'
+                        ? 'Try adjusting your search or filter criteria'
+                        : 'Get started by uploading your first document or creating a folder'}
+                    </p>
+                    {!searchTerm && (
+                      <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2 justify-center">
+                        <CreateFolderDialog 
+                          onFolderCreated={createFolder}
+                          existingFolders={folders}
+                          currentFolderId={currentFolderId}
+                        />
+                        <DocumentUploadDialog onUpload={handleUpload} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <DocumentTable
+                  documents={filteredDocuments}
+                  folders={filteredFolders}
+                  userProfiles={userProfiles}
+                  currentUserId={user?.id}
+                  canDeleteDocument={canDeleteDocument}
+                  onViewDocument={handleViewDocument}
+                  onDownloadDocument={handleDownloadDocument}
+                  onToggleImportant={handleToggleImportant}
+                  onRenameDocument={(document) => {
+                    setSelectedDocument(document);
+                    setRenameDialogOpen(true);
+                  }}
+                  onCopyDocument={handleCopyDocument}
+                  onDeleteDocument={handleDeleteDocument}
+                  onDeleteFolder={deleteFolder}
+                  onFolderClick={handleFolderClick}
+                  onMoveDocument={handleMoveDocument}
+                  currentFolderId={currentFolderId}
+                />
+              )}
+            </div>
+
+            {/* Rename Dialog */}
+            <DocumentRenameDialog
+              isOpen={renameDialogOpen}
+              document={selectedDocument}
+              onClose={() => {
+                setRenameDialogOpen(false);
+                setSelectedDocument(null);
+              }}
+              onRename={handleRename}
+            />
+
+            {/* Document Viewer */}
+            <DocumentViewer
+              isOpen={viewerOpen}
+              document={selectedDocument}
+              onClose={() => {
+                setViewerOpen(false);
+                setSelectedDocument(null);
+              }}
+            />
           </div>
-
-          {/* Rename Dialog */}
-          <DocumentRenameDialog
-            isOpen={renameDialogOpen}
-            document={selectedDocument}
-            onClose={() => {
-              setRenameDialogOpen(false);
-              setSelectedDocument(null);
-            }}
-            onRename={handleRename}
-          />
-
-          {/* Document Viewer */}
-          <DocumentViewer
-            isOpen={viewerOpen}
-            document={selectedDocument}
-            onClose={() => {
-              setViewerOpen(false);
-              setSelectedDocument(null);
-            }}
-          />
         </div>
       </div>
-    </div>
+    </>
   );
 };
