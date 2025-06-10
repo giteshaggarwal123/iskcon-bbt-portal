@@ -110,9 +110,70 @@ export const useMembers = () => {
 
   // Force immediate refresh function
   const forceRefresh = useCallback(async () => {
+    console.log('Force refresh triggered');
     setLoading(true);
     await fetchMembers();
   }, [fetchMembers]);
+
+  // Set up real-time subscriptions
+  useEffect(() => {
+    let profilesChannel: any;
+    let rolesChannel: any;
+
+    const setupRealtimeSubscriptions = () => {
+      console.log('Setting up real-time subscriptions for members...');
+
+      // Subscribe to profiles changes
+      profilesChannel = supabase
+        .channel('profiles-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'profiles'
+          },
+          (payload) => {
+            console.log('Profiles change detected:', payload);
+            forceRefresh();
+          }
+        )
+        .subscribe();
+
+      // Subscribe to user_roles changes
+      rolesChannel = supabase
+        .channel('user-roles-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'user_roles'
+          },
+          (payload) => {
+            console.log('User roles change detected:', payload);
+            forceRefresh();
+          }
+        )
+        .subscribe();
+    };
+
+    if (user) {
+      fetchMembers();
+      setupRealtimeSubscriptions();
+    }
+
+    return () => {
+      if (profilesChannel) {
+        console.log('Cleaning up profiles subscription');
+        supabase.removeChannel(profilesChannel);
+      }
+      if (rolesChannel) {
+        console.log('Cleaning up roles subscription');
+        supabase.removeChannel(rolesChannel);
+      }
+    };
+  }, [user, fetchMembers, forceRefresh]);
 
   const addMember = async (memberData: {
     email: string;
@@ -235,8 +296,8 @@ export const useMembers = () => {
         description: `${memberData.firstName} ${memberData.lastName} has been added with phone number ${memberData.phone} and can now login with OTP.`
       });
 
-      // Force immediate refresh
-      await forceRefresh();
+      // Don't manually refresh, let real-time handle it
+      console.log('Member added, real-time subscription will handle the update');
       
       return authData.user;
     } catch (error: any) {
@@ -295,8 +356,8 @@ export const useMembers = () => {
         description: "Member role has been updated successfully"
       });
 
-      // Force immediate refresh
-      await forceRefresh();
+      // Don't manually refresh, let real-time handle it
+      console.log('Role updated, real-time subscription will handle the update');
     } catch (error: any) {
       console.error('Error updating role:', error);
       toast({
@@ -351,8 +412,8 @@ export const useMembers = () => {
         description: "Member has been removed successfully"
       });
 
-      // Force immediate refresh
-      await forceRefresh();
+      // Don't manually refresh, let real-time handle it
+      console.log('Member deleted, real-time subscription will handle the update');
     } catch (error: any) {
       console.error('Error deleting member:', error);
       toast({
@@ -392,8 +453,8 @@ export const useMembers = () => {
         description: `Account has been ${suspend ? 'suspended' : 'reactivated'} successfully`
       });
 
-      // Force immediate refresh
-      await forceRefresh();
+      // Don't manually refresh, let real-time handle it
+      console.log('Member suspension status updated, real-time subscription will handle the update');
     } catch (error: any) {
       console.error('Error suspending member:', error);
       toast({
@@ -524,12 +585,6 @@ export const useMembers = () => {
       (member.phone && member.phone.includes(searchTerm))
     );
   };
-
-  useEffect(() => {
-    if (user) {
-      fetchMembers();
-    }
-  }, [user, fetchMembers]);
 
   return {
     members,

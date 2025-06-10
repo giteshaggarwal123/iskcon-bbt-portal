@@ -22,8 +22,7 @@ export const MembersModule: React.FC = () => {
     deleteMember, 
     suspendMember,
     resetPassword,
-    searchMembers,
-    forceRefresh
+    searchMembers
   } = useMembers();
   const userRole = useUserRole();
 
@@ -74,9 +73,10 @@ export const MembersModule: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  const handleMemberUpdated = async () => {
-    console.log('Member updated, forcing immediate refresh...');
-    await forceRefresh();
+  // Real-time updates are handled automatically by the useMembers hook
+  const handleMemberUpdated = () => {
+    console.log('Member updated - real-time subscription will handle the refresh');
+    // No need for manual refresh as real-time subscriptions handle updates
   };
 
   if (loading) {
@@ -262,7 +262,8 @@ export const MembersModule: React.FC = () => {
           onOpenChange={setShowAddMemberDialog}
           onMemberAdded={() => {
             setShowAddMemberDialog(false);
-            handleMemberUpdated(); // Use the force refresh function
+            // Real-time subscription will handle the refresh
+            console.log('Member added, real-time subscription will handle the update');
           }}
         />
       )}

@@ -99,13 +99,11 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
         description: `${firstName} ${lastName}'s information has been updated`
       });
 
-      // Close dialog first
+      // Close dialog immediately
       onOpenChange(false);
       
-      // Then trigger refresh with a small delay to ensure dialog closes
-      setTimeout(() => {
-        onMemberUpdated();
-      }, 100);
+      // The real-time subscription will handle the refresh automatically
+      console.log('Profile updated, real-time subscription will handle the UI update');
 
     } catch (error: any) {
       console.error('Error updating member:', error);
