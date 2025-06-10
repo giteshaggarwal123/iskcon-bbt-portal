@@ -10,6 +10,7 @@ import { AddMemberDialog } from './AddMemberDialog';
 import { MemberCard } from './MemberCard';
 import { useMembers } from '@/hooks/useMembers';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const MembersModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,6 +27,7 @@ export const MembersModule: React.FC = () => {
     fetchMembers
   } = useMembers();
   const userRole = useUserRole();
+  const isMobile = useIsMobile();
 
   // Use the search function from the hook
   const filteredMembers = useMemo(() => {
@@ -94,188 +96,249 @@ export const MembersModule: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-full min-h-0 flex flex-col">
-      {/* Header Section - Mobile Optimized */}
-      <div className="w-full mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1 truncate">
-              Member Management
-            </h1>
-            <p className="text-sm sm:text-base text-muted-foreground">
-              Manage bureau members, roles, and permissions
-            </p>
-          </div>
-          {userRole.canManageMembers && (
-            <div className="flex-shrink-0">
-              <Button 
-                className="w-full sm:w-auto h-10 sm:h-auto"
-                onClick={() => setShowAddMemberDialog(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                <span className="whitespace-nowrap">Add Member</span>
-              </Button>
+    <>
+      <style>{`
+        @media (max-width: 767px) {
+          .members-container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+          }
+          .members-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 1rem !important;
+          }
+          .members-header-text h1 {
+            font-size: 1.5rem !important;
+            line-height: 2rem !important;
+            font-weight: 600 !important;
+          }
+          .members-header-text p {
+            font-size: 0.875rem !important;
+            line-height: 1.25rem !important;
+          }
+          .members-header button {
+            font-size: 0.75rem !important;
+            font-weight: 500 !important;
+            padding: 0.5rem 0.75rem !important;
+            height: 2rem !important;
+            width: 100% !important;
+          }
+          .members-tabs-list {
+            height: auto !important;
+          }
+          .members-tabs-trigger {
+            font-size: 0.75rem !important;
+            padding: 0.5rem 0.75rem !important;
+            white-space: nowrap !important;
+          }
+          .members-search-section {
+            flex-direction: column !important;
+            gap: 0.75rem !important;
+          }
+          .members-search-section button {
+            width: 100% !important;
+            font-size: 0.75rem !important;
+            font-weight: 500 !important;
+            padding: 0.5rem 0.75rem !important;
+            height: 2rem !important;
+          }
+        }
+      `}</style>
+      <div className="w-full max-w-full min-h-0 flex flex-col members-container">
+        {/* Header Section - Mobile Optimized */}
+        <div className="w-full mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 members-header">
+            <div className="min-w-0 flex-1 members-header-text">
+              <h1 className={`${isMobile ? 'text-2xl' : 'text-2xl sm:text-3xl'} font-bold text-foreground mb-1 truncate`}>
+                Member Management
+              </h1>
+              <p className={`${isMobile ? 'text-sm' : 'text-sm sm:text-base'} text-muted-foreground`}>
+                Manage bureau members, roles, and permissions
+              </p>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Tabs Section - Mobile Optimized */}
-      <div className="w-full flex-1 min-h-0">
-        <Tabs defaultValue="members" className="w-full h-full flex flex-col">
-          <div className="w-full mb-6">
-            <TabsList className="w-full grid grid-cols-2 h-10">
-              <TabsTrigger value="members" className="text-xs sm:text-sm truncate">
-                Members ({members.length})
-              </TabsTrigger>
-              <TabsTrigger value="roles" className="text-xs sm:text-sm truncate">
-                Roles & Permissions
-              </TabsTrigger>
-            </TabsList>
+            {userRole.canManageMembers && (
+              <div className="flex-shrink-0">
+                <Button 
+                  className={`${isMobile ? 'w-full' : 'w-full sm:w-auto'} h-10 sm:h-auto`}
+                  onClick={() => setShowAddMemberDialog(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  <span className="whitespace-nowrap">Add Member</span>
+                </Button>
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Members Tab */}
-          <TabsContent value="members" className="w-full flex-1 min-h-0 mt-0">
-            {/* Search and Export Section */}
+        {/* Tabs Section - Mobile Optimized */}
+        <div className="w-full flex-1 min-h-0">
+          <Tabs defaultValue="members" className="w-full h-full flex flex-col">
             <div className="w-full mb-6">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <Input
-                      placeholder="Search members by name, email, phone, or role..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 h-10"
-                    />
+              <TabsList className={`w-full grid grid-cols-2 ${isMobile ? 'h-auto members-tabs-list' : 'h-10'}`}>
+                <TabsTrigger 
+                  value="members" 
+                  className={`${isMobile ? 'text-xs px-2 py-3 flex-1 members-tabs-trigger' : 'text-xs sm:text-sm'} truncate`}
+                >
+                  {isMobile ? `Members (${members.length})` : `Members (${members.length})`}
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="roles" 
+                  className={`${isMobile ? 'text-xs px-2 py-3 flex-1 members-tabs-trigger' : 'text-xs sm:text-sm'} truncate`}
+                >
+                  {isMobile ? 'Roles & Permissions' : 'Roles & Permissions'}
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* Members Tab */}
+            <TabsContent value="members" className="w-full flex-1 min-h-0 mt-0">
+              {/* Search and Export Section */}
+              <div className="w-full mb-6">
+                <div className={`flex ${isMobile ? 'flex-col members-search-section' : 'flex-col sm:flex-row'} gap-4`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <Input
+                        placeholder="Search members by name, email, phone, or role..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 h-10"
+                      />
+                    </div>
                   </div>
+                  {userRole.canManageMembers && (
+                    <div className="flex-shrink-0">
+                      <Button 
+                        variant="outline" 
+                        onClick={handleExportMembers}
+                        className={`${isMobile ? 'w-full' : 'w-full sm:w-auto'} h-10`}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        <span className="whitespace-nowrap">Export List</span>
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                {userRole.canManageMembers && (
-                  <div className="flex-shrink-0">
-                    <Button 
-                      variant="outline" 
-                      onClick={handleExportMembers}
-                      className="w-full sm:w-auto h-10"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      <span className="whitespace-nowrap">Export List</span>
-                    </Button>
+              </div>
+
+              {/* Members List */}
+              <div className="w-full">
+                {filteredMembers.length === 0 ? (
+                  <Card className="w-full">
+                    <CardContent className={`${isMobile ? 'p-4' : 'p-6 sm:p-8'} text-center`}>
+                      <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className={`${isMobile ? 'text-base' : 'text-lg'} font-medium text-foreground mb-2`}>
+                        {searchTerm ? 'No members found' : 'No members yet'}
+                      </h3>
+                      <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground mb-4`}>
+                        {searchTerm 
+                          ? 'Try adjusting your search criteria'
+                          : 'Get started by adding your first member'
+                        }
+                      </p>
+                      {!searchTerm && userRole.canManageMembers && (
+                        <Button 
+                          onClick={() => setShowAddMemberDialog(true)} 
+                          className={`${isMobile ? 'w-full text-sm py-2' : 'w-full sm:w-auto'}`}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Member
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="w-full space-y-4 sm:space-y-6">
+                    {filteredMembers.map((member) => (
+                      <MemberCard 
+                        key={member.id} 
+                        member={member} 
+                        onRoleChange={async (memberId, newRole) => {
+                          await updateMemberRole(memberId, newRole);
+                          await handleMemberUpdated();
+                        }}
+                        onDeleteMember={async (memberId) => {
+                          await deleteMember(memberId);
+                          await handleMemberUpdated();
+                        }}
+                        onSuspendMember={async (memberId, suspend) => {
+                          if (suspendMember) {
+                            await suspendMember(memberId, suspend);
+                            await handleMemberUpdated();
+                          }
+                        }}
+                        onResetPassword={(memberId) => {
+                          if (resetPassword) {
+                            resetPassword(memberId);
+                          }
+                        }}
+                        onMemberUpdated={handleMemberUpdated}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
-            </div>
+            </TabsContent>
 
-            {/* Members List */}
-            <div className="w-full">
-              {filteredMembers.length === 0 ? (
-                <Card className="w-full">
-                  <CardContent className="p-6 sm:p-8 text-center">
-                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-foreground mb-2">
-                      {searchTerm ? 'No members found' : 'No members yet'}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {searchTerm 
-                        ? 'Try adjusting your search criteria'
-                        : 'Get started by adding your first member'
-                      }
-                    </p>
-                    {!searchTerm && userRole.canManageMembers && (
-                      <Button onClick={() => setShowAddMemberDialog(true)} className="w-full sm:w-auto">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Member
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="w-full space-y-4 sm:space-y-6">
-                  {filteredMembers.map((member) => (
-                    <MemberCard 
-                      key={member.id} 
-                      member={member} 
-                      onRoleChange={async (memberId, newRole) => {
-                        await updateMemberRole(memberId, newRole);
-                        await handleMemberUpdated();
-                      }}
-                      onDeleteMember={async (memberId) => {
-                        await deleteMember(memberId);
-                        await handleMemberUpdated();
-                      }}
-                      onSuspendMember={async (memberId, suspend) => {
-                        if (suspendMember) {
-                          await suspendMember(memberId, suspend);
-                          await handleMemberUpdated();
-                        }
-                      }}
-                      onResetPassword={(memberId) => {
-                        if (resetPassword) {
-                          resetPassword(memberId);
-                        }
-                      }}
-                      onMemberUpdated={handleMemberUpdated}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* Roles Tab */}
-          <TabsContent value="roles" className="w-full flex-1 min-h-0 mt-0">
-            <div className="w-full space-y-4 sm:space-y-6">
-              {roles.map((role, index) => (
-                <Card key={index} className="w-full hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-4">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <CardTitle className="text-lg sm:text-xl mb-2 leading-tight">
-                          {role.name}
-                        </CardTitle>
-                        <CardDescription className="text-sm leading-relaxed">
-                          {role.description}
-                        </CardDescription>
-                      </div>
-                      <div className="flex-shrink-0">
-                        <Badge className="bg-primary text-primary-foreground text-xs">
-                          {role.memberCount} member{role.memberCount !== 1 ? 's' : ''}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div>
-                      <h4 className="font-semibold mb-3 flex items-center text-sm">
-                        <Shield className="h-4 w-4 mr-2 flex-shrink-0" />
-                        Permissions
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {role.permissions.map((permission, idx) => (
-                          <Badge key={idx} variant="secondary" className="text-xs">
-                            {permission}
+            {/* Roles Tab */}
+            <TabsContent value="roles" className="w-full flex-1 min-h-0 mt-0">
+              <div className="w-full space-y-4 sm:space-y-6">
+                {roles.map((role, index) => (
+                  <Card key={index} className="w-full hover:shadow-md transition-shadow">
+                    <CardHeader className={`${isMobile ? 'p-4 pb-3' : 'pb-4'}`}>
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className={`${isMobile ? 'text-base' : 'text-lg sm:text-xl'} mb-2 leading-tight`}>
+                            {role.name}
+                          </CardTitle>
+                          <CardDescription className={`${isMobile ? 'text-xs' : 'text-sm'} leading-relaxed`}>
+                            {role.description}
+                          </CardDescription>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <Badge className={`bg-primary text-primary-foreground ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                            {role.memberCount} member{role.memberCount !== 1 ? 's' : ''}
                           </Badge>
-                        ))}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+                    </CardHeader>
+                    <CardContent className={`${isMobile ? 'p-4 pt-0' : 'pt-0'}`}>
+                      <div>
+                        <h4 className={`font-semibold mb-3 flex items-center ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                          <Shield className="h-4 w-4 mr-2 flex-shrink-0" />
+                          Permissions
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {role.permissions.map((permission, idx) => (
+                            <Badge key={idx} variant="secondary" className={`${isMobile ? 'text-xs' : 'text-xs'}`}>
+                              {permission}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
 
-      {userRole.canManageMembers && (
-        <AddMemberDialog 
-          open={showAddMemberDialog} 
-          onOpenChange={setShowAddMemberDialog}
-          onMemberAdded={async () => {
-            setShowAddMemberDialog(false);
-            // Force immediate refresh
-            await handleMemberUpdated();
-          }}
-        />
-      )}
-    </div>
+        {userRole.canManageMembers && (
+          <AddMemberDialog 
+            open={showAddMemberDialog} 
+            onOpenChange={setShowAddMemberDialog}
+            onMemberAdded={async () => {
+              setShowAddMemberDialog(false);
+              // Force immediate refresh
+              await handleMemberUpdated();
+            }}
+          />
+        )}
+      </div>
+    </>
   );
 };
