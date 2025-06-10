@@ -61,9 +61,25 @@ export const PollAttachments: React.FC<PollAttachmentsProps> = ({
 
   const handleView = (attachment: PollAttachment) => {
     if (onViewDocument) {
-      // Pass the attachment directly as it already matches PollAttachment interface
       onViewDocument(attachment);
     }
+  };
+
+  const canViewDocument = (mimeType: string | null) => {
+    if (!mimeType) return false;
+    
+    // Support more document types for viewing
+    return (
+      mimeType.includes('pdf') || 
+      mimeType.includes('image') ||
+      mimeType.includes('text') ||
+      mimeType.includes('document') ||
+      mimeType.includes('word') ||
+      mimeType.includes('spreadsheet') ||
+      mimeType.includes('excel') ||
+      mimeType.includes('presentation') ||
+      mimeType.includes('powerpoint')
+    );
   };
 
   return (
@@ -78,11 +94,7 @@ export const PollAttachments: React.FC<PollAttachmentsProps> = ({
         <div className="space-y-3">
           {attachments.map((attachment) => {
             const FileIcon = getFileIcon(attachment.mime_type);
-            const canView = attachment.mime_type && (
-              attachment.mime_type.includes('pdf') || 
-              attachment.mime_type.includes('image') ||
-              attachment.mime_type.includes('text')
-            );
+            const canView = canViewDocument(attachment.mime_type) && onViewDocument;
 
             return (
               <div
@@ -109,7 +121,7 @@ export const PollAttachments: React.FC<PollAttachmentsProps> = ({
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  {canView && onViewDocument && (
+                  {canView && (
                     <Button
                       size="sm"
                       variant="outline"
