@@ -12,7 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Mail, Phone, Save, X } from 'lucide-react';
+import { User, Mail, Phone, Save, X, Shield } from 'lucide-react';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface Member {
   id: string;
@@ -43,6 +44,7 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
   const [phone, setPhone] = useState(member.phone || '');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const userRole = useUserRole();
 
   // Reset form when member changes or dialog opens
   React.useEffect(() => {
@@ -54,11 +56,30 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
     }
   }, [member, open]);
 
+  // Check if current user can edit this member
+  const canEditMember = userRole.isSuperAdmin || 
+    (userRole.isAdmin && member.email !== 'cs@iskconbureau.in') ||
+    member.id === userRole.user?.id;
+
+  // Check if user can edit specific fields
+  const canEditEmail = userRole.isSuperAdmin || member.id === userRole.user?.id;
+  const canEditPhone = userRole.isSuperAdmin || userRole.isAdmin || member.id === userRole.user?.id;
+  const canEditName = userRole.isSuperAdmin || userRole.isAdmin || member.id === userRole.user?.id;
+
   const handleSave = async () => {
     if (!firstName.trim() || !lastName.trim() || !email.trim()) {
       toast({
         title: "Validation Error",
         description: "First name, last name, and email are required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!canEditMember) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to edit this member",
         variant: "destructive"
       });
       return;
@@ -71,16 +92,32 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim(),
-        phone: phone.trim()
+        phone: phone.trim(),
+        canEditEmail,
+        canEditPhone,
+        canEditName
       });
 
-      const updateData = {
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        email: email.trim(),
-        phone: phone.trim() || null,
+      // Prepare update data based on permissions
+      const updateData: any = {
         updated_at: new Date().toISOString()
       };
+
+      // Only include fields that the user has permission to edit
+      if (canEditName) {
+        updateData.first_name = firstName.trim();
+        updateData.last_name = lastName.trim();
+      }
+
+      if (canEditEmail && email !== member.email) {
+        updateData.email = email.trim();
+      }
+
+      if (canEditPhone) {
+        updateData.phone = phone.trim() || null;
+      }
+
+      console.log('Update data being sent:', updateData);
 
       const { error } = await supabase
         .from('profiles')
@@ -89,7 +126,18 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
 
       if (error) {
         console.error('Error updating member:', error);
-        throw error;
+        
+        // Handle specific RLS policy errors
+        if (error.message.includes('row-level security')) {
+          toast({
+            title: "Permission Denied",
+            description: "You don't have sufficient permissions to make this update",
+            variant: "destructive"
+          });
+        } else {
+          throw error;
+        }
+        return;
       }
 
       console.log('Member profile updated successfully');
@@ -129,6 +177,31 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
     onOpenChange(false);
   };
 
+  if (!canEditMember) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Shield className="h-5 w-5 text-red-500" />
+              <span>Access Denied</span>
+            </DialogTitle>
+            <DialogDescription>
+              You don't have permission to edit this member's information.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="pt-4">
+            <Button onClick={() => onOpenChange(false)} className="w-full">
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  const isProtectedAccount = member.email === 'cs@iskconbureau.in';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -136,9 +209,14 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
           <DialogTitle className="flex items-center space-x-2">
             <User className="h-5 w-5" />
             <span>Edit Member Information</span>
+            {isProtectedAccount && (
+              <Shield className="h-4 w-4 text-amber-500" />
+            )}
           </DialogTitle>
           <DialogDescription>
-            Update member details. Changes will be reflected immediately.
+            Update member details. 
+            {isProtectedAccount && " This is a protected system account."}
+            {!canEditEmail && " You can only edit basic information."}
           </DialogDescription>
         </DialogHeader>
 
@@ -151,8 +229,13 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="Enter first name"
-                disabled={loading}
+                disabled={loading || !canEditName}
               />
+              {!canEditName && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  You can't edit names for this member
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="lastName">Last Name *</Label>
@@ -161,7 +244,7 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Enter last name"
-                disabled={loading}
+                disabled={loading || !canEditName}
               />
             </div>
           </div>
@@ -177,9 +260,17 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter email address"
                 className="pl-10"
-                disabled={loading}
+                disabled={loading || !canEditEmail}
               />
             </div>
+            {!canEditEmail && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {isProtectedAccount ? 
+                  "Protected system email cannot be changed" : 
+                  "You can't edit email for other members"
+                }
+              </p>
+            )}
           </div>
 
           <div>
@@ -192,9 +283,14 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Enter phone number"
                 className="pl-10"
-                disabled={loading}
+                disabled={loading || !canEditPhone}
               />
             </div>
+            {!canEditPhone && (
+              <p className="text-xs text-muted-foreground mt-1">
+                You can't edit phone numbers for this member
+              </p>
+            )}
           </div>
 
           <div className="flex space-x-3 pt-4">

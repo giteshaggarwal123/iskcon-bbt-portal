@@ -29,6 +29,8 @@ export const useProfile = () => {
 
     try {
       setLoading(true);
+      console.log('Fetching profile for user:', user.id);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -36,31 +38,24 @@ export const useProfile = () => {
         .single();
 
       if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+        
+        // Handle RLS policy errors gracefully
+        if (error.message.includes('row-level security')) {
+          console.log('User may not have access to their profile yet, creating...');
+          await createProfileIfNeeded();
+          return;
+        }
+        
         throw error;
       }
 
       if (data) {
+        console.log('Profile fetched successfully:', data);
         setProfile(data);
       } else {
-        // Create profile if it doesn't exist
-        const newProfile = {
-          id: user.id,
-          email: user.email || '',
-          first_name: user.user_metadata?.first_name || '',
-          last_name: user.user_metadata?.last_name || '',
-          phone: user.phone || '',
-          avatar_url: '',
-          updated_at: new Date().toISOString()
-        };
-
-        const { data: createdProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert(newProfile)
-          .select()
-          .single();
-
-        if (createError) throw createError;
-        setProfile(createdProfile);
+        console.log('No profile found, creating...');
+        await createProfileIfNeeded();
       }
     } catch (error: any) {
       console.error('Error fetching profile:', error);
@@ -74,10 +69,55 @@ export const useProfile = () => {
     }
   };
 
+  const createProfileIfNeeded = async () => {
+    if (!user) return;
+
+    try {
+      const newProfile = {
+        id: user.id,
+        email: user.email || '',
+        first_name: user.user_metadata?.first_name || '',
+        last_name: user.user_metadata?.last_name || '',
+        phone: user.phone || '',
+        avatar_url: '',
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('Creating profile:', newProfile);
+
+      const { data: createdProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert(newProfile)
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Error creating profile:', createError);
+        
+        // If it's an RLS error, the user might not have permission to create
+        if (createError.message.includes('row-level security')) {
+          console.log('RLS prevented profile creation, profile might already exist');
+          // Try to fetch again in case it was created by trigger
+          setTimeout(() => fetchProfile(), 1000);
+          return;
+        }
+        
+        throw createError;
+      }
+      
+      console.log('Profile created successfully:', createdProfile);
+      setProfile(createdProfile);
+    } catch (error: any) {
+      console.error('Error creating profile:', error);
+    }
+  };
+
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user || !profile) return { error: 'No user or profile found' };
 
     try {
+      console.log('Updating profile with:', updates);
+      
       const updateData = {
         ...updates,
         updated_at: new Date().toISOString()
@@ -90,8 +130,23 @@ export const useProfile = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating profile:', error);
+        
+        // Handle RLS policy errors
+        if (error.message.includes('row-level security')) {
+          toast({
+            title: "Permission Denied",
+            description: "You don't have permission to make this update",
+            variant: "destructive"
+          });
+          return { error };
+        }
+        
+        throw error;
+      }
 
+      console.log('Profile updated successfully:', data);
       setProfile(data);
       
       // Trigger refresh across components

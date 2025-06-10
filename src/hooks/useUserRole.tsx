@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -39,6 +40,7 @@ interface UseUserRoleReturn {
   canAccessMembersModule: boolean;
   canAccessReports: boolean;
   canAccessSettings: boolean;
+  user: any;
 }
 
 export const useUserRole = (): UseUserRoleReturn => {
@@ -57,51 +59,16 @@ export const useUserRole = (): UseUserRoleReturn => {
       try {
         console.log('Fetching role for user:', user.email);
         
-        // Only cs@iskconbureau.in should be super admin
-        if (user.email === 'cs@iskconbureau.in') {
-          console.log('Super admin detected by email');
-          
-          // Ensure super admin role exists in database
-          const { error: upsertError } = await supabase
-            .from('user_roles')
-            .upsert({ 
-              user_id: user.id, 
-              role: 'super_admin' 
-            }, { 
-              onConflict: 'user_id,role' 
-            });
-          
-          if (upsertError) {
-            console.error('Error upserting super admin role:', upsertError);
-          }
-          
-          setUserRole('super_admin');
-          setLoading(false);
-          return;
-        }
-
-        // For all other users, fetch their role from the database
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .single();
+        // Use the new database function to get current user role
+        const { data, error } = await supabase.rpc('get_current_user_role');
 
         if (error) {
           console.error('Error fetching user role:', error);
-          // Default to member if no role found or error occurs
+          // Default to member if error occurs
           setUserRole('member');
         } else {
-          // Convert legacy roles to member and ensure proper role assignment
-          const role = data.role as string;
-          if (role === 'secretary' || role === 'treasurer' || role === 'super_admin') {
-            // Convert legacy roles and prevent incorrect super admin assignment
-            setUserRole('member');
-          } else if (role === 'admin') {
-            setUserRole('admin');
-          } else {
-            setUserRole('member');
-          }
+          console.log('User role from database function:', data);
+          setUserRole(data as UserRole);
         }
       } catch (error) {
         console.error('Error in fetchUserRole:', error);
@@ -112,6 +79,28 @@ export const useUserRole = (): UseUserRoleReturn => {
     };
 
     fetchUserRole();
+
+    // Set up real-time subscription for role changes
+    const subscription = supabase
+      .channel('user-role-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_roles',
+          filter: `user_id=eq.${user?.id}`
+        },
+        () => {
+          console.log('User role changed, refetching...');
+          fetchUserRole();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [user]);
 
   const isSuperAdmin = userRole === 'super_admin' && user?.email === 'cs@iskconbureau.in';
@@ -129,11 +118,11 @@ export const useUserRole = (): UseUserRoleReturn => {
   const canAccessReports = isSuperAdmin || isAdmin; // Only admins can access reports
   const canAccessSettings = true; // All users can access settings
 
-  // Existing permissions with member restrictions
+  // Enhanced permissions with proper role separation
   const canManageMembers = isSuperAdmin || isAdmin;
-  const canManageMeetings = isSuperAdmin || isAdmin; // Members can view but not manage
+  const canManageMeetings = isSuperAdmin || isAdmin;
   const canManageDocuments = isSuperAdmin || isAdmin;
-  const canViewReports = isSuperAdmin || isAdmin; // Members cannot view reports
+  const canViewReports = isSuperAdmin || isAdmin;
   const canManageSettings = true; // All members can access settings
   
   // Content permissions
@@ -150,8 +139,8 @@ export const useUserRole = (): UseUserRoleReturn => {
 
   // Specific permissions for members
   const canViewMembers = isSuperAdmin || isAdmin;
-  const canScheduleMeetings = isSuperAdmin || isAdmin; // Members cannot schedule meetings
-  const canDeleteMeetings = isSuperAdmin || isAdmin; // Members cannot delete meetings
+  const canScheduleMeetings = isSuperAdmin || isAdmin;
+  const canDeleteMeetings = isSuperAdmin || isAdmin;
   const canEditVoting = isSuperAdmin || isAdmin;
   const canCreateVoting = isSuperAdmin || isAdmin;
   const canVoteOnly = userRole === 'member';
@@ -191,6 +180,7 @@ export const useUserRole = (): UseUserRoleReturn => {
     canAccessEmail,
     canAccessMembersModule,
     canAccessReports,
-    canAccessSettings
+    canAccessSettings,
+    user
   };
 };
