@@ -12,10 +12,40 @@ export const useAnalyticsTracking = ({ documentId, documentType }: UseAnalyticsT
       console.log('Tracking view for:', documentType, documentId);
 
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('Error getting user:', userError);
+        return;
+      }
+
       if (!user) {
         console.error('No authenticated user found');
         return;
+      }
+
+      // Ensure user profile exists first
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !profile) {
+        console.error('User profile not found, creating one...');
+        // Create profile if it doesn't exist
+        const { error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email,
+            first_name: user.user_metadata?.first_name || null,
+            last_name: user.user_metadata?.last_name || null
+          });
+
+        if (createError) {
+          console.error('Error creating profile:', createError);
+          // Continue anyway as the foreign key constraint might still work
+        }
       }
 
       // Record member-wise analytics
@@ -60,6 +90,8 @@ export const useAnalyticsTracking = ({ documentId, documentType }: UseAnalyticsT
 
         if (error) {
           console.error('Error tracking meeting attachment view:', error);
+        } else {
+          console.log('Meeting attachment view count incremented successfully');
         }
       } else if (documentType === 'poll_attachment') {
         // Use the database function to increment view count
@@ -70,6 +102,8 @@ export const useAnalyticsTracking = ({ documentId, documentType }: UseAnalyticsT
 
         if (error) {
           console.error('Error tracking poll attachment view:', error);
+        } else {
+          console.log('Poll attachment view count incremented successfully');
         }
       }
 
@@ -84,10 +118,40 @@ export const useAnalyticsTracking = ({ documentId, documentType }: UseAnalyticsT
       console.log('Tracking download for:', documentType, documentId);
 
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('Error getting user:', userError);
+        return;
+      }
+
       if (!user) {
         console.error('No authenticated user found');
         return;
+      }
+
+      // Ensure user profile exists first
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !profile) {
+        console.error('User profile not found, creating one...');
+        // Create profile if it doesn't exist
+        const { error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email,
+            first_name: user.user_metadata?.first_name || null,
+            last_name: user.user_metadata?.last_name || null
+          });
+
+        if (createError) {
+          console.error('Error creating profile:', createError);
+          // Continue anyway as the foreign key constraint might still work
+        }
       }
 
       // Record member-wise analytics
@@ -115,6 +179,8 @@ export const useAnalyticsTracking = ({ documentId, documentType }: UseAnalyticsT
 
         if (error) {
           console.error('Error tracking meeting attachment download:', error);
+        } else {
+          console.log('Meeting attachment download count incremented successfully');
         }
       } else if (documentType === 'poll_attachment') {
         const { error } = await supabase.rpc('increment_download_count', {
@@ -124,6 +190,8 @@ export const useAnalyticsTracking = ({ documentId, documentType }: UseAnalyticsT
 
         if (error) {
           console.error('Error tracking poll attachment download:', error);
+        } else {
+          console.log('Poll attachment download count incremented successfully');
         }
       }
 

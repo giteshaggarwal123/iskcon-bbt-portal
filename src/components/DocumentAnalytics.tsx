@@ -65,14 +65,14 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
         }
       }
 
-      // Fetch member-wise analytics with profile data using a JOIN
+      // Fetch member-wise analytics with profile data using LEFT JOIN to include all analytics records
       const { data: analyticsData, error: analyticsError } = await supabase
         .from('document_analytics')
         .select(`
           user_id,
           action_type,
           created_at,
-          profiles!inner(
+          profiles(
             first_name,
             last_name,
             email
@@ -84,12 +84,12 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
 
       if (analyticsError) {
         console.error('Error fetching analytics with profiles:', analyticsError);
-        return;
+        throw new Error(`Analytics fetch failed: ${analyticsError.message}`);
       }
 
       console.log('Analytics data with profiles:', analyticsData);
 
-      // Fetch time spent data for documents only
+      // Fetch time spent data for documents only using LEFT JOIN
       let timeSpentData: any[] = [];
       if (documentType === 'document') {
         const { data: timeData, error: timeError } = await supabase
@@ -97,7 +97,7 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           .select(`
             user_id,
             time_spent_seconds,
-            profiles!inner(
+            profiles(
               first_name,
               last_name,
               email
@@ -105,30 +105,38 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           `)
           .eq('document_id', documentId);
 
-        if (!timeError && timeData) {
+        if (timeError) {
+          console.error('Error fetching time data:', timeError);
+        } else if (timeData) {
           timeSpentData = timeData;
           console.log('Time spent data:', timeSpentData);
         }
       }
 
-      // Process member analytics
+      // Process member analytics with better error handling
       const memberStats: { [key: string]: { name: string; views: number; downloads: number; timeSpent: number; lastViewed: string } } = {};
       
-      if (analyticsData) {
+      if (analyticsData && analyticsData.length > 0) {
         analyticsData.forEach((record: any) => {
           const userId = record.user_id;
           const profile = record.profiles;
           
-          // Create a proper display name from profile data
+          // Create a robust display name from profile data
           let userName = 'Unknown User';
           if (profile) {
             if (profile.first_name && profile.last_name) {
               userName = `${profile.first_name} ${profile.last_name}`.trim();
             } else if (profile.first_name) {
               userName = profile.first_name;
+            } else if (profile.last_name) {
+              userName = profile.last_name;
             } else if (profile.email) {
               userName = profile.email.split('@')[0];
             }
+          } else {
+            // Fallback: try to get profile separately if JOIN failed
+            console.warn(`No profile found for user ${userId} in analytics record`);
+            userName = `User ${userId.substring(0, 8)}...`;
           }
           
           if (!memberStats[userId]) {
@@ -154,22 +162,27 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
         });
       }
 
-      // Add time spent data for documents
+      // Add time spent data for documents with robust error handling
       if (timeSpentData.length > 0) {
         timeSpentData.forEach((record: any) => {
           const userId = record.user_id;
           const profile = record.profiles;
           
-          // Create a proper display name from profile data
+          // Create a robust display name from profile data
           let userName = 'Unknown User';
           if (profile) {
             if (profile.first_name && profile.last_name) {
               userName = `${profile.first_name} ${profile.last_name}`.trim();
             } else if (profile.first_name) {
               userName = profile.first_name;
+            } else if (profile.last_name) {
+              userName = profile.last_name;
             } else if (profile.email) {
               userName = profile.email.split('@')[0];
             }
+          } else {
+            console.warn(`No profile found for user ${userId} in time spent record`);
+            userName = `User ${userId.substring(0, 8)}...`;
           }
           
           if (memberStats[userId]) {
@@ -206,7 +219,7 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
         }))
       });
 
-      console.log('Analytics processed:', {
+      console.log('Analytics processed successfully:', {
         totalViews,
         totalDownloads,
         totalTimeSpent,
