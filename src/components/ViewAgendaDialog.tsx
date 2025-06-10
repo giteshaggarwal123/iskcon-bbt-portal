@@ -9,7 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { DocumentAnalytics } from './DocumentAnalytics';
-import { useAnalyticsTracking } from '@/hooks/useAnalyticsTracking';
 
 interface ViewAgendaDialogProps {
   open: boolean;
@@ -64,6 +63,90 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
       });
     } finally {
       setLoadingFiles(false);
+    }
+  };
+
+  const trackFileView = async (fileId: string) => {
+    try {
+      console.log('Tracking view for file:', fileId);
+      
+      if (!user) {
+        console.error('No authenticated user found');
+        return;
+      }
+
+      // Record member-wise analytics
+      const { error: analyticsError } = await supabase
+        .from('document_analytics')
+        .insert({
+          document_id: fileId,
+          document_type: 'meeting_attachment',
+          user_id: user.id,
+          action_type: 'view',
+          device_type: navigator.platform || 'Unknown',
+          user_agent: navigator.userAgent
+        });
+
+      if (analyticsError) {
+        console.error('Error recording analytics:', analyticsError);
+      }
+
+      // Increment view count using the database function
+      const { error: viewError } = await supabase.rpc('increment_view_count', {
+        table_name: 'meeting_attachments',
+        attachment_id: fileId
+      });
+
+      if (viewError) {
+        console.error('Error incrementing view count:', viewError);
+      } else {
+        console.log('View count incremented successfully');
+      }
+
+    } catch (error) {
+      console.error('Error in trackFileView:', error);
+    }
+  };
+
+  const trackFileDownload = async (fileId: string) => {
+    try {
+      console.log('Tracking download for file:', fileId);
+      
+      if (!user) {
+        console.error('No authenticated user found');
+        return;
+      }
+
+      // Record member-wise analytics
+      const { error: analyticsError } = await supabase
+        .from('document_analytics')
+        .insert({
+          document_id: fileId,
+          document_type: 'meeting_attachment',
+          user_id: user.id,
+          action_type: 'download',
+          device_type: navigator.platform || 'Unknown',
+          user_agent: navigator.userAgent
+        });
+
+      if (analyticsError) {
+        console.error('Error recording analytics:', analyticsError);
+      }
+
+      // Increment download count using the database function
+      const { error: downloadError } = await supabase.rpc('increment_download_count', {
+        table_name: 'meeting_attachments',
+        attachment_id: fileId
+      });
+
+      if (downloadError) {
+        console.error('Error incrementing download count:', downloadError);
+      } else {
+        console.log('Download count incremented successfully');
+      }
+
+    } catch (error) {
+      console.error('Error in trackFileDownload:', error);
     }
   };
 
@@ -138,15 +221,10 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
     try {
       console.log('Attempting to view file:', file.file_path);
       
-      // Track the view first using the hook
-      const { trackView } = useAnalyticsTracking({
-        documentId: file.id,
-        documentType: 'meeting_attachment'
-      });
-      
-      await trackView();
+      // Track the view first
+      await trackFileView(file.id);
 
-      // Get the public URL for the file
+      // Check if the bucket exists and file is accessible
       const { data: urlData } = supabase.storage
         .from('meeting-attachments')
         .getPublicUrl(file.file_path);
@@ -154,74 +232,76 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
       console.log('Public URL generated:', urlData.publicUrl);
 
       if (urlData.publicUrl) {
-        // Open the file in a new tab
-        const newWindow = window.open(urlData.publicUrl, '_blank');
-        if (!newWindow) {
-          // If popup was blocked, show the URL to user
-          toast({
-            title: "Popup Blocked",
-            description: "Please allow popups or copy this URL: " + urlData.publicUrl,
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "File Opened",
-            description: "File opened in new tab",
-          });
+        // Test if the file is accessible by trying to fetch it
+        try {
+          const response = await fetch(urlData.publicUrl, { method: 'HEAD' });
+          if (response.ok) {
+            // File is accessible, open it
+            const newWindow = window.open(urlData.publicUrl, '_blank');
+            if (!newWindow) {
+              toast({
+                title: "Popup Blocked",
+                description: "Please allow popups to view the file",
+                variant: "destructive"
+              });
+            } else {
+              toast({
+                title: "File Opened",
+                description: "File opened in new tab",
+              });
+            }
+          } else {
+            throw new Error('File not accessible via public URL');
+          }
+        } catch (fetchError) {
+          console.log('Public URL not accessible, trying signed URL...');
+          
+          // Fallback to signed URL
+          const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+            .from('meeting-attachments')
+            .createSignedUrl(file.file_path, 3600);
+
+          if (!signedUrlError && signedUrlData.signedUrl) {
+            const newWindow = window.open(signedUrlData.signedUrl, '_blank');
+            if (!newWindow) {
+              toast({
+                title: "Popup Blocked",
+                description: "Please allow popups to view the file",
+                variant: "destructive"
+              });
+            } else {
+              toast({
+                title: "File Opened",
+                description: "File opened in new tab",
+              });
+            }
+          } else {
+            throw new Error('Could not generate file access URL');
+          }
         }
       } else {
         throw new Error('Could not generate public URL');
       }
 
       // Refresh the file list to show updated counts
-      fetchMeetingFiles();
+      setTimeout(() => {
+        fetchMeetingFiles();
+      }, 1000);
 
     } catch (error: any) {
       console.error('Error viewing file:', error);
-      
-      // Fallback: try signed URL
-      try {
-        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-          .from('meeting-attachments')
-          .createSignedUrl(file.file_path, 3600); // 1 hour expiry
-
-        if (!signedUrlError && signedUrlData.signedUrl) {
-          const newWindow = window.open(signedUrlData.signedUrl, '_blank');
-          if (!newWindow) {
-            toast({
-              title: "Popup Blocked",
-              description: "Please allow popups or copy this URL: " + signedUrlData.signedUrl,
-              variant: "destructive"
-            });
-          } else {
-            toast({
-              title: "File Opened",
-              description: "File opened in new tab",
-            });
-          }
-        } else {
-          throw new Error('Could not generate signed URL');
-        }
-      } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError);
-        toast({
-          title: "View Failed",
-          description: "Unable to open file. Please try downloading instead.",
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "View Failed",
+        description: "Unable to open file. The file may not exist or the storage is not properly configured.",
+        variant: "destructive"
+      });
     }
   };
 
   const handleFileDownload = async (file: MeetingFile) => {
-    const { trackDownload } = useAnalyticsTracking({
-      documentId: file.id,
-      documentType: 'meeting_attachment'
-    });
-
     try {
       // Track the download first
-      await trackDownload();
+      await trackFileDownload(file.id);
 
       const { data, error } = await supabase.storage
         .from('meeting-attachments')
@@ -239,8 +319,16 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
+      toast({
+        title: "Download Started",
+        description: `Downloading ${file.name}`,
+      });
+
       // Refresh the file list to show updated counts
-      fetchMeetingFiles();
+      setTimeout(() => {
+        fetchMeetingFiles();
+      }, 1000);
+
     } catch (error: any) {
       console.error('Error downloading file:', error);
       toast({

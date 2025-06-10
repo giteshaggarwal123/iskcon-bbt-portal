@@ -40,7 +40,32 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
     try {
       console.log('Fetching analytics for:', documentType, documentId);
       
-      // Fetch member-wise analytics with proper join
+      // First, get current view/download counts from the attachment table
+      let currentCounts = { view_count: 0, download_count: 0 };
+      
+      if (documentType === 'meeting_attachment') {
+        const { data: attachmentData } = await supabase
+          .from('meeting_attachments')
+          .select('view_count, download_count')
+          .eq('id', documentId)
+          .single();
+        
+        if (attachmentData) {
+          currentCounts = attachmentData;
+        }
+      } else if (documentType === 'poll_attachment') {
+        const { data: attachmentData } = await supabase
+          .from('poll_attachments')
+          .select('view_count, download_count')
+          .eq('id', documentId)
+          .single();
+        
+        if (attachmentData) {
+          currentCounts = attachmentData;
+        }
+      }
+
+      // Fetch member-wise analytics from document_analytics table
       const { data: memberData, error: memberError } = await supabase
         .from('document_analytics')
         .select(`
@@ -49,7 +74,8 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           created_at
         `)
         .eq('document_id', documentId)
-        .eq('document_type', documentType);
+        .eq('document_type', documentType)
+        .order('created_at', { ascending: false });
 
       if (memberError) {
         console.error('Error fetching member analytics:', memberError);
@@ -63,7 +89,7 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
         const userIds = [...new Set(memberData.map(record => record.user_id))];
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name')
+          .select('id, first_name, last_name, email')
           .in('id', userIds);
 
         if (!profilesError && profiles) {
@@ -71,7 +97,7 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
         }
       }
 
-      // Fetch time spent data for documents
+      // Fetch time spent data for documents only
       let timeSpentData: any[] = [];
       if (documentType === 'document') {
         const { data: timeData, error: timeError } = await supabase
@@ -88,20 +114,21 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
       }
 
       // Process member analytics
-      const memberStats: { [key: string]: { name: string; views: number; timeSpent: number; lastViewed: string } } = {};
+      const memberStats: { [key: string]: { name: string; views: number; downloads: number; timeSpent: number; lastViewed: string } } = {};
       
       if (memberData) {
         memberData.forEach((record: any) => {
           const userId = record.user_id;
           const profile = profilesData.find(p => p.id === userId);
           const userName = profile 
-            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User'
+            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email || 'Unknown User'
             : 'Unknown User';
           
           if (!memberStats[userId]) {
             memberStats[userId] = {
               name: userName,
               views: 0,
+              downloads: 0,
               timeSpent: 0,
               lastViewed: record.created_at
             };
@@ -109,6 +136,8 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
 
           if (record.action_type === 'view') {
             memberStats[userId].views++;
+          } else if (record.action_type === 'download') {
+            memberStats[userId].downloads++;
           }
 
           // Update last viewed to the most recent
@@ -124,7 +153,7 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           const userId = record.user_id;
           const profile = profilesData.find(p => p.id === userId);
           const userName = profile 
-            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User'
+            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email || 'Unknown User'
             : 'Unknown User';
           
           if (memberStats[userId]) {
@@ -134,6 +163,7 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
             memberStats[userId] = {
               name: userName,
               views: 0,
+              downloads: 0,
               timeSpent: record.time_spent_seconds || 0,
               lastViewed: new Date().toISOString()
             };
@@ -144,14 +174,27 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
       const memberAnalytics = Object.values(memberStats)
         .sort((a, b) => b.views - a.views);
 
-      // Calculate totals
-      const totalViews = memberAnalytics.reduce((sum, member) => sum + member.views, 0);
+      // Calculate totals - use current counts from the database
+      const totalViews = currentCounts.view_count || 0;
+      const totalDownloads = currentCounts.download_count || 0;
       const totalTimeSpent = memberAnalytics.reduce((sum, member) => sum + member.timeSpent, 0);
 
       setAnalytics({
         totalViews,
         totalTimeSpent,
-        memberAnalytics
+        memberAnalytics: memberAnalytics.map(member => ({
+          name: member.name,
+          views: member.views,
+          timeSpent: member.timeSpent,
+          lastViewed: member.lastViewed
+        }))
+      });
+
+      console.log('Analytics processed:', {
+        totalViews,
+        totalDownloads,
+        totalTimeSpent,
+        memberCount: memberAnalytics.length
       });
 
     } catch (error) {
@@ -233,6 +276,9 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{analytics.totalViews}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Times this file has been viewed
+                  </p>
                 </CardContent>
               </Card>
 
@@ -245,6 +291,9 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{formatTime(analytics.totalTimeSpent)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Cumulative viewing time
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -257,6 +306,9 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
                     <Users className="h-4 w-4" />
                     Member Analytics
                   </CardTitle>
+                  <CardDescription>
+                    Individual member viewing activity
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Table>
@@ -272,8 +324,18 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
                       {analytics.memberAnalytics.map((member, index) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{member.name}</TableCell>
-                          <TableCell>{member.views}</TableCell>
-                          <TableCell>{formatTime(member.timeSpent)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Eye className="h-3 w-3 text-gray-400" />
+                              {member.views}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3 text-gray-400" />
+                              {formatTime(member.timeSpent)}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             {format(new Date(member.lastViewed), 'MMM d, hh:mm a')}
                           </TableCell>

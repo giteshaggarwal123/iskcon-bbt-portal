@@ -1,6 +1,5 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
 interface UseAnalyticsTrackingProps {
   documentId: string;
@@ -8,8 +7,6 @@ interface UseAnalyticsTrackingProps {
 }
 
 export const useAnalyticsTracking = ({ documentId, documentType }: UseAnalyticsTrackingProps) => {
-  const { toast } = useToast();
-
   const trackView = async () => {
     try {
       console.log('Tracking view for:', documentType, documentId);
@@ -35,6 +32,7 @@ export const useAnalyticsTracking = ({ documentId, documentType }: UseAnalyticsT
 
       if (analyticsError) {
         console.error('Error recording analytics:', analyticsError);
+        return;
       }
 
       if (documentType === 'document') {
@@ -106,6 +104,7 @@ export const useAnalyticsTracking = ({ documentId, documentType }: UseAnalyticsT
 
       if (analyticsError) {
         console.error('Error recording analytics:', analyticsError);
+        return;
       }
 
       if (documentType === 'meeting_attachment') {
