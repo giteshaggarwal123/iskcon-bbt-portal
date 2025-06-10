@@ -64,6 +64,12 @@ export const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
     }
   };
 
+  const handleMarkAllAsRead = () => {
+    markAllAsRead();
+    // Force a re-render by logging the state change
+    console.log('All notifications marked as read');
+  };
+
   const unreadCount = getUnreadCount();
 
   if (loading) {
@@ -149,7 +155,7 @@ export const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={markAllAsRead}
+                onClick={handleMarkAllAsRead}
                 disabled={unreadCount === 0}
               >
                 <Check className="h-4 w-4 mr-2" />
