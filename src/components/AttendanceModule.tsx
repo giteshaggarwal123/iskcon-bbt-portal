@@ -104,49 +104,70 @@ export const AttendanceModule: React.FC = () => {
             gap: 1rem !important;
           }
           .attendance-header-text h1 {
-            font-size: 1.875rem !important;
-            line-height: 2.25rem !important;
-            font-weight: 700 !important;
+            font-size: 1.5rem !important;
+            line-height: 2rem !important;
+            font-weight: 600 !important;
           }
           .attendance-header-text p {
-            font-size: 1rem !important;
-            line-height: 1.5rem !important;
+            font-size: 0.875rem !important;
+            line-height: 1.25rem !important;
           }
           .attendance-stats-grid {
             grid-template-columns: 1fr !important;
             gap: 1rem !important;
           }
+          .meeting-card {
+            margin-bottom: 1rem !important;
+          }
           .meeting-card-content {
             flex-direction: column !important;
             align-items: flex-start !important;
             gap: 1rem !important;
+            padding: 1rem !important;
           }
           .meeting-card-content h3 {
-            font-size: 1.125rem !important;
-            line-height: 1.75rem !important;
+            font-size: 1rem !important;
+            line-height: 1.5rem !important;
             font-weight: 600 !important;
+            margin-bottom: 0.5rem !important;
+          }
+          .meeting-info {
+            width: 100% !important;
+            margin-bottom: 1rem !important;
           }
           .meeting-card-actions {
-            flex-direction: column !important;
             width: 100% !important;
-            gap: 0.75rem !important;
+            margin-top: 1rem !important;
           }
           .meeting-card-actions .button-group {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 0.5rem !important;
+            width: 100% !important;
+          }
+          .meeting-card-actions .button-row {
+            display: flex !important;
             flex-direction: row !important;
-            flex-wrap: wrap !important;
             gap: 0.5rem !important;
             width: 100% !important;
           }
           .meeting-card-actions button {
             flex: 1 !important;
             min-width: 0 !important;
-            font-size: 0.875rem !important;
+            font-size: 0.75rem !important;
             font-weight: 500 !important;
-            padding: 0.75rem 1rem !important;
-            height: 2.5rem !important;
+            padding: 0.5rem 0.75rem !important;
+            height: 2rem !important;
+            white-space: nowrap !important;
+          }
+          .meeting-card-actions .full-width-button {
+            width: 100% !important;
+            flex: none !important;
           }
           .rsvp-selector-mobile {
             margin-top: 1rem !important;
+            padding-top: 1rem !important;
+            border-top: 1px solid #e5e7eb !important;
           }
           .tabs-content-mobile {
             padding: 0 !important;
@@ -155,57 +176,30 @@ export const AttendanceModule: React.FC = () => {
             margin: 1rem 0 !important;
           }
           .attendance-header button {
-            font-size: 0.875rem !important;
+            font-size: 0.75rem !important;
             font-weight: 500 !important;
-            padding: 0.75rem 1rem !important;
-            height: 2.5rem !important;
+            padding: 0.5rem 0.75rem !important;
+            height: 2rem !important;
           }
           .stat-card-title {
-            font-size: 0.875rem !important;
+            font-size: 0.75rem !important;
             font-weight: 500 !important;
           }
           .stat-card-value {
-            font-size: 1.5rem !important;
-            font-weight: 700 !important;
+            font-size: 1.25rem !important;
+            font-weight: 600 !important;
           }
           .stat-card-description {
-            font-size: 0.75rem !important;
+            font-size: 0.625rem !important;
           }
-        }
-        
-        /* Desktop styles for consistency */
-        .attendance-header-text h1 {
-          font-size: 1.875rem;
-          line-height: 2.25rem;
-          font-weight: 700;
-        }
-        .attendance-header-text p {
-          font-size: 1rem;
-          line-height: 1.5rem;
-        }
-        .meeting-card-content h3 {
-          font-size: 1.125rem;
-          line-height: 1.75rem;
-          font-weight: 600;
-        }
-        .meeting-card-actions button {
-          font-size: 0.875rem;
-          font-weight: 500;
-        }
-        .attendance-header button {
-          font-size: 0.875rem;
-          font-weight: 500;
-        }
-        .stat-card-title {
-          font-size: 0.875rem;
-          font-weight: 500;
-        }
-        .stat-card-value {
-          font-size: 1.5rem;
-          font-weight: 700;
-        }
-        .stat-card-description {
-          font-size: 0.75rem;
+          .attendance-badge {
+            font-size: 0.75rem !important;
+            padding: 0.25rem 0.5rem !important;
+          }
+          .meeting-meta {
+            font-size: 0.75rem !important;
+            line-height: 1rem !important;
+          }
         }
       `}</style>
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 attendance-container">
@@ -269,46 +263,46 @@ export const AttendanceModule: React.FC = () => {
             <TabsContent value="upcoming" className="space-y-4 tabs-content-mobile">
               {upcomingMeetings.length > 0 ? (
                 upcomingMeetings.map((meeting) => (
-                  <Card key={meeting.id}>
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start meeting-card-content">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                            {meeting.title}
-                          </h3>
-                          <div className="space-y-1 text-sm text-gray-600">
-                            <div className="flex items-center">
-                              <Calendar className="h-4 w-4 mr-2" />
-                              {format(parseISO(meeting.start_time), 'MMM dd, yyyy')} at{' '}
-                              {format(parseISO(meeting.start_time), 'h:mm a')}
-                            </div>
-                            <div className="flex items-center">
-                              <Users className="h-4 w-4 mr-2" />
-                              {meeting.attendees?.length || 0} expected attendees
-                            </div>
+                  <Card key={meeting.id} className="meeting-card">
+                    <CardContent className="meeting-card-content">
+                      <div className="meeting-info">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {meeting.title}
+                        </h3>
+                        <div className="space-y-1 text-sm text-gray-600 meeting-meta">
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 mr-2" />
+                            {format(parseISO(meeting.start_time), 'MMM dd, yyyy')} at{' '}
+                            {format(parseISO(meeting.start_time), 'h:mm a')}
+                          </div>
+                          <div className="flex items-center">
+                            <Users className="h-4 w-4 mr-2" />
+                            {meeting.attendees?.length || 0} expected attendees
                           </div>
                         </div>
+                      </div>
 
-                        <div className="flex items-center space-x-2 meeting-card-actions">
-                          <div className="button-group">
-                            {canMarkAttendance(meeting) && (
-                              <Button
-                                onClick={() => handleMarkAttendance(meeting)}
-                                className="bg-green-600 hover:bg-green-700"
-                                size="sm"
-                              >
-                                <UserCheck className="h-4 w-4 mr-2" />
-                                Mark Attendance
-                              </Button>
-                            )}
+                      <div className="meeting-card-actions">
+                        <div className="button-group">
+                          {canMarkAttendance(meeting) && (
+                            <Button
+                              onClick={() => handleMarkAttendance(meeting)}
+                              className="bg-green-600 hover:bg-green-700 full-width-button"
+                              size="sm"
+                            >
+                              <UserCheck className="h-4 w-4 mr-2" />
+                              Mark Attendance
+                            </Button>
+                          )}
 
+                          <div className="button-row">
                             <Button
                               variant="outline"
                               onClick={() => handleViewRSVP(meeting)}
                               size="sm"
                             >
                               <CheckSquare className="h-4 w-4 mr-2" />
-                              View RSVP
+                              RSVP
                             </Button>
 
                             {userRole.canViewReports && (
@@ -318,7 +312,7 @@ export const AttendanceModule: React.FC = () => {
                                 size="sm"
                               >
                                 <Eye className="h-4 w-4 mr-2" />
-                                View Report
+                                Report
                               </Button>
                             )}
                           </div>
@@ -326,7 +320,7 @@ export const AttendanceModule: React.FC = () => {
                       </div>
 
                       {/* Add RSVP Selector */}
-                      <div className="mt-4 rsvp-selector-mobile">
+                      <div className="rsvp-selector-mobile">
                         <RSVPSelector 
                           meeting={meeting} 
                           onResponseUpdate={handleRSVPUpdate}
@@ -351,30 +345,27 @@ export const AttendanceModule: React.FC = () => {
                 pastMeetings.map((meeting) => {
                   const status = getMeetingAttendanceStatus(meeting);
                   return (
-                    <Card key={meeting.id}>
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start meeting-card-content">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                              {meeting.title}
-                            </h3>
-                            <div className="space-y-1 text-sm text-gray-600">
-                              <div className="flex items-center">
-                                <Calendar className="h-4 w-4 mr-2" />
-                                {format(parseISO(meeting.start_time), 'MMM dd, yyyy')} at{' '}
-                                {format(parseISO(meeting.start_time), 'h:mm a')}
-                              </div>
+                    <Card key={meeting.id} className="meeting-card">
+                      <CardContent className="meeting-card-content">
+                        <div className="meeting-info">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {meeting.title}
+                          </h3>
+                          <div className="space-y-1 text-sm text-gray-600 meeting-meta">
+                            <div className="flex items-center">
+                              <Calendar className="h-4 w-4 mr-2" />
+                              {format(parseISO(meeting.start_time), 'MMM dd, yyyy')} at{' '}
+                              {format(parseISO(meeting.start_time), 'h:mm a')}
                             </div>
                           </div>
-
-                          <div className="flex items-center space-x-3 meeting-card-actions">
+                          <div className="mt-2">
                             <Badge 
                               variant={
                                 status === 'present' ? 'default' : 
                                 status === 'absent' ? 'destructive' : 
                                 'secondary'
                               }
-                              className="flex items-center"
+                              className="flex items-center w-fit attendance-badge"
                             >
                               {status === 'present' && <CheckCircle className="h-3 w-3 mr-1" />}
                               {status === 'absent' && <XCircle className="h-3 w-3 mr-1" />}
@@ -383,8 +374,12 @@ export const AttendanceModule: React.FC = () => {
                                status === 'absent' ? 'Absent' : 
                                'Not Marked'}
                             </Badge>
+                          </div>
+                        </div>
 
-                            <div className="button-group">
+                        <div className="meeting-card-actions">
+                          <div className="button-group">
+                            <div className="button-row">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -395,31 +390,33 @@ export const AttendanceModule: React.FC = () => {
                               </Button>
 
                               {userRole.canViewReports && (
-                                <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleViewReport(meeting)}
-                                  >
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Report
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleDownloadReport(meeting)}
-                                  >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Download
-                                  </Button>
-                                </>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleViewReport(meeting)}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Report
+                                </Button>
                               )}
                             </div>
+
+                            {userRole.canViewReports && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadReport(meeting)}
+                                className="full-width-button"
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Download Report
+                              </Button>
+                            )}
                           </div>
                         </div>
 
                         {/* Add RSVP Selector for past meetings too */}
-                        <div className="mt-4 rsvp-selector-mobile">
+                        <div className="rsvp-selector-mobile">
                           <RSVPSelector 
                             meeting={meeting} 
                             onResponseUpdate={handleRSVPUpdate}
