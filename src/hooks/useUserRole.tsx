@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -31,6 +30,15 @@ interface UseUserRoleReturn {
   canCreateVoting: boolean;
   canVoteOnly: boolean;
   canMarkAttendanceOnly: boolean;
+  canAccessDashboard: boolean;
+  canAccessMeetings: boolean;
+  canAccessDocuments: boolean;
+  canAccessVoting: boolean;
+  canAccessAttendance: boolean;
+  canAccessEmail: boolean;
+  canAccessMembersModule: boolean;
+  canAccessReports: boolean;
+  canAccessSettings: boolean;
 }
 
 export const useUserRole = (): UseUserRoleReturn => {
@@ -110,11 +118,22 @@ export const useUserRole = (): UseUserRoleReturn => {
   const isAdmin = userRole === 'admin' || isSuperAdmin;
   const isMember = userRole === 'member' || isAdmin || isSuperAdmin;
 
-  // Updated permissions for simplified role structure
+  // Module access permissions
+  const canAccessDashboard = true; // All users can access dashboard
+  const canAccessMeetings = true; // All users can access meetings
+  const canAccessDocuments = true; // All users can access documents
+  const canAccessVoting = true; // All users can access voting
+  const canAccessAttendance = true; // All users can access attendance
+  const canAccessEmail = true; // All users can access email
+  const canAccessMembersModule = isSuperAdmin || isAdmin; // Only admins can access members module
+  const canAccessReports = isSuperAdmin || isAdmin; // Only admins can access reports
+  const canAccessSettings = true; // All users can access settings
+
+  // Existing permissions with member restrictions
   const canManageMembers = isSuperAdmin || isAdmin;
-  const canManageMeetings = isSuperAdmin || isAdmin;
+  const canManageMeetings = isSuperAdmin || isAdmin; // Members can view but not manage
   const canManageDocuments = isSuperAdmin || isAdmin;
-  const canViewReports = isSuperAdmin || isAdmin;
+  const canViewReports = isSuperAdmin || isAdmin; // Members cannot view reports
   const canManageSettings = true; // All members can access settings
   
   // Content permissions
@@ -131,8 +150,8 @@ export const useUserRole = (): UseUserRoleReturn => {
 
   // Specific permissions for members
   const canViewMembers = isSuperAdmin || isAdmin;
-  const canScheduleMeetings = isSuperAdmin || isAdmin;
-  const canDeleteMeetings = isSuperAdmin || isAdmin;
+  const canScheduleMeetings = isSuperAdmin || isAdmin; // Members cannot schedule meetings
+  const canDeleteMeetings = isSuperAdmin || isAdmin; // Members cannot delete meetings
   const canEditVoting = isSuperAdmin || isAdmin;
   const canCreateVoting = isSuperAdmin || isAdmin;
   const canVoteOnly = userRole === 'member';
@@ -163,6 +182,15 @@ export const useUserRole = (): UseUserRoleReturn => {
     canEditVoting,
     canCreateVoting,
     canVoteOnly,
-    canMarkAttendanceOnly
+    canMarkAttendanceOnly,
+    canAccessDashboard,
+    canAccessMeetings,
+    canAccessDocuments,
+    canAccessVoting,
+    canAccessAttendance,
+    canAccessEmail,
+    canAccessMembersModule,
+    canAccessReports,
+    canAccessSettings
   };
 };
