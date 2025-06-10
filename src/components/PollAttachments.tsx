@@ -60,17 +60,8 @@ export const PollAttachments: React.FC<PollAttachmentsProps> = ({
 
   const handleView = (attachment: PollAttachment) => {
     if (onViewDocument) {
-      // Convert PollAttachment to document format for viewer
-      const documentForViewer = {
-        id: attachment.id,
-        name: attachment.file_name,
-        file_path: attachment.file_path,
-        file_size: attachment.file_size,
-        mime_type: attachment.mime_type,
-        uploaded_by: attachment.uploaded_by,
-        created_at: attachment.created_at
-      };
-      onViewDocument(documentForViewer);
+      // Pass the attachment directly as it already matches PollAttachment interface
+      onViewDocument(attachment);
     }
   };
 
@@ -133,7 +124,7 @@ export const PollAttachments: React.FC<PollAttachmentsProps> = ({
                     variant="outline"
                     onClick={() => handleDownload(attachment)}
                     className="h-8 text-xs"
-                  >
+                    >
                     <Download className="h-3 w-3 mr-1" />
                     Download
                   </Button>

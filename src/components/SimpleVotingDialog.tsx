@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Vote, Clock, Users, AlertCircle, ThumbsUp, ThumbsDown, Minus, CheckCircle, RefreshCw } from 'lucide-react';
 import { useVoting } from '@/hooks/useVoting';
-import { Poll } from '@/hooks/usePolls';
+import { Poll, PollAttachment } from '@/hooks/usePolls';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { PollAttachments } from './PollAttachments';
@@ -163,8 +163,18 @@ export const SimpleVotingDialog: React.FC<SimpleVotingDialogProps> = ({ open, on
     initializeDialog();
   };
 
-  const handleViewDocument = (document: any) => {
-    setSelectedDocument(document);
+  const handleViewDocument = (attachment: PollAttachment) => {
+    // Convert PollAttachment to the format expected by DocumentViewer
+    const documentForViewer = {
+      id: attachment.id,
+      name: attachment.file_name,
+      file_path: attachment.file_path,
+      file_size: attachment.file_size,
+      mime_type: attachment.mime_type,
+      uploaded_by: attachment.uploaded_by,
+      created_at: attachment.created_at
+    };
+    setSelectedDocument(documentForViewer);
     setIsDocumentViewerOpen(true);
   };
 
