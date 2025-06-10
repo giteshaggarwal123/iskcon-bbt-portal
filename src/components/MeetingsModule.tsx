@@ -29,7 +29,7 @@ export const MeetingsModule: React.FC = () => {
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
   const [preselectedDate, setPreselectedDate] = useState<Date | undefined>(undefined);
   
-  const { meetings, loading, createMeeting, deleteMeeting } = useMeetings();
+  const { meetings, loading, createMeeting, deleteMeeting, fetchMeetings } = useMeetings();
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -78,7 +78,8 @@ export const MeetingsModule: React.FC = () => {
   };
 
   const handleDeleteMeeting = async (meetingId: string) => {
-    if (!userRole.canDeleteMeetings) {
+    // Check if user role allows deletion (admin check)
+    if (userRole !== 'admin') {
       toast({
         title: "Access Denied",
         description: "You don't have permission to delete meetings",
@@ -180,7 +181,7 @@ export const MeetingsModule: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">Meeting Management</h1>
             <p className="text-sm sm:text-base text-gray-600 mt-1">Schedule, track, and manage all ISKCON meetings with Teams integration</p>
           </div>
-          {userRole.canScheduleMeetings && (
+          {userRole === 'admin' && (
             <div className="flex-shrink-0">
               <Button 
                 className="w-full sm:w-auto bg-primary hover:bg-primary/90"
@@ -348,7 +349,7 @@ export const MeetingsModule: React.FC = () => {
                             View RSVP
                           </Button>
                           
-                          {userRole.canDeleteMeetings && (
+                          {userRole === 'admin' && (
                             <Button 
                               variant="outline" 
                               size="sm"
@@ -410,14 +411,6 @@ export const MeetingsModule: React.FC = () => {
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <div className="mb-4">
-                          {/* Add RSVP Selector for past meetings too (read-only mode could be added later) */}
-                          <RSVPSelector 
-                            meeting={meeting} 
-                            onResponseUpdate={handleRSVPUpdate}
-                          />
-                        </div>
-
                         <div className="flex flex-wrap gap-2">
                           <Button 
                             variant="outline" 
@@ -470,7 +463,7 @@ export const MeetingsModule: React.FC = () => {
       </div>
 
       {/* Dialogs */}
-      {userRole.canScheduleMeetings && (
+      {userRole === 'admin' && (
         <ScheduleMeetingDialog 
           open={showScheduleDialog} 
           onOpenChange={handleScheduleMeetingClose}
