@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { TrendingUp, Eye, Download, Users, Calendar, BarChart3 } from 'lucide-react';
+import { TrendingUp, Eye, Download, Clock, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
 import { format } from 'date-fns';
@@ -18,10 +18,8 @@ interface DocumentAnalyticsProps {
 interface AnalyticsData {
   totalViews: number;
   totalDownloads: number;
-  uniqueViewers: number;
-  avgTimeSpent: number;
   viewsByDay: Array<{ date: string; views: number; downloads: number }>;
-  memberAnalytics: Array<{ name: string; views: number; downloads: number; lastAccess: string }>;
+  memberAnalytics: Array<{ name: string; views: number; downloads: number; lastAccess: string; timeSpent: number }>;
   deviceBreakdown: Array<{ device: string; count: number }>;
 }
 
@@ -60,8 +58,25 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
 
       console.log('Member analytics data:', memberData);
 
+      // Fetch time spent data for documents
+      let timeSpentData: any[] = [];
+      if (documentType === 'document') {
+        const { data: timeData, error: timeError } = await supabase
+          .from('document_views')
+          .select(`
+            user_id,
+            time_spent_seconds,
+            profiles!inner(first_name, last_name)
+          `)
+          .eq('document_id', documentId);
+
+        if (!timeError && timeData) {
+          timeSpentData = timeData;
+        }
+      }
+
       // Process member analytics
-      const memberStats: { [key: string]: { name: string; views: number; downloads: number; lastAccess: string } } = {};
+      const memberStats: { [key: string]: { name: string; views: number; downloads: number; lastAccess: string; timeSpent: number } } = {};
       
       if (memberData) {
         memberData.forEach((record: any) => {
@@ -73,7 +88,8 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
               name: userName,
               views: 0,
               downloads: 0,
-              lastAccess: record.created_at
+              lastAccess: record.created_at,
+              timeSpent: 0
             };
           }
 
@@ -86,6 +102,16 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           // Update last access to the most recent
           if (new Date(record.created_at) > new Date(memberStats[userId].lastAccess)) {
             memberStats[userId].lastAccess = record.created_at;
+          }
+        });
+      }
+
+      // Add time spent data for documents
+      if (timeSpentData.length > 0) {
+        timeSpentData.forEach((record: any) => {
+          const userId = record.user_id;
+          if (memberStats[userId]) {
+            memberStats[userId].timeSpent += record.time_spent_seconds || 0;
           }
         });
       }
@@ -165,8 +191,6 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
       setAnalytics({
         totalViews,
         totalDownloads,
-        uniqueViewers: Object.keys(memberStats).length,
-        avgTimeSpent: Math.floor(Math.random() * 240) + 60, // Placeholder for now
         viewsByDay: days,
         memberAnalytics,
         deviceBreakdown
@@ -177,8 +201,6 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
       setAnalytics({
         totalViews: 0,
         totalDownloads: 0,
-        uniqueViewers: 0,
-        avgTimeSpent: 0,
         viewsByDay: [],
         memberAnalytics: [],
         deviceBreakdown: []
@@ -240,7 +262,7 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
         ) : analytics ? (
           <div className="space-y-6">
             {/* Key Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -262,32 +284,6 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{analytics.totalDownloads}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Active Members
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics.uniqueViewers}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Engagement Rate
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {analytics.totalViews > 0 ? Math.round((analytics.totalDownloads / analytics.totalViews) * 100) : 0}%
-                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -325,6 +321,12 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
                             <Download className="h-3 w-3 text-green-600" />
                             <span>{member.downloads}</span>
                           </div>
+                          {member.timeSpent > 0 && (
+                            <div className="flex items-center space-x-1">
+                              <Clock className="h-3 w-3 text-orange-600" />
+                              <span>{formatTime(member.timeSpent)}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

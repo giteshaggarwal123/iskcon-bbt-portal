@@ -54,21 +54,21 @@ export const useAnalyticsTracking = ({ documentId, documentType }: UseAnalyticsT
           console.error('Error tracking document view:', error);
         }
       } else if (documentType === 'meeting_attachment') {
-        // For meeting attachments, increment view_count using direct update
-        const { error } = await supabase
-          .from('meeting_attachments')
-          .update({ view_count: supabase.sql`view_count + 1` })
-          .eq('id', documentId);
+        // Use the database function to increment view count
+        const { error } = await supabase.rpc('increment_view_count', {
+          table_name: 'meeting_attachments',
+          attachment_id: documentId
+        });
 
         if (error) {
           console.error('Error tracking meeting attachment view:', error);
         }
       } else if (documentType === 'poll_attachment') {
-        // For poll attachments, increment view_count using direct update
-        const { error } = await supabase
-          .from('poll_attachments')
-          .update({ view_count: supabase.sql`view_count + 1` })
-          .eq('id', documentId);
+        // Use the database function to increment view count
+        const { error } = await supabase.rpc('increment_view_count', {
+          table_name: 'poll_attachments',
+          attachment_id: documentId
+        });
 
         if (error) {
           console.error('Error tracking poll attachment view:', error);
@@ -109,19 +109,19 @@ export const useAnalyticsTracking = ({ documentId, documentType }: UseAnalyticsT
       }
 
       if (documentType === 'meeting_attachment') {
-        const { error } = await supabase
-          .from('meeting_attachments')
-          .update({ download_count: supabase.sql`download_count + 1` })
-          .eq('id', documentId);
+        const { error } = await supabase.rpc('increment_download_count', {
+          table_name: 'meeting_attachments',
+          attachment_id: documentId
+        });
 
         if (error) {
           console.error('Error tracking meeting attachment download:', error);
         }
       } else if (documentType === 'poll_attachment') {
-        const { error } = await supabase
-          .from('poll_attachments')
-          .update({ download_count: supabase.sql`download_count + 1` })
-          .eq('id', documentId);
+        const { error } = await supabase.rpc('increment_download_count', {
+          table_name: 'poll_attachments',
+          attachment_id: documentId
+        });
 
         if (error) {
           console.error('Error tracking poll attachment download:', error);
