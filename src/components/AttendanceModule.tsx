@@ -93,8 +93,8 @@ export const AttendanceModule: React.FC = () => {
       <style>{`
         @media (max-width: 767px) {
           .attendance-container {
-            padding-left: 0.75rem !important;
-            padding-right: 0.75rem !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
             margin-left: 0 !important;
             margin-right: 0 !important;
           }
@@ -104,22 +104,32 @@ export const AttendanceModule: React.FC = () => {
             gap: 1rem !important;
           }
           .attendance-header-text h1 {
-            font-size: 1.5rem !important;
-            line-height: 2rem !important;
+            font-size: 1.875rem !important;
+            line-height: 2.25rem !important;
+            font-weight: 700 !important;
+          }
+          .attendance-header-text p {
+            font-size: 1rem !important;
+            line-height: 1.5rem !important;
           }
           .attendance-stats-grid {
             grid-template-columns: 1fr !important;
-            gap: 0.75rem !important;
+            gap: 1rem !important;
           }
           .meeting-card-content {
             flex-direction: column !important;
             align-items: flex-start !important;
             gap: 1rem !important;
           }
+          .meeting-card-content h3 {
+            font-size: 1.125rem !important;
+            line-height: 1.75rem !important;
+            font-weight: 600 !important;
+          }
           .meeting-card-actions {
             flex-direction: column !important;
             width: 100% !important;
-            gap: 0.5rem !important;
+            gap: 0.75rem !important;
           }
           .meeting-card-actions .button-group {
             flex-direction: row !important;
@@ -130,18 +140,72 @@ export const AttendanceModule: React.FC = () => {
           .meeting-card-actions button {
             flex: 1 !important;
             min-width: 0 !important;
-            font-size: 0.75rem !important;
-            padding: 0.5rem 0.75rem !important;
+            font-size: 0.875rem !important;
+            font-weight: 500 !important;
+            padding: 0.75rem 1rem !important;
+            height: 2.5rem !important;
           }
           .rsvp-selector-mobile {
-            margin-top: 0.75rem !important;
+            margin-top: 1rem !important;
           }
           .tabs-content-mobile {
             padding: 0 !important;
           }
           .empty-state-card {
-            margin: 0.75rem 0 !important;
+            margin: 1rem 0 !important;
           }
+          .attendance-header button {
+            font-size: 0.875rem !important;
+            font-weight: 500 !important;
+            padding: 0.75rem 1rem !important;
+            height: 2.5rem !important;
+          }
+          .stat-card-title {
+            font-size: 0.875rem !important;
+            font-weight: 500 !important;
+          }
+          .stat-card-value {
+            font-size: 1.5rem !important;
+            font-weight: 700 !important;
+          }
+          .stat-card-description {
+            font-size: 0.75rem !important;
+          }
+        }
+        
+        /* Desktop styles for consistency */
+        .attendance-header-text h1 {
+          font-size: 1.875rem;
+          line-height: 2.25rem;
+          font-weight: 700;
+        }
+        .attendance-header-text p {
+          font-size: 1rem;
+          line-height: 1.5rem;
+        }
+        .meeting-card-content h3 {
+          font-size: 1.125rem;
+          line-height: 1.75rem;
+          font-weight: 600;
+        }
+        .meeting-card-actions button {
+          font-size: 0.875rem;
+          font-weight: 500;
+        }
+        .attendance-header button {
+          font-size: 0.875rem;
+          font-weight: 500;
+        }
+        .stat-card-title {
+          font-size: 0.875rem;
+          font-weight: 500;
+        }
+        .stat-card-value {
+          font-size: 1.5rem;
+          font-weight: 700;
+        }
+        .stat-card-description {
+          font-size: 0.75rem;
         }
       `}</style>
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 attendance-container">
@@ -150,7 +214,7 @@ export const AttendanceModule: React.FC = () => {
           <div className="flex justify-between items-center attendance-header">
             <div className="attendance-header-text">
               <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
-              <p className="text-gray-600 mt-1">Track and manage meeting attendance with detailed analytics</p>
+              <p className="text-gray-600 mt-2">Track and manage meeting attendance with detailed analytics</p>
             </div>
             <Button 
               onClick={() => setShowReportsDialog(true)}
@@ -165,31 +229,31 @@ export const AttendanceModule: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 attendance-stats-grid">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">This Month</CardTitle>
+                <CardTitle className="stat-card-title text-gray-600">This Month</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">0</div>
-                <p className="text-xs text-gray-500">Meetings Attended</p>
+                <div className="stat-card-value text-green-600">0</div>
+                <p className="stat-card-description text-gray-500">Meetings Attended</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Attendance Rate</CardTitle>
+                <CardTitle className="stat-card-title text-gray-600">Attendance Rate</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">0%</div>
-                <p className="text-xs text-gray-500">Overall Rate</p>
+                <div className="stat-card-value text-blue-600">0%</div>
+                <p className="stat-card-description text-gray-500">Overall Rate</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Pending</CardTitle>
+                <CardTitle className="stat-card-title text-gray-600">Pending</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">0</div>
-                <p className="text-xs text-gray-500">Check-ins Required</p>
+                <div className="stat-card-value text-yellow-600">0</div>
+                <p className="stat-card-description text-gray-500">Check-ins Required</p>
               </CardContent>
             </Card>
           </div>
