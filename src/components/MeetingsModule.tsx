@@ -1,9 +1,21 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy, CheckSquare } from 'lucide-react';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy, CheckSquare, AlertTriangle } from 'lucide-react';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 import { ViewAgendaDialog } from './ViewAgendaDialog';
 import { ManageAttendeesDialog } from './ManageAttendeesDialog';
@@ -27,7 +39,7 @@ export const MeetingsModule: React.FC = () => {
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
   const [preselectedDate, setPreselectedDate] = useState<Date | undefined>(undefined);
   
-  const { meetings, loading, createMeeting, deleteMeeting, fetchMeetings } = useMeetings();
+  const { meetings, loading, deletingMeetings, createMeeting, deleteMeeting, fetchMeetings } = useMeetings();
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -80,10 +92,18 @@ export const MeetingsModule: React.FC = () => {
       });
       return;
     }
-    
-    if (confirm('Are you sure you want to delete this meeting? This will also remove it from Teams and Outlook calendar.')) {
-      await deleteMeeting(meetingId);
+
+    // Check if meeting is currently being deleted
+    if (deletingMeetings.has(meetingId)) {
+      toast({
+        title: "Already Deleting",
+        description: "This meeting is already being deleted",
+        variant: "destructive"
+      });
+      return;
     }
+    
+    await deleteMeeting(meetingId);
   };
 
   const handleCopyJoinUrl = (url: string) => {
@@ -208,9 +228,10 @@ export const MeetingsModule: React.FC = () => {
                   const isLive = isLiveMeeting(meeting);
                   const canDoCheckIn = canCheckIn(meeting);
                   const attendeeCount = meeting.attendee_count || meeting.attendees?.length || 0;
+                  const isDeleting = deletingMeetings.has(meeting.id);
                   
                   return (
-                    <Card key={meeting.id} className="w-full hover:shadow-md transition-shadow">
+                    <Card key={meeting.id} className={`w-full hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50' : ''}`}>
                       <CardHeader className="pb-3 sm:pb-4">
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                           <div className="flex-1 min-w-0">
@@ -225,6 +246,11 @@ export const MeetingsModule: React.FC = () => {
                                 <Badge className="bg-blue-500 text-white shrink-0">
                                   <Video className="h-3 w-3 mr-1" />
                                   Teams
+                                </Badge>
+                              )}
+                              {isDeleting && (
+                                <Badge className="bg-orange-500 text-white shrink-0">
+                                  Deleting...
                                 </Badge>
                               )}
                             </CardTitle>
@@ -303,6 +329,7 @@ export const MeetingsModule: React.FC = () => {
                               variant="default" 
                               size="sm"
                               onClick={() => handleJoinNow(meeting)}
+                              disabled={isDeleting}
                               className="bg-blue-600 hover:bg-blue-700 text-white min-h-[40px]"
                             >
                               <Video className="h-4 w-4 mr-2" />
@@ -315,6 +342,7 @@ export const MeetingsModule: React.FC = () => {
                               variant="outline" 
                               size="sm"
                               onClick={() => handleCheckIn(meeting)}
+                              disabled={isDeleting}
                               className="bg-green-50 hover:bg-green-100 text-green-700 min-h-[40px]"
                             >
                               <UserCheck className="h-4 w-4 mr-2" />
@@ -326,6 +354,7 @@ export const MeetingsModule: React.FC = () => {
                             variant="outline" 
                             size="sm"
                             onClick={() => handleViewAgenda(meeting)}
+                            disabled={isDeleting}
                             className="min-h-[40px]"
                           >
                             <FileText className="h-4 w-4 mr-2" />
@@ -336,6 +365,7 @@ export const MeetingsModule: React.FC = () => {
                             variant="outline" 
                             size="sm"
                             onClick={() => handleViewRSVP(meeting)}
+                            disabled={isDeleting}
                             className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
                           >
                             <CheckSquare className="h-4 w-4 mr-2" />
@@ -343,15 +373,50 @@ export const MeetingsModule: React.FC = () => {
                           </Button>
                           
                           {canDeleteMeetings && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleDeleteMeeting(meeting.id)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[40px]"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  disabled={isDeleting}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[40px]"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="flex items-center gap-2">
+                                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                                    Delete Meeting Permanently?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription className="space-y-2">
+                                    <p>Are you sure you want to delete "<strong>{meeting.title}</strong>"?</p>
+                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
+                                      <p className="font-medium text-yellow-800 mb-1">This action will:</p>
+                                      <ul className="text-yellow-700 space-y-1 ml-4 list-disc">
+                                        <li>Remove the meeting from Teams (if applicable)</li>
+                                        <li>Delete the Outlook calendar event</li>
+                                        <li>Remove all attendee records</li>
+                                        <li>Delete meeting attachments and transcripts</li>
+                                        <li>Cannot be undone</li>
+                                      </ul>
+                                    </div>
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteMeeting(meeting.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Permanently
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           )}
                         </div>
                       </CardContent>
@@ -382,8 +447,10 @@ export const MeetingsModule: React.FC = () => {
               <div className="space-y-4 sm:space-y-6">
                 {pastMeetings.map((meeting) => {
                   const timeInfo = formatMeetingTime(meeting.start_time, meeting.end_time);
+                  const isDeleting = deletingMeetings.has(meeting.id);
+                  
                   return (
-                    <Card key={meeting.id} className="w-full hover:shadow-md transition-shadow">
+                    <Card key={meeting.id} className={`w-full hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50' : ''}`}>
                       <CardHeader className="pb-3 sm:pb-4">
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                           <div className="flex-1 min-w-0">
@@ -393,6 +460,11 @@ export const MeetingsModule: React.FC = () => {
                                 <Badge variant="outline" className="bg-blue-50 text-blue-700 shrink-0">
                                   <Video className="h-3 w-3 mr-1" />
                                   Teams
+                                </Badge>
+                              )}
+                              {isDeleting && (
+                                <Badge className="bg-orange-500 text-white shrink-0">
+                                  Deleting...
                                 </Badge>
                               )}
                             </CardTitle>
@@ -409,6 +481,7 @@ export const MeetingsModule: React.FC = () => {
                             variant="outline" 
                             size="sm"
                             onClick={() => handleViewAgenda(meeting)}
+                            disabled={isDeleting}
                             className="min-h-[40px]"
                           >
                             <FileText className="h-4 w-4 mr-2" />
@@ -419,11 +492,49 @@ export const MeetingsModule: React.FC = () => {
                             variant="outline" 
                             size="sm"
                             onClick={() => handleViewRSVP(meeting)}
+                            disabled={isDeleting}
                             className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
                           >
                             <CheckSquare className="h-4 w-4 mr-2" />
                             View RSVP
                           </Button>
+
+                          {canDeleteMeetings && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  disabled={isDeleting}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[40px]"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="flex items-center gap-2">
+                                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                                    Delete Past Meeting?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to permanently delete the past meeting "<strong>{meeting.title}</strong>"? This will remove all related data including transcripts and cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteMeeting(meeting.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Permanently
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

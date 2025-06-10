@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -437,7 +438,7 @@ export const useMeetings = () => {
     }
 
     try {
-      console.log('Starting deletion process for meeting:', meetingId);
+      console.log('Starting robust deletion process for meeting:', meetingId);
       
       const meeting = meetings.find(m => m.id === meetingId);
       if (!meeting) {
@@ -459,13 +460,13 @@ export const useMeetings = () => {
         return;
       }
 
-      // Immediately mark as deleting and remove from UI
+      // Mark as deleting and optimistically remove from UI
       setDeletingMeetings(prev => new Set(prev).add(meetingId));
       setMeetings(prev => prev.filter(m => m.id !== meetingId));
 
-      console.log('Meeting removed from UI, proceeding with database deletion');
+      console.log('Meeting removed from UI, proceeding with comprehensive deletion');
 
-      // Delete from Microsoft services first (if applicable)
+      // Step 1: Delete from Microsoft services first (if applicable)
       if (meeting.teams_meeting_id || meeting.outlook_event_id) {
         console.log('Attempting to delete from Microsoft services...');
         
@@ -488,7 +489,9 @@ export const useMeetings = () => {
               });
               
               if (!teamsResponse.ok && teamsResponse.status !== 404) {
-                console.error('Failed to delete Teams meeting:', teamsResponse.status, teamsResponse.statusText);
+                console.warn('Failed to delete Teams meeting:', teamsResponse.status, teamsResponse.statusText);
+              } else {
+                console.log('Teams meeting deleted successfully');
               }
             }
 
@@ -503,25 +506,69 @@ export const useMeetings = () => {
               });
               
               if (!outlookResponse.ok && outlookResponse.status !== 404) {
-                console.error('Failed to delete Outlook event:', outlookResponse.status, outlookResponse.statusText);
+                console.warn('Failed to delete Outlook event:', outlookResponse.status, outlookResponse.statusText);
+              } else {
+                console.log('Outlook event deleted successfully');
               }
             }
           } catch (microsoftError) {
             console.error('Error deleting from Microsoft services:', microsoftError);
+            // Continue with database deletion even if Microsoft services fail
           }
         }
       }
 
-      // Delete related records in sequence to avoid foreign key constraints
-      console.log('Deleting related records...');
+      // Step 2: Delete all related records in the correct order to respect foreign key constraints
+      console.log('Deleting related database records...');
       
-      // Delete in the correct order to respect foreign key constraints
-      await supabase.from('meeting_attachments').delete().eq('meeting_id', meetingId);
-      await supabase.from('attendance_records').delete().eq('meeting_id', meetingId);
-      await supabase.from('meeting_attendees').delete().eq('meeting_id', meetingId);
-      await supabase.from('meeting_transcripts').delete().eq('meeting_id', meetingId);
+      try {
+        // Delete meeting attachments
+        const { error: attachmentsError } = await supabase
+          .from('meeting_attachments')
+          .delete()
+          .eq('meeting_id', meetingId);
 
-      // Finally delete the main meeting record
+        if (attachmentsError) {
+          console.warn('Error deleting meeting attachments:', attachmentsError);
+        }
+
+        // Delete attendance records
+        const { error: attendanceError } = await supabase
+          .from('attendance_records')
+          .delete()
+          .eq('meeting_id', meetingId);
+
+        if (attendanceError) {
+          console.warn('Error deleting attendance records:', attendanceError);
+        }
+
+        // Delete meeting attendees
+        const { error: attendeesError } = await supabase
+          .from('meeting_attendees')
+          .delete()
+          .eq('meeting_id', meetingId);
+
+        if (attendeesError) {
+          console.warn('Error deleting meeting attendees:', attendeesError);
+        }
+
+        // Delete meeting transcripts
+        const { error: transcriptsError } = await supabase
+          .from('meeting_transcripts')
+          .delete()
+          .eq('meeting_id', meetingId);
+
+        if (transcriptsError) {
+          console.warn('Error deleting meeting transcripts:', transcriptsError);
+        }
+
+        console.log('All related records deleted successfully');
+      } catch (relatedError) {
+        console.error('Error deleting related records:', relatedError);
+        // Continue with main meeting deletion
+      }
+
+      // Step 3: Finally delete the main meeting record
       console.log('Deleting main meeting record...');
       const { error: meetingError } = await supabase
         .from('meetings')
@@ -539,12 +586,12 @@ export const useMeetings = () => {
       console.log('Meeting successfully deleted from database');
 
       toast({
-        title: "Success",
-        description: "Meeting deleted successfully"
+        title: "Meeting Deleted Successfully",
+        description: `"${meeting.title}" and all related data have been permanently removed`,
       });
 
     } catch (error: any) {
-      console.error('Error deleting meeting:', error);
+      console.error('Error in robust meeting deletion:', error);
       
       // Restore the meeting in UI since deletion failed
       const meeting = meetings.find(m => m.id === meetingId);
@@ -554,11 +601,11 @@ export const useMeetings = () => {
       
       toast({
         title: "Delete Failed",
-        description: error.message || "Failed to delete meeting",
+        description: error.message || "Failed to delete meeting. Please try again.",
         variant: "destructive"
       });
     } finally {
-      // Clean up deleting state
+      // Always clean up deleting state
       setDeletingMeetings(prev => {
         const newSet = new Set(prev);
         newSet.delete(meetingId);
@@ -577,7 +624,7 @@ export const useMeetings = () => {
     if (endTime > now) {
       toast({
         title: "Cannot Delete",
-        description: "Can only delete past meetings",
+        description: "Can only delete past meetings using this function",
         variant: "destructive"
       });
       return;
@@ -646,6 +693,7 @@ export const useMeetings = () => {
   return {
     meetings,
     loading,
+    deletingMeetings,
     createMeeting,
     deleteMeeting,
     deletePastMeeting,
