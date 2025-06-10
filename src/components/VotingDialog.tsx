@@ -4,8 +4,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { CheckCircle, XCircle, MinusCircle, Vote, Clock, Users, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { CheckCircle, XCircle, MinusCircle, Vote, Clock, Users, AlertCircle, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, Minus } from 'lucide-react';
 import { useVoting } from '@/hooks/useVoting';
 import { Poll } from '@/hooks/usePolls';
 import { format } from 'date-fns';
@@ -101,80 +102,117 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
   const currentQuestion = poll.sub_polls?.[currentQuestionIndex];
   const votesCount = Object.keys(voteSelections).length;
 
+  const voteOptions = [
+    {
+      value: 'favor',
+      label: 'Support',
+      description: 'I support this proposal',
+      icon: ThumbsUp,
+      color: 'bg-green-50 border-green-200 hover:bg-green-100',
+      selectedColor: 'bg-green-100 border-green-300',
+      iconColor: 'text-green-600',
+      textColor: 'text-green-700'
+    },
+    {
+      value: 'against',
+      label: 'Oppose',
+      description: 'I oppose this proposal',
+      icon: ThumbsDown,
+      color: 'bg-red-50 border-red-200 hover:bg-red-100',
+      selectedColor: 'bg-red-100 border-red-300',
+      iconColor: 'text-red-600',
+      textColor: 'text-red-700'
+    },
+    {
+      value: 'abstain',
+      label: 'Abstain',
+      description: 'I choose not to vote',
+      icon: Minus,
+      color: 'bg-gray-50 border-gray-200 hover:bg-gray-100',
+      selectedColor: 'bg-gray-100 border-gray-300',
+      iconColor: 'text-gray-600',
+      textColor: 'text-gray-700'
+    }
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-2xl max-h-[90vh] mx-4 overflow-hidden flex flex-col">
-        {/* Header Section - Fixed */}
-        <DialogHeader className="flex-shrink-0 space-y-4 pb-4 border-b">
-          <DialogTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <Vote className="h-5 w-5 text-primary flex-shrink-0" />
-              <span className="text-lg font-semibold truncate">Cast Your Vote</span>
-            </div>
-            <span className="text-sm text-muted-foreground whitespace-nowrap">
-              {votesCount}/{poll.sub_polls?.length || 0} Completed
-            </span>
-          </DialogTitle>
-          
-          {/* Poll Info */}
-          <div className="bg-muted/50 p-4 rounded-lg space-y-3">
-            <div>
-              <h3 className="font-semibold text-base sm:text-lg mb-1 leading-tight">{poll.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{poll.description}</p>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Clock className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate">Ends: {format(new Date(poll.deadline), 'MMM dd, yyyy HH:mm')}</span>
+      <DialogContent className="w-full max-w-3xl max-h-[95vh] mx-4 overflow-hidden flex flex-col">
+        {/* Header */}
+        <DialogHeader className="flex-shrink-0 space-y-4 pb-6 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-3 text-xl font-bold">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Vote className="h-6 w-6 text-primary" />
               </div>
-              <div className="flex items-center gap-1">
-                <Users className="h-3 w-3 flex-shrink-0" />
-                <span className="whitespace-nowrap">{poll.stats?.total_voters || 0} eligible voters</span>
-              </div>
-            </div>
+              <span>Cast Your Vote</span>
+            </DialogTitle>
+            <Badge variant="outline" className="text-sm">
+              {votesCount} of {poll.sub_polls?.length || 0} completed
+            </Badge>
           </div>
+          
+          {/* Poll Info Card */}
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardContent className="p-4">
+              <h3 className="font-semibold text-lg mb-2">{poll.title}</h3>
+              <p className="text-gray-600 text-sm mb-3">{poll.description}</p>
+              <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  <span>Ends: {format(new Date(poll.deadline), 'MMM dd, yyyy HH:mm')}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  <span>{poll.stats?.total_voters || 0} eligible voters</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Progress Bar */}
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="text-primary font-medium">{Math.round(progressPercentage)}%</span>
+              <span className="font-medium text-gray-700">Voting Progress</span>
+              <span className="font-bold text-primary">{Math.round(progressPercentage)}%</span>
             </div>
-            <div className="w-full bg-muted rounded-full h-2">
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
               <div 
-                className="bg-primary h-2 rounded-full transition-all duration-300" 
+                className="bg-gradient-to-r from-primary to-blue-600 h-full rounded-full transition-all duration-500 ease-out" 
                 style={{ width: `${progressPercentage}%` }}
               />
             </div>
           </div>
         </DialogHeader>
 
-        {/* Content Section - Scrollable */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto py-6">
           {!eligibility.canVote ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-center max-w-sm mx-auto">
-                <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-destructive mb-2">Cannot Vote</h3>
-                <p className="text-sm text-muted-foreground">{eligibility.reason}</p>
-              </div>
+            <div className="flex items-center justify-center py-12">
+              <Card className="max-w-md mx-auto text-center">
+                <CardContent className="p-8">
+                  <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-red-700 mb-2">Cannot Vote</h3>
+                  <p className="text-gray-600">{eligibility.reason}</p>
+                </CardContent>
+              </Card>
             </div>
           ) : (
-            <div className="space-y-6 py-4">
+            <div className="space-y-6">
               {/* Question Navigation */}
               {poll.sub_polls && poll.sub_polls.length > 1 && (
                 <div className="flex justify-center">
-                  <div className="flex flex-wrap justify-center gap-2 max-w-full">
+                  <div className="flex gap-2">
                     {poll.sub_polls.map((_, index) => (
                       <button
                         key={index}
                         onClick={() => setCurrentQuestionIndex(index)}
-                        className={`w-8 h-8 rounded-full text-sm font-medium transition-all flex-shrink-0 ${
+                        className={`w-10 h-10 rounded-full text-sm font-medium transition-all duration-200 ${
                           index === currentQuestionIndex
-                            ? 'bg-primary text-primary-foreground'
+                            ? 'bg-primary text-white shadow-lg scale-110'
                             : voteSelections[poll.sub_polls![index].id]
-                            ? 'bg-green-500 text-white'
-                            : 'bg-muted text-muted-foreground hover:bg-primary/20'
+                            ? 'bg-green-500 text-white shadow-md'
+                            : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                         }`}
                       >
                         {index + 1}
@@ -186,82 +224,80 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
 
               {/* Current Question */}
               {currentQuestion && (
-                <div className="space-y-6">
-                  <div className="text-center space-y-3">
-                    <h4 className="text-sm text-muted-foreground">
+                <div className="space-y-8">
+                  <div className="text-center space-y-4">
+                    <Badge variant="secondary" className="mb-2">
                       Question {currentQuestionIndex + 1} of {poll.sub_polls?.length || 0}
-                    </h4>
-                    <h3 className="text-lg font-semibold leading-tight">{currentQuestion.title}</h3>
+                    </Badge>
+                    <h3 className="text-2xl font-bold text-gray-900 leading-tight">
+                      {currentQuestion.title}
+                    </h3>
                     {currentQuestion.description && (
-                      <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+                      <p className="text-gray-600 max-w-2xl mx-auto leading-relaxed">
                         {currentQuestion.description}
                       </p>
                     )}
                   </div>
 
-                  {/* Vote Options - Radio Group */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Select your response:</Label>
-                    <RadioGroup
-                      value={voteSelections[currentQuestion.id] || ""}
-                      onValueChange={(value) => handleVoteSelection(currentQuestion.id, value as 'favor' | 'against' | 'abstain')}
-                      className="space-y-2"
-                    >
-                      {/* For Option */}
-                      <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 border">
-                        <RadioGroupItem value="favor" id={`favor-${currentQuestion.id}`} />
-                        <Label htmlFor={`favor-${currentQuestion.id}`} className="flex items-center space-x-2 cursor-pointer flex-1">
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                          <div>
-                            <p className="font-semibold text-green-700">For</p>
-                            <p className="text-sm text-green-600">I support this proposal</p>
-                          </div>
-                        </Label>
-                      </div>
-
-                      {/* Against Option */}
-                      <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 border">
-                        <RadioGroupItem value="against" id={`against-${currentQuestion.id}`} />
-                        <Label htmlFor={`against-${currentQuestion.id}`} className="flex items-center space-x-2 cursor-pointer flex-1">
-                          <XCircle className="h-5 w-5 text-red-600" />
-                          <div>
-                            <p className="font-semibold text-red-700">Against</p>
-                            <p className="text-sm text-red-600">I oppose this proposal</p>
-                          </div>
-                        </Label>
-                      </div>
-
-                      {/* Abstain Option */}
-                      <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 border">
-                        <RadioGroupItem value="abstain" id={`abstain-${currentQuestion.id}`} />
-                        <Label htmlFor={`abstain-${currentQuestion.id}`} className="flex items-center space-x-2 cursor-pointer flex-1">
-                          <MinusCircle className="h-5 w-5 text-yellow-600" />
-                          <div>
-                            <p className="font-semibold text-yellow-700">Abstain</p>
-                            <p className="text-sm text-yellow-600">I choose not to vote on this</p>
-                          </div>
-                        </Label>
-                      </div>
-                    </RadioGroup>
+                  {/* Vote Options */}
+                  <div className="grid gap-4 max-w-2xl mx-auto">
+                    {voteOptions.map((option) => {
+                      const isSelected = voteSelections[currentQuestion.id] === option.value;
+                      const Icon = option.icon;
+                      
+                      return (
+                        <Card
+                          key={option.value}
+                          className={`cursor-pointer transition-all duration-200 transform hover:scale-[1.02] ${
+                            isSelected ? option.selectedColor : option.color
+                          } ${isSelected ? 'shadow-lg ring-2 ring-primary/20' : 'hover:shadow-md'}`}
+                          onClick={() => handleVoteSelection(currentQuestion.id, option.value as 'favor' | 'against' | 'abstain')}
+                        >
+                          <CardContent className="p-6">
+                            <div className="flex items-center gap-4">
+                              <div className={`p-3 rounded-full ${isSelected ? 'bg-white shadow-sm' : 'bg-white/50'}`}>
+                                <Icon className={`h-6 w-6 ${option.iconColor}`} />
+                              </div>
+                              <div className="flex-1">
+                                <h4 className={`font-semibold text-lg ${option.textColor}`}>
+                                  {option.label}
+                                </h4>
+                                <p className="text-gray-600 text-sm">
+                                  {option.description}
+                                </p>
+                              </div>
+                              {isSelected && (
+                                <CheckCircle className="h-6 w-6 text-primary" />
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
 
                   {/* Navigation Buttons */}
                   {poll.sub_polls && poll.sub_polls.length > 1 && (
-                    <div className="flex justify-between pt-4">
+                    <div className="flex justify-between items-center max-w-2xl mx-auto pt-4">
                       <Button
                         variant="outline"
                         onClick={prevQuestion}
                         disabled={currentQuestionIndex === 0}
-                        className="w-24"
+                        className="flex items-center gap-2"
                       >
+                        <ChevronLeft className="h-4 w-4" />
                         Previous
                       </Button>
+                      <div className="text-sm text-gray-500">
+                        {currentQuestionIndex + 1} of {poll.sub_polls.length}
+                      </div>
                       <Button
                         onClick={nextQuestion}
                         disabled={currentQuestionIndex === poll.sub_polls.length - 1}
-                        className="w-24"
+                        className="flex items-center gap-2"
                       >
                         Next
+                        <ChevronRight className="h-4 w-4" />
                       </Button>
                     </div>
                   )}
@@ -269,47 +305,53 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
               )}
 
               {/* Comment Section */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">Optional Comment</Label>
-                <Textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Add any comments about your votes (optional)..."
-                  rows={3}
-                  className="resize-none"
-                />
-              </div>
+              <Card className="max-w-2xl mx-auto">
+                <CardContent className="p-6">
+                  <Label className="text-base font-medium mb-3 block">Add Your Comments (Optional)</Label>
+                  <Textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Share your thoughts about this vote..."
+                    rows={4}
+                    className="resize-none"
+                  />
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>
 
-        {/* Footer Section - Fixed */}
+        {/* Footer */}
         {eligibility.canVote && (
-          <div className="flex-shrink-0 space-y-4 pt-4 border-t">
+          <div className="flex-shrink-0 space-y-4 pt-6 border-t border-gray-100">
             {/* Warning Message */}
             {!allSubPollsVoted && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-sm text-yellow-800 text-center">
-                  <AlertCircle className="h-4 w-4 inline mr-1" />
-                  Please vote on all {poll.sub_polls?.length || 0} questions before submitting.
-                </p>
-              </div>
+              <Card className="bg-amber-50 border-amber-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3 text-amber-800">
+                    <AlertCircle className="h-5 w-5" />
+                    <p className="text-sm font-medium">
+                      Please vote on all {poll.sub_polls?.length || 0} questions before submitting your votes.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
+            <div className="flex gap-3 justify-end">
               <Button 
                 variant="outline" 
                 onClick={() => onOpenChange(false)} 
                 disabled={submitting}
-                className="w-full sm:w-auto order-2 sm:order-1"
+                className="min-w-[100px]"
               >
                 Cancel
               </Button>
               <Button 
                 onClick={handleSubmit}
                 disabled={!allSubPollsVoted || submitting}
-                className="w-full sm:w-auto sm:min-w-[150px] order-1 sm:order-2"
+                className="min-w-[150px] bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
               >
                 <Vote className="h-4 w-4 mr-2" />
                 {submitting ? 'Submitting...' : 'Submit All Votes'}
