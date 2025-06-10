@@ -65,37 +65,29 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
         }
       }
 
-      // Fetch member-wise analytics from document_analytics table
-      const { data: memberData, error: memberError } = await supabase
+      // Fetch member-wise analytics with profile data using a JOIN
+      const { data: analyticsData, error: analyticsError } = await supabase
         .from('document_analytics')
         .select(`
           user_id,
           action_type,
-          created_at
+          created_at,
+          profiles!inner(
+            first_name,
+            last_name,
+            email
+          )
         `)
         .eq('document_id', documentId)
         .eq('document_type', documentType)
         .order('created_at', { ascending: false });
 
-      if (memberError) {
-        console.error('Error fetching member analytics:', memberError);
+      if (analyticsError) {
+        console.error('Error fetching analytics with profiles:', analyticsError);
+        return;
       }
 
-      console.log('Member analytics data:', memberData);
-
-      // Fetch user profiles separately
-      let profilesData: any[] = [];
-      if (memberData && memberData.length > 0) {
-        const userIds = [...new Set(memberData.map(record => record.user_id))];
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, email')
-          .in('id', userIds);
-
-        if (!profilesError && profiles) {
-          profilesData = profiles;
-        }
-      }
+      console.log('Analytics data with profiles:', analyticsData);
 
       // Fetch time spent data for documents only
       let timeSpentData: any[] = [];
@@ -104,25 +96,40 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           .from('document_views')
           .select(`
             user_id,
-            time_spent_seconds
+            time_spent_seconds,
+            profiles!inner(
+              first_name,
+              last_name,
+              email
+            )
           `)
           .eq('document_id', documentId);
 
         if (!timeError && timeData) {
           timeSpentData = timeData;
+          console.log('Time spent data:', timeSpentData);
         }
       }
 
       // Process member analytics
       const memberStats: { [key: string]: { name: string; views: number; downloads: number; timeSpent: number; lastViewed: string } } = {};
       
-      if (memberData) {
-        memberData.forEach((record: any) => {
+      if (analyticsData) {
+        analyticsData.forEach((record: any) => {
           const userId = record.user_id;
-          const profile = profilesData.find(p => p.id === userId);
-          const userName = profile 
-            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email || 'Unknown User'
-            : 'Unknown User';
+          const profile = record.profiles;
+          
+          // Create a proper display name from profile data
+          let userName = 'Unknown User';
+          if (profile) {
+            if (profile.first_name && profile.last_name) {
+              userName = `${profile.first_name} ${profile.last_name}`.trim();
+            } else if (profile.first_name) {
+              userName = profile.first_name;
+            } else if (profile.email) {
+              userName = profile.email.split('@')[0];
+            }
+          }
           
           if (!memberStats[userId]) {
             memberStats[userId] = {
@@ -151,10 +158,19 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
       if (timeSpentData.length > 0) {
         timeSpentData.forEach((record: any) => {
           const userId = record.user_id;
-          const profile = profilesData.find(p => p.id === userId);
-          const userName = profile 
-            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email || 'Unknown User'
-            : 'Unknown User';
+          const profile = record.profiles;
+          
+          // Create a proper display name from profile data
+          let userName = 'Unknown User';
+          if (profile) {
+            if (profile.first_name && profile.last_name) {
+              userName = `${profile.first_name} ${profile.last_name}`.trim();
+            } else if (profile.first_name) {
+              userName = profile.first_name;
+            } else if (profile.email) {
+              userName = profile.email.split('@')[0];
+            }
+          }
           
           if (memberStats[userId]) {
             memberStats[userId].timeSpent += record.time_spent_seconds || 0;
@@ -194,7 +210,8 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
         totalViews,
         totalDownloads,
         totalTimeSpent,
-        memberCount: memberAnalytics.length
+        memberCount: memberAnalytics.length,
+        memberData: memberAnalytics
       });
 
     } catch (error) {
