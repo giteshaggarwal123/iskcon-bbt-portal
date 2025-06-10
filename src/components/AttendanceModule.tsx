@@ -1,11 +1,13 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, UserCheck, Calendar, Download, Eye, CheckCircle, XCircle, Clock, CheckSquare } from 'lucide-react';
+import { Users, UserCheck, Calendar, Download, Eye, CheckCircle, XCircle, Clock, CheckSquare, BarChart3 } from 'lucide-react';
 import { MarkAttendanceDialog } from './MarkAttendanceDialog';
 import { AttendanceReportDialog } from './AttendanceReportDialog';
+import { AttendanceReportsDialog } from './AttendanceReportsDialog';
 import { RSVPResponseDialog } from './RSVPResponseDialog';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useAttendance } from '@/hooks/useAttendance';
@@ -17,6 +19,7 @@ import { RSVPSelector } from './RSVPSelector';
 export const AttendanceModule: React.FC = () => {
   const [showMarkDialog, setShowMarkDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showReportsDialog, setShowReportsDialog] = useState(false);
   const [showRSVPDialog, setShowRSVPDialog] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
 
@@ -92,8 +95,15 @@ export const AttendanceModule: React.FC = () => {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
-            <p className="text-gray-600 mt-1">Track and manage meeting attendance</p>
+            <p className="text-gray-600 mt-1">Track and manage meeting attendance with detailed analytics</p>
           </div>
+          <Button 
+            onClick={() => setShowReportsDialog(true)}
+            className="bg-primary hover:bg-primary/90"
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            View Reports
+          </Button>
         </div>
 
         {/* Quick Stats */}
@@ -315,6 +325,11 @@ export const AttendanceModule: React.FC = () => {
         open={showReportDialog}
         onOpenChange={setShowReportDialog}
         meeting={selectedMeeting}
+      />
+
+      <AttendanceReportsDialog
+        open={showReportsDialog}
+        onOpenChange={setShowReportsDialog}
       />
 
       <RSVPResponseDialog

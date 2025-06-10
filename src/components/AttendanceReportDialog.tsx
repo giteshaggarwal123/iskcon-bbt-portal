@@ -1,9 +1,14 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Users, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { FileText, Users, CheckCircle, XCircle, Clock, Download, Calendar } from 'lucide-react';
+import { useAttendance } from '@/hooks/useAttendance';
+import { format, parseISO } from 'date-fns';
 
 interface AttendanceReportDialogProps {
   open: boolean;
@@ -16,59 +21,239 @@ export const AttendanceReportDialog: React.FC<AttendanceReportDialogProps> = ({
   onOpenChange, 
   meeting 
 }) => {
+  const [attendanceData, setAttendanceData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { fetchAttendanceForMeeting } = useAttendance();
+
+  useEffect(() => {
+    if (meeting?.id && open) {
+      loadAttendanceData();
+    }
+  }, [meeting?.id, open]);
+
+  const loadAttendanceData = async () => {
+    if (!meeting?.id) return;
+    
+    setLoading(true);
+    try {
+      const data = await fetchAttendanceForMeeting(meeting.id);
+      setAttendanceData(data);
+    } catch (error) {
+      console.error('Error loading attendance data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getAttendanceStats = () => {
+    const present = attendanceData.filter(record => 
+      record.attendance_status === 'present' || record.attendance_status === 'late'
+    ).length;
+    const absent = attendanceData.filter(record => 
+      record.attendance_status === 'absent'
+    ).length;
+    const late = attendanceData.filter(record => 
+      record.attendance_status === 'late'
+    ).length;
+
+    return { present, absent, late, total: attendanceData.length };
+  };
+
+  const formatDuration = (minutes: number) => {
+    if (!minutes) return 'N/A';
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'present':
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Present</Badge>;
+      case 'late':
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Late</Badge>;
+      case 'absent':
+        return <Badge className="bg-red-100 text-red-800 border-red-200">Absent</Badge>;
+      case 'left_early':
+        return <Badge className="bg-orange-100 text-orange-800 border-orange-200">Left Early</Badge>;
+      default:
+        return <Badge variant="secondary">Unknown</Badge>;
+    }
+  };
+
+  const downloadReport = () => {
+    if (!attendanceData.length) return;
+
+    const csvContent = [
+      'Name,Email,Status,Attendance Type,Join Time,Leave Time,Duration (minutes),Notes',
+      ...attendanceData.map(record => [
+        `${record.profiles?.first_name || ''} ${record.profiles?.last_name || ''}`,
+        record.profiles?.email || '',
+        record.attendance_status,
+        record.attendance_type,
+        record.join_time ? format(parseISO(record.join_time), 'HH:mm:ss') : '',
+        record.leave_time ? format(parseISO(record.leave_time), 'HH:mm:ss') : '',
+        record.duration_minutes || '',
+        record.notes || ''
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `attendance_${meeting.title}_${format(parseISO(meeting.start_time), 'yyyy-MM-dd')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (!meeting) return null;
+
+  const stats = getAttendanceStats();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <FileText className="h-5 w-5" />
             <span>Attendance Report</span>
           </DialogTitle>
           <DialogDescription>
-            View attendance statistics for this meeting
+            Detailed attendance tracking for {meeting.title}
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6">
-          {/* Meeting Info */}
+          {/* Meeting Info & Stats */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">{meeting.title}</CardTitle>
+              <div className="flex items-center text-sm text-gray-600 space-x-4">
+                <div className="flex items-center space-x-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>{format(parseISO(meeting.start_time), 'PPP p')}</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Clock className="h-4 w-4" />
+                  <span>
+                    {format(parseISO(meeting.start_time), 'p')} - {format(parseISO(meeting.end_time), 'p')}
+                  </span>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="grid grid-cols-4 gap-4 text-center">
                 <div>
-                  <div className="text-2xl font-bold text-green-600">0</div>
+                  <div className="text-2xl font-bold text-green-600">{stats.present}</div>
                   <div className="text-sm text-muted-foreground">Present</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-red-600">0</div>
+                  <div className="text-2xl font-bold text-red-600">{stats.absent}</div>
                   <div className="text-sm text-muted-foreground">Absent</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-yellow-600">0</div>
+                  <div className="text-2xl font-bold text-yellow-600">{stats.late}</div>
                   <div className="text-sm text-muted-foreground">Late</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
+                  <div className="text-sm text-muted-foreground">Total Expected</div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Attendance List */}
+          {/* Detailed Attendance Table */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center space-x-2">
                 <Users className="h-4 w-4" />
-                <span>Attendance Details</span>
+                <span>Detailed Attendance Tracking</span>
               </CardTitle>
+              <Button onClick={downloadReport} size="sm" variant="outline">
+                <Download className="h-4 w-4 mr-2" />
+                Download CSV
+              </Button>
             </CardHeader>
             <CardContent>
-              <div className="text-center text-muted-foreground py-8">
-                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No attendance data available</p>
-                <p className="text-sm">Members need to check-in to record attendance</p>
-              </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : attendanceData.length > 0 ? (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Member</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>First In</TableHead>
+                        <TableHead>Last Out</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Notes</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {attendanceData.map((record) => (
+                        <TableRow key={record.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">
+                                {record.profiles?.first_name} {record.profiles?.last_name}
+                              </div>
+                              <div className="text-sm text-gray-500">{record.profiles?.email}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(record.attendance_status)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize">
+                              {record.attendance_type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {record.join_time ? (
+                              <div className="text-sm">
+                                {format(parseISO(record.join_time), 'HH:mm:ss')}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {record.leave_time ? (
+                              <div className="text-sm">
+                                {format(parseISO(record.leave_time), 'HH:mm:ss')}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm font-medium">
+                              {formatDuration(record.duration_minutes)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-gray-600">
+                              {record.notes || '-'}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No attendance data available</p>
+                  <p className="text-sm">Members need to check-in to record attendance</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
