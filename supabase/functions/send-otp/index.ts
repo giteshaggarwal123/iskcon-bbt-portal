@@ -18,7 +18,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { phoneNumber, name, type = 'otp', userId } = await req.json();
+    const { phoneNumber, name, type = 'otp', userId, otp, newPassword } = await req.json();
 
     if (!phoneNumber) {
       return new Response(
@@ -27,8 +27,53 @@ serve(async (req) => {
       );
     }
 
+    // Handle password reset using service role
+    if (type === 'reset_password') {
+      try {
+        // Get user by email
+        const { data: { users }, error: fetchError } = await supabase.auth.admin.listUsers();
+        
+        if (fetchError) {
+          throw new Error('Failed to fetch user data');
+        }
+
+        const targetUser = users.find(u => u.email === phoneNumber);
+        if (!targetUser) {
+          throw new Error('User not found');
+        }
+
+        // Update the user's password using admin API
+        const { error: updateError } = await supabase.auth.admin.updateUserById(
+          targetUser.id,
+          { password: newPassword }
+        );
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        console.log('Password reset successful for user:', phoneNumber);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: 'Password reset successful'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (error: any) {
+        console.error('Password reset error:', error);
+        return new Response(
+          JSON.stringify({ 
+            error: error.message || 'Failed to reset password'
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Generate 6-digit OTP or temporary password
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     
     // Handle password reset emails through Outlook
     if (type === 'password_reset') {
@@ -98,7 +143,7 @@ serve(async (req) => {
             </p>
             <div style="background-color: #fff; padding: 15px; border-radius: 6px; border-left: 4px solid #007bff; margin: 20px 0;">
               <p style="margin: 0; font-weight: bold; color: #333;">Your temporary password:</p>
-              <p style="font-size: 24px; font-family: monospace; color: #007bff; margin: 10px 0; letter-spacing: 2px;">${otp}</p>
+              <p style="font-size: 24px; font-family: monospace; color: #007bff; margin: 10px 0; letter-spacing: 2px;">${otpCode}</p>
             </div>
             <p style="font-size: 14px; color: #666; line-height: 1.6;">
               <strong>Important:</strong> This temporary password is valid for 24 hours. Please log in and change your password immediately for security.
@@ -159,7 +204,7 @@ serve(async (req) => {
         JSON.stringify({ 
           success: true, 
           message: 'Password reset email sent successfully via Outlook',
-          temporaryPassword: otp,
+          temporaryPassword: otpCode,
           email: phoneNumber
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -180,7 +225,7 @@ serve(async (req) => {
 
     // Create personalized greeting for SMS
     const greeting = name ? `Hi ${name}` : 'Hello';
-    const smsBody = `${greeting}, your ISKCON Bureau login code is ${otp}. Valid for 10 minutes.`;
+    const smsBody = `${greeting}, your ISKCON Bureau login code is ${otpCode}. Valid for 10 minutes.`;
 
     // Send SMS via Twilio
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
@@ -230,7 +275,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: 'OTP sent successfully',
-        otp: otp
+        otp: otpCode
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

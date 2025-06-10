@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -291,26 +290,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const resetPasswordWithOTP = async (email: string, otp: string, newPassword: string) => {
     try {
-      // First, get the user by email to update their password
-      const { data: { users }, error: fetchError } = await supabase.auth.admin.listUsers();
-      
-      if (fetchError) {
-        throw new Error('Failed to fetch user data');
-      }
+      // Use the edge function to reset password server-side
+      const { data, error } = await supabase.functions.invoke('send-otp', {
+        body: {
+          phoneNumber: email, // Using email field for password reset
+          name: '', // We'll get the name from the profile
+          type: 'reset_password',
+          otp: otp,
+          newPassword: newPassword
+        }
+      });
 
-      const targetUser = users.find(u => u.email === email);
-      if (!targetUser) {
-        throw new Error('User not found');
-      }
-
-      // Update the user's password directly
-      const { error: updateError } = await supabase.auth.admin.updateUserById(
-        targetUser.id,
-        { password: newPassword }
-      );
-
-      if (updateError) {
-        throw updateError;
+      if (error) {
+        console.error('Password reset error:', error);
+        throw error;
       }
 
       toast({
@@ -410,3 +403,5 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     </AuthContext.Provider>
   );
 };
+
+export default AuthContext;
