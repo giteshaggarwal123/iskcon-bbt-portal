@@ -12,6 +12,7 @@ import { useAttendance } from '@/hooks/useAttendance';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
+import { RSVPSelector } from './RSVPSelector';
 
 export const AttendanceModule: React.FC = () => {
   const [showMarkDialog, setShowMarkDialog] = useState(false);
@@ -69,6 +70,11 @@ export const AttendanceModule: React.FC = () => {
     // This would normally check against actual attendance data
     // For now, returning mock status
     return 'not_marked'; // 'present', 'absent', 'not_marked'
+  };
+
+  const handleRSVPUpdate = () => {
+    // This could trigger a refresh of meeting data if needed
+    console.log('RSVP updated');
   };
 
   if (meetingsLoading || attendanceLoading) {
@@ -184,6 +190,14 @@ export const AttendanceModule: React.FC = () => {
                         )}
                       </div>
                     </div>
+
+                    {/* Add RSVP Selector */}
+                    <div className="mt-4">
+                      <RSVPSelector 
+                        meeting={meeting} 
+                        onResponseUpdate={handleRSVPUpdate}
+                      />
+                    </div>
                   </CardContent>
                 </Card>
               ))
@@ -266,6 +280,14 @@ export const AttendanceModule: React.FC = () => {
                             </>
                           )}
                         </div>
+                      </div>
+
+                      {/* Add RSVP Selector for past meetings too */}
+                      <div className="mt-4">
+                        <RSVPSelector 
+                          meeting={meeting} 
+                          onResponseUpdate={handleRSVPUpdate}
+                        />
                       </div>
                     </CardContent>
                   </Card>

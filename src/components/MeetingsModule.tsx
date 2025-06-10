@@ -15,6 +15,7 @@ import { useMeetings } from '@/hooks/useMeetings';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, compareAsc, compareDesc } from 'date-fns';
 import { useUserRole } from '@/hooks/useUserRole';
+import { RSVPSelector } from './RSVPSelector';
 
 export const MeetingsModule: React.FC = () => {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
@@ -151,6 +152,11 @@ export const MeetingsModule: React.FC = () => {
     return now >= hourBeforeStart && now <= start;
   };
 
+  const handleRSVPUpdate = () => {
+    // Refresh meetings data when RSVP is updated
+    fetchMeetings();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -249,6 +255,12 @@ export const MeetingsModule: React.FC = () => {
                             <span className="text-sm break-words">{meeting.location || 'No location'}</span>
                           </div>
                         </div>
+
+                        {/* Add RSVP Selector for upcoming meetings */}
+                        <RSVPSelector 
+                          meeting={meeting} 
+                          onResponseUpdate={handleRSVPUpdate}
+                        />
 
                         {meeting.teams_join_url && (
                           <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -391,6 +403,14 @@ export const MeetingsModule: React.FC = () => {
                         </div>
                       </CardHeader>
                       <CardContent>
+                        <div className="mb-4">
+                          {/* Add RSVP Selector for past meetings too (read-only mode could be added later) */}
+                          <RSVPSelector 
+                            meeting={meeting} 
+                            onResponseUpdate={handleRSVPUpdate}
+                          />
+                        </div>
+
                         <div className="flex flex-wrap gap-2">
                           <Button 
                             variant="outline" 
