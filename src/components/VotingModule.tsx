@@ -109,7 +109,7 @@ export const VotingModule: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">Voting & Polls</h1>
             <p className="text-gray-600 mt-1">Participate in bureau decisions and view voting results</p>
           </div>
-          {userRole.canCreateVoting && (
+          {userRole.canCreateVoting && !userRole.loading && (
             <Button 
               onClick={() => setShowCreateDialog(true)}
               className="bg-primary hover:bg-primary/90"
