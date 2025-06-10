@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,22 +27,23 @@ import {
 export const EmailModule: React.FC = () => {
   const [showComposeDialog, setShowComposeDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [importanceFilter, setImportanceFilter] = useState<string>('all');
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [emailToDelete, setEmailToDelete] = useState<string | null>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
-  const { emails, loading, deleteEmail, bulkDeleteEmails, deletingEmails } = useEmails();
+  const { emails, loading, deleteEmail, deleteMultipleEmails, deleting } = useEmails();
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Filter emails based on search and status
+  // Filter emails based on search and importance
   const filteredEmails = emails.filter(email => {
     const matchesSearch = email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         email.recipients.some(r => r.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesStatus = statusFilter === 'all' || email.status === statusFilter;
-    return matchesSearch && matchesStatus;
+                         email.from.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         email.from.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesImportance = importanceFilter === 'all' || email.importance === importanceFilter;
+    return matchesSearch && matchesImportance;
   });
 
   const handleSelectAll = (checked: boolean) => {
@@ -109,7 +111,7 @@ export const EmailModule: React.FC = () => {
       return;
     }
 
-    const result = await bulkDeleteEmails(Array.from(selectedEmails));
+    const result = await deleteMultipleEmails(Array.from(selectedEmails));
     
     if (result.success > 0) {
       setSelectedEmails(new Set());
@@ -142,17 +144,24 @@ export const EmailModule: React.FC = () => {
     return format(new Date(dateString), 'MMM dd, yyyy h:mm a');
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'sent':
-        return <Badge className="bg-green-100 text-green-800">Sent</Badge>;
-      case 'draft':
-        return <Badge variant="secondary">Draft</Badge>;
-      case 'failed':
-        return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
+  const getImportanceBadge = (importance: string) => {
+    switch (importance) {
+      case 'high':
+        return <Badge className="bg-red-100 text-red-800">High</Badge>;
+      case 'low':
+        return <Badge className="bg-blue-100 text-blue-800">Low</Badge>;
+      case 'normal':
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">Normal</Badge>;
     }
+  };
+
+  const getReadStatusBadge = (isRead: boolean) => {
+    return isRead ? (
+      <Badge className="bg-green-100 text-green-800">Read</Badge>
+    ) : (
+      <Badge className="bg-orange-100 text-orange-800">Unread</Badge>
+    );
   };
 
   if (loading) {
@@ -169,7 +178,7 @@ export const EmailModule: React.FC = () => {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Email Management</h1>
-            <p className="text-gray-600 mt-1">Send and manage organizational emails with Outlook integration</p>
+            <p className="text-gray-600 mt-1">View and manage emails from your Outlook inbox</p>
           </div>
           <Button 
             className="bg-primary hover:bg-primary/90"
@@ -185,22 +194,22 @@ export const EmailModule: React.FC = () => {
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
-              placeholder="Search emails by subject or recipient..."
+              placeholder="Search emails by subject or sender..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={importanceFilter} onValueChange={setImportanceFilter}>
             <SelectTrigger className="w-full sm:w-48">
               <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder="Filter by importance" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="sent">Sent</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
+              <SelectItem value="all">All Importance</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="normal">Normal</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -215,9 +224,9 @@ export const EmailModule: React.FC = () => {
               variant="destructive"
               size="sm"
               onClick={handleBulkDelete}
-              disabled={Array.from(selectedEmails).some(id => deletingEmails.has(id))}
+              disabled={Array.from(selectedEmails).some(id => deleting.includes(id))}
             >
-              {Array.from(selectedEmails).some(id => deletingEmails.has(id)) ? (
+              {Array.from(selectedEmails).some(id => deleting.includes(id)) ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Deleting...
@@ -232,331 +241,113 @@ export const EmailModule: React.FC = () => {
           </div>
         )}
 
-        <Tabs defaultValue="all" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="all">All Emails ({emails.length})</TabsTrigger>
-            <TabsTrigger value="sent">Sent ({emails.filter(e => e.status === 'sent').length})</TabsTrigger>
-            <TabsTrigger value="drafts">Drafts ({emails.filter(e => e.status === 'draft').length})</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="all" className="space-y-4">
-            {filteredEmails.length > 0 ? (
-              <div className="space-y-4">
-                {/* Select All Header */}
-                <div className="flex items-center space-x-2 p-4 border-b">
-                  <input
-                    ref={selectAllRef}
-                    type="checkbox"
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-sm font-medium">Select All</span>
-                </div>
-
-                {filteredEmails.map((email) => {
-                  const isDeleting = deletingEmails.has(email.id);
-                  
-                  return (
-                    <Card key={email.id} className={`hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start space-x-3 flex-1">
-                            <Checkbox
-                              checked={selectedEmails.has(email.id)}
-                              onCheckedChange={(checked) => handleSelectEmail(email.id, checked as boolean)}
-                              disabled={isDeleting}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <CardTitle className="text-lg flex items-start gap-2">
-                                <span className="break-words">{email.subject}</span>
-                                {isDeleting && (
-                                  <Badge className="bg-orange-500 text-white animate-pulse">
-                                    DELETING...
-                                  </Badge>
-                                )}
-                              </CardTitle>
-                              <CardDescription className="mt-2">
-                                <div className="flex items-center space-x-4 text-sm">
-                                  <span className="flex items-center">
-                                    <Users className="h-4 w-4 mr-1" />
-                                    To: {email.recipients.slice(0, 2).join(', ')}
-                                    {email.recipients.length > 2 && ` +${email.recipients.length - 2} more`}
-                                  </span>
-                                  <span className="flex items-center">
-                                    <Calendar className="h-4 w-4 mr-1" />
-                                    {email.sent_at ? formatDate(email.sent_at) : formatDate(email.created_at)}
-                                  </span>
-                                </div>
-                              </CardDescription>
-                            </div>
-                          </div>
-                          {getStatusBadge(email.status)}
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm text-gray-600 line-clamp-2">
-                            {email.body ? email.body.substring(0, 150) + '...' : 'No content'}
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" disabled={isDeleting}>
-                              <FileText className="h-4 w-4 mr-2" />
-                              View
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleDeleteClick(email.id)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              disabled={isDeleting}
-                            >
-                              {isDeleting ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  Deleting...
-                                </>
-                              ) : (
-                                <>
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+        <div className="space-y-4">
+          {filteredEmails.length > 0 ? (
+            <div className="space-y-4">
+              {/* Select All Header */}
+              <div className="flex items-center space-x-2 p-4 border-b">
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <span className="text-sm font-medium">Select All</span>
               </div>
-            ) : (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">No emails found</p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {searchTerm || statusFilter !== 'all' 
-                      ? 'Try adjusting your search or filter criteria'
-                      : 'Send your first email to get started'
-                    }
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
 
-          <TabsContent value="sent" className="space-y-4">
-            {emails.filter(e => e.status === 'sent').length > 0 ? (
-              <div className="space-y-4">
-                {/* Select All Header */}
-                <div className="flex items-center space-x-2 p-4 border-b">
-                  <input
-                    ref={selectAllRef}
-                    type="checkbox"
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-sm font-medium">Select All</span>
-                </div>
-
-                {emails.filter(e => e.status === 'sent').map((email) => {
-                  const isDeleting = deletingEmails.has(email.id);
-                  
-                  return (
-                    <Card key={email.id} className={`hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start space-x-3 flex-1">
-                            <Checkbox
-                              checked={selectedEmails.has(email.id)}
-                              onCheckedChange={(checked) => handleSelectEmail(email.id, checked as boolean)}
-                              disabled={isDeleting}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <CardTitle className="text-lg flex items-start gap-2">
-                                <span className="break-words">{email.subject}</span>
-                                {isDeleting && (
-                                  <Badge className="bg-orange-500 text-white animate-pulse">
-                                    DELETING...
-                                  </Badge>
-                                )}
-                              </CardTitle>
-                              <CardDescription className="mt-2">
-                                <div className="flex items-center space-x-4 text-sm">
-                                  <span className="flex items-center">
-                                    <Users className="h-4 w-4 mr-1" />
-                                    To: {email.recipients.slice(0, 2).join(', ')}
-                                    {email.recipients.length > 2 && ` +${email.recipients.length - 2} more`}
-                                  </span>
-                                  <span className="flex items-center">
-                                    <Calendar className="h-4 w-4 mr-1" />
-                                    {email.sent_at ? formatDate(email.sent_at) : formatDate(email.created_at)}
-                                  </span>
-                                </div>
-                              </CardDescription>
-                            </div>
-                          </div>
-                          {getStatusBadge(email.status)}
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm text-gray-600 line-clamp-2">
-                            {email.body ? email.body.substring(0, 150) + '...' : 'No content'}
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" disabled={isDeleting}>
-                              <FileText className="h-4 w-4 mr-2" />
-                              View
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleDeleteClick(email.id)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              disabled={isDeleting}
-                            >
-                              {isDeleting ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  Deleting...
-                                </>
-                              ) : (
-                                <>
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </>
+              {filteredEmails.map((email) => {
+                const isDeleting = deleting.includes(email.id);
+                
+                return (
+                  <Card key={email.id} className={`hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start space-x-3 flex-1">
+                          <Checkbox
+                            checked={selectedEmails.has(email.id)}
+                            onCheckedChange={(checked) => handleSelectEmail(email.id, checked as boolean)}
+                            disabled={isDeleting}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg flex items-start gap-2">
+                              <span className="break-words">{email.subject}</span>
+                              {isDeleting && (
+                                <Badge className="bg-orange-500 text-white animate-pulse">
+                                  DELETING...
+                                </Badge>
                               )}
-                            </Button>
+                            </CardTitle>
+                            <CardDescription className="mt-2">
+                              <div className="flex items-center space-x-4 text-sm">
+                                <span className="flex items-center">
+                                  <Users className="h-4 w-4 mr-1" />
+                                  From: {email.from.name || email.from.address}
+                                </span>
+                                <span className="flex items-center">
+                                  <Calendar className="h-4 w-4 mr-1" />
+                                  {formatDate(email.receivedDateTime)}
+                                </span>
+                              </div>
+                            </CardDescription>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">No emails found</p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {searchTerm || statusFilter !== 'all' 
-                      ? 'Try adjusting your search or filter criteria'
-                      : 'Send your first email to get started'
-                    }
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="drafts" className="space-y-4">
-            {emails.filter(e => e.status === 'draft').length > 0 ? (
-              <div className="space-y-4">
-                {/* Select All Header */}
-                <div className="flex items-center space-x-2 p-4 border-b">
-                  <input
-                    ref={selectAllRef}
-                    type="checkbox"
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-sm font-medium">Select All</span>
-                </div>
-
-                {emails.filter(e => e.status === 'draft').map((email) => {
-                  const isDeleting = deletingEmails.has(email.id);
-                  
-                  return (
-                    <Card key={email.id} className={`hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start space-x-3 flex-1">
-                            <Checkbox
-                              checked={selectedEmails.has(email.id)}
-                              onCheckedChange={(checked) => handleSelectEmail(email.id, checked as boolean)}
-                              disabled={isDeleting}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <CardTitle className="text-lg flex items-start gap-2">
-                                <span className="break-words">{email.subject}</span>
-                                {isDeleting && (
-                                  <Badge className="bg-orange-500 text-white animate-pulse">
-                                    DELETING...
-                                  </Badge>
-                                )}
-                              </CardTitle>
-                              <CardDescription className="mt-2">
-                                <div className="flex items-center space-x-4 text-sm">
-                                  <span className="flex items-center">
-                                    <Users className="h-4 w-4 mr-1" />
-                                    To: {email.recipients.slice(0, 2).join(', ')}
-                                    {email.recipients.length > 2 && ` +${email.recipients.length - 2} more`}
-                                  </span>
-                                  <span className="flex items-center">
-                                    <Calendar className="h-4 w-4 mr-1" />
-                                    {email.sent_at ? formatDate(email.sent_at) : formatDate(email.created_at)}
-                                  </span>
-                                </div>
-                              </CardDescription>
-                            </div>
-                          </div>
-                          {getStatusBadge(email.status)}
+                        <div className="flex gap-2">
+                          {getReadStatusBadge(email.isRead)}
+                          {getImportanceBadge(email.importance)}
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm text-gray-600 line-clamp-2">
-                            {email.body ? email.body.substring(0, 150) + '...' : 'No content'}
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" disabled={isDeleting}>
-                              <FileText className="h-4 w-4 mr-2" />
-                              View
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleDeleteClick(email.id)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              disabled={isDeleting}
-                            >
-                              {isDeleting ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  Deleting...
-                                </>
-                              ) : (
-                                <>
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </>
-                              )}
-                            </Button>
-                          </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-600 line-clamp-2">
+                          {email.body ? email.body.replace(/<[^>]*>/g, '').substring(0, 150) + '...' : 'No content'}
                         </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">No emails found</p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {searchTerm || statusFilter !== 'all' 
-                      ? 'Try adjusting your search or filter criteria'
-                      : 'Send your first email to get started'
-                    }
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+                        <div className="flex space-x-2">
+                          <Button variant="outline" size="sm" disabled={isDeleting}>
+                            <FileText className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDeleteClick(email.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            disabled={isDeleting}
+                          >
+                            {isDeleting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Deleting...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No emails found</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {searchTerm || importanceFilter !== 'all' 
+                    ? 'Try adjusting your search or filter criteria'
+                    : 'Connect your Microsoft account in Settings to view emails'
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
       <ComposeEmailDialog 

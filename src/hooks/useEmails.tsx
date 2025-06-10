@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -251,7 +252,7 @@ export const useEmails = () => {
         description: "Please ensure you're logged in and Microsoft account is connected",
         variant: "destructive"
       });
-      return;
+      return { success: 0, failed: emailIds.length };
     }
 
     if (emailIds.length === 0) {
@@ -260,7 +261,7 @@ export const useEmails = () => {
         description: "Please select emails to delete",
         variant: "destructive"
       });
-      return;
+      return { success: 0, failed: 0 };
     }
 
     // Add all emails to deleting state
@@ -326,6 +327,8 @@ export const useEmails = () => {
         });
       }
 
+      return { success: successCount, failed: failureCount };
+
     } catch (error: any) {
       console.error('Error in bulk delete:', error);
       toast({
@@ -333,6 +336,7 @@ export const useEmails = () => {
         description: error.message || "An error occurred during bulk deletion",
         variant: "destructive"
       });
+      return { success: 0, failed: emailIds.length };
     } finally {
       // Remove all emails from deleting state
       setDeleting(prev => prev.filter(id => !emailIds.includes(id)));
