@@ -42,6 +42,8 @@ export const useTranscripts = () => {
     if (!user) return null;
 
     try {
+      console.log('Fetching Teams transcript for meeting:', meetingId, 'Teams ID:', teamsId);
+      
       // Get user's Microsoft access token
       const { data: profile } = await supabase
         .from('profiles')
@@ -58,6 +60,8 @@ export const useTranscripts = () => {
         return null;
       }
 
+      console.log('Calling fetch-teams-transcript edge function...');
+      
       // Call edge function to fetch Teams data
       const { data, error } = await supabase.functions.invoke('fetch-teams-transcript', {
         body: {
@@ -66,13 +70,18 @@ export const useTranscripts = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
+
+      console.log('Teams transcript data received:', data);
       return data;
     } catch (error: any) {
       console.error('Error fetching Teams transcript:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch Teams transcript",
+        description: `Failed to fetch Teams transcript: ${error.message}`,
         variant: "destructive"
       });
       return null;
@@ -90,6 +99,8 @@ export const useTranscripts = () => {
     }
   ) => {
     try {
+      console.log('Saving transcript for meeting:', meetingId, transcriptData);
+      
       const { data, error } = await supabase
         .from('meeting_transcripts')
         .upsert({
@@ -105,6 +116,8 @@ export const useTranscripts = () => {
 
       if (error) throw error;
 
+      console.log('Transcript saved successfully:', data);
+
       toast({
         title: "Success",
         description: "Meeting transcript saved successfully"
@@ -115,7 +128,7 @@ export const useTranscripts = () => {
       console.error('Error saving transcript:', error);
       toast({
         title: "Error",
-        description: "Failed to save transcript",
+        description: `Failed to save transcript: ${error.message}`,
         variant: "destructive"
       });
       return null;
@@ -126,9 +139,28 @@ export const useTranscripts = () => {
     if (!user) return;
 
     try {
+      console.log('Saving transcript to documents for meeting:', meetingTitle);
+      
       // Create a document entry for the transcript
       const fileName = `${meetingTitle}_transcript_${new Date().toISOString().split('T')[0]}.txt`;
       
+      const transcriptText = `
+Meeting: ${meetingTitle}
+Date: ${new Date().toLocaleDateString()}
+
+SUMMARY:
+${transcript.summary || 'No summary available'}
+
+PARTICIPANTS:
+${transcript.participants?.map((p: any) => `- ${p.identity?.displayName || p.identity?.user?.displayName || p.emailAddress || 'Unknown'}`).join('\n') || 'No participants listed'}
+
+TRANSCRIPT:
+${transcript.transcript_content || 'No transcript content available'}
+
+ACTION ITEMS:
+${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${item.text || item}`).join('\n') || 'No action items'}
+      `.trim();
+
       const { error } = await supabase
         .from('documents')
         .insert({
@@ -137,10 +169,12 @@ export const useTranscripts = () => {
           folder: 'Meeting Transcripts',
           uploaded_by: user.id,
           mime_type: 'text/plain',
-          file_size: transcript.transcript_content?.length || 0
+          file_size: transcriptText.length
         });
 
       if (error) throw error;
+
+      console.log('Transcript saved to documents successfully');
 
       toast({
         title: "Success",
@@ -152,10 +186,65 @@ export const useTranscripts = () => {
       console.error('Error saving transcript to documents:', error);
       toast({
         title: "Error",
-        description: "Failed to save transcript to documents",
+        description: `Failed to save transcript to documents: ${error.message}`,
         variant: "destructive"
       });
       return false;
+    }
+  };
+
+  const autoSaveTranscript = async (meetingId: string, teamsId: string, meetingTitle: string) => {
+    if (!user) return false;
+
+    setLoading(true);
+    try {
+      console.log('Auto-saving transcript for meeting:', meetingTitle);
+      
+      // First check if we already have a transcript
+      const existingTranscript = await fetchTranscriptForMeeting(meetingId);
+      if (existingTranscript && existingTranscript.transcript_content) {
+        console.log('Transcript already exists, saving to documents...');
+        await saveTranscriptToDocuments(existingTranscript, meetingTitle);
+        return true;
+      }
+
+      // Fetch from Teams
+      const teamsData = await fetchTeamsTranscript(meetingId, teamsId);
+      
+      if (teamsData && teamsData.hasContent) {
+        // Process and save the transcript
+        const processedTranscript = {
+          content: teamsData.transcriptContent || '',
+          summary: 'AI-generated summary will be available soon',
+          actionItems: [],
+          participants: teamsData.attendees?.value?.[0]?.attendanceRecords || [],
+          teamsTranscriptId: teamsData.transcript?.value?.[0]?.id
+        };
+
+        const saved = await saveTranscript(meetingId, processedTranscript);
+        if (saved) {
+          await saveTranscriptToDocuments(saved, meetingTitle);
+          return true;
+        }
+      } else {
+        toast({
+          title: "No Transcript Available",
+          description: "Transcript may not be ready yet. Please try again in a few minutes.",
+          variant: "destructive"
+        });
+      }
+
+      return false;
+    } catch (error: any) {
+      console.error('Error in auto-save transcript:', error);
+      toast({
+        title: "Error",
+        description: `Failed to auto-save transcript: ${error.message}`,
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -165,6 +254,7 @@ export const useTranscripts = () => {
     fetchTranscriptForMeeting,
     fetchTeamsTranscript,
     saveTranscript,
-    saveTranscriptToDocuments
+    saveTranscriptToDocuments,
+    autoSaveTranscript
   };
 };
