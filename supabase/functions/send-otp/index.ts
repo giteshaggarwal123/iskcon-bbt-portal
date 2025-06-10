@@ -18,9 +18,12 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { phoneNumber, name, type = 'otp', userId, otp, newPassword } = await req.json();
+    const { phoneNumber, email, name, type = 'otp', userId, otp, newPassword } = await req.json();
 
-    if (!phoneNumber) {
+    // For password reset, use email field; for SMS OTP, use phoneNumber
+    const targetIdentifier = email || phoneNumber;
+    
+    if (!targetIdentifier) {
       return new Response(
         JSON.stringify({ error: 'Phone number or email is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -37,7 +40,7 @@ serve(async (req) => {
           throw new Error('Failed to fetch user data');
         }
 
-        const targetUser = users.find(u => u.email === phoneNumber);
+        const targetUser = users.find(u => u.email === targetIdentifier);
         if (!targetUser) {
           throw new Error('User not found');
         }
@@ -52,7 +55,7 @@ serve(async (req) => {
           throw updateError;
         }
 
-        console.log('Password reset successful for user:', phoneNumber);
+        console.log('Password reset successful for user:', targetIdentifier);
         
         return new Response(
           JSON.stringify({ 
@@ -239,7 +242,7 @@ serve(async (req) => {
       },
       body: new URLSearchParams({
         From: twilioPhoneNumber,
-        To: phoneNumber,
+        To: targetIdentifier,
         Body: smsBody
       }),
     });
@@ -269,7 +272,7 @@ serve(async (req) => {
 
     const responseData = await response.json();
     console.log('Twilio response:', responseData);
-    console.log('OTP sent successfully to:', phoneNumber);
+    console.log('OTP sent successfully to:', targetIdentifier);
     
     return new Response(
       JSON.stringify({ 

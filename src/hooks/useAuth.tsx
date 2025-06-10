@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -293,8 +294,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Use the edge function to reset password server-side
       const { data, error } = await supabase.functions.invoke('send-otp', {
         body: {
-          phoneNumber: email, // Using email field for password reset
-          name: '', // We'll get the name from the profile
+          email: email, // Use explicit email field
           type: 'reset_password',
           otp: otp,
           newPassword: newPassword
