@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Download, Save, RefreshCw, Users, Clock } from 'lucide-react';
+import { FileText, Download, Save, RefreshCw, Users, Clock, CheckCircle } from 'lucide-react';
 import { useTranscripts } from '@/hooks/useTranscripts';
 import { useAttendance } from '@/hooks/useAttendance';
 
@@ -23,6 +23,7 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
   const [transcript, setTranscript] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [autoProcessing, setAutoProcessing] = useState(false);
 
   const { 
     fetchTranscriptForMeeting, 
@@ -43,32 +44,41 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
       if (savedTranscript) {
         setTranscript(savedTranscript);
       } else if (meeting.teams_meeting_id) {
-        // Fetch from Teams if it's an online meeting
-        const teamsData = await fetchTeamsTranscript(meeting.id, meeting.teams_meeting_id);
+        // Check if meeting has ended
+        const now = new Date();
+        const endTime = new Date(meeting.end_time);
         
-        if (teamsData) {
-          // Auto-track attendance from Teams data
-          if (teamsData.attendees) {
-            await autoTrackOnlineAttendance(meeting.id, teamsData);
-          }
+        if (endTime <= now) {
+          // Meeting has ended, try to fetch from Teams
+          setAutoProcessing(true);
+          const teamsData = await fetchTeamsTranscript(meeting.id, meeting.teams_meeting_id);
+          
+          if (teamsData && teamsData.hasContent) {
+            // Auto-track attendance from Teams data
+            if (teamsData.attendees) {
+              await autoTrackOnlineAttendance(meeting.id, teamsData);
+            }
 
-          // Process and save the transcript
-          const processedTranscript = {
-            content: teamsData.transcript?.value?.[0]?.content || '',
-            summary: 'AI-generated summary will be available soon',
-            actionItems: [],
-            participants: teamsData.attendees || [],
-            teamsTranscriptId: teamsData.transcript?.value?.[0]?.id
-          };
+            // Process and save the transcript
+            const processedTranscript = {
+              content: teamsData.transcriptContent || '',
+              summary: 'AI-generated summary will be available soon',
+              actionItems: [],
+              participants: teamsData.attendees?.value?.[0]?.attendanceRecords || [],
+              teamsTranscriptId: teamsData.transcript?.value?.[0]?.id
+            };
 
-          const saved = await saveTranscript(meeting.id, processedTranscript);
-          if (saved) {
-            setTranscript(saved);
+            const saved = await saveTranscript(meeting.id, processedTranscript);
+            if (saved) {
+              setTranscript(saved);
+            }
           }
+          setAutoProcessing(false);
         }
       }
     } catch (error) {
       console.error('Error loading transcript:', error);
+      setAutoProcessing(false);
     } finally {
       setLoading(false);
     }
@@ -99,7 +109,7 @@ SUMMARY:
 ${transcript.summary || 'No summary available'}
 
 PARTICIPANTS:
-${transcript.participants?.map((p: any) => `- ${p.displayName || p.emailAddress}`).join('\n') || 'No participants listed'}
+${transcript.participants?.map((p: any) => `- ${p.identity?.displayName || p.identity?.user?.displayName || p.emailAddress || 'Unknown'}`).join('\n') || 'No participants listed'}
 
 TRANSCRIPT:
 ${transcript.transcript_content || 'No transcript content available'}
@@ -127,6 +137,8 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
 
   if (!meeting) return null;
 
+  const meetingEnded = new Date(meeting.end_time) <= new Date();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] max-h-[90vh]">
@@ -151,6 +163,12 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                   <span>{transcript.participants.length} participants</span>
                 </div>
               )}
+              {meetingEnded && meeting.teams_meeting_id && (
+                <Badge variant="outline" className="flex items-center space-x-1">
+                  <CheckCircle className="h-3 w-3" />
+                  <span>Auto-processed</span>
+                </Badge>
+              )}
             </div>
             
             <div className="flex space-x-2">
@@ -158,9 +176,9 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                 variant="outline" 
                 size="sm" 
                 onClick={loadTranscript}
-                disabled={loading}
+                disabled={loading || autoProcessing}
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 mr-2 ${(loading || autoProcessing) ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
               {transcript && (
@@ -187,20 +205,27 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
             </div>
           </div>
 
-          {loading && (
+          {(loading || autoProcessing) && (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading transcript...</p>
+              <p className="text-gray-600">
+                {autoProcessing ? 'Auto-processing transcript from Teams...' : 'Loading transcript...'}
+              </p>
             </div>
           )}
 
-          {!loading && !transcript && (
+          {!loading && !autoProcessing && !transcript && (
             <div className="text-center py-8 text-gray-500">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-20" />
               <p>No transcript available for this meeting</p>
-              {meeting.teams_meeting_id && (
+              {meeting.teams_meeting_id && !meetingEnded && (
                 <p className="text-sm mt-2">
-                  Transcript may be available shortly after the meeting ends
+                  Transcript will be automatically processed after the meeting ends
+                </p>
+              )}
+              {meeting.teams_meeting_id && meetingEnded && (
+                <p className="text-sm mt-2">
+                  Transcript may take a few minutes to become available after the meeting
                 </p>
               )}
             </div>
@@ -224,7 +249,10 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                       {transcript.participants.map((participant: any, index: number) => (
                         <Badge key={index} variant="outline">
-                          {participant.displayName || participant.emailAddress || `Participant ${index + 1}`}
+                          {participant.identity?.displayName || 
+                           participant.identity?.user?.displayName || 
+                           participant.emailAddress || 
+                           `Participant ${index + 1}`}
                         </Badge>
                       ))}
                     </div>

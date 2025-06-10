@@ -12,7 +12,9 @@ import { PostMeetingDialog } from './PostMeetingDialog';
 import { CalendarView } from './CalendarView';
 import { RSVPResponseDialog } from './RSVPResponseDialog';
 import { useMeetings } from '@/hooks/useMeetings';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useAutoTranscript } from '@/hooks/useAutoTranscript';
 import { format, parseISO, compareAsc, compareDesc } from 'date-fns';
 import { useUserRole } from '@/hooks/useUserRole';
 import { RSVPSelector } from './RSVPSelector';
@@ -27,9 +29,14 @@ export const MeetingsModule: React.FC = () => {
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
   const [preselectedDate, setPreselectedDate] = useState<Date | undefined>(undefined);
   
-  const { meetings, loading, deleteMeeting, fetchMeetings } = useMeetings();
+  const { meetings, loading, createMeeting, deleteMeeting } = useMeetings();
+  const { user } = useAuth();
   const { toast } = useToast();
-  const userRole = useUserRole();
+  
+  // Add auto-transcript functionality
+  useAutoTranscript();
+
+  const { userRole } = useUserRole();
 
   // Filter and sort meetings properly by date and time
   const now = new Date();
