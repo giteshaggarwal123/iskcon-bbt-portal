@@ -40,14 +40,13 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
     try {
       console.log('Fetching analytics for:', documentType, documentId);
       
-      // Fetch member-wise analytics from the new table
+      // Fetch member-wise analytics with proper join
       const { data: memberData, error: memberError } = await supabase
         .from('document_analytics')
         .select(`
           user_id,
           action_type,
-          created_at,
-          profiles!inner(first_name, last_name)
+          created_at
         `)
         .eq('document_id', documentId)
         .eq('document_type', documentType);
@@ -58,6 +57,20 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
 
       console.log('Member analytics data:', memberData);
 
+      // Fetch user profiles separately
+      let profilesData: any[] = [];
+      if (memberData && memberData.length > 0) {
+        const userIds = [...new Set(memberData.map(record => record.user_id))];
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', userIds);
+
+        if (!profilesError && profiles) {
+          profilesData = profiles;
+        }
+      }
+
       // Fetch time spent data for documents
       let timeSpentData: any[] = [];
       if (documentType === 'document') {
@@ -65,8 +78,7 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           .from('document_views')
           .select(`
             user_id,
-            time_spent_seconds,
-            profiles!inner(first_name, last_name)
+            time_spent_seconds
           `)
           .eq('document_id', documentId);
 
@@ -81,7 +93,10 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
       if (memberData) {
         memberData.forEach((record: any) => {
           const userId = record.user_id;
-          const userName = `${record.profiles.first_name || ''} ${record.profiles.last_name || ''}`.trim() || 'Unknown User';
+          const profile = profilesData.find(p => p.id === userId);
+          const userName = profile 
+            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User'
+            : 'Unknown User';
           
           if (!memberStats[userId]) {
             memberStats[userId] = {
@@ -107,7 +122,10 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
       if (timeSpentData.length > 0) {
         timeSpentData.forEach((record: any) => {
           const userId = record.user_id;
-          const userName = `${record.profiles.first_name || ''} ${record.profiles.last_name || ''}`.trim() || 'Unknown User';
+          const profile = profilesData.find(p => p.id === userId);
+          const userName = profile 
+            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User'
+            : 'Unknown User';
           
           if (memberStats[userId]) {
             memberStats[userId].timeSpent += record.time_spent_seconds || 0;

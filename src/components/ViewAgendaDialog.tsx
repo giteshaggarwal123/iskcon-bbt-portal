@@ -47,8 +47,7 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
     
     setLoadingFiles(true);
     try {
-      // Use type assertion since the table is newly created
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('meeting_attachments')
         .select('*')
         .eq('meeting_id', meeting.id)
@@ -75,10 +74,26 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
     setUploading(true);
     try {
       for (const file of files) {
-        // Upload file to Supabase storage
         const fileExt = file.name.split('.').pop();
         const fileName = `${meeting.id}/${Date.now()}_${file.name}`;
         
+        // First, ensure the bucket exists or create it
+        const { data: buckets } = await supabase.storage.listBuckets();
+        const bucketExists = buckets?.some(bucket => bucket.name === 'meeting-attachments');
+        
+        if (!bucketExists) {
+          const { error: bucketError } = await supabase.storage.createBucket('meeting-attachments', {
+            public: true,
+            allowedMimeTypes: ['*/*'],
+            fileSizeLimit: 52428800 // 50MB
+          });
+          
+          if (bucketError) {
+            console.error('Error creating bucket:', bucketError);
+          }
+        }
+        
+        // Upload file to Supabase storage
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('meeting-attachments')
           .upload(fileName, file);
@@ -86,7 +101,7 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
         if (uploadError) throw uploadError;
 
         // Save file metadata to database
-        const { error: dbError } = await (supabase as any)
+        const { error: dbError } = await supabase
           .from('meeting_attachments')
           .insert({
             meeting_id: meeting.id,
@@ -115,7 +130,6 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
       });
     } finally {
       setUploading(false);
-      // Reset the input
       event.target.value = '';
     }
   };
@@ -127,19 +141,41 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
     });
 
     try {
+      console.log('Attempting to view file:', file.file_path);
+      
       // Track the view first
       await trackView();
 
-      const { data, error } = await supabase.storage
+      // Try to get a signed URL for viewing
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('meeting-attachments')
         .createSignedUrl(file.file_path, 3600); // 1 hour expiry
 
-      if (error) throw error;
+      if (signedUrlError) {
+        console.error('Signed URL error:', signedUrlError);
+        
+        // Fallback: try to get public URL
+        const { data: publicUrlData } = supabase.storage
+          .from('meeting-attachments')
+          .getPublicUrl(file.file_path);
 
-      window.open(data.signedUrl, '_blank');
+        if (publicUrlData?.publicUrl) {
+          window.open(publicUrlData.publicUrl, '_blank');
+        } else {
+          throw new Error('Could not generate file URL');
+        }
+      } else {
+        window.open(signedUrlData.signedUrl, '_blank');
+      }
 
       // Refresh the file list to show updated counts
       fetchMeetingFiles();
+      
+      toast({
+        title: "File Opened",
+        description: "File opened in new tab",
+      });
+
     } catch (error: any) {
       console.error('Error viewing file:', error);
       toast({
@@ -203,7 +239,7 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
       if (storageError) throw storageError;
 
       // Delete from database
-      const { error: dbError } = await (supabase as any)
+      const { error: dbError } = await supabase
         .from('meeting_attachments')
         .delete()
         .eq('id', fileId);
