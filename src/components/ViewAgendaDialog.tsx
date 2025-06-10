@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { DocumentAnalytics } from './DocumentAnalytics';
 
 interface ViewAgendaDialogProps {
   open: boolean;
@@ -397,6 +398,10 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
                         <Eye className="h-3 w-3 mr-1" />
                         View
                       </Button>
+                      <DocumentAnalytics
+                        documentId={file.id}
+                        documentName={file.name}
+                      />
                       <Button
                         size="sm"
                         variant="outline"

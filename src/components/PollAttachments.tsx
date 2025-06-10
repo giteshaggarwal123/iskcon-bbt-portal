@@ -135,6 +135,7 @@ export const PollAttachments: React.FC<PollAttachmentsProps> = ({
                   <DocumentAnalytics
                     documentId={attachment.id}
                     documentName={attachment.file_name}
+                    documentType="poll_attachment"
                   />
                   <Button
                     size="sm"
