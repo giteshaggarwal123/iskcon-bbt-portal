@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -241,12 +242,17 @@ export const usePolls = () => {
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${pollId}/${fileName}`;
 
-      // Upload file to storage
+      // Upload file to storage bucket
       const { error: uploadError } = await supabase.storage
         .from('poll-attachments')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
+
+      // Get public URL for the uploaded file
+      const { data: { publicUrl } } = supabase.storage
+        .from('poll-attachments')
+        .getPublicUrl(filePath);
 
       // Save attachment record to database
       const { error: dbError } = await supabase
@@ -254,7 +260,7 @@ export const usePolls = () => {
         .insert({
           poll_id: pollId,
           file_name: file.name,
-          file_path: filePath,
+          file_path: publicUrl,
           file_size: file.size,
           mime_type: file.type,
           uploaded_by: user.id
@@ -320,6 +326,18 @@ export const usePolls = () => {
 
   const downloadAttachment = async (filePath: string, fileName: string) => {
     try {
+      // If it's already a public URL, download directly
+      if (filePath.includes('supabase.co/storage')) {
+        const a = document.createElement('a');
+        a.href = filePath;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
+      // Legacy support for old file paths
       const { data, error } = await supabase.storage
         .from('poll-attachments')
         .download(filePath);

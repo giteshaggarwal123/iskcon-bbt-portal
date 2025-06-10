@@ -138,7 +138,7 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
       );
     }
     
-    // Fallback for other file types
+    // Fallback for other file types - show download interface
     return (
       <div className="w-full h-full bg-white rounded-lg border flex items-center justify-center p-8">
         <div className="text-center max-w-md">
