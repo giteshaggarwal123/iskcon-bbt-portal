@@ -89,147 +89,125 @@ export const AttendanceModule: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 lg:px-8">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
-            <p className="text-gray-600 mt-1">Track and manage meeting attendance with detailed analytics</p>
+    <>
+      <style>{`
+        @media (max-width: 767px) {
+          .attendance-container {
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+          }
+          .attendance-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 1rem !important;
+          }
+          .attendance-header-text h1 {
+            font-size: 1.5rem !important;
+            line-height: 2rem !important;
+          }
+          .attendance-stats-grid {
+            grid-template-columns: 1fr !important;
+            gap: 0.75rem !important;
+          }
+          .meeting-card-content {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 1rem !important;
+          }
+          .meeting-card-actions {
+            flex-direction: column !important;
+            width: 100% !important;
+            gap: 0.5rem !important;
+          }
+          .meeting-card-actions .button-group {
+            flex-direction: row !important;
+            flex-wrap: wrap !important;
+            gap: 0.5rem !important;
+            width: 100% !important;
+          }
+          .meeting-card-actions button {
+            flex: 1 !important;
+            min-width: 0 !important;
+            font-size: 0.75rem !important;
+            padding: 0.5rem 0.75rem !important;
+          }
+          .rsvp-selector-mobile {
+            margin-top: 0.75rem !important;
+          }
+          .tabs-content-mobile {
+            padding: 0 !important;
+          }
+          .empty-state-card {
+            margin: 0.75rem 0 !important;
+          }
+        }
+      `}</style>
+      <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 attendance-container">
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex justify-between items-center attendance-header">
+            <div className="attendance-header-text">
+              <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
+              <p className="text-gray-600 mt-1">Track and manage meeting attendance with detailed analytics</p>
+            </div>
+            <Button 
+              onClick={() => setShowReportsDialog(true)}
+              className="bg-primary hover:bg-primary/90"
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              View Reports
+            </Button>
           </div>
-          <Button 
-            onClick={() => setShowReportsDialog(true)}
-            className="bg-primary hover:bg-primary/90"
-          >
-            <BarChart3 className="h-4 w-4 mr-2" />
-            View Reports
-          </Button>
-        </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">This Month</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">0</div>
-              <p className="text-xs text-gray-500">Meetings Attended</p>
-            </CardContent>
-          </Card>
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 attendance-stats-grid">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">This Month</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">0</div>
+                <p className="text-xs text-gray-500">Meetings Attended</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Attendance Rate</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">0%</div>
-              <p className="text-xs text-gray-500">Overall Rate</p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Attendance Rate</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">0%</div>
+                <p className="text-xs text-gray-500">Overall Rate</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Pending</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">0</div>
-              <p className="text-xs text-gray-500">Check-ins Required</p>
-            </CardContent>
-          </Card>
-        </div>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Pending</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">0</div>
+                <p className="text-xs text-gray-500">Check-ins Required</p>
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Attendance Tabs */}
-        <Tabs defaultValue="upcoming" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="upcoming">Upcoming Meetings ({upcomingMeetings.length})</TabsTrigger>
-            <TabsTrigger value="history">Attendance History ({pastMeetings.length})</TabsTrigger>
-          </TabsList>
+          {/* Attendance Tabs */}
+          <Tabs defaultValue="upcoming" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="upcoming">Upcoming Meetings ({upcomingMeetings.length})</TabsTrigger>
+              <TabsTrigger value="history">Attendance History ({pastMeetings.length})</TabsTrigger>
+            </TabsList>
 
-          {/* Upcoming Meetings */}
-          <TabsContent value="upcoming" className="space-y-4">
-            {upcomingMeetings.length > 0 ? (
-              upcomingMeetings.map((meeting) => (
-                <Card key={meeting.id}>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                          {meeting.title}
-                        </h3>
-                        <div className="space-y-1 text-sm text-gray-600">
-                          <div className="flex items-center">
-                            <Calendar className="h-4 w-4 mr-2" />
-                            {format(parseISO(meeting.start_time), 'MMM dd, yyyy')} at{' '}
-                            {format(parseISO(meeting.start_time), 'h:mm a')}
-                          </div>
-                          <div className="flex items-center">
-                            <Users className="h-4 w-4 mr-2" />
-                            {meeting.attendees?.length || 0} expected attendees
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        {canMarkAttendance(meeting) && (
-                          <Button
-                            onClick={() => handleMarkAttendance(meeting)}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <UserCheck className="h-4 w-4 mr-2" />
-                            Mark Attendance
-                          </Button>
-                        )}
-
-                        <Button
-                          variant="outline"
-                          onClick={() => handleViewRSVP(meeting)}
-                        >
-                          <CheckSquare className="h-4 w-4 mr-2" />
-                          View RSVP
-                        </Button>
-
-                        {userRole.canViewReports && (
-                          <Button
-                            variant="outline"
-                            onClick={() => handleViewReport(meeting)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Report
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Add RSVP Selector */}
-                    <div className="mt-4">
-                      <RSVPSelector 
-                        meeting={meeting} 
-                        onResponseUpdate={handleRSVPUpdate}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                  <p className="text-gray-600">No upcoming meetings</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* Attendance History */}
-          <TabsContent value="history" className="space-y-4">
-            {pastMeetings.length > 0 ? (
-              pastMeetings.map((meeting) => {
-                const status = getMeetingAttendanceStatus(meeting);
-                return (
+            {/* Upcoming Meetings */}
+            <TabsContent value="upcoming" className="space-y-4 tabs-content-mobile">
+              {upcomingMeetings.length > 0 ? (
+                upcomingMeetings.map((meeting) => (
                   <Card key={meeting.id}>
                     <CardContent className="p-6">
-                      <div className="flex justify-between items-start">
+                      <div className="flex justify-between items-start meeting-card-content">
                         <div className="flex-1">
                           <h3 className="text-lg font-semibold text-gray-900 mb-2">
                             {meeting.title}
@@ -240,60 +218,51 @@ export const AttendanceModule: React.FC = () => {
                               {format(parseISO(meeting.start_time), 'MMM dd, yyyy')} at{' '}
                               {format(parseISO(meeting.start_time), 'h:mm a')}
                             </div>
+                            <div className="flex items-center">
+                              <Users className="h-4 w-4 mr-2" />
+                              {meeting.attendees?.length || 0} expected attendees
+                            </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center space-x-3">
-                          <Badge 
-                            variant={
-                              status === 'present' ? 'default' : 
-                              status === 'absent' ? 'destructive' : 
-                              'secondary'
-                            }
-                            className="flex items-center"
-                          >
-                            {status === 'present' && <CheckCircle className="h-3 w-3 mr-1" />}
-                            {status === 'absent' && <XCircle className="h-3 w-3 mr-1" />}
-                            {status === 'not_marked' && <Clock className="h-3 w-3 mr-1" />}
-                            {status === 'present' ? 'Present' : 
-                             status === 'absent' ? 'Absent' : 
-                             'Not Marked'}
-                          </Badge>
+                        <div className="flex items-center space-x-2 meeting-card-actions">
+                          <div className="button-group">
+                            {canMarkAttendance(meeting) && (
+                              <Button
+                                onClick={() => handleMarkAttendance(meeting)}
+                                className="bg-green-600 hover:bg-green-700"
+                                size="sm"
+                              >
+                                <UserCheck className="h-4 w-4 mr-2" />
+                                Mark Attendance
+                              </Button>
+                            )}
 
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewRSVP(meeting)}
-                          >
-                            <CheckSquare className="h-4 w-4 mr-2" />
-                            RSVP
-                          </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => handleViewRSVP(meeting)}
+                              size="sm"
+                            >
+                              <CheckSquare className="h-4 w-4 mr-2" />
+                              View RSVP
+                            </Button>
 
-                          {userRole.canViewReports && (
-                            <>
+                            {userRole.canViewReports && (
                               <Button
                                 variant="outline"
-                                size="sm"
                                 onClick={() => handleViewReport(meeting)}
+                                size="sm"
                               >
                                 <Eye className="h-4 w-4 mr-2" />
-                                Report
+                                View Report
                               </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDownloadReport(meeting)}
-                              >
-                                <Download className="h-4 w-4 mr-2" />
-                                Download
-                              </Button>
-                            </>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Add RSVP Selector for past meetings too */}
-                      <div className="mt-4">
+                      {/* Add RSVP Selector */}
+                      <div className="mt-4 rsvp-selector-mobile">
                         <RSVPSelector 
                           meeting={meeting} 
                           onResponseUpdate={handleRSVPUpdate}
@@ -301,42 +270,136 @@ export const AttendanceModule: React.FC = () => {
                       </div>
                     </CardContent>
                   </Card>
-                );
-              })
-            ) : (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                  <p className="text-gray-600">No meeting history available</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+                ))
+              ) : (
+                <Card className="empty-state-card">
+                  <CardContent className="p-8 text-center">
+                    <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p className="text-gray-600">No upcoming meetings</p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* Attendance History */}
+            <TabsContent value="history" className="space-y-4 tabs-content-mobile">
+              {pastMeetings.length > 0 ? (
+                pastMeetings.map((meeting) => {
+                  const status = getMeetingAttendanceStatus(meeting);
+                  return (
+                    <Card key={meeting.id}>
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-start meeting-card-content">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                              {meeting.title}
+                            </h3>
+                            <div className="space-y-1 text-sm text-gray-600">
+                              <div className="flex items-center">
+                                <Calendar className="h-4 w-4 mr-2" />
+                                {format(parseISO(meeting.start_time), 'MMM dd, yyyy')} at{' '}
+                                {format(parseISO(meeting.start_time), 'h:mm a')}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-3 meeting-card-actions">
+                            <Badge 
+                              variant={
+                                status === 'present' ? 'default' : 
+                                status === 'absent' ? 'destructive' : 
+                                'secondary'
+                              }
+                              className="flex items-center"
+                            >
+                              {status === 'present' && <CheckCircle className="h-3 w-3 mr-1" />}
+                              {status === 'absent' && <XCircle className="h-3 w-3 mr-1" />}
+                              {status === 'not_marked' && <Clock className="h-3 w-3 mr-1" />}
+                              {status === 'present' ? 'Present' : 
+                               status === 'absent' ? 'Absent' : 
+                               'Not Marked'}
+                            </Badge>
+
+                            <div className="button-group">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewRSVP(meeting)}
+                              >
+                                <CheckSquare className="h-4 w-4 mr-2" />
+                                RSVP
+                              </Button>
+
+                              {userRole.canViewReports && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleViewReport(meeting)}
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Report
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDownloadReport(meeting)}
+                                  >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Download
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Add RSVP Selector for past meetings too */}
+                        <div className="mt-4 rsvp-selector-mobile">
+                          <RSVPSelector 
+                            meeting={meeting} 
+                            onResponseUpdate={handleRSVPUpdate}
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              ) : (
+                <Card className="empty-state-card">
+                  <CardContent className="p-8 text-center">
+                    <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p className="text-gray-600">No meeting history available</p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Dialogs */}
+        <MarkAttendanceDialog
+          open={showMarkDialog}
+          onOpenChange={setShowMarkDialog}
+        />
+
+        <AttendanceReportDialog
+          open={showReportDialog}
+          onOpenChange={setShowReportDialog}
+          meeting={selectedMeeting}
+        />
+
+        <AttendanceReportsDialog
+          open={showReportsDialog}
+          onOpenChange={setShowReportsDialog}
+        />
+
+        <RSVPResponseDialog
+          open={showRSVPDialog}
+          onOpenChange={setShowRSVPDialog}
+          meeting={selectedMeeting}
+        />
       </div>
-
-      {/* Dialogs */}
-      <MarkAttendanceDialog
-        open={showMarkDialog}
-        onOpenChange={setShowMarkDialog}
-      />
-
-      <AttendanceReportDialog
-        open={showReportDialog}
-        onOpenChange={setShowReportDialog}
-        meeting={selectedMeeting}
-      />
-
-      <AttendanceReportsDialog
-        open={showReportsDialog}
-        onOpenChange={setShowReportsDialog}
-      />
-
-      <RSVPResponseDialog
-        open={showRSVPDialog}
-        onOpenChange={setShowRSVPDialog}
-        meeting={selectedMeeting}
-      />
-    </div>
+    </>
   );
 };
