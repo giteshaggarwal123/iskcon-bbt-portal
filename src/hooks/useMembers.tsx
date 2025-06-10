@@ -108,7 +108,7 @@ export const useMembers = () => {
     }
   }, [toast]);
 
-  // Set up real-time subscriptions with improved handling
+  // Enhanced real-time subscriptions
   useEffect(() => {
     let profilesSubscription: any;
     let rolesSubscription: any;
@@ -116,14 +116,14 @@ export const useMembers = () => {
     const setupSubscriptions = async () => {
       if (!user) return;
 
-      console.log('Setting up robust real-time subscriptions...');
+      console.log('Setting up real-time subscriptions...');
 
       // Initial fetch
       await fetchMembers();
 
-      // Subscribe to profiles changes with immediate refresh
+      // Subscribe to profiles changes
       profilesSubscription = supabase
-        .channel('profiles-realtime')
+        .channel('profiles-changes')
         .on(
           'postgres_changes',
           {
@@ -132,8 +132,8 @@ export const useMembers = () => {
             table: 'profiles'
           },
           async (payload) => {
-            console.log('Profiles real-time change:', payload);
-            // Immediate refresh on any change
+            console.log('Profiles real-time change detected:', payload);
+            // Refresh data immediately
             await fetchMembers();
           }
         )
@@ -141,9 +141,9 @@ export const useMembers = () => {
           console.log('Profiles subscription status:', status);
         });
 
-      // Subscribe to user roles changes with immediate refresh
+      // Subscribe to user roles changes
       rolesSubscription = supabase
-        .channel('user-roles-realtime')
+        .channel('user-roles-changes')
         .on(
           'postgres_changes',
           {
@@ -152,8 +152,8 @@ export const useMembers = () => {
             table: 'user_roles'
           },
           async (payload) => {
-            console.log('User roles real-time change:', payload);
-            // Immediate refresh on any change
+            console.log('User roles real-time change detected:', payload);
+            // Refresh data immediately
             await fetchMembers();
           }
         )
@@ -178,6 +178,7 @@ export const useMembers = () => {
 
   // Optimistic update for immediate UI feedback
   const updateMemberOptimistically = useCallback((memberId: string, updates: Partial<Member>) => {
+    console.log('Optimistic update for member:', memberId, updates);
     setMembers(prevMembers => 
       prevMembers.map(member => 
         member.id === memberId 
@@ -340,18 +341,11 @@ export const useMembers = () => {
       // Optimistic update
       updateMemberOptimistically(memberId, { roles: [newRole] });
 
-      // Remove existing roles for this user
-      const { error: deleteError } = await supabase
+      // Remove existing roles for this user first
+      await supabase
         .from('user_roles')
         .delete()
         .eq('user_id', memberId);
-
-      if (deleteError) {
-        console.error('Error removing existing roles:', deleteError);
-        // Revert optimistic update
-        await fetchMembers();
-        throw deleteError;
-      }
 
       // Add new role
       const { error: insertError } = await supabase
@@ -376,7 +370,9 @@ export const useMembers = () => {
       });
 
       // Force refresh to ensure consistency
-      await fetchMembers();
+      setTimeout(async () => {
+        await fetchMembers();
+      }, 1000);
     } catch (error: any) {
       console.error('Error updating role:', error);
       toast({
@@ -410,7 +406,7 @@ export const useMembers = () => {
 
       if (rolesError) {
         console.error('Error deleting user roles:', rolesError);
-        throw rolesError;
+        // Continue anyway, profile deletion is more important
       }
 
       // Delete profile

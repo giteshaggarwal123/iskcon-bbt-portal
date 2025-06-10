@@ -74,10 +74,15 @@ export const MembersModule: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  // Force refresh when member is updated
+  // Enhanced member update handler with immediate refresh
   const handleMemberUpdated = async () => {
-    console.log('Member updated - forcing immediate refresh');
-    await fetchMembers();
+    console.log('Member updated - triggering immediate data refresh');
+    try {
+      await fetchMembers();
+      console.log('Member data refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing member data:', error);
+    }
   };
 
   if (loading) {
@@ -189,15 +194,18 @@ export const MembersModule: React.FC = () => {
                     <MemberCard 
                       key={member.id} 
                       member={member} 
-                      onRoleChange={(memberId, newRole) => {
-                        updateMemberRole(memberId, newRole);
+                      onRoleChange={async (memberId, newRole) => {
+                        await updateMemberRole(memberId, newRole);
+                        await handleMemberUpdated();
                       }}
-                      onDeleteMember={(memberId) => {
-                        deleteMember(memberId);
+                      onDeleteMember={async (memberId) => {
+                        await deleteMember(memberId);
+                        await handleMemberUpdated();
                       }}
-                      onSuspendMember={(memberId, suspend) => {
+                      onSuspendMember={async (memberId, suspend) => {
                         if (suspendMember) {
-                          suspendMember(memberId, suspend);
+                          await suspendMember(memberId, suspend);
+                          await handleMemberUpdated();
                         }
                       }}
                       onResetPassword={(memberId) => {
@@ -264,7 +272,7 @@ export const MembersModule: React.FC = () => {
           onMemberAdded={async () => {
             setShowAddMemberDialog(false);
             // Force immediate refresh
-            await fetchMembers();
+            await handleMemberUpdated();
           }}
         />
       )}

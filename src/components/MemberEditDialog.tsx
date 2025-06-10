@@ -96,14 +96,17 @@ export const MemberEditDialog: React.FC<MemberEditDialogProps> = ({
 
       toast({
         title: "Success!",
-        description: `${firstName} ${lastName}'s information has been updated`
+        description: `${firstName} ${lastName}'s information has been updated`,
+        variant: "default"
       });
 
-      // Close dialog first
+      // Close dialog and trigger refresh
       onOpenChange(false);
       
-      // Force update callback to refresh parent data
-      onMemberUpdated();
+      // Wait a moment then trigger the callback to ensure UI updates
+      setTimeout(() => {
+        onMemberUpdated();
+      }, 500);
 
     } catch (error: any) {
       console.error('Error updating member:', error);
