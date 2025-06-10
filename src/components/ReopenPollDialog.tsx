@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Users, UserX, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Users, UserX, AlertTriangle, Clock } from 'lucide-react';
 import { Poll, usePolls } from '@/hooks/usePolls';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface ReopenPollDialogProps {
   open: boolean;
@@ -22,11 +23,21 @@ interface Profile {
   email: string | null;
 }
 
+const TIME_OPTIONS = [
+  { value: '15', label: '15 minutes' },
+  { value: '30', label: '30 minutes' },
+  { value: '60', label: '1 hour' },
+  { value: '120', label: '2 hours' },
+  { value: '240', label: '4 hours' },
+  { value: '1440', label: '24 hours' },
+];
+
 export const ReopenPollDialog: React.FC<ReopenPollDialogProps> = ({ open, onOpenChange, poll }) => {
   const [selectedUser, setSelectedUser] = useState<string>('');
+  const [selectedDuration, setSelectedDuration] = useState<string>('30');
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
-  const { reopenPoll, resetUserVotes, resetAllVotes } = usePolls();
+  const { resetUserVotes, resetAllVotes, refetch } = usePolls();
 
   useEffect(() => {
     if (open && poll) {
@@ -52,9 +63,23 @@ export const ReopenPollDialog: React.FC<ReopenPollDialogProps> = ({ open, onOpen
     if (!poll) return;
     
     setLoading(true);
-    await reopenPoll(poll.id);
-    setLoading(false);
-    onOpenChange(false);
+    try {
+      const { error } = await supabase.rpc('reopen_poll_with_deadline', {
+        poll_id_param: poll.id,
+        minutes_param: parseInt(selectedDuration)
+      });
+
+      if (error) throw error;
+
+      toast.success(`Poll reopened for ${TIME_OPTIONS.find(opt => opt.value === selectedDuration)?.label}`);
+      await refetch();
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error reopening poll:', error);
+      toast.error('Failed to reopen poll');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResetUserVotes = async () => {
@@ -117,26 +142,48 @@ export const ReopenPollDialog: React.FC<ReopenPollDialogProps> = ({ open, onOpen
             </CardContent>
           </Card>
 
-          {/* Reopen Poll */}
+          {/* Reopen Poll with Time Duration */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <RefreshCw className="h-4 w-4" />
-                Reopen Poll
+                Reopen Poll with Time Limit
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Reopen this completed poll to allow voting again. This will change the poll status back to active.
+                Reopen this completed poll for a specific duration. The poll will automatically close after the selected time.
               </p>
-              <Button 
-                onClick={handleReopenPoll}
-                disabled={loading}
-                className="w-full"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                {loading ? 'Reopening...' : 'Reopen Poll'}
-              </Button>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Select Duration
+                  </label>
+                  <Select value={selectedDuration} onValueChange={setSelectedDuration}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select reopening duration" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIME_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button 
+                  onClick={handleReopenPoll}
+                  disabled={loading}
+                  className="w-full"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  {loading ? 'Reopening...' : `Reopen Poll for ${TIME_OPTIONS.find(opt => opt.value === selectedDuration)?.label}`}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 

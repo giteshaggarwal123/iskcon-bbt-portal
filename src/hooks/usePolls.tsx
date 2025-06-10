@@ -64,6 +64,9 @@ export const usePolls = () => {
     try {
       setLoading(true);
       
+      // First, auto-close any reopened polls that have expired
+      await supabase.rpc('auto_close_reopened_polls');
+      
       // Fetch polls with sub_polls and attachments
       const { data: pollsData, error } = await supabase
         .from('polls')
@@ -326,22 +329,6 @@ export const usePolls = () => {
     }
   };
 
-  const reopenPoll = async (pollId: string) => {
-    try {
-      const { error } = await supabase.rpc('reopen_poll', {
-        poll_id_param: pollId
-      });
-
-      if (error) throw error;
-
-      toast.success('Poll reopened successfully');
-      await fetchPolls();
-    } catch (error) {
-      console.error('Error reopening poll:', error);
-      toast.error('Failed to reopen poll');
-    }
-  };
-
   const resetUserVotes = async (pollId: string, userId: string) => {
     try {
       const { error } = await supabase.rpc('reset_user_poll_votes', {
@@ -377,6 +364,13 @@ export const usePolls = () => {
 
   useEffect(() => {
     fetchPolls();
+    
+    // Set up interval to check for expired reopened polls every minute
+    const interval = setInterval(() => {
+      fetchPolls();
+    }, 60000);
+
+    return () => clearInterval(interval);
   }, []);
 
   return {
@@ -387,7 +381,6 @@ export const usePolls = () => {
     deletePoll,
     updatePollStatus,
     downloadAttachment,
-    reopenPoll,
     resetUserVotes,
     resetAllVotes,
     refetch: fetchPolls
