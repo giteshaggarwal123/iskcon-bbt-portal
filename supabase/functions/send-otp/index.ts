@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -18,7 +17,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { phoneNumber, email, name, type = 'otp', userId, otp, newPassword } = await req.json();
+    const { phoneNumber, email, name, type = 'otp', userId, otp, newPassword, adminReset = false } = await req.json();
 
     // For password reset, use email field; for SMS OTP, use phoneNumber
     const targetIdentifier = email || phoneNumber;
@@ -28,6 +27,51 @@ serve(async (req) => {
         JSON.stringify({ error: 'Phone number or email is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Handle admin password reset (direct reset without OTP)
+    if (type === 'admin_reset' || adminReset) {
+      try {
+        // Get user by email
+        const { data: { users }, error: fetchError } = await supabase.auth.admin.listUsers();
+        
+        if (fetchError) {
+          throw new Error('Failed to fetch user data');
+        }
+
+        const targetUser = users.find(u => u.email === targetIdentifier);
+        if (!targetUser) {
+          throw new Error('User not found');
+        }
+
+        // Update the user's password using admin API
+        const { error: updateError } = await supabase.auth.admin.updateUserById(
+          targetUser.id,
+          { password: newPassword }
+        );
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        console.log('Admin password reset successful for user:', targetIdentifier);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: 'Password reset successful by admin'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (error: any) {
+        console.error('Admin password reset error:', error);
+        return new Response(
+          JSON.stringify({ 
+            error: error.message || 'Failed to reset password'
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Handle password reset using service role
