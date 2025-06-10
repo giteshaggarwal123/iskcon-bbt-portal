@@ -40,29 +40,52 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      // Fetch document views with user profiles
+      console.log('Fetching analytics for document:', documentId);
+      
+      // First, get all document views for this document
       const { data: viewsData, error: viewsError } = await supabase
         .from('document_views')
-        .select(`
-          user_id,
-          time_spent_seconds,
-          view_started_at,
-          profiles!inner (
-            first_name,
-            last_name
-          )
-        `)
+        .select('*')
         .eq('document_id', documentId);
 
-      if (viewsError) throw viewsError;
+      if (viewsError) {
+        console.error('Error fetching document views:', viewsError);
+        throw viewsError;
+      }
+
+      console.log('Document views data:', viewsData);
+
+      // Get all unique user IDs from the views
+      const userIds = [...new Set(viewsData?.map(view => view.user_id) || [])];
+      
+      // Fetch user profiles separately
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
+
+      console.log('Profiles data:', profilesData);
+
+      // Create a map of user profiles for quick lookup
+      const profilesMap = new Map();
+      profilesData?.forEach(profile => {
+        profilesMap.set(profile.id, profile);
+      });
 
       // Process the data to get member-by-member analytics
       const memberMap = new Map<string, MemberAnalytics>();
       
       viewsData?.forEach(view => {
         const userId = view.user_id;
-        const profile = (view as any).profiles;
-        const userName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'User' : 'User';
+        const profile = profilesMap.get(userId);
+        const userName = profile 
+          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'User'
+          : 'Unknown User';
         
         if (memberMap.has(userId)) {
           const existing = memberMap.get(userId)!;
@@ -86,6 +109,8 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
       const totalViews = viewsData?.length || 0;
       const totalTimeSpent = viewsData?.reduce((sum, view) => sum + (view.time_spent_seconds || 0), 0) || 0;
 
+      console.log('Processed analytics:', { totalViews, totalTimeSpent, memberAnalytics });
+
       setAnalytics({
         totalViews,
         totalTimeSpent,
@@ -93,6 +118,12 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
+      // Set empty data on error but don't show error to user
+      setAnalytics({
+        totalViews: 0,
+        totalTimeSpent: 0,
+        memberAnalytics: []
+      });
     } finally {
       setLoading(false);
     }
