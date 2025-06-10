@@ -124,12 +124,18 @@ export const VotingModule: React.FC = () => {
         </div>
 
         <Tabs defaultValue="active" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="active" className={isMobile ? 'text-sm' : ''}>
-              Active Polls ({activePolls.length})
+          <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'h-auto' : ''}`}>
+            <TabsTrigger 
+              value="active" 
+              className={`${isMobile ? 'text-xs px-2 py-3 flex-1' : ''} whitespace-nowrap`}
+            >
+              {isMobile ? `Active (${activePolls.length})` : `Active Polls (${activePolls.length})`}
             </TabsTrigger>
-            <TabsTrigger value="completed" className={isMobile ? 'text-sm' : ''}>
-              Completed ({completedPolls.length})
+            <TabsTrigger 
+              value="completed" 
+              className={`${isMobile ? 'text-xs px-2 py-3 flex-1' : ''} whitespace-nowrap`}
+            >
+              {isMobile ? `Completed (${completedPolls.length})` : `Completed (${completedPolls.length})`}
             </TabsTrigger>
           </TabsList>
 
