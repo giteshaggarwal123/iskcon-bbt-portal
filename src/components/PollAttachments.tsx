@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { FileText, Download, Eye, File } from 'lucide-react';
 import { PollAttachment } from '@/hooks/usePolls';
 import { usePolls } from '@/hooks/usePolls';
+import { DocumentAnalytics } from './DocumentAnalytics';
 
 interface PollAttachmentsProps {
   attachments: PollAttachment[];
@@ -119,12 +120,16 @@ export const PollAttachments: React.FC<PollAttachmentsProps> = ({
                       View
                     </Button>
                   )}
+                  <DocumentAnalytics
+                    documentId={attachment.id}
+                    documentName={attachment.file_name}
+                  />
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => handleDownload(attachment)}
                     className="h-8 text-xs"
-                    >
+                  >
                     <Download className="h-3 w-3 mr-1" />
                     Download
                   </Button>
