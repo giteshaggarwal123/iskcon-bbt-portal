@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { FileText, Download, ExternalLink, File } from 'lucide-react';
@@ -89,23 +88,27 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
     // Handle real files from Supabase Storage
     if (mimeType.includes('image')) {
       return (
-        <div className="w-full h-full flex items-center justify-center bg-gray-100">
-          <img 
-            src={document.file_path} 
-            alt={document.name}
-            className="max-w-full max-h-full object-contain"
-            style={{ 
-              transform: `scale(${zoom / 100})`,
-              transformOrigin: 'center'
-            }}
-            onError={(e) => {
-              console.error('Image failed to load:', document.file_path);
-              e.currentTarget.style.display = 'none';
-            }}
-            onLoad={() => {
-              console.log('Image loaded successfully:', document.file_path);
-            }}
-          />
+        <div className="w-full h-full flex items-center justify-center bg-gray-100 p-4">
+          <div className="max-w-full max-h-full flex items-center justify-center">
+            <img 
+              src={document.file_path} 
+              alt={document.name}
+              className="max-w-full max-h-full object-contain"
+              style={{ 
+                transform: `scale(${zoom / 100})`,
+                transformOrigin: 'center',
+                width: 'auto',
+                height: 'auto'
+              }}
+              onError={(e) => {
+                console.error('Image failed to load:', document.file_path);
+                e.currentTarget.style.display = 'none';
+              }}
+              onLoad={() => {
+                console.log('Image loaded successfully:', document.file_path);
+              }}
+            />
+          </div>
         </div>
       );
     }
