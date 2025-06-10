@@ -79,9 +79,9 @@ forceUserEmailConfirmation('anshkashyap23109@gmail.com').then(result => {
     console.log('✅ Email force confirmed for anshkashyap23109@gmail.com');
     
     // Wait a moment then reset the password
-    return new Promise(resolve => {
+    return new Promise<{ success: boolean; data?: any; error?: string }>((resolve) => {
       setTimeout(() => {
-        resolve(resetUserPassword('anshkashyap23109@gmail.com', '12345678'));
+        resetUserPassword('anshkashyap23109@gmail.com', '12345678').then(resolve);
       }, 1000);
     });
   } else {
