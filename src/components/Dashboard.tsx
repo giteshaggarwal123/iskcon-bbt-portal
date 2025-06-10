@@ -1,12 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, FileText, Mail, Vote, ExternalLink, Play } from 'lucide-react';
 import { useMeetings } from '@/hooks/useMeetings';
-import { useMembers } from '@/hooks/useMembers';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useEmails } from '@/hooks/useEmails';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import { MicrosoftConnectionStatus } from './MicrosoftConnectionStatus';
 import { DocumentViewer } from './DocumentViewer';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +30,7 @@ export const Dashboard: React.FC = () => {
   const { documents, loading: documentsLoading } = useDocuments();
   const { emails, loading: emailsLoading } = useEmails();
   const { user } = useAuth();
+  const { profile } = useProfile();
   const { toast } = useToast();
 
   // Fetch active polls
@@ -73,10 +75,12 @@ export const Dashboard: React.FC = () => {
     .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     .slice(0, 3);
 
-  // Extract user name from the authenticated user
-  const userName = user?.user_metadata?.first_name 
-    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim()
-    : user?.email?.split('@')[0] || 'User';
+  // Extract user name with priority: profile > user metadata > email
+  const userName = profile 
+    ? `${profile.first_name} ${profile.last_name}`.trim() || profile.email?.split('@')[0] || 'User'
+    : user?.user_metadata?.first_name 
+      ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim()
+      : user?.email?.split('@')[0] || 'User';
 
   const handleJoinMeeting = (meeting: any) => {
     if (meeting.teams_join_url) {

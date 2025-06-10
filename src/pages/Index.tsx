@@ -29,12 +29,18 @@ const AppContent = () => {
       // You can pass the pollId to the VotingModule if needed
     };
 
+    const handleProfileUpdate = () => {
+      setAvatarRefreshTrigger(prev => prev + 1);
+    };
+
     window.addEventListener('navigate-to-module', handleNavigateToModule);
     window.addEventListener('navigate-to-poll', handleNavigateToPoll);
+    window.addEventListener('profileUpdated', handleProfileUpdate);
 
     return () => {
       window.removeEventListener('navigate-to-module', handleNavigateToModule);
       window.removeEventListener('navigate-to-poll', handleNavigateToPoll);
+      window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
   }, []);
 
@@ -76,12 +82,6 @@ const AppContent = () => {
       default:
         return <Dashboard />;
     }
-  };
-
-  const handleNavigateFromNotification = (module: string, id?: string) => {
-    setCurrentModule(module);
-    // You can use the id here to scroll to or highlight specific items
-    console.log(`Navigating to ${module}${id ? ` with ID: ${id}` : ''}`);
   };
 
   return (

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { User, Bell, Settings, Mail, Save, MessageCircle, Shield, Lock, Camera } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { MicrosoftOAuthButton } from './MicrosoftOAuthButton';
@@ -24,12 +24,13 @@ interface SettingsModuleProps {
 export const SettingsModule: React.FC<SettingsModuleProps> = ({ onAvatarUpdate }) => {
   const { user } = useAuth();
   const userRole = useUserRole();
+  const { profile, loading: profileLoading, updateProfile } = useProfile();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
   
-  // Personal Information State
+  // Personal Information State - Initialize from profile
   const [personalInfo, setPersonalInfo] = useState({
     first_name: '',
     last_name: '',
@@ -50,43 +51,24 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({ onAvatarUpdate }
   const canEditPersonalInfo = userRole.isSuperAdmin;
   const canEditEmail = false; // Email can never be changed
   const canEditPhone = userRole.isSuperAdmin || userRole.isAdmin;
-  const canEditNotifications = true; // All users can edit their notification preferences
-  const canEditProfileImage = true; // All users can edit their profile image
 
+  // Update local state when profile changes
   useEffect(() => {
-    if (user) {
-      fetchUserProfile();
+    if (profile) {
+      setPersonalInfo({
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        email: profile.email || user?.email || '',
+        phone: profile.phone || '',
+        avatar_url: profile.avatar_url || ''
+      });
     }
-  }, [user]);
-
-  const fetchUserProfile = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        setPersonalInfo({
-          first_name: data.first_name || '',
-          last_name: data.last_name || '',
-          email: data.email || user.email || '',
-          phone: data.phone || '',
-          avatar_url: data.avatar_url || ''
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    }
-  };
+  }, [profile, user]);
 
   const handleImageUpdate = (imageUrl: string) => {
     setPersonalInfo(prev => ({ ...prev, avatar_url: imageUrl }));
+    // Update profile immediately
+    updateProfile({ avatar_url: imageUrl });
     // Trigger avatar refresh in sidebar
     if (onAvatarUpdate) {
       onAvatarUpdate();
@@ -94,7 +76,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({ onAvatarUpdate }
   };
 
   const updatePersonalInfo = async () => {
-    if (!user) return;
+    if (!user || !profile) return;
 
     // Check permissions before updating
     if (!canEditPersonalInfo && !canEditPhone) {
@@ -109,35 +91,31 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({ onAvatarUpdate }
     setLoading(true);
     try {
       // Prepare update object based on permissions
-      const updateData: any = {
-        id: user.id,
-        updated_at: new Date().toISOString()
-      };
+      const updateData: any = {};
 
       // Super admins can edit names
       if (canEditPersonalInfo) {
-        updateData.first_name = personalInfo.first_name;
-        updateData.last_name = personalInfo.last_name;
+        updateData.first_name = personalInfo.first_name.trim();
+        updateData.last_name = personalInfo.last_name.trim();
       }
 
       // Super admins and admins can edit phone
       if (canEditPhone) {
-        updateData.phone = personalInfo.phone;
+        updateData.phone = personalInfo.phone.trim();
       }
 
-      // Email is never editable
+      // Email is never editable but keep it synced
       updateData.email = personalInfo.email;
 
-      const { error } = await supabase
-        .from('profiles')
-        .upsert(updateData);
+      // Update profile using the hook
+      const { error } = await updateProfile(updateData);
 
-      if (error) throw error;
-
-      toast({
-        title: "Profile Updated",
-        description: "Your personal information has been updated successfully."
-      });
+      if (!error) {
+        // Trigger global profile refresh
+        window.dispatchEvent(new CustomEvent('profileUpdated', { 
+          detail: { profile: { ...profile, ...updateData }, userId: user.id } 
+        }));
+      }
     } catch (error: any) {
       toast({
         title: "Update Failed",
@@ -197,6 +175,16 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({ onAvatarUpdate }
     }
     return <Badge className="bg-red-100 text-red-800 text-xs">Read Only</Badge>;
   };
+
+  if (profileLoading) {
+    return (
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">

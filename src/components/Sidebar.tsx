@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   File, 
@@ -14,9 +14,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useProfile } from '@/hooks/useProfile';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProfileAvatarLoader } from './ProfileAvatarLoader';
 import {
   AlertDialog,
@@ -60,8 +60,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { user, signOut } = useAuth();
   const userRole = useUserRole();
+  const { profile } = useProfile();
   const isMobile = useIsMobile();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [profileRefreshTrigger, setProfileRefreshTrigger] = useState(0);
+
+  // Listen for profile updates
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      setProfileRefreshTrigger(prev => prev + 1);
+    };
+
+    window.addEventListener('profileUpdated', handleProfileUpdate);
+    return () => window.removeEventListener('profileUpdated', handleProfileUpdate);
+  }, []);
 
   // Filter menu items based on user permissions
   const menuItems = allMenuItems.filter(item => {
@@ -69,12 +81,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return userRole[item.requiredPermission as keyof typeof userRole];
   });
 
-  // Extract user info from the authenticated user
-  const userName = user?.user_metadata?.first_name 
-    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim()
-    : user?.email?.split('@')[0] || 'User';
+  // Extract user info with priority: profile > user metadata > email
+  const userName = profile 
+    ? `${profile.first_name} ${profile.last_name}`.trim() || profile.email?.split('@')[0] || 'User'
+    : user?.user_metadata?.first_name 
+      ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim()
+      : user?.email?.split('@')[0] || 'User';
   
-  const userEmail = user?.email || 'user@iskcon.org';
+  const userEmail = profile?.email || user?.email || 'user@iskcon.org';
 
   const handleItemClick = (itemId: string) => {
     onModuleChange(itemId);
@@ -196,7 +210,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <ProfileAvatarLoader 
                 userName={userName} 
-                refreshTrigger={avatarRefreshTrigger}
+                refreshTrigger={avatarRefreshTrigger + profileRefreshTrigger}
               />
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-sm font-medium text-gray-900 truncate">
@@ -233,7 +247,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <ProfileAvatarLoader 
                 userName={userName} 
-                refreshTrigger={avatarRefreshTrigger}
+                refreshTrigger={avatarRefreshTrigger + profileRefreshTrigger}
               />
             </button>
           </div>
