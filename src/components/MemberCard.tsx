@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +28,7 @@ import { MemberMessageDialog } from './MemberMessageDialog';
 import { MemberActivityDialog } from './MemberActivityDialog';
 import { MemberEditDialog } from './MemberEditDialog';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Member {
   id: string;
@@ -61,6 +63,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({
   const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const userRole = useUserRole();
+  const isMobile = useIsMobile();
 
   const getRoleBadge = (role: string) => {
     const roleColors: { [key: string]: string } = {
@@ -130,59 +133,64 @@ export const MemberCard: React.FC<MemberCardProps> = ({
   return (
     <>
       <Card className="hover:shadow-md transition-shadow">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                <User className="h-8 w-8 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {member.first_name} {member.last_name}
-                </h3>
-                <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
-                  <span className="flex items-center space-x-1">
-                    <Mail className="h-4 w-4" />
-                    <span>{member.email}</span>
-                  </span>
-                  {member.phone && (
-                    <span className="flex items-center space-x-1">
-                      <Phone className="h-4 w-4" />
-                      <span>{member.phone}</span>
+        <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
+          <div className={`${isMobile ? 'flex flex-col space-y-4' : 'flex items-center justify-between'}`}>
+            <div className={`${isMobile ? 'flex flex-col space-y-3' : 'flex items-center space-x-4'}`}>
+              <div className={`${isMobile ? 'flex items-center space-x-3' : 'flex items-center space-x-4'}`}>
+                <div className={`${isMobile ? 'w-12 h-12' : 'w-16 h-16'} bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0`}>
+                  <User className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-primary`} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className={`${isMobile ? 'text-base' : 'text-lg'} font-semibold text-gray-900 truncate`}>
+                    {member.first_name} {member.last_name}
+                  </h3>
+                  <div className={`${isMobile ? 'flex flex-col space-y-1' : 'flex items-center space-x-4'} ${isMobile ? 'text-xs' : 'text-sm'} text-gray-500 mt-1`}>
+                    <span className="flex items-center space-x-1 min-w-0">
+                      <Mail className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{member.email}</span>
                     </span>
-                  )}
+                    {member.phone && (
+                      <span className="flex items-center space-x-1">
+                        <Phone className="h-4 w-4 flex-shrink-0" />
+                        <span>{member.phone}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2 mt-2">
-                  {getRoleBadge(actualRole)}
-                  <Badge variant="outline">Joined {joinDate}</Badge>
-                  {isSuperAdminMember && (
-                    <Badge className="bg-gold-500 text-white">System Admin</Badge>
-                  )}
-                  {member.is_suspended && (
-                    <Badge className="bg-red-100 text-red-800">
-                      <UserX className="h-3 w-3 mr-1" />
-                      Suspended
-                    </Badge>
-                  )}
-                  {isProtectedMember && (
-                    <Badge className="bg-amber-100 text-amber-800">
-                      <Lock className="h-3 w-3 mr-1" />
-                      Protected
-                    </Badge>
-                  )}
-                </div>
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-2">
+                {getRoleBadge(actualRole)}
+                <Badge variant="outline" className={`${isMobile ? 'text-xs' : 'text-xs'}`}>
+                  Joined {joinDate}
+                </Badge>
+                {isSuperAdminMember && (
+                  <Badge className="bg-gold-500 text-white text-xs">System Admin</Badge>
+                )}
+                {member.is_suspended && (
+                  <Badge className="bg-red-100 text-red-800 text-xs">
+                    <UserX className="h-3 w-3 mr-1" />
+                    Suspended
+                  </Badge>
+                )}
+                {isProtectedMember && (
+                  <Badge className="bg-amber-100 text-amber-800 text-xs">
+                    <Lock className="h-3 w-3 mr-1" />
+                    Protected
+                  </Badge>
+                )}
               </div>
             </div>
             
-            <div className="text-right space-y-3">
-              <div>
-                <label className="text-sm text-gray-500">Role</label>
+            <div className={`${isMobile ? 'flex flex-col space-y-3 w-full' : 'text-right space-y-3'}`}>
+              <div className={`${isMobile ? 'w-full' : ''}`}>
+                <label className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-500 block mb-1`}>Role</label>
                 <Select 
                   value={actualRole} 
                   onValueChange={(value) => onRoleChange(member.id, value)}
                   disabled={!canChangeRole || isProtectedMember}
                 >
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className={`${isMobile ? 'w-full h-8' : 'w-32'}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -194,19 +202,19 @@ export const MemberCard: React.FC<MemberCardProps> = ({
                   </SelectContent>
                 </Select>
                 {!canChangeRole && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className={`${isMobile ? 'text-xs' : 'text-xs'} text-gray-500 mt-1`}>
                     {isProtectedMember ? 'Protected role' : 'No permission'}
                   </p>
                 )}
               </div>
               
-              <div className="flex space-x-2">
+              <div className={`${isMobile ? 'flex justify-center space-x-2 pt-2 border-t border-gray-100' : 'flex space-x-2'}`}>
                 {canEditMember && (
                   <Button 
                     variant="outline" 
-                    size="sm"
+                    size={isMobile ? "sm" : "sm"}
                     onClick={() => setShowEditDialog(true)}
-                    className="text-blue-600 hover:text-blue-700"
+                    className={`text-blue-600 hover:text-blue-700 ${isMobile ? 'h-8 w-8 p-0' : ''}`}
                   >
                     <Edit3 className="h-4 w-4" />
                   </Button>
@@ -215,7 +223,11 @@ export const MemberCard: React.FC<MemberCardProps> = ({
                 {canViewSettings && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size={isMobile ? "sm" : "sm"}
+                        className={`${isMobile ? 'h-8 w-8 p-0' : ''}`}
+                      >
                         <Settings className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -254,8 +266,9 @@ export const MemberCard: React.FC<MemberCardProps> = ({
                 {canSendMessage && (
                   <Button 
                     variant="outline" 
-                    size="sm"
+                    size={isMobile ? "sm" : "sm"}
                     onClick={() => setShowMessageDialog(true)}
+                    className={`${isMobile ? 'h-8 w-8 p-0' : ''}`}
                   >
                     <MessageCircle className="h-4 w-4" />
                   </Button>
@@ -264,7 +277,11 @@ export const MemberCard: React.FC<MemberCardProps> = ({
                 {canDeleteMember && !isProtectedMember && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                      <Button 
+                        variant="outline" 
+                        size={isMobile ? "sm" : "sm"}
+                        className={`text-red-600 hover:text-red-700 ${isMobile ? 'h-8 w-8 p-0' : ''}`}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>
