@@ -47,13 +47,8 @@ export const useMeetings = () => {
         attendee_count: meeting.meeting_attendees ? meeting.meeting_attendees.length : 0
       }));
       
-      // Filter out meetings that are currently being deleted
-      const filteredMeetings = processedMeetings.filter(meeting => 
-        !deletingMeetings.has(meeting.id)
-      );
-      
-      console.log('Fetched meetings with attendee counts:', filteredMeetings);
-      setMeetings(filteredMeetings);
+      console.log('Fetched meetings with attendee counts:', processedMeetings);
+      setMeetings(processedMeetings);
     } catch (error: any) {
       console.error('Error fetching meetings:', error);
       toast({
@@ -82,9 +77,11 @@ export const useMeetings = () => {
         (payload) => {
           console.log('Meetings table changed:', payload);
           
-          // Don't refetch if we're deleting this meeting
-          if (payload.eventType === 'DELETE' && deletingMeetings.has(payload.old?.id)) {
-            console.log('Ignoring delete event for meeting being deleted by us');
+          // Don't refetch immediately after delete to prevent flickering
+          if (payload.eventType === 'DELETE') {
+            console.log('Meeting deleted from database:', payload.old?.id);
+            // Update local state to remove the deleted meeting
+            setMeetings(prev => prev.filter(m => m.id !== payload.old?.id));
             return;
           }
           
@@ -118,7 +115,7 @@ export const useMeetings = () => {
       supabase.removeChannel(meetingsChannel);
       supabase.removeChannel(attendeesChannel);
     };
-  }, [deletingMeetings]);
+  }, []);
 
   const createMeeting = async (meetingData: {
     title: string;
@@ -462,11 +459,11 @@ export const useMeetings = () => {
         return;
       }
 
-      // Add to deleting set and immediately remove from UI
+      // Immediately mark as deleting and remove from UI
       setDeletingMeetings(prev => new Set(prev).add(meetingId));
       setMeetings(prev => prev.filter(m => m.id !== meetingId));
 
-      console.log('Meeting marked for deletion and removed from UI');
+      console.log('Meeting removed from UI, proceeding with database deletion');
 
       // Delete from Microsoft services first (if applicable)
       if (meeting.teams_meeting_id || meeting.outlook_event_id) {
@@ -490,7 +487,7 @@ export const useMeetings = () => {
                 }
               });
               
-              if (!teamsResponse.ok) {
+              if (!teamsResponse.ok && teamsResponse.status !== 404) {
                 console.error('Failed to delete Teams meeting:', teamsResponse.status, teamsResponse.statusText);
               }
             }
@@ -505,7 +502,7 @@ export const useMeetings = () => {
                 }
               });
               
-              if (!outlookResponse.ok) {
+              if (!outlookResponse.ok && outlookResponse.status !== 404) {
                 console.error('Failed to delete Outlook event:', outlookResponse.status, outlookResponse.statusText);
               }
             }
@@ -549,23 +546,24 @@ export const useMeetings = () => {
     } catch (error: any) {
       console.error('Error deleting meeting:', error);
       
+      // Restore the meeting in UI since deletion failed
+      const meeting = meetings.find(m => m.id === meetingId);
+      if (meeting) {
+        setMeetings(prev => [...prev, meeting].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
+      }
+      
       toast({
         title: "Delete Failed",
         description: error.message || "Failed to delete meeting",
         variant: "destructive"
       });
-      
-      // Force a refresh to show the current state
-      fetchMeetings();
     } finally {
-      // Remove from deleting set after a delay
-      setTimeout(() => {
-        setDeletingMeetings(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(meetingId);
-          return newSet;
-        });
-      }, 2000);
+      // Clean up deleting state
+      setDeletingMeetings(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(meetingId);
+        return newSet;
+      });
     }
   };
 
