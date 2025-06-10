@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -126,10 +125,10 @@ export const Dashboard: React.FC = () => {
 
   return (
     <>
-      <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+      <div className="dashboard-container w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
         <div className="space-y-4 sm:space-y-6">
           {/* Header Section - Clean and aligned */}
-          <div className="space-y-2">
+          <div className="dashboard-header space-y-2">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Bureau Dashboard</h1>
             <p className="text-sm sm:text-base text-muted-foreground">
               Hare Krishna! {userName} - Here's what's happening today.
@@ -142,11 +141,11 @@ export const Dashboard: React.FC = () => {
           </div>
 
           {/* Main Grid - Clean Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="dashboard-grid grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Recent Emails */}
-            <Card className="border border-border bg-card">
+            <Card className="dashboard-card border border-border bg-card">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center space-x-3 text-lg sm:text-xl">
+                <CardTitle className="dashboard-card-title flex items-center space-x-3 text-lg sm:text-xl">
                   <div className="p-2 bg-red-100 rounded-lg">
                     <Mail className="h-5 w-5 text-red-600" />
                   </div>
@@ -157,13 +156,13 @@ export const Dashboard: React.FC = () => {
                 {recentEmails.length > 0 ? (
                   <div className="space-y-3">
                     {recentEmails.map((email) => (
-                      <div key={email.id} className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-medium text-sm truncate flex-1 mr-2">{email.subject}</h4>
+                      <div key={email.id} className="dashboard-item p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="dashboard-item-header flex justify-between items-start mb-2">
+                          <h4 className="dashboard-item-title font-medium text-sm truncate flex-1 mr-2">{email.subject}</h4>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="shrink-0 h-7 text-xs"
+                            className="dashboard-item-button shrink-0 h-7 text-xs"
                             onClick={() => handleOpenEmail(email)}
                           >
                             <ExternalLink className="h-3 w-3 mr-1" />
@@ -202,9 +201,9 @@ export const Dashboard: React.FC = () => {
             </Card>
 
             {/* Upcoming Meetings */}
-            <Card className="border border-border bg-card">
+            <Card className="dashboard-card border border-border bg-card">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center space-x-3 text-lg sm:text-xl">
+                <CardTitle className="dashboard-card-title flex items-center space-x-3 text-lg sm:text-xl">
                   <div className="p-2 bg-blue-100 rounded-lg">
                     <CalendarDays className="h-5 w-5 text-blue-600" />
                   </div>
@@ -215,13 +214,13 @@ export const Dashboard: React.FC = () => {
                 {upcomingMeetings.length > 0 ? (
                   <div className="space-y-3">
                     {upcomingMeetings.map((meeting) => (
-                      <div key={meeting.id} className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-medium text-sm truncate flex-1 mr-2">{meeting.title}</h4>
+                      <div key={meeting.id} className="dashboard-item p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="dashboard-item-header flex justify-between items-start mb-2">
+                          <h4 className="dashboard-item-title font-medium text-sm truncate flex-1 mr-2">{meeting.title}</h4>
                           {meeting.teams_join_url && (
                             <Button
                               size="sm"
-                              className="shrink-0 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                              className="dashboard-item-button shrink-0 h-7 text-xs bg-blue-600 hover:bg-blue-700"
                               onClick={() => handleJoinMeeting(meeting)}
                             >
                               <Play className="h-3 w-3 mr-1" />
@@ -255,9 +254,9 @@ export const Dashboard: React.FC = () => {
             </Card>
 
             {/* Important Documents */}
-            <Card className="border border-border bg-card">
+            <Card className="dashboard-card border border-border bg-card">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center space-x-3 text-lg sm:text-xl">
+                <CardTitle className="dashboard-card-title flex items-center space-x-3 text-lg sm:text-xl">
                   <div className="p-2 bg-green-100 rounded-lg">
                     <FileText className="h-5 w-5 text-green-600" />
                   </div>
@@ -268,13 +267,13 @@ export const Dashboard: React.FC = () => {
                 {recentDocuments.length > 0 ? (
                   <div className="space-y-3">
                     {recentDocuments.map((doc) => (
-                      <div key={doc.id} className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-medium text-sm truncate flex-1 mr-2">{doc.name}</h4>
+                      <div key={doc.id} className="dashboard-item p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="dashboard-item-header flex justify-between items-start mb-2">
+                          <h4 className="dashboard-item-title font-medium text-sm truncate flex-1 mr-2">{doc.name}</h4>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="shrink-0 h-7 text-xs"
+                            className="dashboard-item-button shrink-0 h-7 text-xs"
                             onClick={() => handleOpenDocument(doc)}
                           >
                             <ExternalLink className="h-3 w-3 mr-1" />
@@ -307,9 +306,9 @@ export const Dashboard: React.FC = () => {
             </Card>
 
             {/* Active Voting */}
-            <Card className="border border-border bg-card">
+            <Card className="dashboard-card border border-border bg-card">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center space-x-3 text-lg sm:text-xl">
+                <CardTitle className="dashboard-card-title flex items-center space-x-3 text-lg sm:text-xl">
                   <div className="p-2 bg-purple-100 rounded-lg">
                     <Vote className="h-5 w-5 text-purple-600" />
                   </div>
@@ -320,13 +319,13 @@ export const Dashboard: React.FC = () => {
                 {sortedPolls.length > 0 ? (
                   <div className="space-y-3">
                     {sortedPolls.map((poll) => (
-                      <div key={poll.id} className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-medium text-sm truncate flex-1 mr-2">{poll.title}</h4>
+                      <div key={poll.id} className="dashboard-item p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="dashboard-item-header flex justify-between items-start mb-2">
+                          <h4 className="dashboard-item-title font-medium text-sm truncate flex-1 mr-2">{poll.title}</h4>
                           {!isPastDeadline(poll.deadline) && (
                             <Button
                               size="sm"
-                              className="shrink-0 h-7 text-xs bg-purple-600 hover:bg-purple-700"
+                              className="dashboard-item-button shrink-0 h-7 text-xs bg-purple-600 hover:bg-purple-700"
                               onClick={() => handleVoteNow(poll)}
                             >
                               <Vote className="h-3 w-3 mr-1" />
@@ -365,6 +364,207 @@ export const Dashboard: React.FC = () => {
             </Card>
           </div>
         </div>
+
+        {/* Mobile-specific responsive styles - Only affects mobile devices */}
+        <style>{`
+          /* Mobile-only styles (max-width: 767px) - Dashboard specific fixes */
+          @media (max-width: 767px) {
+            /* Dashboard container mobile optimization */
+            .dashboard-container {
+              width: 100vw;
+              max-width: 100vw;
+              margin: 0;
+              padding: 0.75rem;
+              overflow-x: hidden;
+              box-sizing: border-box;
+            }
+
+            /* Dashboard header mobile spacing */
+            .dashboard-header {
+              margin-bottom: 1rem;
+              padding: 0;
+            }
+
+            .dashboard-header h1 {
+              font-size: 1.5rem;
+              line-height: 1.4;
+              margin-bottom: 0.5rem;
+              word-wrap: break-word;
+            }
+
+            .dashboard-header p {
+              font-size: 0.875rem;
+              line-height: 1.4;
+              margin-bottom: 0.5rem;
+            }
+
+            /* Dashboard grid mobile layout */
+            .dashboard-grid {
+              grid-template-columns: 1fr;
+              gap: 1rem;
+              width: 100%;
+              max-width: 100%;
+            }
+
+            /* Dashboard cards mobile optimization */
+            .dashboard-card {
+              width: 100%;
+              max-width: 100%;
+              min-width: 0;
+              overflow: hidden;
+              margin: 0;
+              box-sizing: border-box;
+            }
+
+            /* Dashboard card titles mobile responsive */
+            .dashboard-card-title {
+              flex-wrap: wrap;
+              gap: 0.5rem;
+              align-items: flex-start;
+              font-size: 1rem;
+              line-height: 1.3;
+            }
+
+            .dashboard-card-title span {
+              word-wrap: break-word;
+              flex: 1;
+              min-width: 0;
+            }
+
+            /* Dashboard items mobile layout */
+            .dashboard-item {
+              width: 100%;
+              max-width: 100%;
+              padding: 0.75rem;
+              margin: 0;
+              box-sizing: border-box;
+            }
+
+            /* Dashboard item headers mobile responsive */
+            .dashboard-item-header {
+              flex-wrap: wrap;
+              gap: 0.5rem;
+              align-items: flex-start;
+              margin-bottom: 0.5rem;
+            }
+
+            /* Dashboard item titles mobile text handling */
+            .dashboard-item-title {
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+              hyphens: auto;
+              max-width: 100%;
+              line-height: 1.3;
+              margin-right: 0.5rem;
+            }
+
+            /* Dashboard item buttons mobile sizing */
+            .dashboard-item-button {
+              min-height: 32px;
+              min-width: fit-content;
+              padding: 0.25rem 0.5rem;
+              font-size: 0.75rem;
+              flex-shrink: 0;
+            }
+
+            /* Better spacing for mobile content */
+            .dashboard-card .pt-0 {
+              padding-top: 0.5rem;
+            }
+
+            .dashboard-card .pb-4 {
+              padding-bottom: 0.75rem;
+            }
+
+            /* Text and content mobile optimization */
+            .dashboard-container .text-xs {
+              font-size: 0.75rem;
+              line-height: 1.3;
+            }
+
+            .dashboard-container .text-sm {
+              font-size: 0.875rem;
+              line-height: 1.4;
+            }
+
+            /* Prevent horizontal overflow */
+            .dashboard-container * {
+              max-width: 100%;
+              box-sizing: border-box;
+            }
+
+            /* Ensure proper text wrapping */
+            .dashboard-container .truncate {
+              white-space: normal;
+              overflow: visible;
+              text-overflow: unset;
+            }
+
+            /* Badge mobile responsive */
+            .dashboard-container .rounded-full {
+              font-size: 0.75rem;
+              padding: 0.125rem 0.5rem;
+              white-space: nowrap;
+            }
+
+            /* Button mobile improvements */
+            .dashboard-container button {
+              min-height: 44px;
+              font-size: 0.875rem;
+              word-wrap: break-word;
+            }
+
+            /* Space adjustments for mobile */
+            .dashboard-container .space-y-3 > * + * {
+              margin-top: 0.75rem;
+            }
+
+            .dashboard-container .space-y-4 > * + * {
+              margin-top: 1rem;
+            }
+
+            /* Microsoft connection status mobile */
+            .dashboard-header .flex.justify-start {
+              padding-top: 0.5rem;
+            }
+
+            /* Empty state mobile */
+            .dashboard-container .text-center.py-8 {
+              padding: 1.5rem 0.5rem;
+            }
+
+            /* Flex improvements for mobile */
+            .dashboard-container .flex.items-center.justify-between {
+              flex-wrap: wrap;
+              gap: 0.5rem;
+              align-items: flex-start;
+            }
+
+            /* Icon sizing mobile */
+            .dashboard-container .h-5.w-5 {
+              height: 1.125rem;
+              width: 1.125rem;
+            }
+
+            .dashboard-container .h-3.w-3 {
+              height: 0.75rem;
+              width: 0.75rem;
+            }
+
+            /* Remove any margins that might cause overflow */
+            .dashboard-container .mx-auto {
+              margin-left: 0;
+              margin-right: 0;
+            }
+          }
+
+          /* Ensure desktop styles remain unchanged */
+          @media (min-width: 768px) {
+            .dashboard-container {
+              /* Desktop styles remain as they were */
+            }
+          }
+        `}</style>
       </div>
 
       {/* Document Viewer Modal */}
