@@ -409,35 +409,47 @@ export const useMembers = () => {
         return;
       }
 
-      console.log('Sending password reset email for member:', memberId);
+      console.log('Sending password reset email via Outlook for member:', memberId);
 
-      // Send password reset email using the existing send-otp edge function
+      // Send password reset email using the existing send-otp edge function with Outlook integration
       const { data, error } = await supabase.functions.invoke('send-otp', {
         body: {
-          phoneNumber: member.email, // Using email instead of phone for password reset
+          phoneNumber: member.email, // Using email for password reset
           name: `${member.first_name} ${member.last_name}`,
-          type: 'password_reset'
+          type: 'password_reset',
+          userId: user?.id // Pass current user ID to get their Microsoft token
         }
       });
 
       if (error) {
         console.error('Error sending password reset email:', error);
+        
+        // Provide specific error message if Microsoft account not connected
+        if (error.message?.includes('Microsoft account')) {
+          toast({
+            title: "Microsoft Account Required",
+            description: "Please connect your Microsoft account in Settings to send password reset emails via Outlook.",
+            variant: "destructive"
+          });
+          return;
+        }
+        
         throw error;
       }
 
-      console.log('Password reset email sent successfully:', data);
+      console.log('Password reset email sent successfully via Outlook:', data);
 
-      await logActivity('Reset password', `Password reset email sent to ${member.first_name} ${member.last_name}`);
+      await logActivity('Reset password', `Password reset email sent via Outlook to ${member.first_name} ${member.last_name}`);
 
       toast({
-        title: "Password Reset Email Sent",
-        description: `A password reset email has been sent to ${member.email}`
+        title: "Password Reset Email Sent via Outlook",
+        description: `A password reset email has been sent to ${member.email} through your connected Outlook account. The temporary password is valid for 24 hours.`
       });
     } catch (error: any) {
       console.error('Error sending password reset email:', error);
       toast({
         title: "Reset Failed", 
-        description: error.message || "Failed to send password reset email",
+        description: error.message || "Failed to send password reset email via Outlook",
         variant: "destructive"
       });
     }
