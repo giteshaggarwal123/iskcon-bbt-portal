@@ -8,7 +8,6 @@ import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 import { ViewAgendaDialog } from './ViewAgendaDialog';
 import { ManageAttendeesDialog } from './ManageAttendeesDialog';
 import { CheckInDialog } from './CheckInDialog';
-import { PostMeetingDialog } from './PostMeetingDialog';
 import { CalendarView } from './CalendarView';
 import { RSVPResponseDialog } from './RSVPResponseDialog';
 import { useMeetings } from '@/hooks/useMeetings';
@@ -24,7 +23,6 @@ export const MeetingsModule: React.FC = () => {
   const [showAgendaDialog, setShowAgendaDialog] = useState(false);
   const [showAttendeesDialog, setShowAttendeesDialog] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
-  const [showPostMeetingDialog, setShowPostMeetingDialog] = useState(false);
   const [showRSVPDialog, setShowRSVPDialog] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
   const [preselectedDate, setPreselectedDate] = useState<Date | undefined>(undefined);
@@ -65,11 +63,6 @@ export const MeetingsModule: React.FC = () => {
   const handleCheckIn = (meeting: any) => {
     setSelectedMeeting(meeting);
     setShowCheckInDialog(true);
-  };
-
-  const handlePostMeeting = (meeting: any) => {
-    setSelectedMeeting(meeting);
-    setShowPostMeetingDialog(true);
   };
 
   const handleViewRSVP = (meeting: any) => {
@@ -431,16 +424,6 @@ export const MeetingsModule: React.FC = () => {
                             <CheckSquare className="h-4 w-4 mr-2" />
                             View RSVP
                           </Button>
-                          
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handlePostMeeting(meeting)}
-                            className="bg-orange-50 hover:bg-orange-100 text-orange-700 min-h-[40px]"
-                          >
-                            <UserCheck className="h-4 w-4 mr-2" />
-                            Update Attendance
-                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -483,11 +466,6 @@ export const MeetingsModule: React.FC = () => {
       <CheckInDialog
         open={showCheckInDialog}
         onOpenChange={setShowCheckInDialog}
-        meeting={selectedMeeting}
-      />
-      <PostMeetingDialog
-        open={showPostMeetingDialog}
-        onOpenChange={setShowPostMeetingDialog}
         meeting={selectedMeeting}
       />
       <RSVPResponseDialog
