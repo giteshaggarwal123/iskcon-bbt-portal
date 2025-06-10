@@ -14,6 +14,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy, CheckSquare, AlertTriangle } from 'lucide-react';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 import { ViewAgendaDialog } from './ViewAgendaDialog';
@@ -21,6 +27,7 @@ import { ManageAttendeesDialog } from './ManageAttendeesDialog';
 import { CheckInDialog } from './CheckInDialog';
 import { CalendarView } from './CalendarView';
 import { RSVPResponseDialog } from './RSVPResponseDialog';
+import { MeetingDeletionProgress } from './MeetingDeletionProgress';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -35,10 +42,20 @@ export const MeetingsModule: React.FC = () => {
   const [showAttendeesDialog, setShowAttendeesDialog] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [showRSVPDialog, setShowRSVPDialog] = useState(false);
+  const [showDeletionProgress, setShowDeletionProgress] = useState<string | null>(null);
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
   const [preselectedDate, setPreselectedDate] = useState<Date | undefined>(undefined);
   
-  const { meetings, loading, deletingMeetings, createMeeting, deleteMeeting, fetchMeetings } = useMeetings();
+  const { 
+    meetings, 
+    loading, 
+    deletingMeetings, 
+    createMeeting, 
+    deleteMeeting, 
+    fetchMeetings,
+    getDeletionProgress,
+    isDeletingMeeting
+  } = useMeetings();
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -81,7 +98,7 @@ export const MeetingsModule: React.FC = () => {
     setShowRSVPDialog(true);
   };
 
-  const handleDeleteMeeting = async (meetingId: string) => {
+  const handleDeleteMeeting = async (meetingId: string, meetingTitle: string) => {
     // Check if user role allows deletion (admin check)
     if (!canDeleteMeetings) {
       toast({
@@ -93,7 +110,7 @@ export const MeetingsModule: React.FC = () => {
     }
 
     // Check if meeting is currently being deleted
-    if (deletingMeetings.has(meetingId)) {
+    if (isDeletingMeeting(meetingId)) {
       toast({
         title: "Already Deleting",
         description: "This meeting is already being deleted",
@@ -102,7 +119,16 @@ export const MeetingsModule: React.FC = () => {
       return;
     }
     
+    // Show progress dialog
+    setShowDeletionProgress(meetingId);
+    
+    // Start deletion process
     await deleteMeeting(meetingId);
+    
+    // Hide progress dialog after completion
+    setTimeout(() => {
+      setShowDeletionProgress(null);
+    }, 3000);
   };
 
   const handleCopyJoinUrl = (url: string) => {
@@ -177,6 +203,206 @@ export const MeetingsModule: React.FC = () => {
     fetchMeetings();
   };
 
+  const renderMeetingCard = (meeting: any, isPast = false) => {
+    const timeInfo = formatMeetingTime(meeting.start_time, meeting.end_time);
+    const isLive = !isPast && isLiveMeeting(meeting);
+    const canDoCheckIn = !isPast && canCheckIn(meeting);
+    const attendeeCount = meeting.attendee_count || meeting.attendees?.length || 0;
+    const isDeleting = isDeletingMeeting(meeting.id);
+    
+    return (
+      <Card key={meeting.id} className={`w-full hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50' : ''}`}>
+        <CardHeader className="pb-3 sm:pb-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-lg sm:text-xl flex flex-wrap items-start gap-2">
+                <span className="break-words">{meeting.title}</span>
+                {isLive && (
+                  <Badge className="bg-red-500 text-white animate-pulse shrink-0">
+                    LIVE
+                  </Badge>
+                )}
+                {meeting.teams_join_url && (
+                  <Badge className="bg-blue-500 text-white shrink-0">
+                    <Video className="h-3 w-3 mr-1" />
+                    Teams
+                  </Badge>
+                )}
+                {isDeleting && (
+                  <Badge className="bg-orange-500 text-white shrink-0">
+                    Deleting...
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription className="mt-2 break-words text-sm">
+                {meeting.description || 'No description provided'}
+              </CardDescription>
+            </div>
+            <Badge className={isPast ? "bg-gray-100 text-gray-800" : "bg-green-100 text-green-800"} variant="secondary">
+              {isPast ? 'Completed' : (meeting.status || 'scheduled')}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="flex items-center space-x-2 min-w-0">
+              <Calendar className="h-4 w-4 text-gray-500 shrink-0" />
+              <span className="text-sm break-words">{timeInfo.date}</span>
+            </div>
+            <div className="flex items-center space-x-2 min-w-0">
+              <Clock className="h-4 w-4 text-gray-500 shrink-0" />
+              <span className="text-sm break-words">{timeInfo.time} ({timeInfo.duration})</span>
+            </div>
+            <div className="flex items-center space-x-2 min-w-0">
+              <Users className="h-4 w-4 text-gray-500 shrink-0" />
+              <span className="text-sm">{attendeeCount} attendees</span>
+            </div>
+            <div className="flex items-center space-x-2 min-w-0">
+              <Video className="h-4 w-4 text-gray-500 shrink-0" />
+              <span className="text-sm break-words">{meeting.location || 'No location'}</span>
+            </div>
+          </div>
+
+          <RSVPSelector 
+            meeting={meeting} 
+            onResponseUpdate={handleRSVPUpdate}
+          />
+
+          {meeting.teams_join_url && (
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="flex items-center space-x-2 min-w-0">
+                  <Video className="h-4 w-4 text-blue-600 shrink-0" />
+                  <span className="text-sm font-medium text-blue-800">Teams Meeting Link</span>
+                </div>
+                <div className="flex items-center space-x-2 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopyJoinUrl(meeting.teams_join_url)}
+                    className="h-7 px-2 text-blue-600 hover:bg-blue-100"
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleJoinNow(meeting)}
+                    className="h-7 px-2 text-blue-600 hover:bg-blue-100"
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Open
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-blue-600 mt-1 break-all">
+                {meeting.teams_join_url}
+              </p>
+            </div>
+          )}
+          
+          <div className="flex flex-wrap gap-2">
+            {meeting.teams_join_url && (
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={() => handleJoinNow(meeting)}
+                disabled={isDeleting}
+                className="bg-blue-600 hover:bg-blue-700 text-white min-h-[40px]"
+              >
+                <Video className="h-4 w-4 mr-2" />
+                Join Meeting
+              </Button>
+            )}
+            
+            {canDoCheckIn && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleCheckIn(meeting)}
+                disabled={isDeleting}
+                className="bg-green-50 hover:bg-green-100 text-green-700 min-h-[40px]"
+              >
+                <UserCheck className="h-4 w-4 mr-2" />
+                Check In
+              </Button>
+            )}
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleViewAgenda(meeting)}
+              disabled={isDeleting}
+              className="min-h-[40px]"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              View Details
+            </Button>
+
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleViewRSVP(meeting)}
+              disabled={isDeleting}
+              className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
+            >
+              <CheckSquare className="h-4 w-4 mr-2" />
+              View RSVP
+            </Button>
+            
+            {canDeleteMeetings && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    disabled={isDeleting}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[40px]"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-red-500" />
+                      Delete Meeting from All Platforms?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-2">
+                      <p>Are you sure you want to delete "<strong>{meeting.title}</strong>"?</p>
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
+                        <p className="font-medium text-yellow-800 mb-1">This action will permanently:</p>
+                        <ul className="text-yellow-700 space-y-1 ml-4 list-disc">
+                          <li>Remove the meeting from Microsoft Teams</li>
+                          <li>Delete the Outlook calendar event</li>
+                          <li>Remove all attendee records and RSVPs</li>
+                          <li>Delete meeting attachments and transcripts</li>
+                          <li>Cannot be undone</li>
+                        </ul>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleDeleteMeeting(meeting.id, meeting.title)}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete from All Platforms
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -223,203 +449,7 @@ export const MeetingsModule: React.FC = () => {
             {upcomingMeetings.length > 0 ? (
               <div className="space-y-4 sm:space-y-6">
                 {upcomingMeetings.map((meeting) => {
-                  const timeInfo = formatMeetingTime(meeting.start_time, meeting.end_time);
-                  const isLive = isLiveMeeting(meeting);
-                  const canDoCheckIn = canCheckIn(meeting);
-                  const attendeeCount = meeting.attendee_count || meeting.attendees?.length || 0;
-                  const isDeleting = deletingMeetings.has(meeting.id);
-                  
-                  return (
-                    <Card key={meeting.id} className={`w-full hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50' : ''}`}>
-                      <CardHeader className="pb-3 sm:pb-4">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg sm:text-xl flex flex-wrap items-start gap-2">
-                              <span className="break-words">{meeting.title}</span>
-                              {isLive && (
-                                <Badge className="bg-red-500 text-white animate-pulse shrink-0">
-                                  LIVE
-                                </Badge>
-                              )}
-                              {meeting.teams_join_url && (
-                                <Badge className="bg-blue-500 text-white shrink-0">
-                                  <Video className="h-3 w-3 mr-1" />
-                                  Teams
-                                </Badge>
-                              )}
-                              {isDeleting && (
-                                <Badge className="bg-orange-500 text-white shrink-0">
-                                  Deleting...
-                                </Badge>
-                              )}
-                            </CardTitle>
-                            <CardDescription className="mt-2 break-words text-sm">
-                              {meeting.description || 'No description provided'}
-                            </CardDescription>
-                          </div>
-                          <Badge className="bg-green-100 text-green-800 shrink-0 self-start">
-                            {meeting.status || 'scheduled'}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                          <div className="flex items-center space-x-2 min-w-0">
-                            <Calendar className="h-4 w-4 text-gray-500 shrink-0" />
-                            <span className="text-sm break-words">{timeInfo.date}</span>
-                          </div>
-                          <div className="flex items-center space-x-2 min-w-0">
-                            <Clock className="h-4 w-4 text-gray-500 shrink-0" />
-                            <span className="text-sm break-words">{timeInfo.time} ({timeInfo.duration})</span>
-                          </div>
-                          <div className="flex items-center space-x-2 min-w-0">
-                            <Users className="h-4 w-4 text-gray-500 shrink-0" />
-                            <span className="text-sm">{attendeeCount} attendees</span>
-                          </div>
-                          <div className="flex items-center space-x-2 min-w-0">
-                            <Video className="h-4 w-4 text-gray-500 shrink-0" />
-                            <span className="text-sm break-words">{meeting.location || 'No location'}</span>
-                          </div>
-                        </div>
-
-                        <RSVPSelector 
-                          meeting={meeting} 
-                          onResponseUpdate={handleRSVPUpdate}
-                        />
-
-                        {meeting.teams_join_url && (
-                          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                              <div className="flex items-center space-x-2 min-w-0">
-                                <Video className="h-4 w-4 text-blue-600 shrink-0" />
-                                <span className="text-sm font-medium text-blue-800">Teams Meeting Link</span>
-                              </div>
-                              <div className="flex items-center space-x-2 shrink-0">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleCopyJoinUrl(meeting.teams_join_url)}
-                                  className="h-7 px-2 text-blue-600 hover:bg-blue-100"
-                                >
-                                  <Copy className="h-3 w-3 mr-1" />
-                                  Copy
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleJoinNow(meeting)}
-                                  className="h-7 px-2 text-blue-600 hover:bg-blue-100"
-                                >
-                                  <ExternalLink className="h-3 w-3 mr-1" />
-                                  Open
-                                </Button>
-                              </div>
-                            </div>
-                            <p className="text-xs text-blue-600 mt-1 break-all">
-                              {meeting.teams_join_url}
-                            </p>
-                          </div>
-                        )}
-                        
-                        <div className="flex flex-wrap gap-2">
-                          {meeting.teams_join_url && (
-                            <Button 
-                              variant="default" 
-                              size="sm"
-                              onClick={() => handleJoinNow(meeting)}
-                              disabled={isDeleting}
-                              className="bg-blue-600 hover:bg-blue-700 text-white min-h-[40px]"
-                            >
-                              <Video className="h-4 w-4 mr-2" />
-                              Join Meeting
-                            </Button>
-                          )}
-                          
-                          {canDoCheckIn && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleCheckIn(meeting)}
-                              disabled={isDeleting}
-                              className="bg-green-50 hover:bg-green-100 text-green-700 min-h-[40px]"
-                            >
-                              <UserCheck className="h-4 w-4 mr-2" />
-                              Check In
-                            </Button>
-                          )}
-                          
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleViewAgenda(meeting)}
-                            disabled={isDeleting}
-                            className="min-h-[40px]"
-                          >
-                            <FileText className="h-4 w-4 mr-2" />
-                            View Details
-                          </Button>
-
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleViewRSVP(meeting)}
-                            disabled={isDeleting}
-                            className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
-                          >
-                            <CheckSquare className="h-4 w-4 mr-2" />
-                            View RSVP
-                          </Button>
-                          
-                          {canDeleteMeetings && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  disabled={isDeleting}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[40px]"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle className="flex items-center gap-2">
-                                    <AlertTriangle className="h-5 w-5 text-red-500" />
-                                    Delete Meeting from All Platforms?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription className="space-y-2">
-                                    <p>Are you sure you want to delete "<strong>{meeting.title}</strong>"?</p>
-                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
-                                      <p className="font-medium text-yellow-800 mb-1">This action will permanently:</p>
-                                      <ul className="text-yellow-700 space-y-1 ml-4 list-disc">
-                                        <li>Remove the meeting from Microsoft Teams</li>
-                                        <li>Delete the Outlook calendar event</li>
-                                        <li>Remove all attendee records and RSVPs</li>
-                                        <li>Delete meeting attachments and transcripts</li>
-                                        <li>Cannot be undone</li>
-                                      </ul>
-                                    </div>
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteMeeting(meeting.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete from All Platforms
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
+                  return renderMeetingCard(meeting);
                 })}
               </div>
             ) : (
@@ -444,99 +474,7 @@ export const MeetingsModule: React.FC = () => {
             ) : (
               <div className="space-y-4 sm:space-y-6">
                 {pastMeetings.map((meeting) => {
-                  const timeInfo = formatMeetingTime(meeting.start_time, meeting.end_time);
-                  const isDeleting = deletingMeetings.has(meeting.id);
-                  
-                  return (
-                    <Card key={meeting.id} className={`w-full hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50' : ''}`}>
-                      <CardHeader className="pb-3 sm:pb-4">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg sm:text-xl flex flex-wrap items-start gap-2">
-                              <span className="break-words">{meeting.title}</span>
-                              {meeting.teams_join_url && (
-                                <Badge variant="outline" className="bg-blue-50 text-blue-700 shrink-0">
-                                  <Video className="h-3 w-3 mr-1" />
-                                  Teams
-                                </Badge>
-                              )}
-                              {isDeleting && (
-                                <Badge className="bg-orange-500 text-white shrink-0">
-                                  Deleting...
-                                </Badge>
-                              )}
-                            </CardTitle>
-                            <CardDescription className="break-words text-sm">
-                              {timeInfo.date} • {timeInfo.duration}
-                            </CardDescription>
-                          </div>
-                          <Badge variant="secondary" className="shrink-0 self-start">Completed</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-wrap gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleViewAgenda(meeting)}
-                            disabled={isDeleting}
-                            className="min-h-[40px]"
-                          >
-                            <FileText className="h-4 w-4 mr-2" />
-                            View Details
-                          </Button>
-
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleViewRSVP(meeting)}
-                            disabled={isDeleting}
-                            className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
-                          >
-                            <CheckSquare className="h-4 w-4 mr-2" />
-                            View RSVP
-                          </Button>
-
-                          {canDeleteMeetings && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  disabled={isDeleting}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[40px]"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle className="flex items-center gap-2">
-                                    <AlertTriangle className="h-5 w-5 text-red-500" />
-                                    Delete Past Meeting from All Platforms?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to permanently delete the past meeting "<strong>{meeting.title}</strong>"? This will remove all related data including transcripts from all platforms and cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteMeeting(meeting.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete from All Platforms
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
+                  return renderMeetingCard(meeting, true);
                 })}
               </div>
             )}
@@ -553,6 +491,21 @@ export const MeetingsModule: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Deletion Progress Dialog */}
+      <Dialog open={!!showDeletionProgress} onOpenChange={() => setShowDeletionProgress(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Deleting Meeting</DialogTitle>
+          </DialogHeader>
+          {showDeletionProgress && (
+            <MeetingDeletionProgress
+              progress={getDeletionProgress(showDeletionProgress)}
+              meetingTitle={meetings.find(m => m.id === showDeletionProgress)?.title || 'Meeting'}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Dialogs */}
       {canScheduleMeetings && (
@@ -745,3 +698,5 @@ export const MeetingsModule: React.FC = () => {
 };
 
 export default MeetingsModule;
+
+}

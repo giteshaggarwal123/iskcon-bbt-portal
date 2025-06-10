@@ -21,10 +21,16 @@ interface Meeting {
   attendee_count?: number;
 }
 
+interface DeletionProgress {
+  step: string;
+  completed: boolean;
+  error?: string;
+}
+
 export const useMeetings = () => {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deletingMeetings, setDeletingMeetings] = useState<Set<string>>(new Set());
+  const [deletingMeetings, setDeletingMeetings] = useState<Map<string, DeletionProgress[]>>(new Map());
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -415,125 +421,157 @@ export const useMeetings = () => {
       return;
     }
 
+    const meeting = meetings.find(m => m.id === meetingId);
+    if (!meeting) {
+      toast({
+        title: "Meeting Not Found",
+        description: "The meeting you're trying to delete was not found",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (meeting.created_by !== user.id) {
+      toast({
+        title: "Permission Denied",
+        description: "You can only delete meetings you created",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Initialize deletion progress
+    const progress: DeletionProgress[] = [
+      { step: "Preparing deletion", completed: false },
+      { step: "Removing from Microsoft Teams", completed: false },
+      { step: "Deleting Outlook calendar event", completed: false },
+      { step: "Cleaning up attachments", completed: false },
+      { step: "Removing attendee records", completed: false },
+      { step: "Deleting attendance data", completed: false },
+      { step: "Removing transcripts", completed: false },
+      { step: "Finalizing deletion", completed: false }
+    ];
+
+    setDeletingMeetings(prev => new Map(prev.set(meetingId, [...progress])));
+
+    // Optimistically remove from UI
+    setMeetings(prev => prev.filter(m => m.id !== meetingId));
+
     try {
-      console.log('Starting comprehensive deletion process for meeting:', meetingId);
-      
-      const meeting = meetings.find(m => m.id === meetingId);
-      if (!meeting) {
-        toast({
-          title: "Meeting Not Found",
-          description: "The meeting you're trying to delete was not found",
-          variant: "destructive"
-        });
-        return;
-      }
+      console.log(`Starting comprehensive deletion for meeting: ${meetingId}`);
 
-      if (meeting.created_by !== user.id) {
-        toast({
-          title: "Permission Denied",
-          description: "You can only delete meetings you created",
-          variant: "destructive"
-        });
-        return;
-      }
+      // Step 1: Preparation
+      await updateProgress(meetingId, 0, true);
 
-      setDeletingMeetings(prev => new Set(prev).add(meetingId));
-      setMeetings(prev => prev.filter(m => m.id !== meetingId));
-
-      console.log('Meeting removed from UI, proceeding with comprehensive deletion');
-
+      // Step 2: Delete from Microsoft Teams
       if (meeting.teams_meeting_id || meeting.outlook_event_id) {
-        console.log('Attempting to delete from Microsoft services...');
-        
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('microsoft_access_token')
-          .eq('id', user.id)
-          .maybeSingle();
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('microsoft_access_token')
+            .eq('id', user.id)
+            .maybeSingle();
 
-        if (profile?.microsoft_access_token) {
-          try {
+          if (profile?.microsoft_access_token) {
+            // Delete Teams meeting
             if (meeting.teams_meeting_id) {
-              console.log('Deleting Teams meeting:', meeting.teams_meeting_id);
+              console.log(`Deleting Teams meeting: ${meeting.teams_meeting_id}`);
               const teamsResponse = await fetch(`https://graph.microsoft.com/v1.0/me/onlineMeetings/${meeting.teams_meeting_id}`, {
                 method: 'DELETE',
-                headers: {
-                  'Authorization': `Bearer ${profile.microsoft_access_token}`,
-                }
+                headers: { 'Authorization': `Bearer ${profile.microsoft_access_token}` }
               });
               
               if (!teamsResponse.ok && teamsResponse.status !== 404) {
-                console.warn('Failed to delete Teams meeting:', teamsResponse.status, teamsResponse.statusText);
-              } else {
-                console.log('Teams meeting deleted successfully');
+                throw new Error(`Teams deletion failed: ${teamsResponse.statusText}`);
               }
             }
+            await updateProgress(meetingId, 1, true);
 
+            // Delete Outlook event
             if (meeting.outlook_event_id) {
-              console.log('Deleting Outlook event:', meeting.outlook_event_id);
+              console.log(`Deleting Outlook event: ${meeting.outlook_event_id}`);
               const outlookResponse = await fetch(`https://graph.microsoft.com/v1.0/me/events/${meeting.outlook_event_id}`, {
                 method: 'DELETE',
-                headers: {
-                  'Authorization': `Bearer ${profile.microsoft_access_token}`,
-                }
+                headers: { 'Authorization': `Bearer ${profile.microsoft_access_token}` }
               });
               
               if (!outlookResponse.ok && outlookResponse.status !== 404) {
-                console.warn('Failed to delete Outlook event:', outlookResponse.status, outlookResponse.statusText);
-              } else {
-                console.log('Outlook event deleted successfully');
+                throw new Error(`Outlook deletion failed: ${outlookResponse.statusText}`);
               }
             }
-          } catch (microsoftError) {
-            console.error('Error deleting from Microsoft services:', microsoftError);
+            await updateProgress(meetingId, 2, true);
+          } else {
+            // Skip Microsoft services if no token
+            await updateProgress(meetingId, 1, true);
+            await updateProgress(meetingId, 2, true);
           }
+        } catch (error) {
+          console.warn('Microsoft services deletion warning:', error);
+          await updateProgress(meetingId, 1, true, `Warning: ${error}`);
+          await updateProgress(meetingId, 2, true, `Warning: ${error}`);
         }
+      } else {
+        await updateProgress(meetingId, 1, true);
+        await updateProgress(meetingId, 2, true);
       }
 
-      console.log('Deleting related database records...');
+      // Step 3: Delete attachments
+      console.log('Deleting meeting attachments...');
+      const { error: attachmentsError } = await supabase
+        .from('meeting_attachments')
+        .delete()
+        .eq('meeting_id', meetingId);
       
-      try {
-        const { error: attachmentsError } = await supabase
-          .from('meeting_attachments')
-          .delete()
-          .eq('meeting_id', meetingId);
-
-        if (attachmentsError) {
-          console.warn('Error deleting meeting attachments:', attachmentsError);
-        }
-
-        const { error: attendanceError } = await supabase
-          .from('attendance_records')
-          .delete()
-          .eq('meeting_id', meetingId);
-
-        if (attendanceError) {
-          console.warn('Error deleting attendance records:', attendanceError);
-        }
-
-        const { error: attendeesError } = await supabase
-          .from('meeting_attendees')
-          .delete()
-          .eq('meeting_id', meetingId);
-
-        if (attendeesError) {
-          console.warn('Error deleting meeting attendees:', attendeesError);
-        }
-
-        const { error: transcriptsError } = await supabase
-          .from('meeting_transcripts')
-          .delete()
-          .eq('meeting_id', meetingId);
-
-        if (transcriptsError) {
-          console.warn('Error deleting meeting transcripts:', transcriptsError);
-        }
-
-        console.log('All related records deleted successfully');
-      } catch (relatedError) {
-        console.error('Error deleting related records:', relatedError);
+      if (attachmentsError) {
+        console.warn('Attachments deletion warning:', attachmentsError);
+        await updateProgress(meetingId, 3, true, `Warning: ${attachmentsError.message}`);
+      } else {
+        await updateProgress(meetingId, 3, true);
       }
 
+      // Step 4: Delete attendee records
+      console.log('Deleting meeting attendees...');
+      const { error: attendeesError } = await supabase
+        .from('meeting_attendees')
+        .delete()
+        .eq('meeting_id', meetingId);
+      
+      if (attendeesError) {
+        console.warn('Attendees deletion warning:', attendeesError);
+        await updateProgress(meetingId, 4, true, `Warning: ${attendeesError.message}`);
+      } else {
+        await updateProgress(meetingId, 4, true);
+      }
+
+      // Step 5: Delete attendance records
+      console.log('Deleting attendance records...');
+      const { error: attendanceError } = await supabase
+        .from('attendance_records')
+        .delete()
+        .eq('meeting_id', meetingId);
+      
+      if (attendanceError) {
+        console.warn('Attendance deletion warning:', attendanceError);
+        await updateProgress(meetingId, 5, true, `Warning: ${attendanceError.message}`);
+      } else {
+        await updateProgress(meetingId, 5, true);
+      }
+
+      // Step 6: Delete transcripts
+      console.log('Deleting meeting transcripts...');
+      const { error: transcriptsError } = await supabase
+        .from('meeting_transcripts')
+        .delete()
+        .eq('meeting_id', meetingId);
+      
+      if (transcriptsError) {
+        console.warn('Transcripts deletion warning:', transcriptsError);
+        await updateProgress(meetingId, 6, true, `Warning: ${transcriptsError.message}`);
+      } else {
+        await updateProgress(meetingId, 6, true);
+      }
+
+      // Step 7: Delete main meeting record
       console.log('Deleting main meeting record...');
       const { error: meetingError } = await supabase
         .from('meetings')
@@ -543,37 +581,81 @@ export const useMeetings = () => {
 
       if (meetingError) {
         console.error('Failed to delete meeting from database:', meetingError);
-        setMeetings(prev => [...prev, meeting].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
+        // Restore meeting to UI if database deletion fails
+        setMeetings(prev => [...prev, meeting].sort((a, b) => 
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        ));
         throw new Error(`Database deletion failed: ${meetingError.message}`);
       }
 
-      console.log('Meeting successfully deleted from database');
+      await updateProgress(meetingId, 7, true);
 
+      console.log('Meeting successfully deleted from all platforms');
       toast({
         title: "Meeting Deleted Successfully",
-        description: `"${meeting.title}" and all related data have been permanently removed from all platforms`,
+        description: `"${meeting.title}" has been permanently removed from all platforms`,
       });
+
+      // Clear deletion progress after success
+      setTimeout(() => {
+        setDeletingMeetings(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(meetingId);
+          return newMap;
+        });
+      }, 2000);
 
     } catch (error: any) {
       console.error('Error in comprehensive meeting deletion:', error);
       
-      const meeting = meetings.find(m => m.id === meetingId);
-      if (meeting) {
-        setMeetings(prev => [...prev, meeting].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
-      }
+      // Restore meeting to UI on error
+      setMeetings(prev => [...prev, meeting].sort((a, b) => 
+        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      ));
       
       toast({
         title: "Delete Failed",
-        description: error.message || "Failed to delete meeting from all platforms. Please try again.",
+        description: error.message || "Failed to delete meeting completely. Please try again.",
         variant: "destructive"
       });
-    } finally {
+
+      // Clear deletion progress after error
       setDeletingMeetings(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(meetingId);
-        return newSet;
+        const newMap = new Map(prev);
+        newMap.delete(meetingId);
+        return newMap;
       });
     }
+  };
+
+  const updateProgress = async (meetingId: string, stepIndex: number, completed: boolean, error?: string) => {
+    setDeletingMeetings(prev => {
+      const newMap = new Map(prev);
+      const currentProgress = newMap.get(meetingId) || [];
+      const updatedProgress = [...currentProgress];
+      
+      if (updatedProgress[stepIndex]) {
+        updatedProgress[stepIndex] = { 
+          ...updatedProgress[stepIndex], 
+          completed, 
+          error 
+        };
+      }
+      
+      newMap.set(meetingId, updatedProgress);
+      return newMap;
+    });
+
+    // Small delay to show progress visually
+    await new Promise(resolve => setTimeout(resolve, 300));
+  };
+
+  const getDeletionProgress = (meetingId: string) => {
+    return deletingMeetings.get(meetingId) || [];
+  };
+
+  const isDeletingMeeting = (meetingId: string) => {
+    return deletingMeetings.has(meetingId);
   };
 
   const deletePastMeeting = async (meetingId: string) => {
@@ -652,11 +734,13 @@ export const useMeetings = () => {
   return {
     meetings,
     loading,
-    deletingMeetings,
+    deletingMeetings: deletingMeetings,
     createMeeting,
     deleteMeeting,
     deletePastMeeting,
     fetchMeetings,
-    autoSaveTranscript
+    autoSaveTranscript,
+    getDeletionProgress,
+    isDeletingMeeting
   };
 };
