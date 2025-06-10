@@ -51,8 +51,8 @@ export const DocumentUploadDialog: React.FC<DocumentUploadDialogProps> = ({
   return (
     <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
       <DialogTrigger asChild>
-        <Button className="flex items-center space-x-2">
-          <Plus className="h-4 w-4" />
+        <Button className="w-full sm:w-auto justify-center">
+          <Plus className="h-4 w-4 mr-2" />
           <span>Upload Document</span>
         </Button>
       </DialogTrigger>

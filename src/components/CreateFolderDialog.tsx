@@ -61,7 +61,7 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" className="w-full sm:w-auto justify-center">
           <Plus className="h-4 w-4 mr-2" />
           New Folder
         </Button>
