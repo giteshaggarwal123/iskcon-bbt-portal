@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -238,6 +237,9 @@ export const usePolls = () => {
     if (!user) return null;
 
     try {
+      // Ensure bucket exists
+      await ensurePollAttachmentsBucketExists();
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${pollId}/${fileName}`;
@@ -283,6 +285,50 @@ export const usePolls = () => {
       console.error('Error uploading attachment:', error);
       toast.error('Failed to upload attachment');
       return null;
+    }
+  };
+
+  const ensurePollAttachmentsBucketExists = async () => {
+    try {
+      // Check if bucket exists
+      const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+      
+      if (listError) {
+        console.error('Error listing buckets:', listError);
+        return;
+      }
+
+      const bucketExists = buckets?.some(bucket => bucket.id === 'poll-attachments');
+      
+      if (!bucketExists) {
+        console.log('Creating poll-attachments bucket...');
+        const { error: createError } = await supabase.storage.createBucket('poll-attachments', {
+          public: true,
+          fileSizeLimit: 52428800, // 50MB
+          allowedMimeTypes: [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'image/webp',
+            'text/plain'
+          ]
+        });
+
+        if (createError) {
+          console.error('Error creating bucket:', createError);
+        } else {
+          console.log('Poll-attachments bucket created successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Error ensuring bucket exists:', error);
     }
   };
 
@@ -353,42 +399,22 @@ export const usePolls = () => {
         return;
       }
 
-      // Legacy support for old file paths - try to download from storage
-      console.log('Attempting legacy storage download');
-      const { data, error } = await supabase.storage
+      // For legacy paths, try to construct public URL
+      console.log('Constructing public URL for legacy path');
+      const { data: { publicUrl } } = supabase.storage
         .from('poll-attachments')
-        .download(filePath);
-
-      if (error) {
-        console.error('Storage download error:', error);
-        // If storage download fails, try to construct public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('poll-attachments')
-          .getPublicUrl(filePath);
-        
-        console.log('Trying constructed public URL:', publicUrl);
-        const a = document.createElement('a');
-        a.href = publicUrl;
-        a.download = fileName;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        toast.success(`Download started: ${fileName}`);
-        return;
-      }
-
-      // Create download link from blob
-      const url = URL.createObjectURL(data);
+        .getPublicUrl(filePath);
+      
+      console.log('Constructed public URL:', publicUrl);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = publicUrl;
       a.download = fileName;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success(`Downloaded: ${fileName}`);
+      toast.success(`Download started: ${fileName}`);
     } catch (error) {
       console.error('Error downloading attachment:', error);
       toast.error('Failed to download attachment');
