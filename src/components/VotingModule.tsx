@@ -1,13 +1,15 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Vote, Check, Plus, Calendar, Users, FileText, Edit, Trash2, Eye } from 'lucide-react';
+import { Vote, Check, Plus, Calendar, Users, FileText, Edit, Trash2, Eye, RefreshCw } from 'lucide-react';
 import { CreatePollDialog } from './CreatePollDialog';
 import { VotingDialog } from './VotingDialog';
 import { PollResultsDialog } from './PollResultsDialog';
 import { EditPollDialog } from './EditPollDialog';
+import { ReopenPollDialog } from './ReopenPollDialog';
 import { usePolls } from '@/hooks/usePolls';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +20,7 @@ export const VotingModule: React.FC = () => {
   const [showVotingDialog, setShowVotingDialog] = useState(false);
   const [showResultsDialog, setShowResultsDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showReopenDialog, setShowReopenDialog] = useState(false);
   const [selectedPoll, setSelectedPoll] = useState<any>(null);
   
   const { polls, loading, deletePoll, updatePollStatus } = usePolls();
@@ -49,6 +52,19 @@ export const VotingModule: React.FC = () => {
     }
     setSelectedPoll(poll);
     setShowEditDialog(true);
+  };
+
+  const handleReopenPoll = (poll: any) => {
+    if (!userRole.canEditVoting) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to reopen polls",
+        variant: "destructive"
+      });
+      return;
+    }
+    setSelectedPoll(poll);
+    setShowReopenDialog(true);
   };
 
   const handleDeletePoll = async (pollId: string) => {
@@ -248,7 +264,7 @@ export const VotingModule: React.FC = () => {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <Button 
                           variant="outline" 
                           onClick={() => handleViewResults(poll)}
@@ -256,6 +272,17 @@ export const VotingModule: React.FC = () => {
                           <Eye className="h-4 w-4 mr-2" />
                           View Results
                         </Button>
+                        
+                        {userRole.canEditVoting && (
+                          <Button 
+                            variant="outline" 
+                            onClick={() => handleReopenPoll(poll)}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Reopen Poll
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -287,11 +314,19 @@ export const VotingModule: React.FC = () => {
       />
       
       {userRole.canEditVoting && (
-        <EditPollDialog 
-          open={showEditDialog} 
-          onOpenChange={setShowEditDialog}
-          poll={selectedPoll}
-        />
+        <>
+          <EditPollDialog 
+            open={showEditDialog} 
+            onOpenChange={setShowEditDialog}
+            poll={selectedPoll}
+          />
+          
+          <ReopenPollDialog 
+            open={showReopenDialog} 
+            onOpenChange={setShowReopenDialog}
+            poll={selectedPoll}
+          />
+        </>
       )}
     </div>
   );

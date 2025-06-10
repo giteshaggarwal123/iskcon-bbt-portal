@@ -326,6 +326,55 @@ export const usePolls = () => {
     }
   };
 
+  const reopenPoll = async (pollId: string) => {
+    try {
+      const { error } = await supabase.rpc('reopen_poll', {
+        poll_id_param: pollId
+      });
+
+      if (error) throw error;
+
+      toast.success('Poll reopened successfully');
+      await fetchPolls();
+    } catch (error) {
+      console.error('Error reopening poll:', error);
+      toast.error('Failed to reopen poll');
+    }
+  };
+
+  const resetUserVotes = async (pollId: string, userId: string) => {
+    try {
+      const { error } = await supabase.rpc('reset_user_poll_votes', {
+        poll_id_param: pollId,
+        user_id_param: userId
+      });
+
+      if (error) throw error;
+
+      toast.success('User votes reset successfully');
+      await fetchPolls();
+    } catch (error) {
+      console.error('Error resetting user votes:', error);
+      toast.error('Failed to reset user votes');
+    }
+  };
+
+  const resetAllVotes = async (pollId: string) => {
+    try {
+      const { error } = await supabase.rpc('reset_all_poll_votes', {
+        poll_id_param: pollId
+      });
+
+      if (error) throw error;
+
+      toast.success('All votes reset successfully');
+      await fetchPolls();
+    } catch (error) {
+      console.error('Error resetting all votes:', error);
+      toast.error('Failed to reset all votes');
+    }
+  };
+
   useEffect(() => {
     fetchPolls();
   }, []);
@@ -338,6 +387,9 @@ export const usePolls = () => {
     deletePoll,
     updatePollStatus,
     downloadAttachment,
+    reopenPoll,
+    resetUserVotes,
+    resetAllVotes,
     refetch: fetchPolls
   };
 };

@@ -921,6 +921,18 @@ export type Database = {
         Args: { _document_id: string; _deleted_by: string }
         Returns: undefined
       }
+      reopen_poll: {
+        Args: { poll_id_param: string }
+        Returns: undefined
+      }
+      reset_all_poll_votes: {
+        Args: { poll_id_param: string }
+        Returns: undefined
+      }
+      reset_user_poll_votes: {
+        Args: { poll_id_param: string; user_id_param: string }
+        Returns: undefined
+      }
       restore_from_recycle_bin: {
         Args: { _recycle_bin_id: string }
         Returns: undefined
