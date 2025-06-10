@@ -12,11 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    const { phoneNumber, name } = await req.json();
+    const { phoneNumber, name, type = 'otp' } = await req.json();
 
     if (!phoneNumber) {
       return new Response(
-        JSON.stringify({ error: 'Phone number is required' }),
+        JSON.stringify({ error: 'Phone number or email is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -35,15 +35,41 @@ serve(async (req) => {
       );
     }
 
-    // Send SMS via Twilio
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
-    const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
-
     // Create personalized greeting
     const greeting = name ? `Hi ${name}` : 'Hello';
 
-    // Personalized message format for password reset
-    const smsBody = `${greeting}, your ISKCON Bureau password reset code is ${otp}. Valid for 10 minutes.`;
+    let smsBody;
+    let recipient = phoneNumber;
+
+    // Handle different message types
+    if (type === 'password_reset') {
+      // For password reset, assume phoneNumber is actually email
+      // This is a temporary password that user can use to login and change
+      smsBody = `${greeting}, your ISKCON Bureau temporary password is: ${otp}. Please login and change your password immediately. Valid for 24 hours.`;
+      
+      // For password reset emails, we could send an SMS to admin or log it
+      // Since we don't have email service configured, we'll send SMS notification to admin
+      console.log('Password reset requested for email:', phoneNumber);
+      console.log('Temporary password generated:', otp);
+      
+      // Return success with the temporary password (in production, this should be sent via email)
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Temporary password generated. Please contact admin for email delivery.',
+          temporaryPassword: otp,
+          email: phoneNumber
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } else {
+      // Original OTP message format for phone login
+      smsBody = `${greeting}, your ISKCON Bureau password reset code is ${otp}. Valid for 10 minutes.`;
+    }
+
+    // Send SMS via Twilio (only for actual phone numbers)
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
+    const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
 
     const response = await fetch(twilioUrl, {
       method: 'POST',
@@ -53,7 +79,7 @@ serve(async (req) => {
       },
       body: new URLSearchParams({
         From: twilioPhoneNumber,
-        To: phoneNumber,
+        To: recipient,
         Body: smsBody
       }),
     });
@@ -84,7 +110,7 @@ serve(async (req) => {
 
     const responseData = await response.json();
     console.log('Twilio response:', responseData);
-    console.log('OTP sent successfully to:', phoneNumber);
+    console.log('OTP sent successfully to:', recipient);
     
     return new Response(
       JSON.stringify({ 

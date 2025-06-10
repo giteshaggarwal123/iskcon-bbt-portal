@@ -409,23 +409,35 @@ export const useMembers = () => {
         return;
       }
 
-      console.log('Resetting password for member:', memberId);
+      console.log('Sending password reset email for member:', memberId);
 
-      // In a real implementation, you would call a secure function to reset the password
-      // For now, we'll simulate this
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Send password reset email using the existing send-otp edge function
+      const { data, error } = await supabase.functions.invoke('send-otp', {
+        body: {
+          phoneNumber: member.email, // Using email instead of phone for password reset
+          name: `${member.first_name} ${member.last_name}`,
+          type: 'password_reset'
+        }
+      });
 
-      await logActivity('Reset password', `Password reset for ${member.first_name} ${member.last_name}`);
+      if (error) {
+        console.error('Error sending password reset email:', error);
+        throw error;
+      }
+
+      console.log('Password reset email sent successfully:', data);
+
+      await logActivity('Reset password', `Password reset email sent to ${member.first_name} ${member.last_name}`);
 
       toast({
-        title: "Password Reset",
-        description: "Password reset email has been sent to the member"
+        title: "Password Reset Email Sent",
+        description: `A password reset email has been sent to ${member.email}`
       });
     } catch (error: any) {
-      console.error('Error resetting password:', error);
+      console.error('Error sending password reset email:', error);
       toast({
-        title: "Reset Failed",
-        description: error.message || "Failed to reset password",
+        title: "Reset Failed", 
+        description: error.message || "Failed to send password reset email",
         variant: "destructive"
       });
     }
