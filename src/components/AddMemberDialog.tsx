@@ -153,8 +153,6 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenCh
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="secretary">Secretary</SelectItem>
-                  <SelectItem value="treasurer">Treasurer</SelectItem>
                   <SelectItem value="member">Member</SelectItem>
                 </SelectContent>
               </Select>

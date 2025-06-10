@@ -224,8 +224,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span className={`text-xs px-2 py-1 rounded ml-2 flex-shrink-0 ${
                       userRole.isSuperAdmin ? 'bg-red-100 text-red-700' :
                       userRole.isAdmin ? 'bg-blue-100 text-blue-700' :
-                      userRole.isSecretary ? 'bg-green-100 text-green-700' :
-                      userRole.isTreasurer ? 'bg-yellow-100 text-yellow-700' :
                       'bg-gray-100 text-gray-700'
                     }`}>
                       {userRole.userRole.replace('_', ' ')}

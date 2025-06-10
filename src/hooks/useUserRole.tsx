@@ -3,14 +3,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
-export type UserRole = 'super_admin' | 'admin' | 'secretary' | 'treasurer' | 'member';
+export type UserRole = 'super_admin' | 'admin' | 'member';
 
 interface UseUserRoleReturn {
   userRole: UserRole | null;
   isSuperAdmin: boolean;
   isAdmin: boolean;
-  isSecretary: boolean;
-  isTreasurer: boolean;
   isMember: boolean;
   loading: boolean;
   canManageMembers: boolean;
@@ -85,7 +83,13 @@ export const useUserRole = (): UseUserRoleReturn => {
           console.error('Error fetching user role:', error);
           setUserRole('member'); // Default to member if no role found
         } else {
-          setUserRole(data.role as UserRole);
+          // Convert legacy roles to member
+          const role = data.role as string;
+          if (role === 'secretary' || role === 'treasurer') {
+            setUserRole('member');
+          } else {
+            setUserRole(data.role as UserRole);
+          }
         }
       } catch (error) {
         console.error('Error in fetchUserRole:', error);
@@ -100,35 +104,33 @@ export const useUserRole = (): UseUserRoleReturn => {
 
   const isSuperAdmin = userRole === 'super_admin';
   const isAdmin = userRole === 'admin' || isSuperAdmin;
-  const isSecretary = userRole === 'secretary' || isAdmin;
-  const isTreasurer = userRole === 'treasurer' || isAdmin;
-  const isMember = userRole === 'member' || isSecretary || isTreasurer || isAdmin || isSuperAdmin;
+  const isMember = userRole === 'member' || isAdmin || isSuperAdmin;
 
-  // Restricted permissions for member role
-  const canManageMembers = isSuperAdmin || isAdmin || isSecretary || isTreasurer; // Members can't see members screen
-  const canManageMeetings = isSuperAdmin || isAdmin || isSecretary;
-  const canManageDocuments = isSuperAdmin || isAdmin || isSecretary;
-  const canViewReports = isSuperAdmin || isAdmin || isTreasurer;
+  // Updated permissions for simplified role structure
+  const canManageMembers = isSuperAdmin || isAdmin; // Only admins can manage members
+  const canManageMeetings = isSuperAdmin || isAdmin; // Only admins can manage meetings
+  const canManageDocuments = isSuperAdmin || isAdmin; // Only admins can manage documents
+  const canViewReports = isSuperAdmin || isAdmin; // Only admins can view reports
   const canManageSettings = true; // All members can access settings
   
   // Content permissions
-  const canCreateContent = isSuperAdmin || isAdmin || isSecretary;
-  const canDeleteContent = isSuperAdmin || isAdmin;
-  const canEditContent = isSuperAdmin || isAdmin || isSecretary;
+  const canCreateContent = isSuperAdmin || isAdmin; // Only admins can create content
+  const canDeleteContent = isSuperAdmin || isAdmin; // Only admins can delete content
+  const canEditContent = isSuperAdmin || isAdmin; // Only admins can edit content
 
   // Enhanced user management permissions
   const canEditAllUserInfo = isSuperAdmin;
   const canEditUserRoles = isSuperAdmin || isAdmin;
   const canDeleteUsers = isSuperAdmin || isAdmin;
   const canEditPhoneNumbers = isSuperAdmin || isAdmin;
-  const canViewMemberSettings = isSuperAdmin || isAdmin || isSecretary;
+  const canViewMemberSettings = isSuperAdmin || isAdmin;
 
-  // New specific permissions for members
-  const canViewMembers = isSuperAdmin || isAdmin || isSecretary || isTreasurer; // Members can't see members screen
-  const canScheduleMeetings = isSuperAdmin || isAdmin || isSecretary; // Members can't schedule meetings
-  const canDeleteMeetings = isSuperAdmin || isAdmin || isSecretary; // Members can't delete meetings
-  const canEditVoting = isSuperAdmin || isAdmin || isSecretary; // Members can't edit active voting
-  const canCreateVoting = isSuperAdmin || isAdmin || isSecretary; // Members can't create voting
+  // Specific permissions for members
+  const canViewMembers = isSuperAdmin || isAdmin; // Only admins can see members screen
+  const canScheduleMeetings = isSuperAdmin || isAdmin; // Only admins can schedule meetings
+  const canDeleteMeetings = isSuperAdmin || isAdmin; // Only admins can delete meetings
+  const canEditVoting = isSuperAdmin || isAdmin; // Only admins can edit active voting
+  const canCreateVoting = isSuperAdmin || isAdmin; // Only admins can create voting
   const canVoteOnly = userRole === 'member'; // Members can only vote
   const canMarkAttendanceOnly = userRole === 'member'; // Members can only mark attendance
 
@@ -136,8 +138,6 @@ export const useUserRole = (): UseUserRoleReturn => {
     userRole,
     isSuperAdmin,
     isAdmin,
-    isSecretary,
-    isTreasurer,
     isMember,
     loading,
     canManageMembers,

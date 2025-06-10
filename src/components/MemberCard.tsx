@@ -67,8 +67,6 @@ export const MemberCard: React.FC<MemberCardProps> = ({
     const roleColors: { [key: string]: string } = {
       'super_admin': 'bg-red-500 text-white',
       'admin': 'bg-blue-500 text-white',
-      'secretary': 'bg-green-500 text-white',
-      'treasurer': 'bg-yellow-500 text-white',
       'member': 'bg-gray-500 text-white'
     };
     return <Badge className={roleColors[role] || 'bg-gray-500 text-white'}>
@@ -76,8 +74,9 @@ export const MemberCard: React.FC<MemberCardProps> = ({
     </Badge>;
   };
 
-  // For super admin detection, check email first
-  const actualRole = member.email === 'cs@iskconbureau.in' ? 'super_admin' : (member.roles[0] || 'admin');
+  // For super admin detection, check email first, convert legacy roles to member
+  const rawRole = member.email === 'cs@iskconbureau.in' ? 'super_admin' : (member.roles[0] || 'admin');
+  const actualRole = (rawRole === 'secretary' || rawRole === 'treasurer') ? 'member' : rawRole;
   const joinDate = new Date(member.created_at).toLocaleDateString();
 
   const handleDeleteMember = () => {
@@ -102,7 +101,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({
     }
   };
 
-  // Enhanced permission logic for admin accounts
+  // Enhanced permission logic for simplified role structure
   const canChangeRole = userRole.isSuperAdmin && member.email !== 'cs@iskconbureau.in';
   const canDeleteMember = userRole.isSuperAdmin && member.email !== 'cs@iskconbureau.in';
   const canViewSettings = true; // Both admins can view settings
@@ -179,8 +178,6 @@ export const MemberCard: React.FC<MemberCardProps> = ({
                       <SelectItem value="super_admin">Super Admin</SelectItem>
                     )}
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="secretary">Secretary</SelectItem>
-                    <SelectItem value="treasurer">Treasurer</SelectItem>
                     <SelectItem value="member">Member</SelectItem>
                   </SelectContent>
                 </Select>

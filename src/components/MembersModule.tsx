@@ -46,18 +46,6 @@ export const MembersModule: React.FC = () => {
       memberCount: members.filter(m => m.roles.includes('admin')).length
     },
     {
-      name: 'Secretary',
-      description: 'Administrative access and meeting management',
-      permissions: ['Meeting Management', 'Document Management', 'User Management'],
-      memberCount: members.filter(m => m.roles.includes('secretary')).length
-    },
-    {
-      name: 'Treasurer',
-      description: 'Financial management and reporting',
-      permissions: ['Financial Reports', 'Budget Management', 'Expense Tracking'],
-      memberCount: members.filter(m => m.roles.includes('treasurer')).length
-    },
-    {
       name: 'Member',
       description: 'Standard member access',
       permissions: ['Meeting Access', 'Document View', 'Voting'],
