@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { User, Bell, Settings, Mail, Save, MessageCircle, Shield, Lock, Camera } from 'lucide-react';
+import { User, Bell, Settings, Mail, Save, MessageCircle, Shield, Lock, Camera, Send } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useProfile } from '@/hooks/useProfile';
@@ -16,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { MicrosoftOAuthButton } from './MicrosoftOAuthButton';
 import { Badge } from '@/components/ui/badge';
 import { ProfileImageUpload } from './ProfileImageUpload';
+import { SentMessagesTab } from './SentMessagesTab';
 
 interface SettingsModuleProps {
   onAvatarUpdate?: () => void;
@@ -146,14 +148,15 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({ onAvatarUpdate }
           recipients: ['admin@iskcon.org'],
           subject: 'Contact Administrator Request',
           body: `Message from ${personalInfo.first_name} ${personalInfo.last_name} (${personalInfo.email}):\n\n${contactMessage}`,
-          status: 'draft'
+          status: 'sent',
+          sent_at: new Date().toISOString()
         });
 
       if (error) throw error;
 
       toast({
         title: "Message Sent",
-        description: "Your message has been sent to the administrator."
+        description: "Your message has been sent to the administrator. You can view it in the 'Sent Messages' tab."
       });
       
       setContactMessage('');
@@ -236,7 +239,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({ onAvatarUpdate }
                       Cancel
                     </Button>
                     <Button onClick={handleContactAdministrator} disabled={loading} className="w-full sm:w-auto">
-                      <Mail className="h-4 w-4 mr-2" />
+                      <Send className="h-4 w-4 mr-2" />
                       {loading ? 'Sending...' : 'Send Message'}
                     </Button>
                   </div>
@@ -248,9 +251,12 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({ onAvatarUpdate }
 
         {/* Tabs Section - Mobile Optimized */}
         <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
-          <TabsList className="w-full grid grid-cols-2 h-10">
+          <TabsList className="w-full grid grid-cols-3 h-10">
             <TabsTrigger value="profile" className="text-xs sm:text-sm truncate">
               Profile & Account
+            </TabsTrigger>
+            <TabsTrigger value="messages" className="text-xs sm:text-sm truncate">
+              Sent Messages
             </TabsTrigger>
             <TabsTrigger value="integrations" className="text-xs sm:text-sm truncate">
               Integrations
@@ -445,6 +451,10 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({ onAvatarUpdate }
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="messages" className="mt-0">
+            <SentMessagesTab />
           </TabsContent>
 
           <TabsContent value="integrations" className="mt-0">
