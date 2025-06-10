@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { DocumentAnalytics } from './DocumentAnalytics';
+import { useAnalyticsTracking } from '@/hooks/useAnalyticsTracking';
 
 interface ViewAgendaDialogProps {
   open: boolean;
@@ -120,8 +120,46 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
     }
   };
 
-  const handleFileDownload = async (file: MeetingFile) => {
+  const handleFileView = async (file: MeetingFile) => {
+    const { trackView } = useAnalyticsTracking({
+      documentId: file.id,
+      documentType: 'meeting_attachment'
+    });
+
     try {
+      // Track the view first
+      await trackView();
+
+      const { data, error } = await supabase.storage
+        .from('meeting-attachments')
+        .createSignedUrl(file.file_path, 3600); // 1 hour expiry
+
+      if (error) throw error;
+
+      window.open(data.signedUrl, '_blank');
+
+      // Refresh the file list to show updated counts
+      fetchMeetingFiles();
+    } catch (error: any) {
+      console.error('Error viewing file:', error);
+      toast({
+        title: "View Failed",
+        description: error.message || "Failed to view file",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleFileDownload = async (file: MeetingFile) => {
+    const { trackDownload } = useAnalyticsTracking({
+      documentId: file.id,
+      documentType: 'meeting_attachment'
+    });
+
+    try {
+      // Track the download first
+      await trackDownload();
+
       const { data, error } = await supabase.storage
         .from('meeting-attachments')
         .download(file.file_path);
@@ -138,45 +176,13 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      // Update download count
-      await (supabase as any)
-        .from('meeting_attachments')
-        .update({ download_count: (file.download_count || 0) + 1 })
-        .eq('id', file.id);
-
+      // Refresh the file list to show updated counts
       fetchMeetingFiles();
     } catch (error: any) {
       console.error('Error downloading file:', error);
       toast({
         title: "Download Failed",
         description: error.message || "Failed to download file",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleFileView = async (file: MeetingFile) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from('meeting-attachments')
-        .createSignedUrl(file.file_path, 3600); // 1 hour expiry
-
-      if (error) throw error;
-
-      window.open(data.signedUrl, '_blank');
-
-      // Update view count
-      await (supabase as any)
-        .from('meeting_attachments')
-        .update({ view_count: (file.view_count || 0) + 1 })
-        .eq('id', file.id);
-
-      fetchMeetingFiles();
-    } catch (error: any) {
-      console.error('Error viewing file:', error);
-      toast({
-        title: "View Failed",
-        description: error.message || "Failed to view file",
         variant: "destructive"
       });
     }
@@ -401,6 +407,7 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
                       <DocumentAnalytics
                         documentId={file.id}
                         documentName={file.name}
+                        documentType="meeting_attachment"
                       />
                       <Button
                         size="sm"

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,7 @@ import { FileText, Download, Eye, File } from 'lucide-react';
 import { PollAttachment } from '@/hooks/usePolls';
 import { usePolls } from '@/hooks/usePolls';
 import { DocumentAnalytics } from './DocumentAnalytics';
+import { useAnalyticsTracking } from '@/hooks/useAnalyticsTracking';
 
 interface PollAttachmentsProps {
   attachments: PollAttachment[];
@@ -56,12 +56,38 @@ export const PollAttachments: React.FC<PollAttachmentsProps> = ({
   };
 
   const handleDownload = async (attachment: PollAttachment) => {
-    await downloadAttachment(attachment.file_path, attachment.file_name);
+    const { trackDownload } = useAnalyticsTracking({
+      documentId: attachment.id,
+      documentType: 'poll_attachment'
+    });
+
+    try {
+      // Track the download first
+      await trackDownload();
+      
+      // Then perform the actual download
+      await downloadAttachment(attachment.file_path, attachment.file_name);
+    } catch (error) {
+      console.error('Error downloading attachment:', error);
+    }
   };
 
-  const handleView = (attachment: PollAttachment) => {
-    if (onViewDocument) {
-      onViewDocument(attachment);
+  const handleView = async (attachment: PollAttachment) => {
+    const { trackView } = useAnalyticsTracking({
+      documentId: attachment.id,
+      documentType: 'poll_attachment'
+    });
+
+    try {
+      // Track the view first
+      await trackView();
+      
+      // Then perform the actual view
+      if (onViewDocument) {
+        onViewDocument(attachment);
+      }
+    } catch (error) {
+      console.error('Error viewing attachment:', error);
     }
   };
 
@@ -115,6 +141,14 @@ export const PollAttachments: React.FC<PollAttachmentsProps> = ({
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {formatFileSize(attachment.file_size)}
+                      </span>
+                      <span className="text-xs text-muted-foreground flex items-center space-x-1">
+                        <Eye className="h-3 w-3" />
+                        <span>{attachment.view_count || 0}</span>
+                      </span>
+                      <span className="text-xs text-muted-foreground flex items-center space-x-1">
+                        <Download className="h-3 w-3" />
+                        <span>{attachment.download_count || 0}</span>
                       </span>
                     </div>
                   </div>

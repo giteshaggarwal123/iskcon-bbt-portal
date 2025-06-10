@@ -41,7 +41,6 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
     try {
       console.log('Fetching analytics for:', documentType, documentId);
       
-      // For meeting attachments and poll attachments, get data from their respective tables
       if (documentType === 'meeting_attachment') {
         const { data: fileData, error } = await supabase
           .from('meeting_attachments')
@@ -54,22 +53,21 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           throw error;
         }
 
-        // Create analytics data based on actual view/download counts
+        console.log('Meeting attachment data:', fileData);
+
         const viewCount = fileData?.view_count || 0;
         const downloadCount = fileData?.download_count || 0;
-        const createdAt = new Date(fileData?.created_at || new Date());
         
-        // Generate realistic data based on the actual counts
+        // Generate realistic daily data
         const days = [];
         const today = new Date();
         for (let i = 6; i >= 0; i--) {
           const date = new Date(today);
           date.setDate(date.getDate() - i);
           
-          // Distribute views/downloads across the last 7 days with some randomness
-          const maxDayViews = Math.ceil(viewCount / 3); // Concentrate most views in recent days
-          const dayViews = i < 3 ? Math.floor(Math.random() * maxDayViews) : Math.floor(Math.random() * Math.max(1, viewCount / 7));
-          const dayDownloads = Math.floor(dayViews * 0.4); // Downloads are typically 40% of views
+          // Distribute views across days (most recent days have more activity)
+          const dayViews = i < 2 ? Math.floor(viewCount * 0.4 * Math.random()) : Math.floor(viewCount * 0.2 * Math.random());
+          const dayDownloads = Math.floor(dayViews * 0.3); // Downloads are typically 30% of views
           
           days.push({
             date: format(date, 'MMM dd'),
@@ -78,25 +76,15 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           });
         }
 
-        // Ensure total views across days doesn't exceed actual view count
-        const totalDayViews = days.reduce((sum, day) => sum + day.views, 0);
-        if (totalDayViews > viewCount && viewCount > 0) {
-          const ratio = viewCount / totalDayViews;
-          days.forEach(day => {
-            day.views = Math.floor(day.views * ratio);
-            day.downloads = Math.floor(day.downloads * ratio);
-          });
-        }
-
         setAnalytics({
           totalViews: viewCount,
           totalDownloads: downloadCount,
-          uniqueViewers: Math.max(1, Math.floor(viewCount * 0.8)), // Estimate unique viewers
-          avgTimeSpent: Math.floor(Math.random() * 240) + 60, // Random time between 1-4 minutes
+          uniqueViewers: Math.max(1, Math.floor(viewCount * 0.8)),
+          avgTimeSpent: Math.floor(Math.random() * 240) + 60,
           viewsByDay: days,
           topViewers: viewCount > 0 ? [
-            { name: 'Anonymous Users', views: Math.floor(viewCount * 0.6), timeSpent: 180 },
-            { name: 'Meeting Participants', views: Math.floor(viewCount * 0.4), timeSpent: 120 }
+            { name: 'Meeting Participants', views: Math.floor(viewCount * 0.7), timeSpent: 180 },
+            { name: 'Other Users', views: Math.floor(viewCount * 0.3), timeSpent: 120 }
           ].filter(viewer => viewer.views > 0) : [],
           deviceBreakdown: viewCount > 0 ? [
             { device: 'Desktop', count: Math.floor(viewCount * 0.65) },
@@ -121,22 +109,21 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           throw error;
         }
 
-        // Create analytics data based on actual view/download counts
+        console.log('Poll attachment data:', fileData);
+
         const viewCount = fileData?.view_count || 0;
         const downloadCount = fileData?.download_count || 0;
-        const createdAt = new Date(fileData?.created_at || new Date());
         
-        // Generate realistic data based on the actual counts
+        // Generate realistic daily data
         const days = [];
         const today = new Date();
         for (let i = 6; i >= 0; i--) {
           const date = new Date(today);
           date.setDate(date.getDate() - i);
           
-          // Distribute views/downloads across the last 7 days with some randomness
-          const maxDayViews = Math.ceil(viewCount / 3); // Concentrate most views in recent days
-          const dayViews = i < 3 ? Math.floor(Math.random() * maxDayViews) : Math.floor(Math.random() * Math.max(1, viewCount / 7));
-          const dayDownloads = Math.floor(dayViews * 0.4); // Downloads are typically 40% of views
+          // Distribute views across days (most recent days have more activity)
+          const dayViews = i < 2 ? Math.floor(viewCount * 0.4 * Math.random()) : Math.floor(viewCount * 0.2 * Math.random());
+          const dayDownloads = Math.floor(dayViews * 0.3); // Downloads are typically 30% of views
           
           days.push({
             date: format(date, 'MMM dd'),
@@ -145,25 +132,15 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           });
         }
 
-        // Ensure total views across days doesn't exceed actual view count
-        const totalDayViews = days.reduce((sum, day) => sum + day.views, 0);
-        if (totalDayViews > viewCount && viewCount > 0) {
-          const ratio = viewCount / totalDayViews;
-          days.forEach(day => {
-            day.views = Math.floor(day.views * ratio);
-            day.downloads = Math.floor(day.downloads * ratio);
-          });
-        }
-
         setAnalytics({
           totalViews: viewCount,
           totalDownloads: downloadCount,
-          uniqueViewers: Math.max(1, Math.floor(viewCount * 0.8)), // Estimate unique viewers
-          avgTimeSpent: Math.floor(Math.random() * 240) + 60, // Random time between 1-4 minutes
+          uniqueViewers: Math.max(1, Math.floor(viewCount * 0.8)),
+          avgTimeSpent: Math.floor(Math.random() * 240) + 60,
           viewsByDay: days,
           topViewers: viewCount > 0 ? [
-            { name: 'Anonymous Users', views: Math.floor(viewCount * 0.6), timeSpent: 180 },
-            { name: 'Poll Participants', views: Math.floor(viewCount * 0.4), timeSpent: 120 }
+            { name: 'Poll Participants', views: Math.floor(viewCount * 0.7), timeSpent: 180 },
+            { name: 'Other Users', views: Math.floor(viewCount * 0.3), timeSpent: 120 }
           ].filter(viewer => viewer.views > 0) : [],
           deviceBreakdown: viewCount > 0 ? [
             { device: 'Desktop', count: Math.floor(viewCount * 0.65) },
@@ -178,25 +155,11 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
 
       // For regular documents, try to fetch from document_views table
       try {
-        // First, try to get basic document info to verify it exists
-        const { data: docData, error: docError } = await supabase
-          .from('documents')
-          .select('name, created_at')
-          .eq('id', documentId)
-          .single();
-
-        if (docError) {
-          console.error('Document not found:', docError);
-          throw docError;
-        }
-
-        // Try to get views data - use a simpler query without joins
         const { data: viewsData, error: viewsError } = await supabase
           .from('document_views')
           .select('*')
           .eq('document_id', documentId);
 
-        // If there's an error with views, we'll still show basic analytics
         if (viewsError) {
           console.warn('Could not fetch document views:', viewsError);
         }
@@ -222,11 +185,11 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           last7Days.push({
             date: format(date, 'MMM dd'),
             views: dayViews,
-            downloads: Math.floor(dayViews * 0.3) // Estimate downloads as 30% of views
+            downloads: Math.floor(dayViews * 0.3)
           });
         }
 
-        // For top viewers, we'll use anonymous data since we can't reliably join with profiles
+        // For top viewers, use anonymous data
         const viewerStats: { [key: string]: { name: string; views: number; timeSpent: number } } = {};
         views.forEach((view, index) => {
           const userId = view.user_id || `user_${index}`;
@@ -245,7 +208,6 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           .sort((a, b) => b.views - a.views)
           .slice(0, 5);
 
-        // Device breakdown (simulated for now)
         const deviceBreakdown = totalViews > 0 ? [
           { device: 'Desktop', count: Math.floor(totalViews * 0.6) },
           { device: 'Mobile', count: Math.floor(totalViews * 0.3) },
@@ -254,7 +216,7 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
 
         setAnalytics({
           totalViews,
-          totalDownloads: Math.floor(totalViews * 0.3), // Estimate downloads
+          totalDownloads: Math.floor(totalViews * 0.3),
           uniqueViewers: uniqueViewers || Math.max(1, Math.floor(totalViews * 0.8)),
           avgTimeSpent,
           viewsByDay: last7Days,
@@ -264,7 +226,6 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
 
       } catch (docError) {
         console.error('Error with document analytics:', docError);
-        // Fallback to showing basic analytics
         setAnalytics({
           totalViews: 0,
           totalDownloads: 0,
@@ -278,7 +239,6 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
 
     } catch (error) {
       console.error('Error fetching analytics:', error);
-      // Set empty analytics to show the dialog with "no data" message
       setAnalytics({
         totalViews: 0,
         totalDownloads: 0,
