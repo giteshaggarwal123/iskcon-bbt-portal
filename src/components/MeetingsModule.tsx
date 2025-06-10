@@ -36,7 +36,7 @@ export const MeetingsModule: React.FC = () => {
   // Add auto-transcript functionality
   useAutoTranscript();
 
-  const { userRole } = useUserRole();
+  const { userRole, canDeleteMeetings, canScheduleMeetings } = useUserRole();
 
   // Filter and sort meetings properly by date and time
   const now = new Date();
@@ -79,7 +79,7 @@ export const MeetingsModule: React.FC = () => {
 
   const handleDeleteMeeting = async (meetingId: string) => {
     // Check if user role allows deletion (admin check)
-    if (userRole !== 'admin') {
+    if (!canDeleteMeetings) {
       toast({
         title: "Access Denied",
         description: "You don't have permission to delete meetings",
@@ -181,7 +181,7 @@ export const MeetingsModule: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">Meeting Management</h1>
             <p className="text-sm sm:text-base text-gray-600 mt-1">Schedule, track, and manage all ISKCON meetings with Teams integration</p>
           </div>
-          {userRole === 'admin' && (
+          {canScheduleMeetings && (
             <div className="flex-shrink-0">
               <Button 
                 className="w-full sm:w-auto bg-primary hover:bg-primary/90"
@@ -349,7 +349,7 @@ export const MeetingsModule: React.FC = () => {
                             View RSVP
                           </Button>
                           
-                          {userRole === 'admin' && (
+                          {canDeleteMeetings && (
                             <Button 
                               variant="outline" 
                               size="sm"
@@ -463,7 +463,7 @@ export const MeetingsModule: React.FC = () => {
       </div>
 
       {/* Dialogs */}
-      {userRole === 'admin' && (
+      {canScheduleMeetings && (
         <ScheduleMeetingDialog 
           open={showScheduleDialog} 
           onOpenChange={handleScheduleMeetingClose}
