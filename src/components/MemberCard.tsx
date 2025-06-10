@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -74,9 +73,22 @@ export const MemberCard: React.FC<MemberCardProps> = ({
     </Badge>;
   };
 
-  // For super admin detection, check email first, convert legacy roles to member
-  const rawRole = member.email === 'cs@iskconbureau.in' ? 'super_admin' : (member.roles[0] || 'admin');
-  const actualRole = (rawRole === 'secretary' || rawRole === 'treasurer') ? 'member' : rawRole;
+  // Fixed role detection logic - only cs@iskconbureau.in can be super admin
+  const getActualRole = (memberEmail: string, memberRoles: string[]): string => {
+    if (memberEmail === 'cs@iskconbureau.in') {
+      return 'super_admin';
+    }
+    
+    const rawRole = memberRoles[0] || 'member';
+    // Convert legacy roles to member and prevent incorrect super admin assignment
+    if (rawRole === 'secretary' || rawRole === 'treasurer' || rawRole === 'super_admin') {
+      return 'member';
+    }
+    
+    return rawRole;
+  };
+
+  const actualRole = getActualRole(member.email, member.roles);
   const joinDate = new Date(member.created_at).toLocaleDateString();
 
   const handleDeleteMember = () => {
@@ -101,15 +113,15 @@ export const MemberCard: React.FC<MemberCardProps> = ({
     }
   };
 
-  // Enhanced permission logic for simplified role structure
+  // Enhanced permission logic with proper super admin protection
   const canChangeRole = userRole.isSuperAdmin && member.email !== 'cs@iskconbureau.in';
   const canDeleteMember = userRole.isSuperAdmin && member.email !== 'cs@iskconbureau.in';
-  const canViewSettings = true; // Both admins can view settings
-  const canSendMessage = true; // Both can send messages
-  const canSuspendMember = false; // Disable suspend for admin accounts
+  const canViewSettings = true;
+  const canSendMessage = true;
+  const canSuspendMember = false;
   const canResetPassword = userRole.isSuperAdmin && member.email !== 'cs@iskconbureau.in';
-  const canViewActivity = true; // Both can view activity
-  const canEditMember = userRole.isSuperAdmin; // Only super admin can edit member info
+  const canViewActivity = true;
+  const canEditMember = userRole.isSuperAdmin;
   
   // Super admin protection
   const isSuperAdminMember = member.email === 'cs@iskconbureau.in';

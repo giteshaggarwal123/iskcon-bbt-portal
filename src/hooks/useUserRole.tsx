@@ -49,8 +49,8 @@ export const useUserRole = (): UseUserRoleReturn => {
       try {
         console.log('Fetching role for user:', user.email);
         
-        // Check if this is a super admin by email
-        if (user.email === 'cs@iskconbureau.in' || user.email === 'admin@iskconbureau.in') {
+        // Only cs@iskconbureau.in should be super admin
+        if (user.email === 'cs@iskconbureau.in') {
           console.log('Super admin detected by email');
           
           // Ensure super admin role exists in database
@@ -72,7 +72,7 @@ export const useUserRole = (): UseUserRoleReturn => {
           return;
         }
 
-        // For other users, fetch their role from the database
+        // For all other users, fetch their role from the database
         const { data, error } = await supabase
           .from('user_roles')
           .select('role')
@@ -81,14 +81,18 @@ export const useUserRole = (): UseUserRoleReturn => {
 
         if (error) {
           console.error('Error fetching user role:', error);
-          setUserRole('member'); // Default to member if no role found
+          // Default to member if no role found or error occurs
+          setUserRole('member');
         } else {
-          // Convert legacy roles to member
+          // Convert legacy roles to member and ensure proper role assignment
           const role = data.role as string;
-          if (role === 'secretary' || role === 'treasurer') {
+          if (role === 'secretary' || role === 'treasurer' || role === 'super_admin') {
+            // Convert legacy roles and prevent incorrect super admin assignment
             setUserRole('member');
+          } else if (role === 'admin') {
+            setUserRole('admin');
           } else {
-            setUserRole(data.role as UserRole);
+            setUserRole('member');
           }
         }
       } catch (error) {
@@ -102,21 +106,21 @@ export const useUserRole = (): UseUserRoleReturn => {
     fetchUserRole();
   }, [user]);
 
-  const isSuperAdmin = userRole === 'super_admin';
+  const isSuperAdmin = userRole === 'super_admin' && user?.email === 'cs@iskconbureau.in';
   const isAdmin = userRole === 'admin' || isSuperAdmin;
   const isMember = userRole === 'member' || isAdmin || isSuperAdmin;
 
   // Updated permissions for simplified role structure
-  const canManageMembers = isSuperAdmin || isAdmin; // Only admins can manage members
-  const canManageMeetings = isSuperAdmin || isAdmin; // Only admins can manage meetings
-  const canManageDocuments = isSuperAdmin || isAdmin; // Only admins can manage documents
-  const canViewReports = isSuperAdmin || isAdmin; // Only admins can view reports
+  const canManageMembers = isSuperAdmin || isAdmin;
+  const canManageMeetings = isSuperAdmin || isAdmin;
+  const canManageDocuments = isSuperAdmin || isAdmin;
+  const canViewReports = isSuperAdmin || isAdmin;
   const canManageSettings = true; // All members can access settings
   
   // Content permissions
-  const canCreateContent = isSuperAdmin || isAdmin; // Only admins can create content
-  const canDeleteContent = isSuperAdmin || isAdmin; // Only admins can delete content
-  const canEditContent = isSuperAdmin || isAdmin; // Only admins can edit content
+  const canCreateContent = isSuperAdmin || isAdmin;
+  const canDeleteContent = isSuperAdmin || isAdmin;
+  const canEditContent = isSuperAdmin || isAdmin;
 
   // Enhanced user management permissions
   const canEditAllUserInfo = isSuperAdmin;
@@ -126,13 +130,13 @@ export const useUserRole = (): UseUserRoleReturn => {
   const canViewMemberSettings = isSuperAdmin || isAdmin;
 
   // Specific permissions for members
-  const canViewMembers = isSuperAdmin || isAdmin; // Only admins can see members screen
-  const canScheduleMeetings = isSuperAdmin || isAdmin; // Only admins can schedule meetings
-  const canDeleteMeetings = isSuperAdmin || isAdmin; // Only admins can delete meetings
-  const canEditVoting = isSuperAdmin || isAdmin; // Only admins can edit active voting
-  const canCreateVoting = isSuperAdmin || isAdmin; // Only admins can create voting
-  const canVoteOnly = userRole === 'member'; // Members can only vote
-  const canMarkAttendanceOnly = userRole === 'member'; // Members can only mark attendance
+  const canViewMembers = isSuperAdmin || isAdmin;
+  const canScheduleMeetings = isSuperAdmin || isAdmin;
+  const canDeleteMeetings = isSuperAdmin || isAdmin;
+  const canEditVoting = isSuperAdmin || isAdmin;
+  const canCreateVoting = isSuperAdmin || isAdmin;
+  const canVoteOnly = userRole === 'member';
+  const canMarkAttendanceOnly = userRole === 'member';
 
   return {
     userRole,
