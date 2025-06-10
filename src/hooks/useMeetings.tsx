@@ -558,7 +558,7 @@ export const useMeetings = () => {
       for (const step of deletionSteps) {
         try {
           const { error } = await supabase
-            .from(step.table)
+            .from(step.table as any)
             .delete()
             .eq(Object.keys(step.condition)[0], Object.values(step.condition)[0]);
 
