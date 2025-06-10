@@ -62,6 +62,9 @@ export const useRecycleBin = () => {
         title: "Success",
         description: `"${documentName}" has been restored`
       });
+
+      // Refresh the recycle bin items
+      await fetchRecycleBinItems();
     } catch (error: any) {
       console.error('Error restoring document:', error);
       toast({
@@ -85,6 +88,9 @@ export const useRecycleBin = () => {
         title: "Success",
         description: `"${documentName}" has been permanently deleted`
       });
+
+      // Refresh the recycle bin items
+      await fetchRecycleBinItems();
     } catch (error: any) {
       console.error('Error permanently deleting document:', error);
       toast({
@@ -104,6 +110,9 @@ export const useRecycleBin = () => {
         title: "Success",
         description: "Expired items have been cleaned up"
       });
+
+      // Refresh the recycle bin items
+      await fetchRecycleBinItems();
     } catch (error: any) {
       console.error('Error cleaning up expired items:', error);
       toast({

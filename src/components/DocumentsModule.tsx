@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, ChevronRight, Home } from 'lucide-react';
+import { FileText, ChevronRight, Home, Trash2 } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -11,7 +11,9 @@ import { DocumentUploadDialog } from './documents/DocumentUploadDialog';
 import { DocumentRenameDialog } from './documents/DocumentRenameDialog';
 import { DocumentViewer } from './DocumentViewer';
 import { CreateFolderDialog } from './CreateFolderDialog';
+import { TrashFolder } from './documents/TrashFolder';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Document {
   id: string;
@@ -64,6 +66,7 @@ export const DocumentsModule: React.FC = () => {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [userProfiles, setUserProfiles] = useState<{[key: string]: {first_name: string, last_name: string}}>({});
+  const [activeTab, setActiveTab] = useState('documents');
 
   // Auto-refresh setup with realtime subscriptions
   useEffect(() => {
@@ -399,99 +402,119 @@ export const DocumentsModule: React.FC = () => {
             </div>
           </div>
 
-          {/* Breadcrumb Navigation */}
-          {(currentFolderId || folderPath.length > 0) && (
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground bg-muted/50 px-3 sm:px-4 py-2 rounded-lg overflow-x-auto">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => handleBreadcrumbClick(null)}
-                className="flex items-center space-x-1 hover:bg-muted px-2 py-1 rounded whitespace-nowrap"
-              >
-                <Home className="h-4 w-4" />
-                <span>Home</span>
-              </Button>
-              
-              {folderPath.map((folder, index) => (
-                <React.Fragment key={folder.id}>
-                  <ChevronRight className="h-4 w-4 flex-shrink-0" />
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="documents" className="flex items-center space-x-2">
+                <FileText className="h-4 w-4" />
+                <span>Documents</span>
+              </TabsTrigger>
+              <TabsTrigger value="trash" className="flex items-center space-x-2">
+                <Trash2 className="h-4 w-4" />
+                <span>Trash</span>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="documents" className="space-y-4">
+              {/* Breadcrumb Navigation */}
+              {(currentFolderId || folderPath.length > 0) && (
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground bg-muted/50 px-3 sm:px-4 py-2 rounded-lg overflow-x-auto">
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    onClick={() => handleBreadcrumbClick(folder.id)}
-                    className="hover:bg-muted px-2 py-1 rounded whitespace-nowrap"
+                    onClick={() => handleBreadcrumbClick(null)}
+                    className="flex items-center space-x-1 hover:bg-muted px-2 py-1 rounded whitespace-nowrap"
                   >
-                    {folder.name}
+                    <Home className="h-4 w-4" />
+                    <span>Home</span>
                   </Button>
-                </React.Fragment>
-              ))}
-            </div>
-          )}
-
-          {/* Filters */}
-          <div className="w-full">
-            <DocumentFilters
-              searchTerm={searchTerm}
-              typeFilter={typeFilter}
-              peopleFilter={peopleFilter}
-              dateFilter={dateFilter}
-              uniqueUploaders={uniqueUploaders}
-              userProfiles={userProfiles}
-              currentUserId={user?.id}
-              onSearchChange={setSearchTerm}
-              onTypeFilterChange={setTypeFilter}
-              onPeopleFilterChange={setPeopleFilter}
-              onDateFilterChange={setDateFilter}
-            />
-          </div>
-
-          {/* Combined Documents and Folders Table */}
-          <div className="w-full">
-            {filteredDocuments.length === 0 && filteredFolders.length === 0 ? (
-              <div className="bg-card rounded-lg border">
-                <div className="text-center py-8 sm:py-12 px-4">
-                  <FileText className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">No documents or folders found</h3>
-                  <p className="text-sm sm:text-base text-muted-foreground mb-4 max-w-md mx-auto">
-                    {searchTerm || typeFilter !== 'all' || peopleFilter !== 'all' || dateFilter !== 'all'
-                      ? 'Try adjusting your search or filter criteria'
-                      : 'Get started by uploading your first document or creating a folder'}
-                  </p>
-                  {!searchTerm && (
-                    <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2 justify-center">
-                      <CreateFolderDialog 
-                        onFolderCreated={createFolder}
-                        existingFolders={folders}
-                        currentFolderId={currentFolderId}
-                      />
-                      <DocumentUploadDialog onUpload={handleUpload} />
-                    </div>
-                  )}
+                  
+                  {folderPath.map((folder, index) => (
+                    <React.Fragment key={folder.id}>
+                      <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleBreadcrumbClick(folder.id)}
+                        className="hover:bg-muted px-2 py-1 rounded whitespace-nowrap"
+                      >
+                        {folder.name}
+                      </Button>
+                    </React.Fragment>
+                  ))}
                 </div>
+              )}
+
+              {/* Filters */}
+              <div className="w-full">
+                <DocumentFilters
+                  searchTerm={searchTerm}
+                  typeFilter={typeFilter}
+                  peopleFilter={peopleFilter}
+                  dateFilter={dateFilter}
+                  uniqueUploaders={uniqueUploaders}
+                  userProfiles={userProfiles}
+                  currentUserId={user?.id}
+                  onSearchChange={setSearchTerm}
+                  onTypeFilterChange={setTypeFilter}
+                  onPeopleFilterChange={setPeopleFilter}
+                  onDateFilterChange={setDateFilter}
+                />
               </div>
-            ) : (
-              <DocumentTable
-                documents={filteredDocuments}
-                folders={filteredFolders}
-                userProfiles={userProfiles}
-                currentUserId={user?.id}
-                canDeleteDocument={canDeleteDocument}
-                onViewDocument={handleViewDocument}
-                onDownloadDocument={handleDownloadDocument}
-                onToggleImportant={handleToggleImportant}
-                onRenameDocument={(document) => {
-                  setSelectedDocument(document);
-                  setRenameDialogOpen(true);
-                }}
-                onCopyDocument={handleCopyDocument}
-                onDeleteDocument={handleDeleteDocument}
-                onDeleteFolder={deleteFolder}
-                onFolderClick={handleFolderClick}
-                onMoveDocument={handleMoveDocument}
-                currentFolderId={currentFolderId}
-              />
-            )}
-          </div>
+
+              {/* Combined Documents and Folders Table */}
+              <div className="w-full">
+                {filteredDocuments.length === 0 && filteredFolders.length === 0 ? (
+                  <div className="bg-card rounded-lg border">
+                    <div className="text-center py-8 sm:py-12 px-4">
+                      <FileText className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">No documents or folders found</h3>
+                      <p className="text-sm sm:text-base text-muted-foreground mb-4 max-w-md mx-auto">
+                        {searchTerm || typeFilter !== 'all' || peopleFilter !== 'all' || dateFilter !== 'all'
+                          ? 'Try adjusting your search or filter criteria'
+                          : 'Get started by uploading your first document or creating a folder'}
+                      </p>
+                      {!searchTerm && (
+                        <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2 justify-center">
+                          <CreateFolderDialog 
+                            onFolderCreated={createFolder}
+                            existingFolders={folders}
+                            currentFolderId={currentFolderId}
+                          />
+                          <DocumentUploadDialog onUpload={handleUpload} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <DocumentTable
+                    documents={filteredDocuments}
+                    folders={filteredFolders}
+                    userProfiles={userProfiles}
+                    currentUserId={user?.id}
+                    canDeleteDocument={canDeleteDocument}
+                    onViewDocument={handleViewDocument}
+                    onDownloadDocument={handleDownloadDocument}
+                    onToggleImportant={handleToggleImportant}
+                    onRenameDocument={(document) => {
+                      setSelectedDocument(document);
+                      setRenameDialogOpen(true);
+                    }}
+                    onCopyDocument={handleCopyDocument}
+                    onDeleteDocument={handleDeleteDocument}
+                    onDeleteFolder={deleteFolder}
+                    onFolderClick={handleFolderClick}
+                    onMoveDocument={handleMoveDocument}
+                    currentFolderId={currentFolderId}
+                  />
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="trash">
+              <TrashFolder />
+            </TabsContent>
+          </Tabs>
 
           {/* Rename Dialog */}
           <DocumentRenameDialog
