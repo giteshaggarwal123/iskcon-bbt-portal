@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { CheckCircle, XCircle, MinusCircle, Vote, Clock, Users, AlertCircle } from 'lucide-react';
 import { useVoting } from '@/hooks/useVoting';
 import { Poll } from '@/hooks/usePolls';
@@ -198,88 +199,50 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
                     )}
                   </div>
 
-                  {/* Vote Options */}
+                  {/* Vote Options - Radio Group */}
                   <div className="space-y-3">
-                    {/* For Option */}
-                    <div
-                      onClick={() => handleVoteSelection(currentQuestion.id, 'favor')}
-                      className={`w-full p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                        voteSelections[currentQuestion.id] === 'favor'
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-border hover:border-green-300 hover:bg-green-50/50'
-                      }`}
+                    <Label className="text-sm font-medium">Select your response:</Label>
+                    <RadioGroup
+                      value={voteSelections[currentQuestion.id] || ""}
+                      onValueChange={(value) => handleVoteSelection(currentQuestion.id, value as 'favor' | 'against' | 'abstain')}
+                      className="space-y-2"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                          voteSelections[currentQuestion.id] === 'favor'
-                            ? 'border-green-500 bg-green-500'
-                            : 'border-muted-foreground'
-                        }`}>
-                          {voteSelections[currentQuestion.id] === 'favor' && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
-                          )}
-                        </div>
-                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-green-700">For</p>
-                          <p className="text-sm text-green-600">I support this proposal</p>
-                        </div>
+                      {/* For Option */}
+                      <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 border">
+                        <RadioGroupItem value="favor" id={`favor-${currentQuestion.id}`} />
+                        <Label htmlFor={`favor-${currentQuestion.id}`} className="flex items-center space-x-2 cursor-pointer flex-1">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <div>
+                            <p className="font-semibold text-green-700">For</p>
+                            <p className="text-sm text-green-600">I support this proposal</p>
+                          </div>
+                        </Label>
                       </div>
-                    </div>
 
-                    {/* Against Option */}
-                    <div
-                      onClick={() => handleVoteSelection(currentQuestion.id, 'against')}
-                      className={`w-full p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                        voteSelections[currentQuestion.id] === 'against'
-                          ? 'border-red-500 bg-red-50'
-                          : 'border-border hover:border-red-300 hover:bg-red-50/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                          voteSelections[currentQuestion.id] === 'against'
-                            ? 'border-red-500 bg-red-500'
-                            : 'border-muted-foreground'
-                        }`}>
-                          {voteSelections[currentQuestion.id] === 'against' && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
-                          )}
-                        </div>
-                        <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-red-700">Against</p>
-                          <p className="text-sm text-red-600">I oppose this proposal</p>
-                        </div>
+                      {/* Against Option */}
+                      <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 border">
+                        <RadioGroupItem value="against" id={`against-${currentQuestion.id}`} />
+                        <Label htmlFor={`against-${currentQuestion.id}`} className="flex items-center space-x-2 cursor-pointer flex-1">
+                          <XCircle className="h-5 w-5 text-red-600" />
+                          <div>
+                            <p className="font-semibold text-red-700">Against</p>
+                            <p className="text-sm text-red-600">I oppose this proposal</p>
+                          </div>
+                        </Label>
                       </div>
-                    </div>
 
-                    {/* Abstain Option */}
-                    <div
-                      onClick={() => handleVoteSelection(currentQuestion.id, 'abstain')}
-                      className={`w-full p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                        voteSelections[currentQuestion.id] === 'abstain'
-                          ? 'border-yellow-500 bg-yellow-50'
-                          : 'border-border hover:border-yellow-300 hover:bg-yellow-50/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                          voteSelections[currentQuestion.id] === 'abstain'
-                            ? 'border-yellow-500 bg-yellow-500'
-                            : 'border-muted-foreground'
-                        }`}>
-                          {voteSelections[currentQuestion.id] === 'abstain' && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
-                          )}
-                        </div>
-                        <MinusCircle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-yellow-700">Abstain</p>
-                          <p className="text-sm text-yellow-600">I choose not to vote on this</p>
-                        </div>
+                      {/* Abstain Option */}
+                      <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 border">
+                        <RadioGroupItem value="abstain" id={`abstain-${currentQuestion.id}`} />
+                        <Label htmlFor={`abstain-${currentQuestion.id}`} className="flex items-center space-x-2 cursor-pointer flex-1">
+                          <MinusCircle className="h-5 w-5 text-yellow-600" />
+                          <div>
+                            <p className="font-semibold text-yellow-700">Abstain</p>
+                            <p className="text-sm text-yellow-600">I choose not to vote on this</p>
+                          </div>
+                        </Label>
                       </div>
-                    </div>
+                    </RadioGroup>
                   </div>
 
                   {/* Navigation Buttons */}
