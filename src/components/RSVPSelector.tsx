@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,6 +32,8 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({ meeting, onResponseU
     
     setLoading(true);
     try {
+      console.log('Fetching RSVP response for user:', user.id, 'meeting:', meeting.id);
+      
       const { data, error } = await supabase
         .from('meeting_attendees')
         .select('rsvp_response')
@@ -41,52 +42,57 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({ meeting, onResponseU
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+        console.error('Error fetching RSVP response:', error);
         throw error;
       }
 
       if (data) {
+        console.log('Found existing RSVP response:', data.rsvp_response);
         setCurrentResponse(data.rsvp_response as 'yes' | 'no' | 'maybe' | null);
+      } else {
+        console.log('No existing RSVP response found');
+        setCurrentResponse(null);
       }
     } catch (error: any) {
       console.error('Error fetching RSVP response:', error);
+      // Don't show error to user as this is expected for new attendees
     } finally {
       setLoading(false);
     }
   };
 
   const handleResponseSubmit = async () => {
-    if (!meeting || !user || !currentResponse) return;
+    if (!meeting || !user || !currentResponse) {
+      console.error('Missing required data for RSVP submission:', { meeting: !!meeting, user: !!user, response: currentResponse });
+      return;
+    }
 
     setSubmitting(true);
     try {
-      // First, check if user is already an attendee
-      const { data: existingAttendee, error: checkError } = await supabase
-        .from('meeting_attendees')
-        .select('id')
-        .eq('meeting_id', meeting.id)
-        .eq('user_id', user.id)
-        .single();
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        throw checkError;
-      }
+      console.log('Submitting RSVP response:', {
+        meetingId: meeting.id,
+        userId: user.id,
+        response: currentResponse
+      });
 
       const now = new Date().toISOString();
 
-      if (existingAttendee) {
-        // Update existing attendee record
-        const { error: updateError } = await supabase
-          .from('meeting_attendees')
-          .update({
-            rsvp_response: currentResponse,
-            rsvp_submitted_at: now
-          })
-          .eq('id', existingAttendee.id);
+      // First, try to update existing attendee record
+      const { data: updateData, error: updateError } = await supabase
+        .from('meeting_attendees')
+        .update({
+          rsvp_response: currentResponse,
+          rsvp_submitted_at: now
+        })
+        .eq('meeting_id', meeting.id)
+        .eq('user_id', user.id)
+        .select();
 
-        if (updateError) throw updateError;
-      } else {
-        // Create new attendee record
-        const { error: insertError } = await supabase
+      if (updateError) {
+        console.error('Update failed, trying insert:', updateError);
+        
+        // If update fails, try to insert new record
+        const { data: insertData, error: insertError } = await supabase
           .from('meeting_attendees')
           .insert({
             meeting_id: meeting.id,
@@ -94,9 +100,17 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({ meeting, onResponseU
             rsvp_response: currentResponse,
             rsvp_submitted_at: now,
             status: 'pending'
-          });
+          })
+          .select();
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Insert also failed:', insertError);
+          throw insertError;
+        }
+
+        console.log('Successfully inserted new RSVP record:', insertData);
+      } else {
+        console.log('Successfully updated existing RSVP record:', updateData);
       }
 
       toast({
@@ -108,11 +122,27 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({ meeting, onResponseU
       if (onResponseUpdate) {
         onResponseUpdate();
       }
+
+      // Refresh the current response to show the latest state
+      await fetchCurrentResponse();
+
     } catch (error: any) {
       console.error('Error submitting RSVP:', error);
+      
+      let errorMessage = "Failed to submit your RSVP response. Please try again.";
+      
+      // Provide more specific error messages
+      if (error.code === '23505') {
+        errorMessage = "You have already submitted an RSVP for this meeting.";
+      } else if (error.code === '23503') {
+        errorMessage = "There was an issue with the meeting data. Please contact support.";
+      } else if (error.message?.includes('permission')) {
+        errorMessage = "You don't have permission to RSVP to this meeting. Please contact the organizer.";
+      }
+
       toast({
         title: "Error",
-        description: "Failed to submit your RSVP response. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
