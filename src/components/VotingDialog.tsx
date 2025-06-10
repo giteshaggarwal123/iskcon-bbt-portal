@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle, XCircle, MinusCircle, Vote, Clock, Users, AlertCircle, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, Minus } from 'lucide-react';
+import { CheckCircle, XCircle, MinusCircle, Vote, Clock, Users, AlertCircle, ChevronLeft, ChevronRight, ThumbsUp, Minus } from 'lucide-react';
 import { useVoting } from '@/hooks/useVoting';
 import { Poll } from '@/hooks/usePolls';
 import { format } from 'date-fns';
@@ -105,7 +105,7 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
   const voteOptions = [
     {
       value: 'favor',
-      label: 'Support',
+      label: 'In Favour',
       description: 'I support this proposal',
       icon: ThumbsUp,
       color: 'bg-green-50 border-green-200 hover:bg-green-100',
@@ -115,13 +115,13 @@ export const VotingDialog: React.FC<VotingDialogProps> = ({ open, onOpenChange, 
     },
     {
       value: 'against',
-      label: 'Oppose',
-      description: 'I oppose this proposal',
-      icon: ThumbsDown,
-      color: 'bg-red-50 border-red-200 hover:bg-red-100',
-      selectedColor: 'bg-red-100 border-red-300',
-      iconColor: 'text-red-600',
-      textColor: 'text-red-700'
+      label: 'Abstain',
+      description: 'I choose not to vote',
+      icon: Minus,
+      color: 'bg-gray-50 border-gray-200 hover:bg-gray-100',
+      selectedColor: 'bg-gray-100 border-gray-300',
+      iconColor: 'text-gray-600',
+      textColor: 'text-gray-700'
     },
     {
       value: 'abstain',
