@@ -108,24 +108,22 @@ export const useMembers = () => {
     }
   }, [toast]);
 
-  // Force immediate refresh function
-  const forceRefresh = useCallback(async () => {
-    console.log('Force refresh triggered');
-    setLoading(true);
-    await fetchMembers();
-  }, [fetchMembers]);
-
-  // Set up real-time subscriptions
+  // Set up real-time subscriptions with improved handling
   useEffect(() => {
-    let profilesChannel: any;
-    let rolesChannel: any;
+    let profilesSubscription: any;
+    let rolesSubscription: any;
 
-    const setupRealtimeSubscriptions = () => {
-      console.log('Setting up real-time subscriptions for members...');
+    const setupSubscriptions = async () => {
+      if (!user) return;
 
-      // Subscribe to profiles changes
-      profilesChannel = supabase
-        .channel('profiles-changes')
+      console.log('Setting up robust real-time subscriptions...');
+
+      // Initial fetch
+      await fetchMembers();
+
+      // Subscribe to profiles changes with immediate refresh
+      profilesSubscription = supabase
+        .channel('profiles-realtime')
         .on(
           'postgres_changes',
           {
@@ -133,16 +131,19 @@ export const useMembers = () => {
             schema: 'public',
             table: 'profiles'
           },
-          (payload) => {
-            console.log('Profiles change detected:', payload);
-            forceRefresh();
+          async (payload) => {
+            console.log('Profiles real-time change:', payload);
+            // Immediate refresh on any change
+            await fetchMembers();
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Profiles subscription status:', status);
+        });
 
-      // Subscribe to user_roles changes
-      rolesChannel = supabase
-        .channel('user-roles-changes')
+      // Subscribe to user roles changes with immediate refresh
+      rolesSubscription = supabase
+        .channel('user-roles-realtime')
         .on(
           'postgres_changes',
           {
@@ -150,30 +151,41 @@ export const useMembers = () => {
             schema: 'public',
             table: 'user_roles'
           },
-          (payload) => {
-            console.log('User roles change detected:', payload);
-            forceRefresh();
+          async (payload) => {
+            console.log('User roles real-time change:', payload);
+            // Immediate refresh on any change
+            await fetchMembers();
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('User roles subscription status:', status);
+        });
     };
 
-    if (user) {
-      fetchMembers();
-      setupRealtimeSubscriptions();
-    }
+    setupSubscriptions();
 
     return () => {
-      if (profilesChannel) {
+      if (profilesSubscription) {
         console.log('Cleaning up profiles subscription');
-        supabase.removeChannel(profilesChannel);
+        supabase.removeChannel(profilesSubscription);
       }
-      if (rolesChannel) {
+      if (rolesSubscription) {
         console.log('Cleaning up roles subscription');
-        supabase.removeChannel(rolesChannel);
+        supabase.removeChannel(rolesSubscription);
       }
     };
-  }, [user, fetchMembers, forceRefresh]);
+  }, [user, fetchMembers]);
+
+  // Optimistic update for immediate UI feedback
+  const updateMemberOptimistically = useCallback((memberId: string, updates: Partial<Member>) => {
+    setMembers(prevMembers => 
+      prevMembers.map(member => 
+        member.id === memberId 
+          ? { ...member, ...updates }
+          : member
+      )
+    );
+  }, []);
 
   const addMember = async (memberData: {
     email: string;
@@ -296,8 +308,8 @@ export const useMembers = () => {
         description: `${memberData.firstName} ${memberData.lastName} has been added with phone number ${memberData.phone} and can now login with OTP.`
       });
 
-      // Don't manually refresh, let real-time handle it
-      console.log('Member added, real-time subscription will handle the update');
+      // Force immediate refresh
+      await fetchMembers();
       
       return authData.user;
     } catch (error: any) {
@@ -325,6 +337,9 @@ export const useMembers = () => {
 
       console.log('Updating member role:', { memberId, newRole });
 
+      // Optimistic update
+      updateMemberOptimistically(memberId, { roles: [newRole] });
+
       // Remove existing roles for this user
       const { error: deleteError } = await supabase
         .from('user_roles')
@@ -333,6 +348,8 @@ export const useMembers = () => {
 
       if (deleteError) {
         console.error('Error removing existing roles:', deleteError);
+        // Revert optimistic update
+        await fetchMembers();
         throw deleteError;
       }
 
@@ -346,6 +363,8 @@ export const useMembers = () => {
 
       if (insertError) {
         console.error('Error adding new role:', insertError);
+        // Revert optimistic update
+        await fetchMembers();
         throw insertError;
       }
 
@@ -356,8 +375,8 @@ export const useMembers = () => {
         description: "Member role has been updated successfully"
       });
 
-      // Don't manually refresh, let real-time handle it
-      console.log('Role updated, real-time subscription will handle the update');
+      // Force refresh to ensure consistency
+      await fetchMembers();
     } catch (error: any) {
       console.error('Error updating role:', error);
       toast({
@@ -412,8 +431,8 @@ export const useMembers = () => {
         description: "Member has been removed successfully"
       });
 
-      // Don't manually refresh, let real-time handle it
-      console.log('Member deleted, real-time subscription will handle the update');
+      // Force immediate refresh
+      await fetchMembers();
     } catch (error: any) {
       console.error('Error deleting member:', error);
       toast({
@@ -453,8 +472,8 @@ export const useMembers = () => {
         description: `Account has been ${suspend ? 'suspended' : 'reactivated'} successfully`
       });
 
-      // Don't manually refresh, let real-time handle it
-      console.log('Member suspension status updated, real-time subscription will handle the update');
+      // Force immediate refresh
+      await fetchMembers();
     } catch (error: any) {
       console.error('Error suspending member:', error);
       toast({
@@ -597,8 +616,9 @@ export const useMembers = () => {
     resetPassword,
     exportMembers,
     fetchMembers,
-    forceRefresh,
+    forceRefresh: fetchMembers,
     logActivity,
-    searchMembers
+    searchMembers,
+    updateMemberOptimistically
   };
 };
