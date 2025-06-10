@@ -23,7 +23,7 @@ export const MembersModule: React.FC = () => {
     suspendMember,
     resetPassword,
     searchMembers,
-    fetchMembers
+    forceRefresh
   } = useMembers();
   const userRole = useUserRole();
 
@@ -75,8 +75,8 @@ export const MembersModule: React.FC = () => {
   };
 
   const handleMemberUpdated = async () => {
-    console.log('Member updated, refreshing list...');
-    await fetchMembers();
+    console.log('Member updated, forcing immediate refresh...');
+    await forceRefresh();
   };
 
   if (loading) {
@@ -262,7 +262,7 @@ export const MembersModule: React.FC = () => {
           onOpenChange={setShowAddMemberDialog}
           onMemberAdded={() => {
             setShowAddMemberDialog(false);
-            fetchMembers(); // Refresh the members list
+            handleMemberUpdated(); // Use the force refresh function
           }}
         />
       )}

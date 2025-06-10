@@ -108,6 +108,12 @@ export const useMembers = () => {
     }
   }, [toast]);
 
+  // Force immediate refresh function
+  const forceRefresh = useCallback(async () => {
+    setLoading(true);
+    await fetchMembers();
+  }, [fetchMembers]);
+
   const addMember = async (memberData: {
     email: string;
     password: string;
@@ -229,10 +235,8 @@ export const useMembers = () => {
         description: `${memberData.firstName} ${memberData.lastName} has been added with phone number ${memberData.phone} and can now login with OTP.`
       });
 
-      // Wait a moment before refreshing to ensure all operations complete
-      setTimeout(() => {
-        fetchMembers();
-      }, 1500);
+      // Force immediate refresh
+      await forceRefresh();
       
       return authData.user;
     } catch (error: any) {
@@ -291,7 +295,8 @@ export const useMembers = () => {
         description: "Member role has been updated successfully"
       });
 
-      fetchMembers();
+      // Force immediate refresh
+      await forceRefresh();
     } catch (error: any) {
       console.error('Error updating role:', error);
       toast({
@@ -346,7 +351,8 @@ export const useMembers = () => {
         description: "Member has been removed successfully"
       });
 
-      fetchMembers();
+      // Force immediate refresh
+      await forceRefresh();
     } catch (error: any) {
       console.error('Error deleting member:', error);
       toast({
@@ -386,7 +392,8 @@ export const useMembers = () => {
         description: `Account has been ${suspend ? 'suspended' : 'reactivated'} successfully`
       });
 
-      fetchMembers();
+      // Force immediate refresh
+      await forceRefresh();
     } catch (error: any) {
       console.error('Error suspending member:', error);
       toast({
@@ -535,6 +542,7 @@ export const useMembers = () => {
     resetPassword,
     exportMembers,
     fetchMembers,
+    forceRefresh,
     logActivity,
     searchMembers
   };
