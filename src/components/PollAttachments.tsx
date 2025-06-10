@@ -63,13 +63,18 @@ export const PollAttachments: React.FC<PollAttachmentsProps> = ({
     });
 
     try {
+      console.log('Starting download for poll attachment:', attachment.id);
+      
       // Track the download first
       await trackDownload();
+      console.log('Download tracked successfully for poll attachment:', attachment.id);
       
       // Then perform the actual download
       await downloadAttachment(attachment.file_path, attachment.file_name);
+      console.log('Download completed for poll attachment:', attachment.file_name);
     } catch (error) {
-      console.error('Error downloading attachment:', error);
+      console.error('Error downloading poll attachment:', error);
+      // Don't throw - let the download continue even if tracking fails
     }
   };
 
@@ -80,15 +85,22 @@ export const PollAttachments: React.FC<PollAttachmentsProps> = ({
     });
 
     try {
+      console.log('Starting view for poll attachment:', attachment.id);
+      
       // Track the view first
       await trackView();
+      console.log('View tracked successfully for poll attachment:', attachment.id);
       
       // Then perform the actual view
       if (onViewDocument) {
         onViewDocument(attachment);
       }
     } catch (error) {
-      console.error('Error viewing attachment:', error);
+      console.error('Error viewing poll attachment:', error);
+      // Don't throw - let the view continue even if tracking fails
+      if (onViewDocument) {
+        onViewDocument(attachment);
+      }
     }
   };
 
