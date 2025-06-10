@@ -135,54 +135,81 @@ export const ViewAgendaDialog: React.FC<ViewAgendaDialogProps> = ({ open, onOpen
   };
 
   const handleFileView = async (file: MeetingFile) => {
-    const { trackView } = useAnalyticsTracking({
-      documentId: file.id,
-      documentType: 'meeting_attachment'
-    });
-
     try {
       console.log('Attempting to view file:', file.file_path);
       
-      // Track the view first
+      // Track the view first using the hook
+      const { trackView } = useAnalyticsTracking({
+        documentId: file.id,
+        documentType: 'meeting_attachment'
+      });
+      
       await trackView();
 
-      // Try to get a signed URL for viewing
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+      // Get the public URL for the file
+      const { data: urlData } = supabase.storage
         .from('meeting-attachments')
-        .createSignedUrl(file.file_path, 3600); // 1 hour expiry
+        .getPublicUrl(file.file_path);
 
-      if (signedUrlError) {
-        console.error('Signed URL error:', signedUrlError);
-        
-        // Fallback: try to get public URL
-        const { data: publicUrlData } = supabase.storage
-          .from('meeting-attachments')
-          .getPublicUrl(file.file_path);
+      console.log('Public URL generated:', urlData.publicUrl);
 
-        if (publicUrlData?.publicUrl) {
-          window.open(publicUrlData.publicUrl, '_blank');
+      if (urlData.publicUrl) {
+        // Open the file in a new tab
+        const newWindow = window.open(urlData.publicUrl, '_blank');
+        if (!newWindow) {
+          // If popup was blocked, show the URL to user
+          toast({
+            title: "Popup Blocked",
+            description: "Please allow popups or copy this URL: " + urlData.publicUrl,
+            variant: "destructive"
+          });
         } else {
-          throw new Error('Could not generate file URL');
+          toast({
+            title: "File Opened",
+            description: "File opened in new tab",
+          });
         }
       } else {
-        window.open(signedUrlData.signedUrl, '_blank');
+        throw new Error('Could not generate public URL');
       }
 
       // Refresh the file list to show updated counts
       fetchMeetingFiles();
-      
-      toast({
-        title: "File Opened",
-        description: "File opened in new tab",
-      });
 
     } catch (error: any) {
       console.error('Error viewing file:', error);
-      toast({
-        title: "View Failed",
-        description: error.message || "Failed to view file",
-        variant: "destructive"
-      });
+      
+      // Fallback: try signed URL
+      try {
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+          .from('meeting-attachments')
+          .createSignedUrl(file.file_path, 3600); // 1 hour expiry
+
+        if (!signedUrlError && signedUrlData.signedUrl) {
+          const newWindow = window.open(signedUrlData.signedUrl, '_blank');
+          if (!newWindow) {
+            toast({
+              title: "Popup Blocked",
+              description: "Please allow popups or copy this URL: " + signedUrlData.signedUrl,
+              variant: "destructive"
+            });
+          } else {
+            toast({
+              title: "File Opened",
+              description: "File opened in new tab",
+            });
+          }
+        } else {
+          throw new Error('Could not generate signed URL');
+        }
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+        toast({
+          title: "View Failed",
+          description: "Unable to open file. Please try downloading instead.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
