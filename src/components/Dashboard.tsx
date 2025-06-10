@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -366,29 +365,28 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile-specific responsive styles - Fixed spacing issues */}
+        {/* Mobile-specific responsive styles - Fixed to match Meetings module alignment */}
         <style>{`
-          /* Mobile-only styles (max-width: 767px) - Dashboard specific fixes */
+          /* Mobile-only styles (max-width: 767px) - Perfect alignment like Meetings module */
           @media (max-width: 767px) {
-            /* Dashboard container mobile optimization - FIXED SPACING */
+            /* Dashboard container - Match Layout.tsx mobile padding exactly */
             .dashboard-container {
-              width: 100vw;
-              max-width: 100vw;
+              width: 100%;
+              max-width: 100%;
               margin: 0;
-              padding: 1rem; /* Balanced padding on both sides */
+              padding: 0; /* Remove all padding to match Layout.tsx mobile structure */
               overflow-x: hidden;
               box-sizing: border-box;
             }
 
-            /* Ensure main content has proper spacing */
+            /* Dashboard main content wrapper */
             .dashboard-container > div {
-              padding-left: 0;
-              padding-right: 0;
-              margin-left: 0;
-              margin-right: 0;
+              padding: 0;
+              margin: 0;
+              width: 100%;
             }
 
-            /* Dashboard header mobile spacing */
+            /* Dashboard header mobile spacing - Match other modules */
             .dashboard-header {
               margin-bottom: 1rem;
               padding: 0;
@@ -407,7 +405,7 @@ export const Dashboard: React.FC = () => {
               margin-bottom: 0.5rem;
             }
 
-            /* Dashboard grid mobile layout */
+            /* Dashboard grid - Perfect mobile layout */
             .dashboard-grid {
               grid-template-columns: 1fr;
               gap: 1rem;
@@ -417,7 +415,7 @@ export const Dashboard: React.FC = () => {
               padding: 0;
             }
 
-            /* Dashboard cards mobile optimization */
+            /* Dashboard cards - Match other module card spacing */
             .dashboard-card {
               width: 100%;
               max-width: 100%;
@@ -427,7 +425,7 @@ export const Dashboard: React.FC = () => {
               box-sizing: border-box;
             }
 
-            /* Dashboard card titles mobile responsive */
+            /* Card titles mobile responsive */
             .dashboard-card-title {
               flex-wrap: wrap;
               gap: 0.5rem;
@@ -451,7 +449,7 @@ export const Dashboard: React.FC = () => {
               box-sizing: border-box;
             }
 
-            /* Dashboard item headers mobile responsive */
+            /* Item headers mobile responsive */
             .dashboard-item-header {
               flex-wrap: wrap;
               gap: 0.5rem;
@@ -459,7 +457,7 @@ export const Dashboard: React.FC = () => {
               margin-bottom: 0.5rem;
             }
 
-            /* Dashboard item titles mobile text handling */
+            /* Item titles mobile text handling */
             .dashboard-item-title {
               word-wrap: break-word;
               overflow-wrap: break-word;
@@ -469,7 +467,7 @@ export const Dashboard: React.FC = () => {
               margin-right: 0.5rem;
             }
 
-            /* Dashboard item buttons mobile sizing */
+            /* Item buttons mobile sizing */
             .dashboard-item-button {
               min-height: 32px;
               min-width: fit-content;
@@ -478,7 +476,7 @@ export const Dashboard: React.FC = () => {
               flex-shrink: 0;
             }
 
-            /* Better spacing for mobile content */
+            /* Card content mobile spacing */
             .dashboard-card .pt-0 {
               padding-top: 0.5rem;
             }
@@ -487,7 +485,7 @@ export const Dashboard: React.FC = () => {
               padding-bottom: 0.75rem;
             }
 
-            /* Text and content mobile optimization */
+            /* Text mobile optimization */
             .dashboard-container .text-xs {
               font-size: 0.75rem;
               line-height: 1.3;
@@ -504,7 +502,7 @@ export const Dashboard: React.FC = () => {
               box-sizing: border-box;
             }
 
-            /* Ensure proper text wrapping */
+            /* Text wrapping improvements */
             .dashboard-container .truncate {
               white-space: normal;
               overflow: visible;
@@ -525,7 +523,7 @@ export const Dashboard: React.FC = () => {
               word-wrap: break-word;
             }
 
-            /* Space adjustments for mobile */
+            /* Space adjustments */
             .dashboard-container .space-y-3 > * + * {
               margin-top: 0.75rem;
             }
@@ -544,14 +542,14 @@ export const Dashboard: React.FC = () => {
               padding: 1.5rem 0.5rem;
             }
 
-            /* Flex improvements for mobile */
+            /* Flex improvements */
             .dashboard-container .flex.items-center.justify-between {
               flex-wrap: wrap;
               gap: 0.5rem;
               align-items: flex-start;
             }
 
-            /* Icon sizing mobile */
+            /* Icon sizing */
             .dashboard-container .h-5.w-5 {
               height: 1.125rem;
               width: 1.125rem;
@@ -562,28 +560,22 @@ export const Dashboard: React.FC = () => {
               width: 0.75rem;
             }
 
-            /* Remove any auto margins that might cause uneven spacing */
+            /* Remove auto margins */
             .dashboard-container .mx-auto {
               margin-left: 0;
               margin-right: 0;
             }
 
-            /* Ensure proper viewport handling */
+            /* Viewport handling */
             body {
               overflow-x: hidden;
             }
-
-            /* Override any parent container margins/padding that might affect spacing */
-            .dashboard-container {
-              margin-left: 0 !important;
-              margin-right: 0 !important;
-            }
           }
 
-          /* Ensure desktop styles remain unchanged */
+          /* Desktop styles remain unchanged */
           @media (min-width: 768px) {
             .dashboard-container {
-              /* Desktop styles remain as they were */
+              /* All desktop styles remain as they were */
             }
           }
         `}</style>
