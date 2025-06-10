@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
 export const RealAuthPage: React.FC = () => {
-  const { signIn, sendOTP, verifyOTP, loading } = useAuth();
+  const { signIn, sendOTP, resetPasswordWithOTP, loading } = useAuth();
   const [step, setStep] = useState<'login' | 'forgot-phone' | 'forgot-otp' | 'forgot-newPassword'>('login');
   const [formData, setFormData] = useState({
     email: '',
@@ -22,10 +23,13 @@ export const RealAuthPage: React.FC = () => {
   });
   const [forgotPassword, setForgotPassword] = useState(false);
   const [storedOTP, setStoredOTP] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (forgotPassword) {
+      // Store the email for password reset
+      setResetEmail(formData.email);
       setStep('forgot-phone');
     } else {
       // Direct login without OTP verification
@@ -58,11 +62,20 @@ export const RealAuthPage: React.FC = () => {
       return;
     }
     
-    const { error } = await verifyOTP(formData.email, formData.otp, formData.newPassword);
+    // Use the new resetPasswordWithOTP method
+    const { error } = await resetPasswordWithOTP(resetEmail, formData.otp, formData.newPassword);
     if (!error) {
       setStep('login');
       setForgotPassword(false);
-      setFormData(prev => ({ ...prev, password: '', newPassword: '', confirmPassword: '', otp: '', phoneNumber: '' }));
+      setFormData(prev => ({ 
+        ...prev, 
+        password: '', 
+        newPassword: '', 
+        confirmPassword: '', 
+        otp: '', 
+        phoneNumber: '' 
+      }));
+      setResetEmail('');
     }
   };
 
@@ -73,7 +86,14 @@ export const RealAuthPage: React.FC = () => {
   const resetToLogin = () => {
     setStep('login');
     setForgotPassword(false);
-    setFormData(prev => ({ ...prev, otp: '', phoneNumber: '', newPassword: '', confirmPassword: '' }));
+    setFormData(prev => ({ 
+      ...prev, 
+      otp: '', 
+      phoneNumber: '', 
+      newPassword: '', 
+      confirmPassword: '' 
+    }));
+    setResetEmail('');
   };
 
   const handleResendOTP = async () => {
