@@ -15,6 +15,33 @@ export interface SubmitVotesData {
   comment?: string;
 }
 
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const retryWithBackoff = async <T,>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> => {
+  let lastError;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      console.log(`Attempt ${attempt + 1} failed:`, error);
+      lastError = error;
+      
+      if (attempt < maxRetries - 1) {
+        const delayMs = baseDelay * Math.pow(2, attempt);
+        console.log(`Retrying in ${delayMs}ms...`);
+        await delay(delayMs);
+      }
+    }
+  }
+  
+  throw lastError;
+};
+
 export const useVoting = () => {
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
@@ -27,42 +54,60 @@ export const useVoting = () => {
 
     try {
       setSubmitting(true);
+      console.log('Starting vote submission for user:', user.id, 'poll:', data.pollId);
 
-      // Check if user has already voted on any of these sub-polls
-      const { data: existingVotes, error: checkError } = await supabase
-        .from('poll_votes')
-        .select('sub_poll_id')
-        .eq('user_id', user.id)
-        .in('sub_poll_id', data.votes.map(v => v.subPollId));
+      const result = await retryWithBackoff(async () => {
+        // Check if user has already voted on any of these sub-polls
+        const { data: existingVotes, error: checkError } = await supabase
+          .from('poll_votes')
+          .select('sub_poll_id')
+          .eq('user_id', user.id)
+          .in('sub_poll_id', data.votes.map(v => v.subPollId));
 
-      if (checkError) throw checkError;
+        if (checkError) {
+          console.error('Error checking existing votes:', checkError);
+          throw checkError;
+        }
 
-      if (existingVotes && existingVotes.length > 0) {
-        toast.error('You have already voted on some of these questions');
-        return false;
-      }
+        if (existingVotes && existingVotes.length > 0) {
+          throw new Error('ALREADY_VOTED');
+        }
 
-      // Prepare vote records
-      const voteRecords = data.votes.map(vote => ({
-        poll_id: data.pollId,
-        sub_poll_id: vote.subPollId,
-        user_id: user.id,
-        vote: vote.vote,
-        comment: data.comment || null
-      }));
+        // Prepare vote records
+        const voteRecords = data.votes.map(vote => ({
+          poll_id: data.pollId,
+          sub_poll_id: vote.subPollId,
+          user_id: user.id,
+          vote: vote.vote,
+          comment: data.comment || null
+        }));
 
-      // Insert all votes
-      const { error: insertError } = await supabase
-        .from('poll_votes')
-        .insert(voteRecords);
+        console.log('Inserting vote records:', voteRecords);
 
-      if (insertError) throw insertError;
+        // Insert all votes
+        const { error: insertError } = await supabase
+          .from('poll_votes')
+          .insert(voteRecords);
 
+        if (insertError) {
+          console.error('Error inserting votes:', insertError);
+          throw insertError;
+        }
+
+        return true;
+      });
+
+      console.log('Vote submission successful');
       toast.success('Your votes have been submitted successfully');
-      return true;
-    } catch (error) {
+      return result;
+    } catch (error: any) {
       console.error('Error submitting votes:', error);
-      toast.error('Failed to submit votes');
+      
+      if (error.message === 'ALREADY_VOTED') {
+        toast.error('You have already voted on some of these questions');
+      } else {
+        toast.error('Failed to submit votes. Please check your connection and try again.');
+      }
       return false;
     } finally {
       setSubmitting(false);
@@ -73,14 +118,21 @@ export const useVoting = () => {
     if (!user) return null;
 
     try {
-      const { data, error } = await supabase
-        .from('poll_votes')
-        .select('*')
-        .eq('poll_id', pollId)
-        .eq('user_id', user.id);
+      console.log('Fetching user votes for poll:', pollId, 'user:', user.id);
+      
+      const result = await retryWithBackoff(async () => {
+        const { data, error } = await supabase
+          .from('poll_votes')
+          .select('*')
+          .eq('poll_id', pollId)
+          .eq('user_id', user.id);
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      });
+
+      console.log('Retrieved user votes:', result);
+      return result;
     } catch (error) {
       console.error('Error fetching user votes:', error);
       return null;
@@ -96,52 +148,62 @@ export const useVoting = () => {
     }
 
     try {
-      // Check if poll is active
-      const { data: poll, error } = await supabase
-        .from('polls')
-        .select('status, deadline')
-        .eq('id', pollId)
-        .single();
+      const result = await retryWithBackoff(async () => {
+        // Check if poll is active
+        const { data: poll, error } = await supabase
+          .from('polls')
+          .select('status, deadline')
+          .eq('id', pollId)
+          .single();
 
-      if (error) {
-        console.error('Error fetching poll:', error);
-        throw error;
-      }
+        if (error) {
+          console.error('Error fetching poll:', error);
+          throw error;
+        }
 
-      console.log('Poll data:', poll);
+        console.log('Poll data:', poll);
 
-      if (poll.status !== 'active') {
-        return { canVote: false, reason: 'Poll is not active' };
-      }
+        if (poll.status !== 'active') {
+          return { canVote: false, reason: 'Poll is not active' };
+        }
 
-      if (new Date(poll.deadline) < new Date()) {
-        return { canVote: false, reason: 'Poll deadline has passed' };
-      }
+        if (new Date(poll.deadline) < new Date()) {
+          return { canVote: false, reason: 'Poll deadline has passed' };
+        }
 
-      // Check if user has already voted
-      const { data: existingVotes, error: voteError } = await supabase
-        .from('poll_votes')
-        .select('id')
-        .eq('poll_id', pollId)
-        .eq('user_id', user.id)
-        .limit(1);
+        // Check if user has already voted
+        const { data: existingVotes, error: voteError } = await supabase
+          .from('poll_votes')
+          .select('id')
+          .eq('poll_id', pollId)
+          .eq('user_id', user.id)
+          .limit(1);
 
-      if (voteError) {
-        console.error('Error checking existing votes:', voteError);
-        throw voteError;
-      }
+        if (voteError) {
+          console.error('Error checking existing votes:', voteError);
+          throw voteError;
+        }
 
-      console.log('Existing votes:', existingVotes);
+        console.log('Existing votes:', existingVotes);
 
-      if (existingVotes && existingVotes.length > 0) {
-        return { canVote: false, reason: 'You have already voted on this poll' };
-      }
+        if (existingVotes && existingVotes.length > 0) {
+          return { canVote: false, reason: 'You have already voted on this poll' };
+        }
 
-      console.log('User can vote');
-      return { canVote: true, reason: null };
-    } catch (error) {
+        console.log('User can vote');
+        return { canVote: true, reason: null };
+      });
+
+      return result;
+    } catch (error: any) {
       console.error('Error checking voting eligibility:', error);
-      return { canVote: false, reason: 'Error checking eligibility' };
+      
+      // Provide more specific error messages
+      if (error.message?.includes('Failed to fetch')) {
+        return { canVote: false, reason: 'Network connection error. Please check your internet connection.' };
+      }
+      
+      return { canVote: false, reason: 'Error checking eligibility. Please try again.' };
     }
   };
 
