@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -121,6 +122,9 @@ export const PollAttachments: React.FC<PollAttachmentsProps> = ({
           {attachments.map((attachment) => {
             const FileIcon = getFileIcon(attachment.mime_type);
             const canView = canViewDocument(attachment.mime_type) && onViewDocument;
+            // Safely access view_count and download_count with fallback to 0
+            const viewCount = (attachment as any).view_count || 0;
+            const downloadCount = (attachment as any).download_count || 0;
 
             return (
               <div
@@ -144,11 +148,11 @@ export const PollAttachments: React.FC<PollAttachmentsProps> = ({
                       </span>
                       <span className="text-xs text-muted-foreground flex items-center space-x-1">
                         <Eye className="h-3 w-3" />
-                        <span>{attachment.view_count || 0}</span>
+                        <span>{viewCount}</span>
                       </span>
                       <span className="text-xs text-muted-foreground flex items-center space-x-1">
                         <Download className="h-3 w-3" />
-                        <span>{attachment.download_count || 0}</span>
+                        <span>{downloadCount}</span>
                       </span>
                     </div>
                   </div>

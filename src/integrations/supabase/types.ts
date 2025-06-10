@@ -65,6 +65,39 @@ export type Database = {
           },
         ]
       }
+      document_analytics: {
+        Row: {
+          action_type: string
+          created_at: string
+          device_type: string | null
+          document_id: string
+          document_type: string
+          id: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          device_type?: string | null
+          document_id: string
+          document_type: string
+          id?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          device_type?: string | null
+          document_id?: string
+          document_type?: string
+          id?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       document_views: {
         Row: {
           completion_percentage: number | null
@@ -925,6 +958,14 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
         }
         Returns: boolean
+      }
+      increment_download_count: {
+        Args: { table_name: string; attachment_id: string }
+        Returns: undefined
+      }
+      increment_view_count: {
+        Args: { table_name: string; attachment_id: string }
+        Returns: undefined
       }
       is_super_admin: {
         Args: { _user_id: string }
