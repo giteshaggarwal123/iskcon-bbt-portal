@@ -188,11 +188,14 @@ export const VotingModule: React.FC = () => {
                         </div>
                       </div>
                       
-                      <div className={`${isMobile ? 'border-t pt-4' : ''}`}>
+                      {isMobile && <div className="border-t pt-4" />}
+                      
+                      <div className={`space-y-4 ${isMobile ? '' : ''}`}>
+                        {/* Primary Action Buttons */}
                         <div className={`flex ${isMobile ? 'flex-col gap-3' : 'flex-wrap gap-2'}`}>
                           <Button 
                             onClick={() => handleVoteNow(poll)}
-                            className={`bg-green-600 hover:bg-green-700 text-white ${isMobile ? 'w-full' : ''}`}
+                            className={`bg-green-600 hover:bg-green-700 text-white ${isMobile ? 'w-full text-base py-3' : ''}`}
                             size={isMobile ? "default" : "default"}
                           >
                             <Vote className="h-4 w-4 mr-2" />
@@ -202,47 +205,53 @@ export const VotingModule: React.FC = () => {
                           <Button 
                             variant="outline" 
                             onClick={() => handleViewResults(poll)}
-                            className={isMobile ? 'w-full' : ''}
+                            className={isMobile ? 'w-full text-base py-3' : ''}
                             size={isMobile ? "default" : "default"}
                           >
                             <Eye className="h-4 w-4 mr-2" />
                             View Results
                           </Button>
-                          
-                          {userRole.canEditVoting && (
-                            <div className={`flex ${isMobile ? 'flex-col gap-3' : 'flex-wrap gap-2'}`}>
-                              <Button 
-                                variant="outline" 
-                                onClick={() => handleEditPoll(poll)}
-                                className={isMobile ? 'w-full' : ''}
-                                size={isMobile ? "default" : "default"}
-                              >
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                              </Button>
-                              
-                              <Button 
-                                variant="outline" 
-                                onClick={() => handleCompletePoll(poll.id)}
-                                className={`text-orange-600 hover:text-orange-700 ${isMobile ? 'w-full' : ''}`}
-                                size={isMobile ? "default" : "default"}
-                              >
-                                <Check className="h-4 w-4 mr-2" />
-                                Complete
-                              </Button>
-                              
-                              <Button 
-                                variant="outline" 
-                                onClick={() => handleDeletePoll(poll.id)}
-                                className={`text-red-600 hover:text-red-700 ${isMobile ? 'w-full' : ''}`}
-                                size={isMobile ? "default" : "default"}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </Button>
-                            </div>
-                          )}
                         </div>
+                        
+                        {/* Admin Action Buttons */}
+                        {userRole.canEditVoting && (
+                          <>
+                            {isMobile && <div className="border-t pt-4" />}
+                            <div className={`space-y-3 ${isMobile ? '' : 'flex flex-wrap gap-2'}`}>
+                              <div className={`flex ${isMobile ? 'flex-col gap-3' : 'flex-wrap gap-2'}`}>
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => handleEditPoll(poll)}
+                                  className={isMobile ? 'w-full text-base py-3' : ''}
+                                  size={isMobile ? "default" : "default"}
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit
+                                </Button>
+                                
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => handleCompletePoll(poll.id)}
+                                  className={`text-orange-600 hover:text-orange-700 hover:bg-orange-50 ${isMobile ? 'w-full text-base py-3' : ''}`}
+                                  size={isMobile ? "default" : "default"}
+                                >
+                                  <Check className="h-4 w-4 mr-2" />
+                                  Complete Vote
+                                </Button>
+                                
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => handleDeletePoll(poll.id)}
+                                  className={`text-red-600 hover:text-red-700 hover:bg-red-50 ${isMobile ? 'w-full text-base py-3' : ''}`}
+                                  size={isMobile ? "default" : "default"}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </Button>
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -277,30 +286,29 @@ export const VotingModule: React.FC = () => {
                       </div>
                     </CardHeader>
                     <CardContent className={isMobile ? 'p-4 pt-0' : ''}>
-                      <div className={`${isMobile ? 'border-t pt-4' : ''}`}>
-                        <div className={`flex ${isMobile ? 'flex-col gap-3' : 'flex-wrap gap-2'}`}>
+                      {isMobile && <div className="border-t pt-4" />}
+                      <div className={`flex ${isMobile ? 'flex-col gap-3' : 'flex-wrap gap-2'}`}>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => handleViewResults(poll)}
+                          className={isMobile ? 'w-full text-base py-3' : ''}
+                          size={isMobile ? "default" : "default"}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Results
+                        </Button>
+                        
+                        {userRole.canEditVoting && (
                           <Button 
                             variant="outline" 
-                            onClick={() => handleViewResults(poll)}
-                            className={isMobile ? 'w-full' : ''}
+                            onClick={() => handleReopenPoll(poll)}
+                            className={`text-blue-600 hover:text-blue-700 hover:bg-blue-50 ${isMobile ? 'w-full text-base py-3' : ''}`}
                             size={isMobile ? "default" : "default"}
                           >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Results
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Reopen Poll
                           </Button>
-                          
-                          {userRole.canEditVoting && (
-                            <Button 
-                              variant="outline" 
-                              onClick={() => handleReopenPoll(poll)}
-                              className={`text-blue-600 hover:text-blue-700 ${isMobile ? 'w-full' : ''}`}
-                              size={isMobile ? "default" : "default"}
-                            >
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                              Reopen Poll
-                            </Button>
-                          )}
-                        </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
