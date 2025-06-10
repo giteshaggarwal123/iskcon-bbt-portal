@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -41,7 +40,6 @@ export const useMeetings = () => {
 
       if (error) throw error;
       
-      // Process the data to include attendee count
       const processedMeetings = (data || []).map(meeting => ({
         ...meeting,
         attendees: meeting.meeting_attendees || [],
@@ -62,7 +60,6 @@ export const useMeetings = () => {
     }
   };
 
-  // Set up realtime subscription for auto-refresh
   useEffect(() => {
     fetchMeetings();
 
@@ -78,15 +75,12 @@ export const useMeetings = () => {
         (payload) => {
           console.log('Meetings table changed:', payload);
           
-          // Don't refetch immediately after delete to prevent flickering
           if (payload.eventType === 'DELETE') {
             console.log('Meeting deleted from database:', payload.old?.id);
-            // Update local state to remove the deleted meeting
             setMeetings(prev => prev.filter(m => m.id !== payload.old?.id));
             return;
           }
           
-          // For other events, refetch after a short delay to ensure consistency
           setTimeout(() => {
             fetchMeetings();
           }, 500);
@@ -140,7 +134,6 @@ export const useMeetings = () => {
     }
 
     try {
-      // Calculate end time based on duration
       const startDateTime = new Date(`${meetingData.date.toISOString().split('T')[0]}T${meetingData.time}`);
       const durationMinutes = parseInt(meetingData.duration.replace(/\D/g, '')) * (meetingData.duration.includes('hour') ? 60 : 1);
       const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000);
@@ -157,9 +150,7 @@ export const useMeetings = () => {
 
       let meeting;
 
-      // Always try to create Teams meeting for online meetings
       if (meetingData.type === 'online') {
-        // Check if user has Microsoft connection
         const { data: profile } = await supabase
           .from('profiles')
           .select('microsoft_access_token')
@@ -167,7 +158,6 @@ export const useMeetings = () => {
           .single();
 
         if (profile?.microsoft_access_token) {
-          // Create Teams meeting using edge function
           const { data: teamsData, error: teamsError } = await supabase.functions.invoke('create-teams-meeting', {
             body: {
               title: meetingData.title,
@@ -180,7 +170,6 @@ export const useMeetings = () => {
 
           if (teamsError) {
             console.error('Teams meeting creation failed:', teamsError);
-            // Fall back to regular meeting creation
             toast({
               title: "Teams Meeting Creation Failed",
               description: "Creating regular meeting instead. Connect Microsoft account for Teams integration.",
@@ -194,17 +183,14 @@ export const useMeetings = () => {
               description: `"${meetingData.title}" created with Teams link and calendar event`,
             });
 
-            // Save transcript reference for future auto-save
             if (meeting) {
               await saveTranscriptReference(meeting.id, teamsData.meetingId);
             }
 
-            // Add attendees to meeting_attendees table
             if (meetingData.attendees && meeting) {
               await addAttendeesToMeeting(meeting.id, meetingData.attendees);
             }
 
-            // Send email invitations with attachments
             if (meetingData.attendees && meeting) {
               await sendMeetingInvitations(meeting, meetingData.attendees, meetingData.attachments);
             }
@@ -221,7 +207,6 @@ export const useMeetings = () => {
         }
       }
 
-      // Create regular meeting in database (fallback or for non-online meetings)
       const { data: meetingResult, error } = await supabase
         .from('meetings')
         .insert({
@@ -245,12 +230,10 @@ export const useMeetings = () => {
         description: `"${meetingData.title}" has been scheduled successfully`
       });
 
-      // Add attendees to meeting_attendees table
       if (meetingData.attendees && meeting) {
         await addAttendeesToMeeting(meeting.id, meetingData.attendees);
       }
 
-      // Send email invitations with attachments
       if (meetingData.attendees && meeting) {
         await sendMeetingInvitations(meeting, meetingData.attendees, meetingData.attachments);
       }
@@ -271,7 +254,6 @@ export const useMeetings = () => {
     try {
       const emails = attendeeEmails.split(',').map(email => email.trim());
       
-      // Get meeting attachments from database if any were uploaded
       let meetingAttachments = [];
       if (attachments && attachments.length > 0) {
         const { data: dbAttachments } = await supabase
@@ -282,7 +264,6 @@ export const useMeetings = () => {
         meetingAttachments = dbAttachments || [];
       }
 
-      // Format meeting time
       const startTime = new Date(meeting.start_time);
       const endTime = new Date(meeting.end_time);
       const meetingDate = startTime.toLocaleDateString('en-US', {
@@ -301,7 +282,6 @@ export const useMeetings = () => {
         hour12: true
       })}`;
 
-      // Create email body
       const emailBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #2563eb; margin-bottom: 20px;">Meeting Invitation</h2>
@@ -357,7 +337,6 @@ export const useMeetings = () => {
         </div>
       `;
 
-      // Send email with attachments
       const { data, error } = await supabase.functions.invoke('send-outlook-email', {
         body: {
           subject: `Meeting Invitation: ${meeting.title}`,
@@ -390,7 +369,6 @@ export const useMeetings = () => {
     try {
       const emails = attendeeEmails.split(',').map(email => email.trim());
       
-      // For each email, try to find the user and add them as attendee
       for (const email of emails) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -438,7 +416,7 @@ export const useMeetings = () => {
     }
 
     try {
-      console.log('Starting robust deletion process for meeting:', meetingId);
+      console.log('Starting comprehensive deletion process for meeting:', meetingId);
       
       const meeting = meetings.find(m => m.id === meetingId);
       if (!meeting) {
@@ -450,7 +428,6 @@ export const useMeetings = () => {
         return;
       }
 
-      // Check if user has permission to delete this meeting
       if (meeting.created_by !== user.id) {
         toast({
           title: "Permission Denied",
@@ -460,13 +437,11 @@ export const useMeetings = () => {
         return;
       }
 
-      // Mark as deleting and optimistically remove from UI
       setDeletingMeetings(prev => new Set(prev).add(meetingId));
       setMeetings(prev => prev.filter(m => m.id !== meetingId));
 
       console.log('Meeting removed from UI, proceeding with comprehensive deletion');
 
-      // Step 1: Delete from Microsoft services first (if applicable)
       if (meeting.teams_meeting_id || meeting.outlook_event_id) {
         console.log('Attempting to delete from Microsoft services...');
         
@@ -478,7 +453,6 @@ export const useMeetings = () => {
 
         if (profile?.microsoft_access_token) {
           try {
-            // Delete Teams meeting
             if (meeting.teams_meeting_id) {
               console.log('Deleting Teams meeting:', meeting.teams_meeting_id);
               const teamsResponse = await fetch(`https://graph.microsoft.com/v1.0/me/onlineMeetings/${meeting.teams_meeting_id}`, {
@@ -495,7 +469,6 @@ export const useMeetings = () => {
               }
             }
 
-            // Delete Outlook calendar event
             if (meeting.outlook_event_id) {
               console.log('Deleting Outlook event:', meeting.outlook_event_id);
               const outlookResponse = await fetch(`https://graph.microsoft.com/v1.0/me/events/${meeting.outlook_event_id}`, {
@@ -513,16 +486,13 @@ export const useMeetings = () => {
             }
           } catch (microsoftError) {
             console.error('Error deleting from Microsoft services:', microsoftError);
-            // Continue with database deletion even if Microsoft services fail
           }
         }
       }
 
-      // Step 2: Delete all related records in the correct order to respect foreign key constraints
       console.log('Deleting related database records...');
       
       try {
-        // Delete meeting attachments
         const { error: attachmentsError } = await supabase
           .from('meeting_attachments')
           .delete()
@@ -532,7 +502,6 @@ export const useMeetings = () => {
           console.warn('Error deleting meeting attachments:', attachmentsError);
         }
 
-        // Delete attendance records
         const { error: attendanceError } = await supabase
           .from('attendance_records')
           .delete()
@@ -542,7 +511,6 @@ export const useMeetings = () => {
           console.warn('Error deleting attendance records:', attendanceError);
         }
 
-        // Delete meeting attendees
         const { error: attendeesError } = await supabase
           .from('meeting_attendees')
           .delete()
@@ -552,7 +520,6 @@ export const useMeetings = () => {
           console.warn('Error deleting meeting attendees:', attendeesError);
         }
 
-        // Delete meeting transcripts
         const { error: transcriptsError } = await supabase
           .from('meeting_transcripts')
           .delete()
@@ -565,20 +532,17 @@ export const useMeetings = () => {
         console.log('All related records deleted successfully');
       } catch (relatedError) {
         console.error('Error deleting related records:', relatedError);
-        // Continue with main meeting deletion
       }
 
-      // Step 3: Finally delete the main meeting record
       console.log('Deleting main meeting record...');
       const { error: meetingError } = await supabase
         .from('meetings')
         .delete()
         .eq('id', meetingId)
-        .eq('created_by', user.id); // Double check ownership
+        .eq('created_by', user.id);
 
       if (meetingError) {
         console.error('Failed to delete meeting from database:', meetingError);
-        // Restore the meeting in UI since database deletion failed
         setMeetings(prev => [...prev, meeting].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
         throw new Error(`Database deletion failed: ${meetingError.message}`);
       }
@@ -587,13 +551,12 @@ export const useMeetings = () => {
 
       toast({
         title: "Meeting Deleted Successfully",
-        description: `"${meeting.title}" and all related data have been permanently removed`,
+        description: `"${meeting.title}" and all related data have been permanently removed from all platforms`,
       });
 
     } catch (error: any) {
-      console.error('Error in robust meeting deletion:', error);
+      console.error('Error in comprehensive meeting deletion:', error);
       
-      // Restore the meeting in UI since deletion failed
       const meeting = meetings.find(m => m.id === meetingId);
       if (meeting) {
         setMeetings(prev => [...prev, meeting].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
@@ -601,11 +564,10 @@ export const useMeetings = () => {
       
       toast({
         title: "Delete Failed",
-        description: error.message || "Failed to delete meeting. Please try again.",
+        description: error.message || "Failed to delete meeting from all platforms. Please try again.",
         variant: "destructive"
       });
     } finally {
-      // Always clean up deleting state
       setDeletingMeetings(prev => {
         const newSet = new Set(prev);
         newSet.delete(meetingId);
@@ -646,7 +608,6 @@ export const useMeetings = () => {
       const meeting = meetings.find(m => m.id === meetingId);
       if (!meeting?.teams_meeting_id) return;
 
-      // Fetch transcript from Teams
       const { data: transcriptData, error } = await supabase.functions.invoke('fetch-teams-transcript', {
         body: {
           meetingId: meeting.teams_meeting_id,
@@ -657,7 +618,6 @@ export const useMeetings = () => {
       if (error) throw error;
 
       if (transcriptData?.transcript) {
-        // Save transcript to meeting_transcripts table
         await supabase
           .from('meeting_transcripts')
           .upsert({
@@ -667,7 +627,6 @@ export const useMeetings = () => {
             teams_transcript_id: meeting.teams_meeting_id
           });
 
-        // Save to documents repository
         const fileName = `${meeting.title}_transcript_${new Date().toISOString().split('T')[0]}.txt`;
         await supabase
           .from('documents')

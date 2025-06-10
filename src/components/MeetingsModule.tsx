@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -283,7 +282,6 @@ export const MeetingsModule: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Add RSVP Selector for upcoming meetings */}
                         <RSVPSelector 
                           meeting={meeting} 
                           onResponseUpdate={handleRSVPUpdate}
@@ -389,16 +387,16 @@ export const MeetingsModule: React.FC = () => {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle className="flex items-center gap-2">
                                     <AlertTriangle className="h-5 w-5 text-red-500" />
-                                    Delete Meeting Permanently?
+                                    Delete Meeting from All Platforms?
                                   </AlertDialogTitle>
                                   <AlertDialogDescription className="space-y-2">
                                     <p>Are you sure you want to delete "<strong>{meeting.title}</strong>"?</p>
                                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
-                                      <p className="font-medium text-yellow-800 mb-1">This action will:</p>
+                                      <p className="font-medium text-yellow-800 mb-1">This action will permanently:</p>
                                       <ul className="text-yellow-700 space-y-1 ml-4 list-disc">
-                                        <li>Remove the meeting from Teams (if applicable)</li>
+                                        <li>Remove the meeting from Microsoft Teams</li>
                                         <li>Delete the Outlook calendar event</li>
-                                        <li>Remove all attendee records</li>
+                                        <li>Remove all attendee records and RSVPs</li>
                                         <li>Delete meeting attachments and transcripts</li>
                                         <li>Cannot be undone</li>
                                       </ul>
@@ -412,7 +410,7 @@ export const MeetingsModule: React.FC = () => {
                                     className="bg-red-600 hover:bg-red-700"
                                   >
                                     <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete Permanently
+                                    Delete from All Platforms
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
@@ -516,10 +514,10 @@ export const MeetingsModule: React.FC = () => {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle className="flex items-center gap-2">
                                     <AlertTriangle className="h-5 w-5 text-red-500" />
-                                    Delete Past Meeting?
+                                    Delete Past Meeting from All Platforms?
                                   </AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to permanently delete the past meeting "<strong>{meeting.title}</strong>"? This will remove all related data including transcripts and cannot be undone.
+                                    Are you sure you want to permanently delete the past meeting "<strong>{meeting.title}</strong>"? This will remove all related data including transcripts from all platforms and cannot be undone.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -529,7 +527,7 @@ export const MeetingsModule: React.FC = () => {
                                     className="bg-red-600 hover:bg-red-700"
                                   >
                                     <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete Permanently
+                                    Delete from All Platforms
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
@@ -745,3 +743,5 @@ export const MeetingsModule: React.FC = () => {
     </div>
   );
 };
+
+export default MeetingsModule;
