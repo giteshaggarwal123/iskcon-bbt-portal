@@ -698,5 +698,3 @@ export const MeetingsModule: React.FC = () => {
 };
 
 export default MeetingsModule;
-
-}
