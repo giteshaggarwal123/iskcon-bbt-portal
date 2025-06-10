@@ -437,6 +437,7 @@ export const SimpleVotingDialog: React.FC<SimpleVotingDialogProps> = ({ open, on
         isOpen={isDocumentViewerOpen}
         onClose={handleCloseDocumentViewer}
         document={selectedDocument}
+        documentType="poll_attachment"
       />
     </>
   );

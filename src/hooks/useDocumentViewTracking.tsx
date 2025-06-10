@@ -6,12 +6,14 @@ interface UseDocumentViewTrackingProps {
   documentId: string | null;
   userId: string | null;
   isViewing: boolean;
+  documentType?: 'document' | 'poll_attachment';
 }
 
 export const useDocumentViewTracking = ({ 
   documentId, 
   userId, 
-  isViewing 
+  isViewing,
+  documentType = 'document'
 }: UseDocumentViewTrackingProps) => {
   const viewStartTimeRef = useRef<Date | null>(null);
   const viewRecordIdRef = useRef<string | null>(null);
@@ -37,7 +39,14 @@ export const useDocumentViewTracking = ({
       viewStartTimeRef.current = new Date();
       console.log('Starting document view tracking at:', viewStartTimeRef.current);
 
-      // Create view record
+      // For poll attachments, we'll track them differently since they don't exist in the documents table
+      if (documentType === 'poll_attachment') {
+        console.log('Tracking poll attachment view:', documentId);
+        // For now, just log the view - we could create a separate table for attachment views later
+        return;
+      }
+
+      // Create view record only for documents that exist in the documents table
       const { data, error } = await supabase
         .from('document_views')
         .insert({

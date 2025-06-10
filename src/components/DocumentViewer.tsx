@@ -19,22 +19,25 @@ interface DocumentViewerProps {
     uploaded_by: string;
     created_at: string;
   } | null;
+  documentType?: 'document' | 'poll_attachment';
 }
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   isOpen,
   onClose,
-  document: documentProp
+  document: documentProp,
+  documentType = 'document'
 }) => {
   const [zoom, setZoom] = useState(100);
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Use the tracking hook
+  // Use the tracking hook with document type
   useDocumentViewTracking({
     documentId: documentProp?.id || null,
     userId: user?.id || null,
-    isViewing: isOpen
+    isViewing: isOpen,
+    documentType
   });
 
   // Reset zoom when document changes

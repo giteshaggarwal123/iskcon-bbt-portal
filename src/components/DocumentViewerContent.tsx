@@ -36,7 +36,7 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
   const renderFilePreview = () => {
     console.log('Rendering file preview for:', document.name, 'Type:', mimeType);
     
-    // Check if this is a Supabase storage URL
+    // Check if this is a Supabase storage URL (public URL)
     const isSupabaseStorage = document.file_path.includes('supabase.co/storage') || 
                              document.file_path.includes('/storage/v1/object/public/');
     
@@ -133,6 +133,27 @@ export const DocumentViewerContent: React.FC<DocumentViewerContentProps> = ({
             className="w-full h-full border-0"
             title={document.name}
             style={{ fontSize: `${zoom}%` }}
+          />
+        </div>
+      );
+    }
+
+    // For Office documents (Word, Excel, PowerPoint), try using Office Online viewer
+    if (mimeType.includes('word') || mimeType.includes('document') || 
+        mimeType.includes('spreadsheet') || mimeType.includes('excel') ||
+        mimeType.includes('presentation') || mimeType.includes('powerpoint')) {
+      
+      const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(document.file_path)}`;
+      
+      return (
+        <div className="w-full h-full">
+          <iframe
+            src={officeViewerUrl}
+            className="w-full h-full border-0"
+            title={document.name}
+            onError={() => {
+              console.error('Office document failed to load via Office Online:', document.file_path);
+            }}
           />
         </div>
       );
