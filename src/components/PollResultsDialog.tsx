@@ -1,11 +1,14 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, XCircle, MinusCircle, Users, Calendar } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { CheckCircle, XCircle, MinusCircle, Users, Calendar, Clock } from 'lucide-react';
 import { Poll } from '@/hooks/usePolls';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
 interface PollResultsDialogProps {
@@ -14,19 +17,89 @@ interface PollResultsDialogProps {
   poll: Poll | null;
 }
 
+interface MemberVotingStatus {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  avatar_url: string | null;
+  has_voted: boolean;
+  voted_at: string | null;
+}
+
 export const PollResultsDialog: React.FC<PollResultsDialogProps> = ({ open, onOpenChange, poll }) => {
+  const [memberStatuses, setMemberStatuses] = useState<MemberVotingStatus[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+
+  useEffect(() => {
+    if (poll && open) {
+      fetchMemberVotingStatus();
+    }
+  }, [poll, open]);
+
+  const fetchMemberVotingStatus = async () => {
+    if (!poll) return;
+    
+    setLoadingMembers(true);
+    try {
+      // Get all members
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, avatar_url')
+        .order('first_name');
+
+      if (profilesError) throw profilesError;
+
+      // Get voting status for each member
+      const { data: votes, error: votesError } = await supabase
+        .from('poll_votes')
+        .select('user_id, voted_at')
+        .eq('poll_id', poll.id);
+
+      if (votesError) throw votesError;
+
+      // Create a map of user votes
+      const votesMap = new Map();
+      votes?.forEach(vote => {
+        if (!votesMap.has(vote.user_id)) {
+          votesMap.set(vote.user_id, vote.voted_at);
+        }
+      });
+
+      // Combine profiles with voting status
+      const memberStatuses: MemberVotingStatus[] = profiles?.map(profile => ({
+        id: profile.id,
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        email: profile.email || '',
+        avatar_url: profile.avatar_url,
+        has_voted: votesMap.has(profile.id),
+        voted_at: votesMap.get(profile.id) || null
+      })) || [];
+
+      setMemberStatuses(memberStatuses);
+    } catch (error) {
+      console.error('Error fetching member voting status:', error);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
   if (!poll) return null;
+
+  const votedMembers = memberStatuses.filter(m => m.has_voted);
+  const pendingMembers = memberStatuses.filter(m => !m.has_voted);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Users className="h-5 w-5" />
             <span>Poll Results</span>
           </DialogTitle>
           <DialogDescription>
-            View voting results and statistics for this poll
+            View voting results and member participation for this poll
           </DialogDescription>
         </DialogHeader>
         
@@ -71,6 +144,109 @@ export const PollResultsDialog: React.FC<PollResultsDialogProps> = ({ open, onOp
                 <Calendar className="h-4 w-4" />
                 <span>Deadline: {format(new Date(poll.deadline), 'MMM dd, yyyy HH:mm')}</span>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Member Voting Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Member Voting Status
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Track who has participated in the voting (votes remain anonymous)
+              </p>
+            </CardHeader>
+            <CardContent>
+              {loadingMembers ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Voted Members */}
+                    <div>
+                      <h4 className="font-medium text-green-700 mb-3 flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4" />
+                        Voted ({votedMembers.length})
+                      </h4>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {votedMembers.length > 0 ? (
+                          votedMembers.map((member) => (
+                            <div key={member.id} className="flex items-center space-x-3 p-2 bg-green-50 rounded-lg">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={member.avatar_url || ''} />
+                                <AvatarFallback>
+                                  {member.first_name.charAt(0)}{member.last_name.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900">
+                                  {member.first_name} {member.last_name}
+                                </p>
+                                {member.voted_at && (
+                                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {format(new Date(member.voted_at), 'MMM dd, HH:mm')}
+                                  </p>
+                                )}
+                              </div>
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-gray-500">No votes cast yet</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pending Members */}
+                    <div>
+                      <h4 className="font-medium text-orange-700 mb-3 flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Pending ({pendingMembers.length})
+                      </h4>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {pendingMembers.length > 0 ? (
+                          pendingMembers.map((member) => (
+                            <div key={member.id} className="flex items-center space-x-3 p-2 bg-orange-50 rounded-lg">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={member.avatar_url || ''} />
+                                <AvatarFallback>
+                                  {member.first_name.charAt(0)}{member.last_name.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900">
+                                  {member.first_name} {member.last_name}
+                                </p>
+                                <p className="text-xs text-gray-500">{member.email}</p>
+                              </div>
+                              <Clock className="h-4 w-4 text-orange-600" />
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-gray-500">All members have voted</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="mt-4">
+                    <div className="flex justify-between text-sm mb-2">
+                      <span>Voting Progress</span>
+                      <span>{votedMembers.length}/{memberStatuses.length} members</span>
+                    </div>
+                    <Progress 
+                      value={memberStatuses.length > 0 ? (votedMembers.length / memberStatuses.length) * 100 : 0} 
+                      className="h-2"
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -139,7 +315,7 @@ export const PollResultsDialog: React.FC<PollResultsDialogProps> = ({ open, onOp
           {poll.is_secret && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <p className="text-sm text-yellow-800">
-                <strong>Secret Ballot:</strong> Individual votes are anonymous and cannot be traced back to specific voters.
+                <strong>Secret Ballot:</strong> Individual votes are anonymous and cannot be traced back to specific voters. Only participation status is shown above.
               </p>
             </div>
           )}
