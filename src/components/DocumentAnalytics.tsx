@@ -42,17 +42,15 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
       console.log('Fetching analytics for:', documentType, documentId);
       
       // For meeting attachments and poll attachments, get data from their respective tables
-      if (documentType === 'meeting_attachment' || documentType === 'poll_attachment') {
-        let tableName = documentType === 'meeting_attachment' ? 'meeting_attachments' : 'poll_attachments';
-        
+      if (documentType === 'meeting_attachment') {
         const { data: fileData, error } = await supabase
-          .from(tableName)
+          .from('meeting_attachments')
           .select('view_count, download_count, created_at')
           .eq('id', documentId)
           .single();
 
         if (error) {
-          console.error('Error fetching file data:', error);
+          console.error('Error fetching meeting attachment data:', error);
           throw error;
         }
 
@@ -99,6 +97,73 @@ export const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({
           topViewers: viewCount > 0 ? [
             { name: 'Anonymous Users', views: Math.floor(viewCount * 0.6), timeSpent: 180 },
             { name: 'Meeting Participants', views: Math.floor(viewCount * 0.4), timeSpent: 120 }
+          ].filter(viewer => viewer.views > 0) : [],
+          deviceBreakdown: viewCount > 0 ? [
+            { device: 'Desktop', count: Math.floor(viewCount * 0.65) },
+            { device: 'Mobile', count: Math.floor(viewCount * 0.25) },
+            { device: 'Tablet', count: Math.floor(viewCount * 0.1) }
+          ].filter(device => device.count > 0) : []
+        });
+        
+        setLoading(false);
+        return;
+      }
+
+      if (documentType === 'poll_attachment') {
+        const { data: fileData, error } = await supabase
+          .from('poll_attachments')
+          .select('view_count, download_count, created_at')
+          .eq('id', documentId)
+          .single();
+
+        if (error) {
+          console.error('Error fetching poll attachment data:', error);
+          throw error;
+        }
+
+        // Create analytics data based on actual view/download counts
+        const viewCount = fileData?.view_count || 0;
+        const downloadCount = fileData?.download_count || 0;
+        const createdAt = new Date(fileData?.created_at || new Date());
+        
+        // Generate realistic data based on the actual counts
+        const days = [];
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(today);
+          date.setDate(date.getDate() - i);
+          
+          // Distribute views/downloads across the last 7 days with some randomness
+          const maxDayViews = Math.ceil(viewCount / 3); // Concentrate most views in recent days
+          const dayViews = i < 3 ? Math.floor(Math.random() * maxDayViews) : Math.floor(Math.random() * Math.max(1, viewCount / 7));
+          const dayDownloads = Math.floor(dayViews * 0.4); // Downloads are typically 40% of views
+          
+          days.push({
+            date: format(date, 'MMM dd'),
+            views: Math.min(dayViews, viewCount),
+            downloads: Math.min(dayDownloads, downloadCount)
+          });
+        }
+
+        // Ensure total views across days doesn't exceed actual view count
+        const totalDayViews = days.reduce((sum, day) => sum + day.views, 0);
+        if (totalDayViews > viewCount && viewCount > 0) {
+          const ratio = viewCount / totalDayViews;
+          days.forEach(day => {
+            day.views = Math.floor(day.views * ratio);
+            day.downloads = Math.floor(day.downloads * ratio);
+          });
+        }
+
+        setAnalytics({
+          totalViews: viewCount,
+          totalDownloads: downloadCount,
+          uniqueViewers: Math.max(1, Math.floor(viewCount * 0.8)), // Estimate unique viewers
+          avgTimeSpent: Math.floor(Math.random() * 240) + 60, // Random time between 1-4 minutes
+          viewsByDay: days,
+          topViewers: viewCount > 0 ? [
+            { name: 'Anonymous Users', views: Math.floor(viewCount * 0.6), timeSpent: 180 },
+            { name: 'Poll Participants', views: Math.floor(viewCount * 0.4), timeSpent: 120 }
           ].filter(viewer => viewer.views > 0) : [],
           deviceBreakdown: viewCount > 0 ? [
             { device: 'Desktop', count: Math.floor(viewCount * 0.65) },

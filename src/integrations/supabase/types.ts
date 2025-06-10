@@ -471,6 +471,7 @@ export type Database = {
       poll_attachments: {
         Row: {
           created_at: string
+          download_count: number | null
           file_name: string
           file_path: string
           file_size: number | null
@@ -478,9 +479,11 @@ export type Database = {
           mime_type: string | null
           poll_id: string
           uploaded_by: string
+          view_count: number | null
         }
         Insert: {
           created_at?: string
+          download_count?: number | null
           file_name: string
           file_path: string
           file_size?: number | null
@@ -488,9 +491,11 @@ export type Database = {
           mime_type?: string | null
           poll_id: string
           uploaded_by: string
+          view_count?: number | null
         }
         Update: {
           created_at?: string
+          download_count?: number | null
           file_name?: string
           file_path?: string
           file_size?: number | null
@@ -498,6 +503,7 @@ export type Database = {
           mime_type?: string | null
           poll_id?: string
           uploaded_by?: string
+          view_count?: number | null
         }
         Relationships: [
           {
