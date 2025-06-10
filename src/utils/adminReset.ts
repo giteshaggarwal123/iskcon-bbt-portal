@@ -25,11 +25,45 @@ export const resetUserPassword = async (email: string, newPassword: string) => {
   }
 };
 
-// Immediately reset the password for anshkashyap23109@gmail.com
-resetUserPassword('anshkashyap23109@gmail.com', '12345678').then(result => {
+export const confirmUserEmail = async (email: string) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-otp', {
+      body: {
+        email: email,
+        type: 'confirm_email'
+      }
+    });
+
+    if (error) {
+      console.error('Email confirmation error:', error);
+      throw error;
+    }
+
+    console.log('Email confirmation successful:', data);
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('Email confirmation failed:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Confirm email for anshkashyap23109@gmail.com
+confirmUserEmail('anshkashyap23109@gmail.com').then(result => {
   if (result.success) {
+    console.log('✅ Email confirmed for anshkashyap23109@gmail.com');
+    
+    // After confirming email, reset the password
+    return resetUserPassword('anshkashyap23109@gmail.com', '12345678');
+  } else {
+    console.error('❌ Email confirmation failed:', result.error);
+    return Promise.reject(result.error);
+  }
+}).then(resetResult => {
+  if (resetResult && resetResult.success) {
     console.log('✅ Password reset successful for anshkashyap23109@gmail.com');
   } else {
-    console.error('❌ Password reset failed:', result.error);
+    console.error('❌ Password reset failed:', resetResult?.error);
   }
+}).catch(error => {
+  console.error('❌ Process failed:', error);
 });

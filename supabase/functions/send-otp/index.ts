@@ -29,6 +29,51 @@ serve(async (req) => {
       );
     }
 
+    // Handle email confirmation for users
+    if (type === 'confirm_email') {
+      try {
+        // Get user by email and confirm them
+        const { data: { users }, error: fetchError } = await supabase.auth.admin.listUsers();
+        
+        if (fetchError) {
+          throw new Error('Failed to fetch user data');
+        }
+
+        const targetUser = users.find(u => u.email === targetIdentifier);
+        if (!targetUser) {
+          throw new Error('User not found');
+        }
+
+        // Confirm the user's email using admin API
+        const { error: confirmError } = await supabase.auth.admin.updateUserById(
+          targetUser.id,
+          { email_confirm: true }
+        );
+
+        if (confirmError) {
+          throw confirmError;
+        }
+
+        console.log('Email confirmed successfully for user:', targetIdentifier);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: 'Email confirmed successfully'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (error: any) {
+        console.error('Email confirmation error:', error);
+        return new Response(
+          JSON.stringify({ 
+            error: error.message || 'Failed to confirm email'
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Handle admin password reset (direct reset without OTP)
     if (type === 'admin_reset' || adminReset) {
       try {
