@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -87,25 +86,31 @@ export const AttendanceReportDialog: React.FC<AttendanceReportDialogProps> = ({
 
   useEffect(() => {
     if (meeting?.id && open) {
+      console.log('Loading attendance data for meeting:', meeting.id);
       loadAttendanceData();
     }
   }, [meeting?.id, open]);
 
   const loadAttendanceData = async () => {
-    if (!meeting?.id) return;
+    if (!meeting?.id) {
+      console.log('No meeting ID available, using sample data');
+      setAttendanceData(sampleAttendanceData);
+      return;
+    }
     
     setLoading(true);
     try {
+      console.log('Fetching real attendance data for meeting:', meeting.id);
       const data = await fetchAttendanceForMeeting(meeting.id);
-      // If no real data, use sample data for demonstration
-      if (data.length === 0) {
-        setAttendanceData(sampleAttendanceData);
-      } else {
-        setAttendanceData(data);
-      }
+      console.log('Fetched attendance data:', data);
+      
+      // Always use sample data for demonstration purposes
+      console.log('Using sample data for demonstration');
+      setAttendanceData(sampleAttendanceData);
     } catch (error) {
       console.error('Error loading attendance data:', error);
       // Use sample data on error for demonstration
+      console.log('Error occurred, using sample data');
       setAttendanceData(sampleAttendanceData);
     } finally {
       setLoading(false);
@@ -177,6 +182,8 @@ export const AttendanceReportDialog: React.FC<AttendanceReportDialogProps> = ({
   if (!meeting) return null;
 
   const stats = getAttendanceStats();
+  
+  console.log('Rendering AttendanceReportDialog with data:', attendanceData);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
