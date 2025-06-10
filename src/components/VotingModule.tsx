@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Vote, Check, Plus, Calendar, Users, FileText, Edit, Trash2, Eye, RefreshCw } from 'lucide-react';
 import { CreatePollDialog } from './CreatePollDialog';
-import { VotingDialog } from './VotingDialog';
+import { SimpleVotingDialog } from './SimpleVotingDialog';
 import { PollResultsDialog } from './PollResultsDialog';
 import { EditPollDialog } from './EditPollDialog';
 import { ReopenPollDialog } from './ReopenPollDialog';
@@ -28,7 +29,6 @@ export const VotingModule: React.FC = () => {
 
   const activePolls = polls.filter(poll => poll.status === 'active');
   const completedPolls = polls.filter(poll => poll.status === 'completed');
-  const draftPolls: any[] = [];
 
   const handleVoteNow = (poll: any) => {
     setSelectedPoll(poll);
@@ -300,7 +300,7 @@ export const VotingModule: React.FC = () => {
         />
       )}
       
-      <VotingDialog 
+      <SimpleVotingDialog 
         open={showVotingDialog} 
         onOpenChange={setShowVotingDialog}
         poll={selectedPoll}
