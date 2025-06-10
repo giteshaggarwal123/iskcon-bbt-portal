@@ -47,20 +47,51 @@ export const confirmUserEmail = async (email: string) => {
   }
 };
 
-// Confirm email for anshkashyap23109@gmail.com
-confirmUserEmail('anshkashyap23109@gmail.com').then(result => {
-  if (result.success) {
-    console.log('✅ Email confirmed for anshkashyap23109@gmail.com');
+export const forceUserEmailConfirmation = async (email: string) => {
+  try {
+    console.log('🔄 Starting forced email confirmation for:', email);
     
-    // After confirming email, reset the password
-    return resetUserPassword('anshkashyap23109@gmail.com', '12345678');
+    const { data, error } = await supabase.functions.invoke('send-otp', {
+      body: {
+        email: email,
+        type: 'force_confirm_email'
+      }
+    });
+
+    if (error) {
+      console.error('❌ Force email confirmation error:', error);
+      throw error;
+    }
+
+    console.log('✅ Force email confirmation successful:', data);
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('❌ Force email confirmation failed:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Force confirm email and reset password for anshkashyap23109@gmail.com
+console.log('🚀 Starting admin operations for anshkashyap23109@gmail.com');
+
+forceUserEmailConfirmation('anshkashyap23109@gmail.com').then(result => {
+  if (result.success) {
+    console.log('✅ Email force confirmed for anshkashyap23109@gmail.com');
+    
+    // Wait a moment then reset the password
+    return new Promise(resolve => {
+      setTimeout(() => {
+        resolve(resetUserPassword('anshkashyap23109@gmail.com', '12345678'));
+      }, 1000);
+    });
   } else {
-    console.error('❌ Email confirmation failed:', result.error);
+    console.error('❌ Email force confirmation failed:', result.error);
     return Promise.reject(result.error);
   }
 }).then(resetResult => {
   if (resetResult && resetResult.success) {
     console.log('✅ Password reset successful for anshkashyap23109@gmail.com');
+    console.log('🎉 User should now be able to login with email: anshkashyap23109@gmail.com and password: 12345678');
   } else {
     console.error('❌ Password reset failed:', resetResult?.error);
   }

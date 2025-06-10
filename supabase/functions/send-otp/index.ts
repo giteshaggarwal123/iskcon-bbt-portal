@@ -29,6 +29,61 @@ serve(async (req) => {
       );
     }
 
+    // Handle forced email confirmation (admin override)
+    if (type === 'force_confirm_email') {
+      try {
+        console.log('🔄 Force confirming email for:', targetIdentifier);
+        
+        // Get user by email
+        const { data: { users }, error: fetchError } = await supabase.auth.admin.listUsers();
+        
+        if (fetchError) {
+          throw new Error('Failed to fetch user data');
+        }
+
+        const targetUser = users.find(u => u.email === targetIdentifier);
+        if (!targetUser) {
+          throw new Error('User not found');
+        }
+
+        console.log('👤 Found user:', targetUser.id, 'Current email_confirmed_at:', targetUser.email_confirmed_at);
+
+        // Force confirm the user's email using admin API
+        const { data: updateData, error: confirmError } = await supabase.auth.admin.updateUserById(
+          targetUser.id,
+          { 
+            email_confirm: true,
+            email_confirmed_at: new Date().toISOString()
+          }
+        );
+
+        if (confirmError) {
+          console.error('❌ Confirm error:', confirmError);
+          throw confirmError;
+        }
+
+        console.log('✅ Email force confirmed successfully for user:', targetIdentifier);
+        console.log('📧 Updated user data:', updateData);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: 'Email force confirmed successfully',
+            user_id: targetUser.id
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (error: any) {
+        console.error('❌ Email force confirmation error:', error);
+        return new Response(
+          JSON.stringify({ 
+            error: error.message || 'Failed to force confirm email'
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Handle email confirmation for users
     if (type === 'confirm_email') {
       try {
