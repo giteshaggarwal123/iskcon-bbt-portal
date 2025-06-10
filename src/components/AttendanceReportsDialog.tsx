@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Download, TrendingUp, Users, Clock, BarChart3 } from 'lucide-react';
+import { Calendar, Download, TrendingUp, Users, Clock, BarChart3, UserCheck, Target } from 'lucide-react';
 import { useAttendance } from '@/hooks/useAttendance';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subWeeks, parseISO } from 'date-fns';
 
@@ -64,32 +64,77 @@ export const AttendanceReportsDialog: React.FC<AttendanceReportsDialogProps> = (
   };
 
   const getOverallStats = () => {
-    if (!reportData.length) return { totalMeetings: 0, avgAttendance: 0, topAttendee: null };
+    if (!reportData.length) return { totalMeetings: 0, avgAttendance: 0, totalMembers: 0, activeMembers: 0 };
 
+    const uniqueMeetings = [...new Set(reportData.map(r => r.meeting_id))];
+    const uniqueMembers = [...new Set(reportData.map(r => r.user_id))];
+    const activeMembers = [...new Set(reportData.filter(r => r.attendance_status === 'present' || r.attendance_status === 'late').map(r => r.user_id))];
+
+    const totalMeetings = uniqueMeetings.length;
+    const avgAttendance = reportData.length > 0 
+      ? Math.round((reportData.filter(r => r.attendance_status === 'present' || r.attendance_status === 'late').length / reportData.length) * 100)
+      : 0;
+
+    return { 
+      totalMeetings, 
+      avgAttendance, 
+      totalMembers: uniqueMembers.length,
+      activeMembers: activeMembers.length
+    };
+  };
+
+  const getMemberAnalytics = () => {
     const memberStats = reportData.reduce((acc: any, record: any) => {
+      const memberKey = record.user_id;
       const memberName = `${record.profiles?.first_name} ${record.profiles?.last_name}`;
-      if (!acc[memberName]) {
-        acc[memberName] = { attended: 0, total: 0 };
+      
+      if (!acc[memberKey]) {
+        acc[memberKey] = {
+          name: memberName,
+          email: record.profiles?.email,
+          totalMeetings: 0,
+          attended: 0,
+          late: 0,
+          absent: 0,
+          totalDuration: 0,
+          averageDuration: 0,
+          attendanceStreak: 0,
+          lastAttendance: null
+        };
       }
       
-      acc[memberName].total++;
-      if (record.attendance_status === 'present' || record.attendance_status === 'late') {
-        acc[memberName].attended++;
+      acc[memberKey].totalMeetings++;
+      
+      switch (record.attendance_status) {
+        case 'present':
+          acc[memberKey].attended++;
+          acc[memberKey].lastAttendance = record.created_at;
+          break;
+        case 'late':
+          acc[memberKey].late++;
+          acc[memberKey].lastAttendance = record.created_at;
+          break;
+        case 'absent':
+          acc[memberKey].absent++;
+          break;
+      }
+      
+      if (record.duration_minutes) {
+        acc[memberKey].totalDuration += record.duration_minutes;
       }
       
       return acc;
     }, {});
 
-    const totalMeetings = [...new Set(reportData.map(r => r.meeting_id))].length;
-    const avgAttendance = reportData.length > 0 
-      ? Math.round((reportData.filter(r => r.attendance_status === 'present' || r.attendance_status === 'late').length / reportData.length) * 100)
-      : 0;
+    // Calculate average duration and attendance rate for each member
+    Object.values(memberStats).forEach((member: any) => {
+      if (member.totalMeetings > 0) {
+        member.averageDuration = Math.round(member.totalDuration / member.totalMeetings);
+        member.attendanceRate = Math.round(((member.attended + member.late) / member.totalMeetings) * 100);
+      }
+    });
 
-    const topAttendee = Object.entries(memberStats)
-      .map(([name, stats]: [string, any]) => ({ name, rate: Math.round((stats.attended / stats.total) * 100) }))
-      .sort((a, b) => b.rate - a.rate)[0] || null;
-
-    return { totalMeetings, avgAttendance, topAttendee };
+    return Object.values(memberStats).sort((a: any, b: any) => b.attendanceRate - a.attendanceRate);
   };
 
   const getMemberSummary = () => {
@@ -153,12 +198,13 @@ export const AttendanceReportsDialog: React.FC<AttendanceReportsDialogProps> = (
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `attendance_report_${selectedPeriod}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.download = `attendance_analytics_${selectedPeriod}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
 
   const stats = getOverallStats();
+  const memberAnalytics = getMemberAnalytics();
   const memberSummary = getMemberSummary();
 
   return (
@@ -167,10 +213,10 @@ export const AttendanceReportsDialog: React.FC<AttendanceReportsDialogProps> = (
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <BarChart3 className="h-5 w-5" />
-            <span>Attendance Reports</span>
+            <span>Attendance Analytics & Reports</span>
           </DialogTitle>
           <DialogDescription>
-            Comprehensive attendance analytics and member tracking
+            Comprehensive attendance analytics with member-wise insights and tracking
           </DialogDescription>
         </DialogHeader>
         
@@ -196,8 +242,8 @@ export const AttendanceReportsDialog: React.FC<AttendanceReportsDialogProps> = (
             </Button>
           </div>
 
-          {/* Overview Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Dynamic Overview Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-gray-600">Total Meetings</CardTitle>
@@ -220,98 +266,189 @@ export const AttendanceReportsDialog: React.FC<AttendanceReportsDialogProps> = (
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Top Attendee</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">Total Members</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-lg font-bold text-purple-600">
-                  {stats.topAttendee?.name || 'N/A'}
-                </div>
-                <p className="text-xs text-gray-500">
-                  {stats.topAttendee ? `${stats.topAttendee.rate}% attendance` : 'No data'}
-                </p>
+                <div className="text-2xl font-bold text-purple-600">{stats.totalMembers}</div>
+                <p className="text-xs text-gray-500">Registered members</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Active Members</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">{stats.activeMembers}</div>
+                <p className="text-xs text-gray-500">With attendance records</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Member Summary Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Users className="h-4 w-4" />
-                <span>Member Attendance Summary</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                </div>
-              ) : memberSummary.length > 0 ? (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Member</TableHead>
-                        <TableHead>Total Meetings</TableHead>
-                        <TableHead>Present</TableHead>
-                        <TableHead>Late</TableHead>
-                        <TableHead>Absent</TableHead>
-                        <TableHead>Attendance Rate</TableHead>
-                        <TableHead>Total Time</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {memberSummary.map((member: any, index) => {
-                        const attendanceRate = Math.round(((member.attended + member.late) / member.totalMeetings) * 100);
-                        return (
-                          <TableRow key={index}>
-                            <TableCell>
-                              <div>
-                                <div className="font-medium">{member.name}</div>
-                                <div className="text-sm text-gray-500">{member.email}</div>
-                              </div>
-                            </TableCell>
-                            <TableCell>{member.totalMeetings}</TableCell>
-                            <TableCell>
-                              <Badge className="bg-green-100 text-green-800 border-green-200">
-                                {member.attended}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
-                                {member.late}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-red-100 text-red-800 border-red-200">
-                                {member.absent}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={attendanceRate >= 80 ? "default" : attendanceRate >= 60 ? "secondary" : "destructive"}>
-                                {attendanceRate}%
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center space-x-1">
-                                <Clock className="h-3 w-3" />
-                                <span>{Math.round(member.totalDuration / 60 * 100) / 100}h</span>
-                              </div>
-                            </TableCell>
+          {/* Member Analytics Tabs */}
+          <Tabs defaultValue="summary" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="summary">Member Summary</TabsTrigger>
+              <TabsTrigger value="analytics">Detailed Analytics</TabsTrigger>
+            </TabsList>
+
+            {/* Member Summary Table */}
+            <TabsContent value="summary">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Users className="h-4 w-4" />
+                    <span>Member Attendance Summary</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  ) : memberSummary.length > 0 ? (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Member</TableHead>
+                            <TableHead>Total Meetings</TableHead>
+                            <TableHead>Present</TableHead>
+                            <TableHead>Late</TableHead>
+                            <TableHead>Absent</TableHead>
+                            <TableHead>Attendance Rate</TableHead>
+                            <TableHead>Total Time</TableHead>
                           </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center text-muted-foreground py-8">
-                  <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No attendance data available for selected period</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                        </TableHeader>
+                        <TableBody>
+                          {memberSummary.map((member: any, index) => {
+                            const attendanceRate = Math.round(((member.attended + member.late) / member.totalMeetings) * 100);
+                            return (
+                              <TableRow key={index}>
+                                <TableCell>
+                                  <div>
+                                    <div className="font-medium">{member.name}</div>
+                                    <div className="text-sm text-gray-500">{member.email}</div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>{member.totalMeetings}</TableCell>
+                                <TableCell>
+                                  <Badge className="bg-green-100 text-green-800 border-green-200">
+                                    {member.attended}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                                    {member.late}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className="bg-red-100 text-red-800 border-red-200">
+                                    {member.absent}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant={attendanceRate >= 80 ? "default" : attendanceRate >= 60 ? "secondary" : "destructive"}>
+                                    {attendanceRate}%
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center space-x-1">
+                                    <Clock className="h-3 w-3" />
+                                    <span>{Math.round(member.totalDuration / 60 * 100) / 100}h</span>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No attendance data available for selected period</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Detailed Analytics */}
+            <TabsContent value="analytics">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <TrendingUp className="h-4 w-4" />
+                    <span>Detailed Member Analytics</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  ) : memberAnalytics.length > 0 ? (
+                    <div className="space-y-4">
+                      {memberAnalytics.map((member: any, index) => (
+                        <Card key={index} className="p-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="font-semibold text-lg">{member.name}</h3>
+                              <p className="text-sm text-gray-500">{member.email}</p>
+                            </div>
+                            <Badge 
+                              variant={member.attendanceRate >= 80 ? "default" : member.attendanceRate >= 60 ? "secondary" : "destructive"}
+                              className="text-sm"
+                            >
+                              {member.attendanceRate}% Attendance
+                            </Badge>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-blue-600">{member.totalMeetings}</div>
+                              <div className="text-gray-500">Total Meetings</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-green-600">{member.attended}</div>
+                              <div className="text-gray-500">Present</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-yellow-600">{member.late}</div>
+                              <div className="text-gray-500">Late</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-red-600">{member.absent}</div>
+                              <div className="text-gray-500">Absent</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-purple-600">{member.averageDuration}m</div>
+                              <div className="text-gray-500">Avg Duration</div>
+                            </div>
+                          </div>
+                          
+                          {member.lastAttendance && (
+                            <div className="mt-3 pt-3 border-t">
+                              <div className="flex items-center text-sm text-gray-600">
+                                <UserCheck className="h-4 w-4 mr-1" />
+                                Last attendance: {format(parseISO(member.lastAttendance), 'MMM dd, yyyy')}
+                              </div>
+                            </div>
+                          )}
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No detailed analytics available for selected period</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </DialogContent>
     </Dialog>
