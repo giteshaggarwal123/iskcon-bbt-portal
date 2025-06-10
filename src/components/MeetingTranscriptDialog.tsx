@@ -5,10 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Download, Save, RefreshCw, Users, Clock, CheckCircle, PlayCircle } from 'lucide-react';
+import { FileText, Download, Save, RefreshCw, Users, Clock, CheckCircle } from 'lucide-react';
 import { useTranscripts } from '@/hooks/useTranscripts';
 import { useAttendance } from '@/hooks/useAttendance';
-import { useUserRole } from '@/hooks/useUserRole';
 
 interface MeetingTranscriptDialogProps {
   open: boolean;
@@ -30,40 +29,31 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
     fetchTranscriptForMeeting, 
     fetchTeamsTranscript, 
     saveTranscript, 
-    saveTranscriptToDocuments,
-    autoSaveTranscript,
-    loading: transcriptLoading
+    saveTranscriptToDocuments 
   } = useTranscripts();
   const { autoTrackOnlineAttendance } = useAttendance();
-  const { isSuperAdmin, isAdmin } = useUserRole();
 
   const loadTranscript = async () => {
     if (!meeting) return;
 
     setLoading(true);
     try {
-      console.log('Loading transcript for meeting:', meeting.title);
-      
       // First check if we have a saved transcript
       const savedTranscript = await fetchTranscriptForMeeting(meeting.id);
       
       if (savedTranscript) {
-        console.log('Found existing transcript:', savedTranscript);
         setTranscript(savedTranscript);
       } else if (meeting.teams_meeting_id) {
-        // Check if meeting has ended or if user is admin/super admin
+        // Check if meeting has ended
         const now = new Date();
         const endTime = new Date(meeting.end_time);
-        const canAccessTranscript = endTime <= now || isSuperAdmin || isAdmin;
         
-        if (canAccessTranscript) {
-          console.log('Attempting to fetch transcript from Teams...');
+        if (endTime <= now) {
+          // Meeting has ended, try to fetch from Teams
           setAutoProcessing(true);
           const teamsData = await fetchTeamsTranscript(meeting.id, meeting.teams_meeting_id);
           
           if (teamsData && teamsData.hasContent) {
-            console.log('Teams data received, processing...');
-            
             // Auto-track attendance from Teams data
             if (teamsData.attendees) {
               await autoTrackOnlineAttendance(meeting.id, teamsData);
@@ -82,8 +72,6 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
             if (saved) {
               setTranscript(saved);
             }
-          } else {
-            console.log('No transcript content available from Teams');
           }
           setAutoProcessing(false);
         }
@@ -93,30 +81,6 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
       setAutoProcessing(false);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAutoSave = async () => {
-    if (!meeting || !meeting.teams_meeting_id) {
-      toast({
-        title: "Error",
-        description: "This meeting doesn't have a Teams meeting ID",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const success = await autoSaveTranscript(meeting.id, meeting.teams_meeting_id, meeting.title);
-      if (success) {
-        // Reload the transcript to show the updated data
-        await loadTranscript();
-      }
-    } catch (error) {
-      console.error('Error in auto-save:', error);
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -174,7 +138,6 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
   if (!meeting) return null;
 
   const meetingEnded = new Date(meeting.end_time) <= new Date();
-  const canAccessTranscript = meetingEnded || isSuperAdmin || isAdmin;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -200,10 +163,10 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                   <span>{transcript.participants.length} participants</span>
                 </div>
               )}
-              {canAccessTranscript && meeting.teams_meeting_id && (
+              {meetingEnded && meeting.teams_meeting_id && (
                 <Badge variant="outline" className="flex items-center space-x-1">
                   <CheckCircle className="h-3 w-3" />
-                  <span>Teams Meeting</span>
+                  <span>Auto-processed</span>
                 </Badge>
               )}
             </div>
@@ -218,19 +181,6 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                 <RefreshCw className={`h-4 w-4 mr-2 ${(loading || autoProcessing) ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
-              
-              {meeting.teams_meeting_id && canAccessTranscript && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleAutoSave}
-                  disabled={saving || transcriptLoading}
-                >
-                  <PlayCircle className="h-4 w-4 mr-2" />
-                  {saving || transcriptLoading ? 'Processing...' : 'Auto Save Transcript'}
-                </Button>
-              )}
-              
               {transcript && (
                 <>
                   <Button 
@@ -255,29 +205,27 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
             </div>
           </div>
 
-          {(loading || autoProcessing || transcriptLoading) && (
+          {(loading || autoProcessing) && (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
               <p className="text-gray-600">
-                {autoProcessing ? 'Auto-processing transcript from Teams...' : 
-                 transcriptLoading ? 'Processing transcript...' :
-                 'Loading transcript...'}
+                {autoProcessing ? 'Auto-processing transcript from Teams...' : 'Loading transcript...'}
               </p>
             </div>
           )}
 
-          {!loading && !autoProcessing && !transcriptLoading && !transcript && (
+          {!loading && !autoProcessing && !transcript && (
             <div className="text-center py-8 text-gray-500">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-20" />
               <p>No transcript available for this meeting</p>
-              {meeting.teams_meeting_id && !canAccessTranscript && (
+              {meeting.teams_meeting_id && !meetingEnded && (
                 <p className="text-sm mt-2">
                   Transcript will be automatically processed after the meeting ends
                 </p>
               )}
-              {meeting.teams_meeting_id && canAccessTranscript && (
+              {meeting.teams_meeting_id && meetingEnded && (
                 <p className="text-sm mt-2">
-                  Click "Auto Save Transcript" to fetch the transcript from Teams
+                  Transcript may take a few minutes to become available after the meeting
                 </p>
               )}
             </div>
