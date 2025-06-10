@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { FileText, ChevronRight, Home, Trash2 } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
@@ -407,11 +406,11 @@ export const DocumentsModule: React.FC = () => {
 
   return (
     <>
-      <style jsx>{`
+      <style>{`
         @media (max-width: 767px) {
           .documents-container {
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
             margin-left: 0 !important;
             margin-right: 0 !important;
           }
