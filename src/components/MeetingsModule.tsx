@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy, CheckSquare } from 'lucide-react';
+import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy, CheckSquare, AlertTriangle } from 'lucide-react';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 import { ViewAgendaDialog } from './ViewAgendaDialog';
 import { ManageAttendeesDialog } from './ManageAttendeesDialog';
@@ -17,6 +17,16 @@ import { useAutoTranscript } from '@/hooks/useAutoTranscript';
 import { format, parseISO, compareAsc, compareDesc } from 'date-fns';
 import { useUserRole } from '@/hooks/useUserRole';
 import { RSVPSelector } from './RSVPSelector';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export const MeetingsModule: React.FC = () => {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
@@ -24,10 +34,12 @@ export const MeetingsModule: React.FC = () => {
   const [showAttendeesDialog, setShowAttendeesDialog] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [showRSVPDialog, setShowRSVPDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
+  const [meetingToDelete, setMeetingToDelete] = useState<string | null>(null);
   const [preselectedDate, setPreselectedDate] = useState<Date | undefined>(undefined);
   
-  const { meetings, loading, createMeeting, deleteMeeting, fetchMeetings } = useMeetings();
+  const { meetings, loading, deleteMeeting, deletingMeetings, fetchMeetings } = useMeetings();
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -70,7 +82,7 @@ export const MeetingsModule: React.FC = () => {
     setShowRSVPDialog(true);
   };
 
-  const handleDeleteMeeting = async (meetingId: string) => {
+  const handleDeleteClick = (meetingId: string) => {
     // Check if user role allows deletion (admin check)
     if (!canDeleteMeetings) {
       toast({
@@ -80,9 +92,49 @@ export const MeetingsModule: React.FC = () => {
       });
       return;
     }
+
+    // Check if deletion is already in progress
+    if (deletingMeetings.has(meetingId)) {
+      toast({
+        title: "Deletion In Progress",
+        description: "This meeting is already being deleted",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    if (confirm('Are you sure you want to delete this meeting? This will also remove it from Teams and Outlook calendar.')) {
-      await deleteMeeting(meetingId);
+    setMeetingToDelete(meetingId);
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!meetingToDelete) return;
+
+    const meeting = meetings.find(m => m.id === meetingToDelete);
+    if (!meeting) {
+      toast({
+        title: "Meeting Not Found",
+        description: "The meeting you're trying to delete was not found",
+        variant: "destructive"
+      });
+      setShowDeleteDialog(false);
+      setMeetingToDelete(null);
+      return;
+    }
+
+    toast({
+      title: "Deleting Meeting",
+      description: `Removing "${meeting.title}" and all related data...`,
+    });
+
+    const success = await deleteMeeting(meetingToDelete);
+    
+    setShowDeleteDialog(false);
+    setMeetingToDelete(null);
+
+    if (success) {
+      // Refresh meetings list to ensure consistency
+      fetchMeetings();
     }
   };
 
@@ -208,15 +260,21 @@ export const MeetingsModule: React.FC = () => {
                   const isLive = isLiveMeeting(meeting);
                   const canDoCheckIn = canCheckIn(meeting);
                   const attendeeCount = meeting.attendee_count || meeting.attendees?.length || 0;
+                  const isDeleting = deletingMeetings.has(meeting.id);
                   
                   return (
-                    <Card key={meeting.id} className="w-full hover:shadow-md transition-shadow">
+                    <Card key={meeting.id} className={`w-full hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
                       <CardHeader className="pb-3 sm:pb-4">
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                           <div className="flex-1 min-w-0">
                             <CardTitle className="text-lg sm:text-xl flex flex-wrap items-start gap-2">
                               <span className="break-words">{meeting.title}</span>
-                              {isLive && (
+                              {isDeleting && (
+                                <Badge className="bg-orange-500 text-white animate-pulse shrink-0">
+                                  DELETING...
+                                </Badge>
+                              )}
+                              {isLive && !isDeleting && (
                                 <Badge className="bg-red-500 text-white animate-pulse shrink-0">
                                   LIVE
                                 </Badge>
@@ -257,7 +315,6 @@ export const MeetingsModule: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Add RSVP Selector for upcoming meetings */}
                         <RSVPSelector 
                           meeting={meeting} 
                           onResponseUpdate={handleRSVPUpdate}
@@ -298,7 +355,7 @@ export const MeetingsModule: React.FC = () => {
                         )}
                         
                         <div className="flex flex-wrap gap-2">
-                          {meeting.teams_join_url && (
+                          {meeting.teams_join_url && !isDeleting && (
                             <Button 
                               variant="default" 
                               size="sm"
@@ -310,7 +367,7 @@ export const MeetingsModule: React.FC = () => {
                             </Button>
                           )}
                           
-                          {canDoCheckIn && (
+                          {canDoCheckIn && !isDeleting && (
                             <Button 
                               variant="outline" 
                               size="sm"
@@ -327,6 +384,7 @@ export const MeetingsModule: React.FC = () => {
                             size="sm"
                             onClick={() => handleViewAgenda(meeting)}
                             className="min-h-[40px]"
+                            disabled={isDeleting}
                           >
                             <FileText className="h-4 w-4 mr-2" />
                             View Details
@@ -337,6 +395,7 @@ export const MeetingsModule: React.FC = () => {
                             size="sm"
                             onClick={() => handleViewRSVP(meeting)}
                             className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
+                            disabled={isDeleting}
                           >
                             <CheckSquare className="h-4 w-4 mr-2" />
                             View RSVP
@@ -346,11 +405,21 @@ export const MeetingsModule: React.FC = () => {
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => handleDeleteMeeting(meeting.id)}
+                              onClick={() => handleDeleteClick(meeting.id)}
                               className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[40px]"
+                              disabled={isDeleting}
                             >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
+                              {isDeleting ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-2"></div>
+                                  Deleting...
+                                </>
+                              ) : (
+                                <>
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </>
+                              )}
                             </Button>
                           )}
                         </div>
@@ -382,13 +451,20 @@ export const MeetingsModule: React.FC = () => {
               <div className="space-y-4 sm:space-y-6">
                 {pastMeetings.map((meeting) => {
                   const timeInfo = formatMeetingTime(meeting.start_time, meeting.end_time);
+                  const isDeleting = deletingMeetings.has(meeting.id);
+                  
                   return (
-                    <Card key={meeting.id} className="w-full hover:shadow-md transition-shadow">
+                    <Card key={meeting.id} className={`w-full hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
                       <CardHeader className="pb-3 sm:pb-4">
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                           <div className="flex-1 min-w-0">
                             <CardTitle className="text-lg sm:text-xl flex flex-wrap items-start gap-2">
                               <span className="break-words">{meeting.title}</span>
+                              {isDeleting && (
+                                <Badge className="bg-orange-500 text-white animate-pulse shrink-0">
+                                  DELETING...
+                                </Badge>
+                              )}
                               {meeting.teams_join_url && (
                                 <Badge variant="outline" className="bg-blue-50 text-blue-700 shrink-0">
                                   <Video className="h-3 w-3 mr-1" />
@@ -410,6 +486,7 @@ export const MeetingsModule: React.FC = () => {
                             size="sm"
                             onClick={() => handleViewAgenda(meeting)}
                             className="min-h-[40px]"
+                            disabled={isDeleting}
                           >
                             <FileText className="h-4 w-4 mr-2" />
                             View Details
@@ -420,10 +497,33 @@ export const MeetingsModule: React.FC = () => {
                             size="sm"
                             onClick={() => handleViewRSVP(meeting)}
                             className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
+                            disabled={isDeleting}
                           >
                             <CheckSquare className="h-4 w-4 mr-2" />
                             View RSVP
                           </Button>
+
+                          {canDeleteMeetings && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleDeleteClick(meeting.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[40px]"
+                              disabled={isDeleting}
+                            >
+                              {isDeleting ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-2"></div>
+                                  Deleting...
+                                </>
+                              ) : (
+                                <>
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </>
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -473,6 +573,42 @@ export const MeetingsModule: React.FC = () => {
         onOpenChange={setShowRSVPDialog}
         meeting={selectedMeeting}
       />
+
+      {/* Enhanced Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Delete Meeting Permanently
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <div>
+                Are you sure you want to delete this meeting? This action will:
+              </div>
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                <li>Remove the meeting from the database permanently</li>
+                <li>Delete the Teams meeting and Outlook calendar event</li>
+                <li>Remove all attendee records and RSVP responses</li>
+                <li>Delete any meeting attachments and transcripts</li>
+                <li>Remove all attendance records</li>
+              </ul>
+              <div className="font-medium text-red-600">
+                This action cannot be undone.
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Mobile-specific responsive styles */}
       <style>{`
@@ -634,3 +770,5 @@ export const MeetingsModule: React.FC = () => {
     </div>
   );
 };
+
+export default MeetingsModule;

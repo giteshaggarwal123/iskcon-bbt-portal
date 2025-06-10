@@ -433,132 +433,200 @@ export const useMeetings = () => {
         description: "Please sign in to delete meetings",
         variant: "destructive"
       });
-      return;
+      return false;
     }
 
+    // Check if meeting exists and get meeting details
+    const meeting = meetings.find(m => m.id === meetingId);
+    if (!meeting) {
+      toast({
+        title: "Meeting Not Found",
+        description: "The meeting you're trying to delete was not found",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    // Check if user has permission to delete this meeting
+    if (meeting.created_by !== user.id) {
+      toast({
+        title: "Permission Denied",
+        description: "You can only delete meetings you created",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    // Mark as deleting to prevent multiple deletions
+    if (deletingMeetings.has(meetingId)) {
+      console.log('Meeting deletion already in progress:', meetingId);
+      return false;
+    }
+
+    setDeletingMeetings(prev => new Set(prev).add(meetingId));
+
     try {
-      console.log('Starting deletion process for meeting:', meetingId);
-      
-      const meeting = meetings.find(m => m.id === meetingId);
-      if (!meeting) {
-        toast({
-          title: "Meeting Not Found",
-          description: "The meeting you're trying to delete was not found",
-          variant: "destructive"
-        });
-        return;
-      }
+      console.log('Starting robust deletion process for meeting:', meetingId);
 
-      // Check if user has permission to delete this meeting
-      if (meeting.created_by !== user.id) {
-        toast({
-          title: "Permission Denied",
-          description: "You can only delete meetings you created",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Immediately mark as deleting and remove from UI
-      setDeletingMeetings(prev => new Set(prev).add(meetingId));
+      // Step 1: Optimistically remove from UI for immediate feedback
       setMeetings(prev => prev.filter(m => m.id !== meetingId));
 
-      console.log('Meeting removed from UI, proceeding with database deletion');
-
-      // Delete from Microsoft services first (if applicable)
-      if (meeting.teams_meeting_id || meeting.outlook_event_id) {
-        console.log('Attempting to delete from Microsoft services...');
-        
+      // Step 2: Get user's Microsoft access token for external service cleanup
+      let microsoftToken = null;
+      try {
         const { data: profile } = await supabase
           .from('profiles')
           .select('microsoft_access_token')
           .eq('id', user.id)
           .maybeSingle();
+        
+        microsoftToken = profile?.microsoft_access_token;
+      } catch (error) {
+        console.warn('Failed to get Microsoft token, continuing with database deletion:', error);
+      }
 
-        if (profile?.microsoft_access_token) {
-          try {
-            // Delete Teams meeting
-            if (meeting.teams_meeting_id) {
-              console.log('Deleting Teams meeting:', meeting.teams_meeting_id);
-              const teamsResponse = await fetch(`https://graph.microsoft.com/v1.0/me/onlineMeetings/${meeting.teams_meeting_id}`, {
-                method: 'DELETE',
-                headers: {
-                  'Authorization': `Bearer ${profile.microsoft_access_token}`,
-                }
-              });
-              
-              if (!teamsResponse.ok && teamsResponse.status !== 404) {
-                console.error('Failed to delete Teams meeting:', teamsResponse.status, teamsResponse.statusText);
-              }
-            }
+      // Step 3: Delete from Microsoft services (Teams/Outlook) if applicable
+      const microsoftDeletionPromises = [];
 
-            // Delete Outlook calendar event
-            if (meeting.outlook_event_id) {
-              console.log('Deleting Outlook event:', meeting.outlook_event_id);
-              const outlookResponse = await fetch(`https://graph.microsoft.com/v1.0/me/events/${meeting.outlook_event_id}`, {
-                method: 'DELETE',
-                headers: {
-                  'Authorization': `Bearer ${profile.microsoft_access_token}`,
-                }
-              });
-              
-              if (!outlookResponse.ok && outlookResponse.status !== 404) {
-                console.error('Failed to delete Outlook event:', outlookResponse.status, outlookResponse.statusText);
-              }
-            }
-          } catch (microsoftError) {
-            console.error('Error deleting from Microsoft services:', microsoftError);
+      if (microsoftToken && meeting.teams_meeting_id) {
+        console.log('Attempting to delete Teams meeting:', meeting.teams_meeting_id);
+        microsoftDeletionPromises.push(
+          fetch(`https://graph.microsoft.com/v1.0/me/onlineMeetings/${meeting.teams_meeting_id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${microsoftToken}` }
+          }).catch(error => {
+            console.warn('Teams meeting deletion failed:', error);
+            return { ok: false, status: 'teams_error' };
+          })
+        );
+      }
+
+      if (microsoftToken && meeting.outlook_event_id) {
+        console.log('Attempting to delete Outlook event:', meeting.outlook_event_id);
+        microsoftDeletionPromises.push(
+          fetch(`https://graph.microsoft.com/v1.0/me/events/${meeting.outlook_event_id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${microsoftToken}` }
+          }).catch(error => {
+            console.warn('Outlook event deletion failed:', error);
+            return { ok: false, status: 'outlook_error' };
+          })
+        );
+      }
+
+      // Execute Microsoft deletions in parallel (non-blocking)
+      if (microsoftDeletionPromises.length > 0) {
+        Promise.all(microsoftDeletionPromises).then(results => {
+          const failures = results.filter(r => !r.ok);
+          if (failures.length > 0) {
+            console.warn('Some Microsoft services deletion failed, but database deletion will continue');
           }
+        });
+      }
+
+      // Step 4: Delete related database records in correct order (respecting foreign keys)
+      console.log('Deleting related database records...');
+
+      const deletionSteps = [
+        // Delete meeting attachments first
+        {
+          table: 'meeting_attachments',
+          condition: { meeting_id: meetingId },
+          description: 'meeting attachments'
+        },
+        // Delete attendance records
+        {
+          table: 'attendance_records',
+          condition: { meeting_id: meetingId },
+          description: 'attendance records'
+        },
+        // Delete meeting attendees
+        {
+          table: 'meeting_attendees',
+          condition: { meeting_id: meetingId },
+          description: 'meeting attendees'
+        },
+        // Delete meeting transcripts
+        {
+          table: 'meeting_transcripts',
+          condition: { meeting_id: meetingId },
+          description: 'meeting transcripts'
+        }
+      ];
+
+      // Execute deletions sequentially to ensure proper cleanup
+      for (const step of deletionSteps) {
+        try {
+          const { error } = await supabase
+            .from(step.table)
+            .delete()
+            .eq(Object.keys(step.condition)[0], Object.values(step.condition)[0]);
+
+          if (error) {
+            console.warn(`Failed to delete ${step.description}:`, error);
+            // Continue with deletion process even if some related records fail
+          } else {
+            console.log(`Successfully deleted ${step.description}`);
+          }
+        } catch (error) {
+          console.warn(`Error during ${step.description} deletion:`, error);
+          // Continue with deletion process
         }
       }
 
-      // Delete related records in sequence to avoid foreign key constraints
-      console.log('Deleting related records...');
-      
-      // Delete in the correct order to respect foreign key constraints
-      await supabase.from('meeting_attachments').delete().eq('meeting_id', meetingId);
-      await supabase.from('attendance_records').delete().eq('meeting_id', meetingId);
-      await supabase.from('meeting_attendees').delete().eq('meeting_id', meetingId);
-      await supabase.from('meeting_transcripts').delete().eq('meeting_id', meetingId);
-
-      // Finally delete the main meeting record
+      // Step 5: Delete the main meeting record
       console.log('Deleting main meeting record...');
       const { error: meetingError } = await supabase
         .from('meetings')
         .delete()
         .eq('id', meetingId)
-        .eq('created_by', user.id); // Double check ownership
+        .eq('created_by', user.id); // Ensure ownership
 
       if (meetingError) {
-        console.error('Failed to delete meeting from database:', meetingError);
-        // Restore the meeting in UI since database deletion failed
-        setMeetings(prev => [...prev, meeting].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
+        console.error('Database meeting deletion failed:', meetingError);
+        
+        // Restore meeting in UI since database deletion failed
+        setMeetings(prev => {
+          // Only restore if not already present
+          if (prev.find(m => m.id === meetingId)) return prev;
+          return [...prev, meeting].sort((a, b) => 
+            new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+          );
+        });
+
         throw new Error(`Database deletion failed: ${meetingError.message}`);
       }
 
       console.log('Meeting successfully deleted from database');
 
       toast({
-        title: "Success",
-        description: "Meeting deleted successfully"
+        title: "Meeting Deleted Successfully",
+        description: `"${meeting.title}" has been permanently deleted`,
       });
 
+      return true;
+
     } catch (error: any) {
-      console.error('Error deleting meeting:', error);
+      console.error('Error during meeting deletion:', error);
       
-      // Restore the meeting in UI since deletion failed
-      const meeting = meetings.find(m => m.id === meetingId);
-      if (meeting) {
-        setMeetings(prev => [...prev, meeting].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
-      }
+      // Restore meeting in UI if deletion failed and not already present
+      setMeetings(prev => {
+        if (prev.find(m => m.id === meetingId)) return prev;
+        return [...prev, meeting].sort((a, b) => 
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        );
+      });
       
       toast({
-        title: "Delete Failed",
-        description: error.message || "Failed to delete meeting",
+        title: "Deletion Failed",
+        description: error.message || "Failed to delete meeting completely",
         variant: "destructive"
       });
+
+      return false;
+
     } finally {
-      // Clean up deleting state
+      // Always clean up deleting state
       setDeletingMeetings(prev => {
         const newSet = new Set(prev);
         newSet.delete(meetingId);
@@ -569,7 +637,14 @@ export const useMeetings = () => {
 
   const deletePastMeeting = async (meetingId: string) => {
     const meeting = meetings.find(m => m.id === meetingId);
-    if (!meeting) return;
+    if (!meeting) {
+      toast({
+        title: "Meeting Not Found",
+        description: "The meeting you're trying to delete was not found",
+        variant: "destructive"
+      });
+      return false;
+    }
 
     const now = new Date();
     const endTime = new Date(meeting.end_time);
@@ -577,13 +652,69 @@ export const useMeetings = () => {
     if (endTime > now) {
       toast({
         title: "Cannot Delete",
-        description: "Can only delete past meetings",
+        description: "Can only delete past meetings using this function",
         variant: "destructive"
       });
-      return;
+      return false;
     }
 
-    await deleteMeeting(meetingId);
+    return await deleteMeeting(meetingId);
+  };
+
+  const bulkDeleteMeetings = async (meetingIds: string[]) => {
+    if (!user || meetingIds.length === 0) {
+      toast({
+        title: "Invalid Request",
+        description: "Please select meetings to delete",
+        variant: "destructive"
+      });
+      return { success: 0, failed: 0 };
+    }
+
+    console.log('Starting bulk deletion for meetings:', meetingIds);
+    
+    let successCount = 0;
+    let failedCount = 0;
+
+    // Process deletions sequentially to avoid overwhelming the system
+    for (const meetingId of meetingIds) {
+      try {
+        const result = await deleteMeeting(meetingId);
+        if (result) {
+          successCount++;
+        } else {
+          failedCount++;
+        }
+        
+        // Small delay between deletions to prevent rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        console.error(`Failed to delete meeting ${meetingId}:`, error);
+        failedCount++;
+      }
+    }
+
+    // Show summary toast
+    if (successCount === meetingIds.length) {
+      toast({
+        title: "Bulk Deletion Complete",
+        description: `Successfully deleted ${successCount} meeting${successCount === 1 ? '' : 's'}`,
+      });
+    } else if (successCount > 0) {
+      toast({
+        title: "Partial Success",
+        description: `Deleted ${successCount} of ${meetingIds.length} meetings. ${failedCount} failed.`,
+      });
+    } else {
+      toast({
+        title: "Bulk Deletion Failed",
+        description: "Failed to delete any meetings",
+        variant: "destructive"
+      });
+    }
+
+    return { success: successCount, failed: failedCount };
   };
 
   const autoSaveTranscript = async (meetingId: string) => {
@@ -646,9 +777,11 @@ export const useMeetings = () => {
   return {
     meetings,
     loading,
+    deletingMeetings,
     createMeeting,
     deleteMeeting,
     deletePastMeeting,
+    bulkDeleteMeetings,
     fetchMeetings,
     autoSaveTranscript
   };
