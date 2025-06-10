@@ -4,6 +4,8 @@ import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentViewerHeader } from './DocumentViewerHeader';
 import { DocumentViewerContent } from './DocumentViewerContent';
+import { useAuth } from '@/hooks/useAuth';
+import { useDocumentViewTracking } from '@/hooks/useDocumentViewTracking';
 
 interface DocumentViewerProps {
   isOpen: boolean;
@@ -26,13 +28,21 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 }) => {
   const [zoom, setZoom] = useState(100);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Use the tracking hook
+  useDocumentViewTracking({
+    documentId: documentProp?.id || null,
+    userId: user?.id || null,
+    isViewing: isOpen
+  });
 
   // Reset zoom when document changes
   useEffect(() => {
     if (documentProp) {
       setZoom(100);
     }
-  }, [documentProp?.id]); // Only depend on document ID to prevent unnecessary re-renders
+  }, [documentProp?.id]);
 
   const handleDownload = () => {
     if (!documentProp) return;
