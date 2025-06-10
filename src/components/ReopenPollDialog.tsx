@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -63,20 +64,11 @@ export const ReopenPollDialog: React.FC<ReopenPollDialogProps> = ({ open, onOpen
     
     setLoading(true);
     try {
-      // Calculate new deadline based on selected duration
-      const newDeadline = new Date();
-      newDeadline.setMinutes(newDeadline.getMinutes() + parseInt(selectedDuration));
-
-      // Update poll status and deadline manually
-      const { error } = await supabase
-        .from('polls')
-        .update({ 
-          status: 'active', 
-          updated_at: new Date().toISOString(),
-          reopen_deadline: newDeadline.toISOString()
-        })
-        .eq('id', poll.id)
-        .eq('status', 'completed');
+      // Use the database function to reopen poll with time limit
+      const { error } = await supabase.rpc('reopen_poll_with_deadline', {
+        poll_id_param: poll.id,
+        minutes_param: parseInt(selectedDuration)
+      });
 
       if (error) throw error;
 

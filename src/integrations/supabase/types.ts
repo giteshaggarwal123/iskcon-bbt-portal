@@ -595,6 +595,7 @@ export type Database = {
           id: string
           is_secret: boolean
           notify_members: boolean
+          reopen_deadline: string | null
           status: string
           title: string
           updated_at: string
@@ -607,6 +608,7 @@ export type Database = {
           id?: string
           is_secret?: boolean
           notify_members?: boolean
+          reopen_deadline?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -619,6 +621,7 @@ export type Database = {
           id?: string
           is_secret?: boolean
           notify_members?: boolean
+          reopen_deadline?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -871,6 +874,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_close_reopened_polls: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_expired_recycle_bin: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -923,6 +930,10 @@ export type Database = {
       }
       reopen_poll: {
         Args: { poll_id_param: string }
+        Returns: undefined
+      }
+      reopen_poll_with_deadline: {
+        Args: { poll_id_param: string; minutes_param: number }
         Returns: undefined
       }
       reset_all_poll_votes: {

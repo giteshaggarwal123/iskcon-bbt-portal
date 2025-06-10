@@ -117,14 +117,8 @@ export const usePolls = () => {
 
   const autoCloseExpiredPolls = async () => {
     try {
-      // Auto-close reopened polls that have expired
-      const { error } = await supabase
-        .from('polls')
-        .update({ status: 'completed', updated_at: new Date().toISOString() })
-        .eq('status', 'active')
-        .not('reopen_deadline', 'is', null)
-        .lt('reopen_deadline', new Date().toISOString());
-
+      // Use the database function to auto-close expired polls
+      const { error } = await supabase.rpc('auto_close_reopened_polls');
       if (error) throw error;
     } catch (error) {
       console.error('Error auto-closing expired polls:', error);
