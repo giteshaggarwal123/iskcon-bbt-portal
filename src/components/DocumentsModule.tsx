@@ -561,5 +561,3 @@ export const DocumentsModule: React.FC = () => {
     </div>
   );
 };
-
-</edits_to_apply>
