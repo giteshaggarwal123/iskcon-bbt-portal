@@ -48,6 +48,7 @@ interface DocumentTableProps {
   onMoveDocument: (documentId: string, targetFolderId: string | null) => void;
   currentFolderId?: string | null;
   canAccessLockedFolders?: boolean;
+  viewMode?: 'card' | 'list';
 }
 
 export const DocumentTable: React.FC<DocumentTableProps> = ({
@@ -66,7 +67,8 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   onFolderClick,
   onMoveDocument,
   currentFolderId,
-  canAccessLockedFolders = false
+  canAccessLockedFolders = false,
+  viewMode = 'card'
 }) => {
   const [draggedDocumentId, setDraggedDocumentId] = useState<string | null>(null);
 
@@ -89,6 +91,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
           onFolderClick={onFolderClick}
           onDeleteFolder={onDeleteFolder}
           canAccessLockedFolders={canAccessLockedFolders}
+          viewMode={viewMode}
         />
 
         {/* Documents Section */}
@@ -105,6 +108,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
           onDeleteDocument={onDeleteDocument}
           onMoveDocument={onMoveDocument}
           onDragStart={handleDragStart}
+          viewMode={viewMode}
         />
 
         {/* Empty State */}

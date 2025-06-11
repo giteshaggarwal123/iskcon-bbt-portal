@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, ChevronRight, Home, Trash2, Lock } from 'lucide-react';
+import { FileText, ChevronRight, Home, Trash2, Lock, LayoutGrid, List } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -16,6 +16,7 @@ import { TrashFolder } from './documents/TrashFolder';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Toggle } from '@/components/ui/toggle';
 
 interface Document {
   id: string;
@@ -72,6 +73,7 @@ export const DocumentsModule: React.FC = () => {
   const [userProfiles, setUserProfiles] = useState<{[key: string]: {first_name: string, last_name: string}}>({});
   const [activeTab, setActiveTab] = useState('documents');
   const [trashDialogOpen, setTrashDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
 
   // Auto-refresh setup with realtime subscriptions
   useEffect(() => {
@@ -485,6 +487,28 @@ export const DocumentsModule: React.FC = () => {
                 currentFolderId={currentFolderId}
               />
               <DocumentUploadDialog onUpload={handleUpload} />
+              
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1 sm:ml-auto">
+                <Toggle
+                  pressed={viewMode === 'card'}
+                  onPressedChange={() => setViewMode('card')}
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                >
+                  <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4" />
+                </Toggle>
+                <Toggle
+                  pressed={viewMode === 'list'}
+                  onPressedChange={() => setViewMode('list')}
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                >
+                  <List className="h-3 w-3 sm:h-4 sm:w-4" />
+                </Toggle>
+              </div>
             </div>
           </div>
 
@@ -584,6 +608,7 @@ export const DocumentsModule: React.FC = () => {
                 onMoveDocument={handleMoveDocument}
                 currentFolderId={currentFolderId}
                 canAccessLockedFolders={canAccessLockedFolders}
+                viewMode={viewMode}
               />
             )}
           </div>

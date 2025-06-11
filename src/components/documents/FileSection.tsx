@@ -33,6 +33,7 @@ interface FileSectionProps {
   onDeleteDocument: (documentId: string, documentName: string) => void;
   onMoveDocument: (documentId: string, targetFolderId: string | null) => void;
   onDragStart: (documentId: string) => void;
+  viewMode?: 'card' | 'list';
 }
 
 export const FileSection: React.FC<FileSectionProps> = ({
@@ -47,7 +48,8 @@ export const FileSection: React.FC<FileSectionProps> = ({
   onCopyDocument,
   onDeleteDocument,
   onMoveDocument,
-  onDragStart
+  onDragStart,
+  viewMode = 'card'
 }) => {
   const [draggedDocument, setDraggedDocument] = useState<string | null>(null);
 
@@ -79,6 +81,99 @@ export const FileSection: React.FC<FileSectionProps> = ({
     return null;
   }
 
+  if (viewMode === 'list') {
+    return (
+      <div>
+        <h3 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4 flex items-center">
+          <FileText className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-gray-500" />
+          Documents ({documents.length})
+        </h3>
+        <div className="space-y-1">
+          {documents.map((document) => (
+            <div
+              key={document.id}
+              draggable
+              onDragStart={() => handleDragStart(document.id)}
+              onDragEnd={handleDragEnd}
+              className={`bg-card border rounded-lg p-3 hover:bg-muted/30 transition-colors cursor-move group relative flex items-center justify-between ${
+                draggedDocument === document.id ? 'opacity-50' : ''
+              }`}
+            >
+              <div className="flex items-center space-x-3 flex-1 min-w-0">
+                <FileText className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium truncate text-sm">{document.name}</span>
+                    {document.is_important && (
+                      <Star className="h-3 w-3 text-yellow-500 fill-current flex-shrink-0" />
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {document.mime_type?.split('/')[1] || 'Unknown'} • {formatFileSize(document.file_size)} • 
+                    Modified {format(new Date(document.updated_at), 'MMM dd, yyyy')} • 
+                    by {getUserDisplayName(document.uploaded_by)}
+                  </div>
+                </div>
+              </div>
+              <div onClick={(e) => e.stopPropagation()}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem onClick={() => onViewDocument(document)}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onDownloadDocument(document)}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onToggleImportant(document.id, document.is_important)}>
+                      {document.is_important ? (
+                        <>
+                          <StarOff className="h-4 w-4 mr-2" />
+                          Unmark Important
+                        </>
+                      ) : (
+                        <>
+                          <Star className="h-4 w-4 mr-2" />
+                          Mark Important
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onRenameDocument(document)}>
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      Rename
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onCopyDocument(document.id)}>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {canDeleteDocument(document) && (
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600"
+                        onClick={() => onDeleteDocument(document.id, document.name)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Card view (default)
   return (
     <div>
       <h3 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4 flex items-center">
