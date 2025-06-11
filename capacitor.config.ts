@@ -2,7 +2,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.iskcon.bbtportal',
+  appId: 'com.iskcon.bbt.portal',
   appName: 'iskcon-bbt-portal',
   webDir: 'dist',
   server: {
