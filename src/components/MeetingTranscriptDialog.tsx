@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -27,6 +26,7 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
   const [saving, setSaving] = useState(false);
   const [autoProcessing, setAutoProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
 
   const { 
     fetchTranscriptForMeeting, 
@@ -43,6 +43,7 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
 
     setLoading(true);
     setError(null);
+    setDebugInfo(null);
     
     try {
       console.log(`Loading transcript for meeting: ${meeting.title} (ID: ${meeting.id})`);
@@ -80,14 +81,24 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
         setAutoProcessing(true);
         
         try {
-          // Use the current access token from the hook
           console.log('Calling fetch with access token...');
           const teamsData = await fetchTeamsTranscript(meeting.id, meeting.teams_meeting_id);
           console.log('Teams data received:', {
             hasData: !!teamsData,
             hasTranscript: teamsData?.transcript?.value?.length > 0,
             hasContent: !!teamsData?.transcriptContent,
+            foundWith: teamsData?.foundWith,
+            actualMeetingId: teamsData?.actualMeetingId,
             contentPreview: teamsData?.transcriptContent?.substring(0, 100)
+          });
+
+          // Store debug info for troubleshooting
+          setDebugInfo({
+            foundWith: teamsData?.foundWith,
+            actualMeetingId: teamsData?.actualMeetingId,
+            originalMeetingId: meeting.teams_meeting_id,
+            hasTranscriptData: !!teamsData?.transcript?.value?.length,
+            hasContent: !!teamsData?.transcriptContent
           });
           
           if (teamsData) {
@@ -133,7 +144,7 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
               });
             } else {
               // No transcript found
-              const errorMsg = 'No transcript found for this meeting in Teams. Transcripts are only available if recording and transcription were enabled during the meeting.';
+              const errorMsg = `No transcript found for this meeting in Teams${teamsData.foundWith ? ` (searched using: ${teamsData.foundWith})` : ''}. Transcripts are only available if recording and transcription were enabled during the meeting.`;
               setError(errorMsg);
               toast({
                 title: "No Transcript Available",
@@ -151,7 +162,9 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
           if (teamsError.message?.includes('401') || teamsError.message?.includes('Unauthorized')) {
             errorMessage = 'Microsoft authentication expired. Please reconnect your Microsoft account in Settings.';
           } else if (teamsError.message?.includes('404')) {
-            errorMessage = 'Meeting not found in Teams or transcript not available yet.';
+            errorMessage = 'Meeting not found in Teams. The meeting may have been deleted or the ID may be incorrect.';
+          } else if (teamsError.message?.includes('Meeting not found')) {
+            errorMessage = teamsError.message;
           } else if (teamsError.message) {
             errorMessage = teamsError.message;
           }
@@ -360,9 +373,23 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <div className="flex items-start space-x-2">
                 <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
-                <div>
+                <div className="flex-1">
                   <h3 className="font-semibold text-yellow-800">Transcript Not Available</h3>
                   <p className="text-yellow-700 text-sm mt-1">{error}</p>
+                  
+                  {debugInfo && (
+                    <div className="mt-3 text-xs text-yellow-600 bg-yellow-100 p-2 rounded">
+                      <p><strong>Debug Info:</strong></p>
+                      <p>Original Meeting ID: {debugInfo.originalMeetingId}</p>
+                      {debugInfo.actualMeetingId !== debugInfo.originalMeetingId && (
+                        <p>Actual Meeting ID: {debugInfo.actualMeetingId}</p>
+                      )}
+                      {debugInfo.foundWith && <p>Found via: {debugInfo.foundWith}</p>}
+                      <p>Has Transcript Data: {debugInfo.hasTranscriptData ? 'Yes' : 'No'}</p>
+                      <p>Has Content: {debugInfo.hasContent ? 'Yes' : 'No'}</p>
+                    </div>
+                  )}
+                  
                   {hasTeamsIntegration && (
                     <div className="mt-3 text-sm text-yellow-700">
                       <p><strong>Troubleshooting tips:</strong></p>
@@ -372,6 +399,7 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                         <li>Wait up to 24 hours after the meeting ends for processing</li>
                         <li>Try the "Force Refresh from Teams" button</li>
                         <li>Verify your Microsoft account connection in Settings</li>
+                        <li>Check if the meeting still exists in your Teams calendar</li>
                       </ul>
                     </div>
                   )}

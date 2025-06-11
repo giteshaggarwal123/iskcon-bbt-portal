@@ -24,42 +24,105 @@ serve(async (req) => {
 
     console.log('Fetching transcript for meeting:', meetingId)
 
-    // First, try to get the online meeting details to validate the meeting exists
-    const meetingResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/me/onlineMeetings/${meetingId}`,
+    // Try different approaches to find the meeting
+    const approaches = [
+      // Approach 1: Direct online meeting lookup
       {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
+        name: 'Direct Online Meeting',
+        url: `https://graph.microsoft.com/v1.0/me/onlineMeetings/${meetingId}`
+      },
+      // Approach 2: Search through all online meetings
+      {
+        name: 'Search Online Meetings',
+        url: `https://graph.microsoft.com/v1.0/me/onlineMeetings?$filter=joinWebUrl eq '${meetingId}' or id eq '${meetingId}'`
+      },
+      // Approach 3: Try calendar events
+      {
+        name: 'Calendar Events',
+        url: `https://graph.microsoft.com/v1.0/me/calendar/events?$filter=onlineMeeting/joinUrl eq '${meetingId}' or id eq '${meetingId}'`
       }
-    )
+    ]
 
-    if (!meetingResponse.ok) {
-      console.error('Failed to fetch meeting details:', meetingResponse.status, meetingResponse.statusText)
-      const errorText = await meetingResponse.text()
-      console.error('Meeting error details:', errorText)
-      
+    let meetingData = null
+    let successfulApproach = null
+
+    for (const approach of approaches) {
+      try {
+        console.log(`Trying approach: ${approach.name}`)
+        const meetingResponse = await fetch(approach.url, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (meetingResponse.ok) {
+          const data = await meetingResponse.json()
+          
+          if (approach.name === 'Search Online Meetings' || approach.name === 'Calendar Events') {
+            // Handle array response
+            if (data.value && data.value.length > 0) {
+              meetingData = data.value[0]
+              successfulApproach = approach.name
+              console.log(`Found meeting using ${approach.name}:`, {
+                id: meetingData.id,
+                subject: meetingData.subject || meetingData.summary,
+                startDateTime: meetingData.startDateTime || meetingData.start?.dateTime
+              })
+              break
+            }
+          } else {
+            // Handle direct object response
+            meetingData = data
+            successfulApproach = approach.name
+            console.log(`Found meeting using ${approach.name}:`, {
+              id: meetingData.id,
+              subject: meetingData.subject,
+              startDateTime: meetingData.startDateTime
+            })
+            break
+          }
+        } else {
+          console.warn(`${approach.name} failed:`, meetingResponse.status, meetingResponse.statusText)
+        }
+      } catch (error) {
+        console.warn(`Error with ${approach.name}:`, error)
+      }
+    }
+
+    if (!meetingData) {
+      console.error('Meeting not found with any approach')
       return new Response(
         JSON.stringify({ 
-          error: `Failed to fetch meeting details: ${meetingResponse.statusText}`,
-          details: errorText
+          error: 'Meeting not found',
+          details: 'The meeting could not be found using the provided ID. This could mean the meeting has been deleted, the ID is incorrect, or you don\'t have access to it.',
+          troubleshooting: [
+            'Verify the meeting still exists in Teams',
+            'Check that you have access to the meeting',
+            'Ensure the meeting was created through Teams integration',
+            'Try refreshing your Microsoft connection in Settings'
+          ]
         }),
-        { status: meetingResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const meetingData = await meetingResponse.json()
-    console.log('Meeting data received:', {
-      id: meetingData.id,
-      subject: meetingData.subject,
-      startDateTime: meetingData.startDateTime,
-      endDateTime: meetingData.endDateTime
-    })
+    // Extract the actual Teams meeting ID for transcript lookup
+    let actualMeetingId = meetingData.id
+    
+    // If this is a calendar event, try to get the online meeting ID
+    if (meetingData.onlineMeeting?.joinUrl) {
+      // Try to extract meeting ID from the join URL or use the online meeting ID
+      if (meetingData.onlineMeeting.conferenceId) {
+        actualMeetingId = meetingData.onlineMeeting.conferenceId
+      }
+    }
+
+    console.log('Using meeting ID for transcript lookup:', actualMeetingId)
 
     // Fetch meeting transcript from Microsoft Graph
     const transcriptResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/me/onlineMeetings/${meetingId}/transcripts`,
+      `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/transcripts`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -73,11 +136,26 @@ serve(async (req) => {
       const errorText = await transcriptResponse.text()
       console.error('Transcript error details:', errorText)
       
+      // Provide more helpful error messages
+      let userFriendlyError = 'Failed to fetch meeting transcript'
+      if (transcriptResponse.status === 404) {
+        userFriendlyError = 'No transcript found for this meeting. Transcripts are only available if recording and transcription were enabled during the meeting.'
+      } else if (transcriptResponse.status === 403) {
+        userFriendlyError = 'Access denied to meeting transcript. You may not have permission to access this meeting\'s transcript.'
+      }
+      
       return new Response(
         JSON.stringify({ 
-          error: `Failed to fetch transcript: ${transcriptResponse.statusText}`,
+          error: userFriendlyError,
           details: errorText,
-          meeting: meetingData
+          meeting: meetingData,
+          foundWith: successfulApproach,
+          troubleshooting: [
+            'Ensure the meeting was recorded in Teams',
+            'Check that transcription was enabled during the meeting',
+            'Wait up to 24 hours after the meeting ends for transcript processing',
+            'Verify you have access to the meeting transcript'
+          ]
         }),
         { status: transcriptResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -97,7 +175,7 @@ serve(async (req) => {
     let attendeesData = null
     try {
       const attendeesResponse = await fetch(
-        `https://graph.microsoft.com/v1.0/me/onlineMeetings/${meetingId}/attendanceReports`,
+        `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/attendanceReports`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -133,22 +211,22 @@ serve(async (req) => {
       
       console.log('Fetching transcript content for:', transcriptId)
       
-      // Try different content formats
+      // Try different content formats with enhanced error handling
       const contentFormats = [
-        'text/vtt',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'text/plain'
+        { format: 'text/vtt', accept: 'text/plain' },
+        { format: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', accept: 'application/octet-stream' },
+        { format: 'text/plain', accept: 'text/plain' }
       ]
       
-      for (const format of contentFormats) {
+      for (const { format, accept } of contentFormats) {
         try {
-          console.log(`Trying format: ${format}`)
+          console.log(`Trying content format: ${format}`)
           const contentResponse = await fetch(
-            `https://graph.microsoft.com/v1.0/me/onlineMeetings/${meetingId}/transcripts/${transcriptId}/content?$format=${format}`,
+            `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/transcripts/${transcriptId}/content?$format=${format}`,
             {
               headers: {
                 'Authorization': `Bearer ${accessToken}`,
-                'Accept': format === 'text/vtt' ? 'text/plain' : format
+                'Accept': accept
               }
             }
           )
@@ -163,7 +241,8 @@ serve(async (req) => {
               console.log(`Empty content received for format ${format}`)
             }
           } else {
-            console.warn(`Failed to fetch transcript content with format ${format}:`, contentResponse.status, contentResponse.statusText)
+            const errorText = await contentResponse.text()
+            console.warn(`Failed to fetch transcript content with format ${format}:`, contentResponse.status, contentResponse.statusText, errorText)
           }
         } catch (error) {
           console.warn(`Error fetching transcript content with format ${format}:`, error)
@@ -183,14 +262,18 @@ serve(async (req) => {
       attendees: attendeesData,
       hasContent: !!transcriptContent && transcriptContent.trim().length > 0,
       meeting: meetingData,
-      transcriptId: transcriptId
+      transcriptId: transcriptId,
+      foundWith: successfulApproach,
+      actualMeetingId: actualMeetingId
     }
 
     console.log('Final response summary:', {
       hasTranscript: !!transcriptData.value?.length,
       hasContent: response.hasContent,
       contentLength: transcriptContent?.length || 0,
-      hasAttendees: !!attendeesData?.value?.length
+      hasAttendees: !!attendeesData?.value?.length,
+      foundWith: successfulApproach,
+      actualMeetingId: actualMeetingId
     })
 
     return new Response(
@@ -204,7 +287,16 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error fetching Teams data:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: 'Internal server error occurred while fetching Teams data',
+        details: error.message,
+        troubleshooting: [
+          'Check your Microsoft account connection in Settings',
+          'Ensure you have proper permissions to access the meeting',
+          'Try refreshing your Microsoft token',
+          'Verify the meeting still exists in Teams'
+        ]
+      }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
