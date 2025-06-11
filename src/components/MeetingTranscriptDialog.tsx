@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Download, Save, RefreshCw, Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { FileText, Download, Save, RefreshCw, Users, Clock, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { useTranscripts } from '@/hooks/useTranscripts';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useToast } from '@/hooks/use-toast';
@@ -26,7 +27,7 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
   const [saving, setSaving] = useState(false);
   const [autoProcessing, setAutoProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [detailedError, setDetailedError] = useState<any>(null);
 
   const { 
     fetchTranscriptForMeeting, 
@@ -43,12 +44,11 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
 
     setLoading(true);
     setError(null);
-    setDebugInfo(null);
+    setDetailedError(null);
     
     try {
       console.log(`Loading transcript for meeting: ${meeting.title} (ID: ${meeting.id})`);
       console.log('Teams meeting ID:', meeting.teams_meeting_id);
-      console.log('Microsoft auth state:', { isConnected, isExpired, hasToken: !!accessToken });
       
       // First check if we have a saved transcript (skip if force refresh)
       if (!forceRefresh) {
@@ -81,25 +81,10 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
         setAutoProcessing(true);
         
         try {
-          console.log('Calling fetch with access token...');
           const teamsData = await fetchTeamsTranscript(meeting.id, meeting.teams_meeting_id);
-          console.log('Teams data received:', {
-            hasData: !!teamsData,
-            hasTranscript: teamsData?.transcript?.value?.length > 0,
-            hasContent: !!teamsData?.transcriptContent,
-            foundWith: teamsData?.foundWith,
-            actualMeetingId: teamsData?.actualMeetingId,
-            contentPreview: teamsData?.transcriptContent?.substring(0, 100)
-          });
+          console.log('Teams data received:', teamsData);
 
-          // Store debug info for troubleshooting
-          setDebugInfo({
-            foundWith: teamsData?.foundWith,
-            actualMeetingId: teamsData?.actualMeetingId,
-            originalMeetingId: meeting.teams_meeting_id,
-            hasTranscriptData: !!teamsData?.transcript?.value?.length,
-            hasContent: !!teamsData?.transcriptContent
-          });
+          setDetailedError(teamsData); // Store for debugging display
           
           if (teamsData) {
             if (teamsData.hasContent && teamsData.transcriptContent) {
@@ -124,7 +109,6 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
                 teamsTranscriptId: teamsData.transcript?.value?.[0]?.id
               };
 
-              console.log('Saving processed transcript...');
               const saved = await saveTranscript(meeting.id, processedTranscript);
               if (saved) {
                 setTranscript(saved);
@@ -133,43 +117,22 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
                   description: "Meeting transcript has been successfully loaded and saved."
                 });
               }
+            } else if (teamsData.hasRecordings) {
+              // Special case: recordings available but no transcript
+              setError('Recording available but transcript not supported for this meeting type. This meeting was likely created as an instant meeting rather than a scheduled calendar event.');
             } else if (teamsData.transcript?.value?.length > 0) {
-              // Transcript exists in Teams but content might not be ready yet
-              const errorMsg = 'Transcript is available in Teams but content is still being processed. This can take up to 24 hours after the meeting ends.';
-              setError(errorMsg);
-              toast({
-                title: "Transcript Processing",
-                description: errorMsg,
-                variant: "default"
-              });
+              // Transcript exists but content not ready
+              setError('Transcript is available in Teams but content is still being processed. This can take up to 24 hours after the meeting ends.');
             } else {
               // No transcript found
-              const errorMsg = `No transcript found for this meeting in Teams${teamsData.foundWith ? ` (searched using: ${teamsData.foundWith})` : ''}. Transcripts are only available if recording and transcription were enabled during the meeting.`;
-              setError(errorMsg);
-              toast({
-                title: "No Transcript Available",
-                description: errorMsg,
-                variant: "destructive"
-              });
+              setError(`No transcript found for this meeting in Teams${teamsData.foundWith ? ` (searched using: ${teamsData.foundWith})` : ''}. Transcripts are only available for calendar-backed meetings with recording and transcription enabled.`);
             }
           } else {
             setError('Failed to fetch transcript from Teams. Please check if the meeting was recorded and transcription was enabled.');
           }
         } catch (teamsError: any) {
           console.error('Error fetching from Teams:', teamsError);
-          let errorMessage = 'Failed to connect to Teams or fetch transcript.';
-          
-          if (teamsError.message?.includes('401') || teamsError.message?.includes('Unauthorized')) {
-            errorMessage = 'Microsoft authentication expired. Please reconnect your Microsoft account in Settings.';
-          } else if (teamsError.message?.includes('404')) {
-            errorMessage = 'Meeting not found in Teams. The meeting may have been deleted or the ID may be incorrect.';
-          } else if (teamsError.message?.includes('Meeting not found')) {
-            errorMessage = teamsError.message;
-          } else if (teamsError.message) {
-            errorMessage = teamsError.message;
-          }
-          
-          setError(errorMessage);
+          setError(teamsError.message || 'Failed to connect to Teams or fetch transcript.');
         }
         
         setAutoProcessing(false);
@@ -264,7 +227,6 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
 
   if (!meeting) return null;
 
-  const meetingEnded = new Date(meeting.end_time) <= new Date();
   const hasTeamsIntegration = !!meeting.teams_meeting_id;
 
   return (
@@ -324,7 +286,10 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={handleForceRefresh}
+                  onClick={async () => {
+                    if (isExpired) await forceRefresh();
+                    loadTranscript(true);
+                  }}
                   disabled={loading || autoProcessing}
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${(loading || autoProcessing) ? 'animate-spin' : ''}`} />
@@ -336,7 +301,41 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={handleDownload}
+                    onClick={() => {
+                      const meetingDate = new Date(meeting.end_time || meeting.start_time).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                      }).replace(/\//g, '-');
+
+                      const content = `
+Meeting: ${meeting.title}
+Date: ${new Date(meeting.start_time).toLocaleDateString()}
+Duration: ${Math.round((new Date(meeting.end_time).getTime() - new Date(meeting.start_time).getTime()) / (1000 * 60))} minutes
+
+SUMMARY:
+${transcript.summary || 'No summary available'}
+
+PARTICIPANTS:
+${transcript.participants?.map((p: any) => `- ${p.identity?.displayName || p.identity?.user?.displayName || p.emailAddress || 'Unknown'}`).join('\n') || 'No participants listed'}
+
+TRANSCRIPT:
+${transcript.transcript_content || 'No transcript content available'}
+
+ACTION ITEMS:
+${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${item.text || item}`).join('\n') || 'No action items'}
+                      `.trim();
+
+                      const blob = new Blob([content], { type: 'text/plain' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${meeting.title}_${meetingDate}_transcript.txt`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    }}
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Download
@@ -344,7 +343,28 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={handleSaveToDocuments}
+                    onClick={async () => {
+                      if (!transcript || !meeting) return;
+                      setSaving(true);
+                      try {
+                        const success = await saveTranscriptToDocuments(transcript, meeting.title, meeting.end_time);
+                        if (success) {
+                          toast({
+                            title: "Success",
+                            description: "Transcript has been saved to ISKCON Repository > Meeting Transcripts"
+                          });
+                        }
+                      } catch (error) {
+                        console.error('Error saving to documents:', error);
+                        toast({
+                          title: "Error",
+                          description: "Failed to save transcript to documents",
+                          variant: "destructive"
+                        });
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
                     disabled={saving}
                   >
                     <Save className="h-4 w-4 mr-2" />
@@ -359,11 +379,11 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
               <p className="text-gray-600">
-                {autoProcessing ? 'Fetching transcript from Teams...' : 'Loading transcript...'}
+                {autoProcessing ? 'Fetching transcript from Teams with enhanced detection...' : 'Loading transcript...'}
               </p>
               {autoProcessing && (
                 <p className="text-sm text-gray-500 mt-2">
-                  This may take a few moments as we retrieve the latest data from Microsoft Teams
+                  Using multiple methods to locate and extract the transcript data
                 </p>
               )}
             </div>
@@ -377,29 +397,34 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                   <h3 className="font-semibold text-yellow-800">Transcript Not Available</h3>
                   <p className="text-yellow-700 text-sm mt-1">{error}</p>
                   
-                  {debugInfo && (
+                  {detailedError && (
                     <div className="mt-3 text-xs text-yellow-600 bg-yellow-100 p-2 rounded">
-                      <p><strong>Debug Info:</strong></p>
-                      <p>Original Meeting ID: {debugInfo.originalMeetingId}</p>
-                      {debugInfo.actualMeetingId !== debugInfo.originalMeetingId && (
-                        <p>Actual Meeting ID: {debugInfo.actualMeetingId}</p>
+                      <p><strong>Technical Details:</strong></p>
+                      {detailedError.foundWith && <p>Meeting found via: {detailedError.foundWith}</p>}
+                      {detailedError.transcriptMethod && <p>Transcript method: {detailedError.transcriptMethod}</p>}
+                      {detailedError.hasRecordings && <p>Recordings available: Yes</p>}
+                      {detailedError.troubleshooting && (
+                        <div className="mt-2">
+                          <p><strong>Troubleshooting:</strong></p>
+                          <ul className="list-disc list-inside mt-1">
+                            {detailedError.troubleshooting.map((tip: string, index: number) => (
+                              <li key={index}>{tip}</li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
-                      {debugInfo.foundWith && <p>Found via: {debugInfo.foundWith}</p>}
-                      <p>Has Transcript Data: {debugInfo.hasTranscriptData ? 'Yes' : 'No'}</p>
-                      <p>Has Content: {debugInfo.hasContent ? 'Yes' : 'No'}</p>
                     </div>
                   )}
                   
-                  {hasTeamsIntegration && (
+                  {hasTeamsIntegration && !detailedError?.hasRecordings && (
                     <div className="mt-3 text-sm text-yellow-700">
-                      <p><strong>Troubleshooting tips:</strong></p>
+                      <p><strong>Common solutions:</strong></p>
                       <ul className="list-disc list-inside mt-1 space-y-1">
-                        <li>Ensure the meeting was recorded in Teams</li>
-                        <li>Check that transcription was enabled during the meeting</li>
-                        <li>Wait up to 24 hours after the meeting ends for processing</li>
+                        <li>Ensure the meeting was scheduled through Outlook calendar (not instant meeting)</li>
+                        <li>Check that recording and transcription were enabled during the meeting</li>
+                        <li>Wait up to 24 hours after the meeting for processing</li>
                         <li>Try the "Force Refresh from Teams" button</li>
                         <li>Verify your Microsoft account connection in Settings</li>
-                        <li>Check if the meeting still exists in your Teams calendar</li>
                       </ul>
                     </div>
                   )}

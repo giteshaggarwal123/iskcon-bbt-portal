@@ -24,52 +24,86 @@ serve(async (req) => {
 
     console.log('Fetching transcript for meeting:', meetingId)
 
-    // Try different approaches to find the meeting
-    const approaches = [
-      // Approach 1: Direct online meeting lookup
+    // Enhanced approach to find the meeting with more methods
+    const findMeetingApproaches = [
+      // Direct online meeting lookup
       {
         name: 'Direct Online Meeting',
-        url: `https://graph.microsoft.com/v1.0/me/onlineMeetings/${meetingId}`
+        url: `https://graph.microsoft.com/v1.0/me/onlineMeetings/${meetingId}`,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
       },
-      // Approach 2: Search through all online meetings
+      // Try decoding if it's base64 encoded
       {
-        name: 'Search Online Meetings',
-        url: `https://graph.microsoft.com/v1.0/me/onlineMeetings?$filter=joinWebUrl eq '${meetingId}' or id eq '${meetingId}'`
+        name: 'Decoded Meeting ID',
+        url: `https://graph.microsoft.com/v1.0/me/onlineMeetings/${decodeURIComponent(meetingId)}`,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
       },
-      // Approach 3: Try calendar events
+      // Search through recent meetings
       {
-        name: 'Calendar Events',
-        url: `https://graph.microsoft.com/v1.0/me/calendar/events?$filter=onlineMeeting/joinUrl eq '${meetingId}' or id eq '${meetingId}'`
+        name: 'Recent Online Meetings Search',
+        url: `https://graph.microsoft.com/v1.0/me/onlineMeetings?$top=50&$orderby=creationDateTime desc`,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      },
+      // Search through calendar events
+      {
+        name: 'Calendar Events Search',
+        url: `https://graph.microsoft.com/v1.0/me/calendar/events?$top=50&$orderby=createdDateTime desc&$filter=onlineMeeting ne null`,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
       }
     ]
 
     let meetingData = null
     let successfulApproach = null
 
-    for (const approach of approaches) {
+    for (const approach of findMeetingApproaches) {
       try {
         console.log(`Trying approach: ${approach.name}`)
-        const meetingResponse = await fetch(approach.url, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        const meetingResponse = await fetch(approach.url, approach)
 
         if (meetingResponse.ok) {
           const data = await meetingResponse.json()
           
-          if (approach.name === 'Search Online Meetings' || approach.name === 'Calendar Events') {
-            // Handle array response
+          if (approach.name.includes('Search')) {
+            // Handle array response - find matching meeting
             if (data.value && data.value.length > 0) {
-              meetingData = data.value[0]
-              successfulApproach = approach.name
-              console.log(`Found meeting using ${approach.name}:`, {
-                id: meetingData.id,
-                subject: meetingData.subject || meetingData.summary,
-                startDateTime: meetingData.startDateTime || meetingData.start?.dateTime
-              })
-              break
+              // Try to find exact match first
+              let foundMeeting = data.value.find((meeting: any) => 
+                meeting.id === meetingId || 
+                meeting.id === decodeURIComponent(meetingId) ||
+                meeting.onlineMeeting?.joinUrl?.includes(meetingId) ||
+                meeting.joinWebUrl?.includes(meetingId)
+              )
+              
+              // If no exact match, try partial matching
+              if (!foundMeeting && meetingId.length > 10) {
+                foundMeeting = data.value.find((meeting: any) => 
+                  meeting.id?.includes(meetingId.substring(0, 20)) ||
+                  meetingId.includes(meeting.id?.substring(0, 20))
+                )
+              }
+              
+              if (foundMeeting) {
+                meetingData = foundMeeting
+                successfulApproach = approach.name
+                console.log(`Found meeting using ${approach.name}:`, {
+                  id: meetingData.id,
+                  subject: meetingData.subject || meetingData.summary,
+                  startDateTime: meetingData.startDateTime || meetingData.start?.dateTime
+                })
+                break
+              }
             }
           } else {
             // Handle direct object response
@@ -83,7 +117,8 @@ serve(async (req) => {
             break
           }
         } else {
-          console.warn(`${approach.name} failed:`, meetingResponse.status, meetingResponse.statusText)
+          const errorText = await meetingResponse.text()
+          console.warn(`${approach.name} failed:`, meetingResponse.status, meetingResponse.statusText, errorText)
         }
       } catch (error) {
         console.warn(`Error with ${approach.name}:`, error)
@@ -95,12 +130,12 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: 'Meeting not found',
-          details: 'The meeting could not be found using the provided ID. This could mean the meeting has been deleted, the ID is incorrect, or you don\'t have access to it.',
+          details: 'Could not locate the meeting using the provided ID. The meeting may have been deleted, the ID may be incorrect, or access permissions may be insufficient.',
           troubleshooting: [
             'Verify the meeting still exists in Teams',
             'Check that you have access to the meeting',
-            'Ensure the meeting was created through Teams integration',
-            'Try refreshing your Microsoft connection in Settings'
+            'Ensure your Microsoft connection is active in Settings',
+            'Try refreshing your Microsoft token'
           ]
         }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -109,69 +144,112 @@ serve(async (req) => {
 
     // Extract the actual Teams meeting ID for transcript lookup
     let actualMeetingId = meetingData.id
-    
-    // If this is a calendar event, try to get the online meeting ID
-    if (meetingData.onlineMeeting?.joinUrl) {
-      // Try to extract meeting ID from the join URL or use the online meeting ID
-      if (meetingData.onlineMeeting.conferenceId) {
-        actualMeetingId = meetingData.onlineMeeting.conferenceId
-      }
-    }
-
     console.log('Using meeting ID for transcript lookup:', actualMeetingId)
 
-    // Fetch meeting transcript from Microsoft Graph
-    const transcriptResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/transcripts`,
+    // Try multiple transcript retrieval methods
+    const transcriptMethods = [
+      // Method 1: Standard transcript API
       {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
+        name: 'Standard Transcript API',
+        url: `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/transcripts`
+      },
+      // Method 2: Beta API endpoint
+      {
+        name: 'Beta Transcript API',
+        url: `https://graph.microsoft.com/beta/me/onlineMeetings/${actualMeetingId}/transcripts`
+      },
+      // Method 3: Communications endpoint
+      {
+        name: 'Communications API',
+        url: `https://graph.microsoft.com/v1.0/communications/onlineMeetings/${actualMeetingId}/transcripts`
       }
-    )
+    ]
 
-    if (!transcriptResponse.ok) {
-      console.error('Failed to fetch transcript:', transcriptResponse.status, transcriptResponse.statusText)
-      const errorText = await transcriptResponse.text()
-      console.error('Transcript error details:', errorText)
-      
-      // Provide more helpful error messages
-      let userFriendlyError = 'Failed to fetch meeting transcript'
-      if (transcriptResponse.status === 404) {
-        userFriendlyError = 'No transcript found for this meeting. Transcripts are only available if recording and transcription were enabled during the meeting.'
-      } else if (transcriptResponse.status === 403) {
-        userFriendlyError = 'Access denied to meeting transcript. You may not have permission to access this meeting\'s transcript.'
+    let transcriptData = null
+    let transcriptError = null
+    let successfulTranscriptMethod = null
+
+    for (const method of transcriptMethods) {
+      try {
+        console.log(`Trying transcript method: ${method.name}`)
+        
+        const transcriptResponse = await fetch(method.url, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (transcriptResponse.ok) {
+          transcriptData = await transcriptResponse.json()
+          successfulTranscriptMethod = method.name
+          console.log(`Transcript data retrieved using ${method.name}:`, {
+            transcriptCount: transcriptData.value?.length || 0
+          })
+          break
+        } else {
+          const errorText = await transcriptResponse.text()
+          transcriptError = errorText
+          console.warn(`${method.name} failed:`, transcriptResponse.status, transcriptResponse.statusText, errorText)
+          
+          // If it's a precondition failed error, continue to next method
+          if (transcriptResponse.status === 412) {
+            continue
+          }
+        }
+      } catch (error) {
+        console.warn(`Error with ${method.name}:`, error)
+        transcriptError = error.message
       }
-      
-      return new Response(
-        JSON.stringify({ 
-          error: userFriendlyError,
-          details: errorText,
-          meeting: meetingData,
-          foundWith: successfulApproach,
-          troubleshooting: [
-            'Ensure the meeting was recorded in Teams',
-            'Check that transcription was enabled during the meeting',
-            'Wait up to 24 hours after the meeting ends for transcript processing',
-            'Verify you have access to the meeting transcript'
-          ]
-        }),
-        { status: transcriptResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
     }
 
-    const transcriptData = await transcriptResponse.json()
-    console.log('Transcript data received:', {
-      transcriptCount: transcriptData.value?.length || 0,
-      transcripts: transcriptData.value?.map(t => ({
-        id: t.id,
-        createdDateTime: t.createdDateTime,
-        meetingId: t.meetingId
-      })) || []
-    })
-    
-    // Get meeting attendees
+    // If no transcript found through standard methods, try alternative approaches
+    if (!transcriptData || !transcriptData.value?.length) {
+      console.log('Standard transcript methods failed, trying alternative approaches...')
+      
+      // Alternative: Try to get recording files which might contain transcript data
+      try {
+        const recordingsResponse = await fetch(
+          `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/recordings`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        )
+
+        if (recordingsResponse.ok) {
+          const recordingsData = await recordingsResponse.json()
+          console.log('Recordings found:', recordingsData.value?.length || 0)
+          
+          // If recordings exist, suggest manual transcript extraction
+          if (recordingsData.value?.length > 0) {
+            return new Response(
+              JSON.stringify({
+                error: 'Transcript not directly available but recording exists',
+                details: 'The meeting has recordings available, but automatic transcript extraction is not supported for this meeting type. This typically happens with meetings not created through calendar integration.',
+                hasRecordings: true,
+                recordings: recordingsData.value,
+                meeting: meetingData,
+                foundWith: successfulApproach,
+                troubleshooting: [
+                  'The meeting was likely created as an instant meeting rather than a scheduled calendar event',
+                  'Transcript APIs only work with calendar-backed meetings',
+                  'You may need to manually download the recording and extract transcript',
+                  'Consider scheduling future meetings through Outlook calendar for automatic transcript support'
+                ]
+              }),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
+        }
+      } catch (recordingError) {
+        console.warn('Error checking recordings:', recordingError)
+      }
+    }
+
+    // Get meeting attendees if possible
     let attendeesData = null
     try {
       const attendeesResponse = await fetch(
@@ -187,22 +265,18 @@ serve(async (req) => {
       if (attendeesResponse.ok) {
         attendeesData = await attendeesResponse.json()
         console.log('Attendees data received:', {
-          reportCount: attendeesData.value?.length || 0,
-          totalRecords: attendeesData.value?.[0]?.attendanceRecords?.length || 0
+          reportCount: attendeesData.value?.length || 0
         })
-      } else {
-        console.warn('Failed to fetch attendees:', attendeesResponse.status, attendeesResponse.statusText)
       }
     } catch (error) {
       console.warn('Error fetching attendees:', error)
     }
 
-    // If we have transcripts, fetch the actual transcript content
+    // If we have transcript data, try to fetch the actual content
     let transcriptContent = null
     let transcriptId = null
     
-    if (transcriptData.value && transcriptData.value.length > 0) {
-      // Use the most recent transcript
+    if (transcriptData?.value?.length > 0) {
       const sortedTranscripts = transcriptData.value.sort((a: any, b: any) => 
         new Date(b.createdDateTime).getTime() - new Date(a.createdDateTime).getTime()
       )
@@ -211,22 +285,34 @@ serve(async (req) => {
       
       console.log('Fetching transcript content for:', transcriptId)
       
-      // Try different content formats with enhanced error handling
-      const contentFormats = [
-        { format: 'text/vtt', accept: 'text/plain' },
-        { format: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', accept: 'application/octet-stream' },
-        { format: 'text/plain', accept: 'text/plain' }
+      // Enhanced content retrieval with multiple formats and endpoints
+      const contentApproaches = [
+        {
+          format: 'text/vtt',
+          accept: 'text/plain',
+          endpoint: `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/transcripts/${transcriptId}/content`
+        },
+        {
+          format: 'text/plain',
+          accept: 'text/plain',
+          endpoint: `https://graph.microsoft.com/beta/me/onlineMeetings/${actualMeetingId}/transcripts/${transcriptId}/content`
+        },
+        {
+          format: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          accept: 'application/octet-stream',
+          endpoint: `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/transcripts/${transcriptId}/content`
+        }
       ]
       
-      for (const { format, accept } of contentFormats) {
+      for (const approach of contentApproaches) {
         try {
-          console.log(`Trying content format: ${format}`)
+          console.log(`Trying content format: ${approach.format}`)
           const contentResponse = await fetch(
-            `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/transcripts/${transcriptId}/content?$format=${format}`,
+            `${approach.endpoint}?$format=${approach.format}`,
             {
               headers: {
                 'Authorization': `Bearer ${accessToken}`,
-                'Accept': accept
+                'Accept': approach.accept
               }
             }
           )
@@ -235,45 +321,72 @@ serve(async (req) => {
             const content = await contentResponse.text()
             if (content && content.trim().length > 0) {
               transcriptContent = content
-              console.log(`Transcript content fetched successfully with format ${format}, length:`, content.length)
+              console.log(`Transcript content fetched successfully with format ${approach.format}, length:`, content.length)
               break
-            } else {
-              console.log(`Empty content received for format ${format}`)
             }
           } else {
             const errorText = await contentResponse.text()
-            console.warn(`Failed to fetch transcript content with format ${format}:`, contentResponse.status, contentResponse.statusText, errorText)
+            console.warn(`Content fetch failed for ${approach.format}:`, contentResponse.status, errorText)
           }
         } catch (error) {
-          console.warn(`Error fetching transcript content with format ${format}:`, error)
+          console.warn(`Error fetching content with ${approach.format}:`, error)
         }
       }
-      
-      if (!transcriptContent) {
-        console.warn('No transcript content could be retrieved from any format')
+    }
+
+    // Prepare final response
+    const hasContent = !!transcriptContent && transcriptContent.trim().length > 0
+    
+    if (!transcriptData?.value?.length && !hasContent) {
+      // Provide detailed error information
+      let errorMessage = 'No transcript available for this meeting'
+      let troubleshooting = [
+        'Ensure the meeting was recorded in Teams',
+        'Check that transcription was enabled during the meeting',
+        'Wait up to 24 hours after the meeting for transcript processing',
+        'Verify you have access to the meeting transcript'
+      ]
+
+      if (transcriptError?.includes('PreconditionFailed')) {
+        errorMessage = 'Transcript not supported for this meeting type'
+        troubleshooting = [
+          'This meeting was likely created as an instant meeting rather than a scheduled calendar event',
+          'Transcript APIs only work with calendar-backed meetings in Microsoft Teams',
+          'For future meetings, schedule through Outlook calendar to enable automatic transcript support',
+          'Consider manually downloading any available recordings'
+        ]
       }
-    } else {
-      console.log('No transcripts found for this meeting')
+
+      return new Response(
+        JSON.stringify({ 
+          error: errorMessage,
+          details: transcriptError || 'The meeting was found but no transcript data is available.',
+          meeting: meetingData,
+          foundWith: successfulApproach,
+          troubleshooting: troubleshooting
+        }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     const response = {
       transcript: transcriptData,
       transcriptContent: transcriptContent,
       attendees: attendeesData,
-      hasContent: !!transcriptContent && transcriptContent.trim().length > 0,
+      hasContent: hasContent,
       meeting: meetingData,
       transcriptId: transcriptId,
       foundWith: successfulApproach,
+      transcriptMethod: successfulTranscriptMethod,
       actualMeetingId: actualMeetingId
     }
 
     console.log('Final response summary:', {
-      hasTranscript: !!transcriptData.value?.length,
-      hasContent: response.hasContent,
+      hasTranscript: !!transcriptData?.value?.length,
+      hasContent: hasContent,
       contentLength: transcriptContent?.length || 0,
-      hasAttendees: !!attendeesData?.value?.length,
       foundWith: successfulApproach,
-      actualMeetingId: actualMeetingId
+      transcriptMethod: successfulTranscriptMethod
     })
 
     return new Response(
