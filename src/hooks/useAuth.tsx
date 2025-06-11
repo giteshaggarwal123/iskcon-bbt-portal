@@ -12,7 +12,8 @@ interface AuthContextType {
   sendOTP: (phoneNumber: string) => Promise<{ error: any; otp?: string }>;
   sendLoginOTP: (email: string) => Promise<{ error: any; otp?: string }>;
   verifyOTP: (email: string, otp: string, newPassword: string) => Promise<{ error: any }>;
-  verifyLoginOTP: (email: string, otp: string) => Promise<{ error: any }>;
+  verifyLoginOTP: (email: string, otp: string, rememberMe?: boolean) => Promise<{ error: any }>;
+  verifyPasswordAndSendOTP: (email: string, password: string) => Promise<{ error: any; otp?: string; maskedPhone?: string }>;
   resetPasswordWithOTP: (email: string, otp: string, newPassword: string) => Promise<{ error: any }>;
   loading: boolean;
 }
@@ -354,7 +355,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const verifyLoginOTP = async (email: string, otp: string) => {
+  const verifyLoginOTP = async (email: string, otp: string, rememberMe: boolean = false) => {
     try {
       console.log('Verifying login OTP for email:', email, 'OTP:', otp);
       
@@ -385,10 +386,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       };
       
-      // Store temporary auth state with 30-day expiry for OTP login
+      // Handle remember me functionality
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+        localStorage.setItem('rememberMeExpiry', (Date.now() + 30 * 24 * 60 * 60 * 1000).toString());
+      }
+      
+      // Store temporary auth state
       localStorage.setItem('otp_authenticated_user', JSON.stringify(tempUser));
-      localStorage.setItem('rememberMe', 'true');
-      localStorage.setItem('rememberMeExpiry', (Date.now() + 30 * 24 * 60 * 60 * 1000).toString());
       
       // Set user state manually
       setUser(tempUser as any);
@@ -408,6 +413,81 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       toast({
         title: "Verification Error",
         description: error.message || "Failed to verify OTP. Please try again.",
+        variant: "destructive"
+      });
+      return { error };
+    }
+  };
+
+  const verifyPasswordAndSendOTP = async (email: string, password: string) => {
+    try {
+      console.log('Verifying password and sending OTP for email:', email);
+      
+      // First verify the password using Supabase auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError) {
+        console.error('Password verification error:', authError);
+        toast({
+          title: "Authentication Error",
+          description: authError.message,
+          variant: "destructive"
+        });
+        return { error: authError };
+      }
+
+      // Sign out immediately after verification (we don't want to log them in yet)
+      await supabase.auth.signOut();
+
+      // Now send OTP to their registered mobile number
+      const { data, error } = await supabase.functions.invoke('send-login-otp', {
+        body: { email }
+      });
+
+      if (error) {
+        console.error('Send login OTP error:', error);
+        toast({
+          title: "Authentication Error",
+          description: error.details || "Failed to send verification code. Please try again.",
+          variant: "destructive"
+        });
+        return { error };
+      }
+
+      if (data.error) {
+        console.error('Send login OTP data error:', data);
+        toast({
+          title: "Authentication Error", 
+          description: data.details || data.error,
+          variant: "destructive"
+        });
+        return { error: data };
+      }
+
+      console.log('Password verified and OTP sent successfully:', data);
+      toast({
+        title: "Password Verified",
+        description: data.message || "Verification code sent to your registered mobile number."
+      });
+
+      // Extract phone number from message for display
+      let maskedPhone = '';
+      if (data.message) {
+        const phoneMatch = data.message.match(/(\+91\*+\d{5})/);
+        if (phoneMatch) {
+          maskedPhone = phoneMatch[1];
+        }
+      }
+
+      return { error: null, otp: data.otp, maskedPhone };
+    } catch (error: any) {
+      console.error('Verify password and send OTP catch error:', error);
+      toast({
+        title: "Authentication Error",
+        description: "Network error. Please check your connection and try again.",
         variant: "destructive"
       });
       return { error };
@@ -570,6 +650,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     },
     verifyLoginOTP,
+    verifyPasswordAndSendOTP,
     resetPasswordWithOTP: async (email: string, otp: string, newPassword: string) => {
       try {
         // Use the edge function to reset password server-side
