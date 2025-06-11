@@ -445,18 +445,18 @@ export const DocumentsModule: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 max-w-7xl">
-        <div className="space-y-4 sm:space-y-6">
+    <div className="min-h-screen bg-background overflow-x-hidden">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-3 sm:py-6">
+        <div className="space-y-3 sm:space-y-6 w-full">
           {/* Header - Mobile Optimized */}
-          <div className="space-y-4">
-            <div className="text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Document Repository</h1>
-              <p className="text-sm sm:text-base text-muted-foreground">
+          <div className="space-y-3 sm:space-y-4 w-full">
+            <div className="text-center sm:text-left px-1">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-1 sm:mb-2">Document Repository</h1>
+              <p className="text-xs sm:text-sm lg:text-base text-muted-foreground">
                 Manage and organize your documents • {filteredDocuments.length} documents
                 {currentFolderId && folders.find(f => f.id === currentFolderId)?.is_locked && (
                   <span className="inline-flex items-center ml-2 text-red-600">
-                    <Lock className="h-4 w-4 mr-1" />
+                    <Lock className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                     LOCKED FOLDER
                   </span>
                 )}
@@ -464,15 +464,15 @@ export const DocumentsModule: React.FC = () => {
             </div>
             
             {/* Action Buttons - Mobile Optimized */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 w-full px-1">
               <Dialog open={trashDialogOpen} onOpenChange={setTrashDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-full sm:w-auto justify-center">
-                    <Trash2 className="h-4 w-4 mr-2" />
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto justify-center text-xs sm:text-sm">
+                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     <span>Trash</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-6xl max-h-[80vh] overflow-auto">
+                <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[80vh] overflow-auto mx-2">
                   <DialogHeader>
                     <DialogTitle>Trash</DialogTitle>
                   </DialogHeader>
@@ -490,38 +490,40 @@ export const DocumentsModule: React.FC = () => {
 
           {/* Breadcrumb Navigation - Mobile Optimized */}
           {(currentFolderId || folderPath.length > 0) && (
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg overflow-x-auto">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => handleBreadcrumbClick(null)}
-                className="flex items-center space-x-1 hover:bg-muted px-2 py-1 rounded whitespace-nowrap flex-shrink-0"
-              >
-                <Home className="h-4 w-4" />
-                <span>Home</span>
-              </Button>
-              
-              {folderPath.map((folder, index) => (
-                <React.Fragment key={folder.id}>
-                  <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground/60" />
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => handleBreadcrumbClick(folder.id)}
-                    className="hover:bg-muted px-2 py-1 rounded whitespace-nowrap flex-shrink-0 flex items-center space-x-1"
-                  >
-                    {folder.is_locked && <Lock className="h-3 w-3 text-red-500" />}
-                    <span className={folder.is_locked ? 'text-red-600' : ''}>
-                      {folder.name}
-                    </span>
-                  </Button>
-                </React.Fragment>
-              ))}
+            <div className="w-full px-1">
+              <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-muted-foreground bg-muted/50 px-2 sm:px-3 py-2 rounded-lg overflow-x-auto">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleBreadcrumbClick(null)}
+                  className="flex items-center space-x-1 hover:bg-muted px-1 sm:px-2 py-1 rounded whitespace-nowrap flex-shrink-0 text-xs sm:text-sm"
+                >
+                  <Home className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span>Home</span>
+                </Button>
+                
+                {folderPath.map((folder, index) => (
+                  <React.Fragment key={folder.id}>
+                    <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 text-muted-foreground/60" />
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleBreadcrumbClick(folder.id)}
+                      className="hover:bg-muted px-1 sm:px-2 py-1 rounded whitespace-nowrap flex-shrink-0 flex items-center space-x-1 text-xs sm:text-sm"
+                    >
+                      {folder.is_locked && <Lock className="h-2 w-2 sm:h-3 sm:w-3 text-red-500" />}
+                      <span className={folder.is_locked ? 'text-red-600' : ''}>
+                        {folder.name}
+                      </span>
+                    </Button>
+                  </React.Fragment>
+                ))}
+              </div>
             </div>
           )}
 
           {/* Filters - Mobile Optimized */}
-          <div className="w-full">
+          <div className="w-full px-1">
             <DocumentFilters
               searchTerm={searchTerm}
               typeFilter={typeFilter}
@@ -538,19 +540,19 @@ export const DocumentsModule: React.FC = () => {
           </div>
 
           {/* Documents and Folders Content - Mobile Optimized */}
-          <div className="w-full">
+          <div className="w-full px-1">
             {filteredDocuments.length === 0 && filteredFolders.length === 0 ? (
-              <div className="bg-card rounded-lg border">
-                <div className="text-center py-8 sm:py-12 px-4">
-                  <FileText className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg sm:text-xl font-medium text-foreground mb-2">No documents or folders found</h3>
-                  <p className="text-sm sm:text-base text-muted-foreground mb-6 max-w-md mx-auto">
+              <div className="bg-card rounded-lg border w-full">
+                <div className="text-center py-6 sm:py-8 lg:py-12 px-3 sm:px-4">
+                  <FileText className="h-10 w-10 sm:h-12 sm:w-12 lg:h-16 lg:w-16 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+                  <h3 className="text-base sm:text-lg lg:text-xl font-medium text-foreground mb-2">No documents or folders found</h3>
+                  <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mb-4 sm:mb-6 max-w-md mx-auto">
                     {searchTerm || typeFilter !== 'all' || peopleFilter !== 'all' || dateFilter !== 'all'
                       ? 'Try adjusting your search or filter criteria'
                       : 'Get started by uploading your first document or creating a folder'}
                   </p>
                   {!searchTerm && (
-                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 justify-center max-w-sm mx-auto">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center max-w-sm mx-auto">
                       <CreateFolderDialog 
                         onFolderCreated={createFolder}
                         existingFolders={folders}
