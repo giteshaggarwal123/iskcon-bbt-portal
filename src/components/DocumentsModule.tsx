@@ -4,6 +4,7 @@ import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentTable } from './documents/DocumentTable';
 import { DocumentFilters } from './documents/DocumentFilters';
@@ -57,6 +58,7 @@ export const DocumentsModule: React.FC = () => {
   const { user } = useAuth();
   const { isSuperAdmin, isAdmin, canDeleteContent } = useUserRole();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -611,3 +613,5 @@ export const DocumentsModule: React.FC = () => {
 };
 
 export default DocumentsModule;
+
+}

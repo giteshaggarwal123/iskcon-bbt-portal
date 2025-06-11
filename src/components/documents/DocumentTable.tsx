@@ -80,7 +80,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   };
 
   return (
-    <div className="bg-card rounded-lg border p-6">
+    <div className="bg-card rounded-lg border p-3 sm:p-6">
       {/* Folders Section */}
       <FolderSection
         folders={folders}
@@ -108,10 +108,10 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
 
       {/* Empty State */}
       {documents.length === 0 && folders.length === 0 && (
-        <div className="text-center py-12">
-          <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-xl font-medium text-foreground mb-2">No documents or folders found</h3>
-          <p className="text-muted-foreground">
+        <div className="text-center py-8 sm:py-12">
+          <FileText className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg sm:text-xl font-medium text-foreground mb-2">No documents or folders found</h3>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Get started by uploading your first document or creating a folder
           </p>
         </div>
