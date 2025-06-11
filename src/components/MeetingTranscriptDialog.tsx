@@ -228,7 +228,7 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
               <p>No transcript available for this meeting</p>
               {meeting.teams_meeting_id && !meetingEnded && (
                 <p className="text-sm mt-2">
-                  Transcript will be automatically processed after the meeting ends and saved to ISKCON Repository > Meeting Transcripts
+                  Transcript will be automatically processed after the meeting ends and saved to ISKCON Repository {'>'}Meeting Transcripts
                 </p>
               )}
               {meeting.teams_meeting_id && meetingEnded && (
