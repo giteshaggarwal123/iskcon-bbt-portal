@@ -21,8 +21,9 @@ export const useDeviceInfo = () => {
   useEffect(() => {
     const getDeviceInfo = async () => {
       // Check if we're running in a Capacitor app
-      if (window.Capacitor) {
+      if (window.Capacitor?.isNative) {
         try {
+          // Dynamic import with error handling
           const { Device } = await import('@capacitor/device');
           const info = await Device.getInfo();
           setDeviceInfo({
@@ -33,36 +34,42 @@ export const useDeviceInfo = () => {
             osVersion: info.osVersion
           });
         } catch (error) {
-          console.log('Device info not available:', error);
+          console.log('Capacitor Device plugin not available, falling back to web detection:', error);
+          // Fall back to web detection
+          setWebDeviceInfo();
         }
       } else {
         // Web browser detection
-        const userAgent = navigator.userAgent;
-        let platform = 'web';
-        let os = 'Unknown';
-        
-        if (/Android/i.test(userAgent)) {
-          platform = 'android';
-          os = 'Android';
-        } else if (/iPhone|iPad|iPod/i.test(userAgent)) {
-          platform = 'ios';
-          os = 'iOS';
-        } else if (/Windows/i.test(userAgent)) {
-          os = 'Windows';
-        } else if (/Mac/i.test(userAgent)) {
-          os = 'macOS';
-        } else if (/Linux/i.test(userAgent)) {
-          os = 'Linux';
-        }
-        
-        setDeviceInfo({
-          platform,
-          isNative: false,
-          model: 'Web Browser',
-          operatingSystem: os,
-          osVersion: 'Unknown'
-        });
+        setWebDeviceInfo();
       }
+    };
+
+    const setWebDeviceInfo = () => {
+      const userAgent = navigator.userAgent;
+      let platform = 'web';
+      let os = 'Unknown';
+      
+      if (/Android/i.test(userAgent)) {
+        platform = 'android';
+        os = 'Android';
+      } else if (/iPhone|iPad|iPod/i.test(userAgent)) {
+        platform = 'ios';
+        os = 'iOS';
+      } else if (/Windows/i.test(userAgent)) {
+        os = 'Windows';
+      } else if (/Mac/i.test(userAgent)) {
+        os = 'macOS';
+      } else if (/Linux/i.test(userAgent)) {
+        os = 'Linux';
+      }
+      
+      setDeviceInfo({
+        platform,
+        isNative: false,
+        model: 'Web Browser',
+        operatingSystem: os,
+        osVersion: 'Unknown'
+      });
     };
 
     getDeviceInfo();
