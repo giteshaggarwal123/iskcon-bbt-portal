@@ -32,6 +32,8 @@ serve(async (req) => {
 
     const { subject, body, recipients, attachments = [], meetingId = null } = await req.json()
 
+    console.log('Sending email with details:', { subject, recipients: recipients.length, meetingId })
+
     // Get user's Microsoft tokens
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -40,6 +42,7 @@ serve(async (req) => {
       .single()
 
     if (profileError || !profile?.microsoft_access_token) {
+      console.error('Microsoft account not connected:', profileError)
       return new Response(
         JSON.stringify({ error: 'Microsoft account not connected' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -100,12 +103,16 @@ serve(async (req) => {
         },
         toRecipients: recipients.map((email: string) => ({
           emailAddress: {
-            address: email
+            address: email.trim()
           }
         })),
-        attachments: emailAttachments
-      }
+        attachments: emailAttachments,
+        importance: 'normal'
+      },
+      saveToSentItems: true
     }
+
+    console.log('Sending email via Microsoft Graph with', recipients.length, 'recipients')
 
     // Send email via Microsoft Graph
     const response = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
@@ -125,6 +132,8 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    console.log('Email sent successfully via Microsoft Graph')
 
     // Log email in database
     const { error: logError } = await supabase
@@ -147,7 +156,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: 'Email sent successfully',
-        attachmentCount: emailAttachments.length
+        attachmentCount: emailAttachments.length,
+        recipientCount: recipients.length
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

@@ -33,6 +33,7 @@ serve(async (req) => {
     const { title, description, startTime, endTime, attendees = [] } = await req.json()
 
     console.log('Creating Teams meeting for user:', user.email)
+    console.log('Meeting details:', { title, description, startTime, endTime, attendees })
 
     // Get user's Microsoft tokens
     const { data: profile, error: profileError } = await supabase
@@ -42,6 +43,7 @@ serve(async (req) => {
       .single()
 
     if (profileError || !profile?.microsoft_access_token) {
+      console.error('Microsoft account not connected:', profileError)
       return new Response(
         JSON.stringify({ error: 'Microsoft account not connected' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -112,7 +114,7 @@ serve(async (req) => {
     const teamsData = await teamsResponse.json()
     console.log('Teams meeting created successfully:', teamsData.id)
 
-    // Create comprehensive Outlook calendar event with full edit permissions
+    // Create comprehensive Outlook calendar event with attendees
     const calendarEventData = {
       subject: title,
       body: {
@@ -163,7 +165,7 @@ serve(async (req) => {
       reminderMinutesBeforeStart: 15
     }
 
-    console.log('Creating Outlook calendar event...')
+    console.log('Creating Outlook calendar event with attendees:', attendees)
 
     const calendarResponse = await fetch('https://graph.microsoft.com/v1.0/me/events', {
       method: 'POST',
@@ -181,6 +183,37 @@ serve(async (req) => {
       calendarEventDetails = await calendarResponse.json()
       outlookEventId = calendarEventDetails.id
       console.log('Calendar event created successfully:', outlookEventId)
+      
+      // Automatically send calendar invitations if attendees are specified
+      if (attendees && attendees.length > 0) {
+        console.log('Sending calendar invitations to attendees:', attendees)
+        try {
+          const inviteResponse = await fetch(`https://graph.microsoft.com/v1.0/me/events/${outlookEventId}/calendar/events/${outlookEventId}/forward`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              toRecipients: attendees.map((email: string) => ({
+                emailAddress: {
+                  address: email.trim(),
+                  name: email.trim()
+                }
+              })),
+              comment: `You're invited to join our Teams meeting: ${title}`
+            })
+          })
+          
+          if (inviteResponse.ok) {
+            console.log('Calendar invitations sent successfully')
+          } else {
+            console.error('Failed to send calendar invitations:', await inviteResponse.text())
+          }
+        } catch (inviteError) {
+          console.error('Error sending calendar invitations:', inviteError)
+        }
+      }
     } else {
       const calendarError = await calendarResponse.json()
       console.error('Calendar event creation failed:', calendarError)
@@ -215,6 +248,86 @@ serve(async (req) => {
 
     console.log('Meeting stored in database successfully')
 
+    // Send additional email invitations via send-outlook-email function
+    if (attendees && attendees.length > 0 && meeting) {
+      console.log('Sending additional email invitations via send-outlook-email function')
+      try {
+        const emailBody = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb; margin-bottom: 20px;">Meeting Invitation</h2>
+            
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+              <h3 style="margin: 0 0 15px 0; color: #1e293b;">${title}</h3>
+              
+              <div style="margin-bottom: 10px;">
+                <strong>📅 Date:</strong> ${new Date(startTime).toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </div>
+              
+              <div style="margin-bottom: 10px;">
+                <strong>🕒 Time:</strong> ${new Date(startTime).toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })} - ${new Date(endTime).toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}
+              </div>
+              
+              <div style="margin-bottom: 10px;">
+                <strong>📍 Location:</strong> Microsoft Teams Meeting
+              </div>
+              
+              <div style="margin-bottom: 15px;">
+                <strong>💻 Join Online:</strong> 
+                <a href="${teamsData.joinWebUrl}" style="color: #2563eb; text-decoration: none;">Click to join Teams meeting</a>
+              </div>
+              
+              ${description ? `
+                <div style="margin-top: 15px;">
+                  <strong>📋 Description:</strong>
+                  <p style="margin: 5px 0 0 0; color: #64748b;">${description}</p>
+                </div>
+              ` : ''}
+            </div>
+            
+            <p style="color: #64748b; font-size: 14px;">
+              Please mark your calendar and let us know if you cannot attend.
+            </p>
+            
+            <hr style="border: none; height: 1px; background-color: #e2e8f0; margin: 20px 0;">
+            
+            <p style="color: #94a3b8; font-size: 12px;">
+              This invitation was sent automatically by the meeting management system.
+            </p>
+          </div>
+        `
+
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-outlook-email', {
+          body: {
+            subject: `Meeting Invitation: ${title}`,
+            body: emailBody,
+            recipients: attendees,
+            meetingId: meeting.id
+          }
+        })
+
+        if (emailError) {
+          console.error('Error sending email invitations:', emailError)
+        } else {
+          console.log('Email invitations sent successfully:', emailData)
+        }
+      } catch (emailError) {
+        console.error('Error sending email invitations:', emailError)
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -224,7 +337,8 @@ serve(async (req) => {
         meetingId: teamsData.id,
         videoTeleconferenceId: teamsData.videoTeleconferenceId,
         audioConferencing: teamsData.audioConferencing,
-        calendarEventUrl: calendarEventDetails?.webLink || null
+        calendarEventUrl: calendarEventDetails?.webLink || null,
+        attendeesNotified: attendees.length > 0
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
