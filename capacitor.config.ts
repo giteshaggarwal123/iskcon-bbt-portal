@@ -2,8 +2,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.iskcon.bbt.portal',
-  appName: 'iskcon-bbt-portal',
+  appId: 'app.lovable.6a0fd4efa0294c9d95ed74a4fa947c60',
+  appName: 'com.iskcon.bbtportal',
   webDir: 'dist',
   server: {
     url: 'https://6a0fd4ef-a029-4c9d-95ed-74a4fa947c60.lovableproject.com?forceHideBadge=true',
