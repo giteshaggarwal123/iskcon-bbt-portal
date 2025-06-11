@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Download, Save, RefreshCw, Users, Clock, CheckCircle } from 'lucide-react';
+import { FileText, Download, Save, RefreshCw, Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useTranscripts } from '@/hooks/useTranscripts';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +25,7 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [autoProcessing, setAutoProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { 
     fetchTranscriptForMeeting, 
@@ -35,51 +36,94 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
   const { autoTrackOnlineAttendance } = useAttendance();
   const { toast } = useToast();
 
-  const loadTranscript = async () => {
+  const loadTranscript = async (forceRefresh = false) => {
     if (!meeting) return;
 
     setLoading(true);
+    setError(null);
+    
     try {
-      // First check if we have a saved transcript
-      const savedTranscript = await fetchTranscriptForMeeting(meeting.id);
+      console.log(`Loading transcript for meeting: ${meeting.title} (ID: ${meeting.id})`);
       
-      if (savedTranscript) {
-        setTranscript(savedTranscript);
-      } else if (meeting.teams_meeting_id) {
-        // Check if meeting has ended
-        const now = new Date();
-        const endTime = new Date(meeting.end_time);
-        
-        if (endTime <= now) {
-          // Meeting has ended, try to fetch from Teams
-          setAutoProcessing(true);
-          const teamsData = await fetchTeamsTranscript(meeting.id, meeting.teams_meeting_id);
-          
-          if (teamsData && teamsData.hasContent) {
-            // Auto-track attendance from Teams data
-            if (teamsData.attendees) {
-              await autoTrackOnlineAttendance(meeting.id, teamsData);
-            }
-
-            // Process and save the transcript
-            const processedTranscript = {
-              content: teamsData.transcriptContent || '',
-              summary: 'AI-generated summary will be available soon',
-              actionItems: [],
-              participants: teamsData.attendees?.value?.[0]?.attendanceRecords || [],
-              teamsTranscriptId: teamsData.transcript?.value?.[0]?.id
-            };
-
-            const saved = await saveTranscript(meeting.id, processedTranscript);
-            if (saved) {
-              setTranscript(saved);
-            }
-          }
-          setAutoProcessing(false);
+      // First check if we have a saved transcript (skip if force refresh)
+      if (!forceRefresh) {
+        const savedTranscript = await fetchTranscriptForMeeting(meeting.id);
+        if (savedTranscript) {
+          console.log('Found saved transcript:', savedTranscript);
+          setTranscript(savedTranscript);
+          setLoading(false);
+          return;
         }
+      }
+
+      // If no saved transcript or force refresh, and we have a Teams meeting ID
+      if (meeting.teams_meeting_id) {
+        console.log(`Fetching Teams transcript for meeting ID: ${meeting.teams_meeting_id}`);
+        setAutoProcessing(true);
+        
+        try {
+          const teamsData = await fetchTeamsTranscript(meeting.id, meeting.teams_meeting_id);
+          console.log('Teams data received:', teamsData);
+          
+          if (teamsData) {
+            if (teamsData.hasContent && teamsData.transcriptContent) {
+              console.log('Processing transcript content...');
+              
+              // Auto-track attendance from Teams data if available
+              if (teamsData.attendees?.value?.[0]?.attendanceRecords) {
+                try {
+                  await autoTrackOnlineAttendance(meeting.id, teamsData);
+                  console.log('Attendance tracked successfully');
+                } catch (attendanceError) {
+                  console.warn('Failed to track attendance:', attendanceError);
+                }
+              }
+
+              // Process and save the transcript
+              const processedTranscript = {
+                content: teamsData.transcriptContent,
+                summary: 'AI-generated summary will be available soon',
+                actionItems: [],
+                participants: teamsData.attendees?.value?.[0]?.attendanceRecords || [],
+                teamsTranscriptId: teamsData.transcript?.value?.[0]?.id
+              };
+
+              console.log('Saving processed transcript...');
+              const saved = await saveTranscript(meeting.id, processedTranscript);
+              if (saved) {
+                setTranscript(saved);
+                toast({
+                  title: "Transcript Loaded",
+                  description: "Meeting transcript has been successfully loaded and saved."
+                });
+              }
+            } else if (teamsData.transcript?.value?.length > 0) {
+              // Transcript exists in Teams but content might not be ready yet
+              setError('Transcript is available in Teams but content is still being processed. Please try again in a few minutes.');
+              toast({
+                title: "Transcript Processing",
+                description: "Transcript is still being processed by Teams. Please try again in a few minutes.",
+                variant: "default"
+              });
+            } else {
+              // No transcript found
+              setError('No transcript found for this meeting in Teams. Transcripts are only available if recording was enabled during the meeting.');
+            }
+          } else {
+            setError('Failed to fetch transcript from Teams. Please check if the meeting was recorded and transcription was enabled.');
+          }
+        } catch (teamsError) {
+          console.error('Error fetching from Teams:', teamsError);
+          setError('Failed to connect to Teams or fetch transcript. Please ensure your Microsoft account is properly connected.');
+        }
+        
+        setAutoProcessing(false);
+      } else {
+        setError('This meeting was not created through Teams integration, so no transcript is available.');
       }
     } catch (error) {
       console.error('Error loading transcript:', error);
+      setError('An unexpected error occurred while loading the transcript. Please try again.');
       setAutoProcessing(false);
     } finally {
       setLoading(false);
@@ -91,9 +135,20 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
 
     setSaving(true);
     try {
-      await saveTranscriptToDocuments(transcript, meeting.title, meeting.end_time);
+      const success = await saveTranscriptToDocuments(transcript, meeting.title, meeting.end_time);
+      if (success) {
+        toast({
+          title: "Success",
+          description: "Transcript has been saved to ISKCON Repository > Meeting Transcripts"
+        });
+      }
     } catch (error) {
       console.error('Error saving to documents:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save transcript to documents",
+        variant: "destructive"
+      });
     } finally {
       setSaving(false);
     }
@@ -137,6 +192,10 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
     URL.revokeObjectURL(url);
   };
 
+  const handleForceRefresh = () => {
+    loadTranscript(true);
+  };
+
   useEffect(() => {
     if (open && meeting) {
       loadTranscript();
@@ -146,6 +205,7 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
   if (!meeting) return null;
 
   const meetingEnded = new Date(meeting.end_time) <= new Date();
+  const hasTeamsIntegration = !!meeting.teams_meeting_id;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -171,10 +231,15 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                   <span>{transcript.participants.length} participants</span>
                 </div>
               )}
-              {meetingEnded && meeting.teams_meeting_id && (
+              {hasTeamsIntegration ? (
                 <Badge variant="outline" className="flex items-center space-x-1">
                   <CheckCircle className="h-3 w-3" />
-                  <span>Auto-processed</span>
+                  <span>Teams Integration</span>
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="flex items-center space-x-1">
+                  <AlertCircle className="h-3 w-3" />
+                  <span>No Teams Integration</span>
                 </Badge>
               )}
             </div>
@@ -183,12 +248,23 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={loadTranscript}
+                onClick={() => loadTranscript(false)}
                 disabled={loading || autoProcessing}
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${(loading || autoProcessing) ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
+              {hasTeamsIntegration && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleForceRefresh}
+                  disabled={loading || autoProcessing}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${(loading || autoProcessing) ? 'animate-spin' : ''}`} />
+                  Force Refresh from Teams
+                </Button>
+              )}
               {transcript && (
                 <>
                   <Button 
@@ -217,23 +293,52 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
               <p className="text-gray-600">
-                {autoProcessing ? 'Auto-processing transcript from Teams...' : 'Loading transcript...'}
+                {autoProcessing ? 'Fetching transcript from Teams...' : 'Loading transcript...'}
               </p>
+              {autoProcessing && (
+                <p className="text-sm text-gray-500 mt-2">
+                  This may take a few moments as we retrieve the latest data from Microsoft Teams
+                </p>
+              )}
             </div>
           )}
 
-          {!loading && !autoProcessing && !transcript && (
+          {error && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-yellow-800">Transcript Not Available</h3>
+                  <p className="text-yellow-700 text-sm mt-1">{error}</p>
+                  {hasTeamsIntegration && (
+                    <div className="mt-3 text-sm text-yellow-700">
+                      <p><strong>Troubleshooting tips:</strong></p>
+                      <ul className="list-disc list-inside mt-1 space-y-1">
+                        <li>Ensure the meeting was recorded in Teams</li>
+                        <li>Check that transcription was enabled during the meeting</li>
+                        <li>Wait a few minutes after the meeting ends for processing</li>
+                        <li>Try the "Force Refresh from Teams" button</li>
+                        <li>Verify your Microsoft account connection in Settings</li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!loading && !autoProcessing && !transcript && !error && (
             <div className="text-center py-8 text-gray-500">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-20" />
               <p>No transcript available for this meeting</p>
-              {meeting.teams_meeting_id && !meetingEnded && (
+              {hasTeamsIntegration ? (
+                <div className="text-sm mt-2 space-y-1">
+                  <p>This meeting has Teams integration but no transcript was found.</p>
+                  <p>Try the "Force Refresh from Teams" button if the meeting was recorded.</p>
+                </div>
+              ) : (
                 <p className="text-sm mt-2">
-                  Transcript will be automatically processed after the meeting ends and saved to ISKCON Repository {'>'}Meeting Transcripts
-                </p>
-              )}
-              {meeting.teams_meeting_id && meetingEnded && (
-                <p className="text-sm mt-2">
-                  Transcript may take a few minutes to become available after the meeting
+                  This meeting was not created through Teams integration.
                 </p>
               )}
             </div>

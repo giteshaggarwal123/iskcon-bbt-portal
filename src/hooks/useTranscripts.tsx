@@ -44,58 +44,132 @@ export const useTranscripts = () => {
 
   const fetchTranscriptForMeeting = async (meetingId: string) => {
     try {
+      console.log(`Fetching saved transcript for meeting: ${meetingId}`);
       const { data, error } = await supabase
         .from('meeting_transcripts')
         .select('*')
         .eq('meeting_id', meetingId)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching transcript:', error);
+        throw error;
+      }
+      
+      console.log('Saved transcript found:', !!data);
       return data;
     } catch (error: any) {
+      if (error.code === 'PGRST116') {
+        // No transcript found, this is expected
+        console.log('No saved transcript found for meeting:', meetingId);
+        return null;
+      }
       console.error('Error fetching transcript:', error);
       return null;
     }
   };
 
   const fetchTeamsTranscript = async (meetingId: string, teamsId: string) => {
-    if (!user) return null;
+    if (!user) {
+      console.error('No authenticated user found');
+      return null;
+    }
 
     try {
+      console.log(`Fetching Teams transcript for meeting: ${teamsId}`);
+      
       // Get user's Microsoft access token
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('microsoft_access_token')
+        .select('microsoft_access_token, microsoft_refresh_token')
         .eq('id', user.id)
         .single();
 
-      if (!profile?.microsoft_access_token) {
-        toast({
-          title: "Microsoft Account Required",
-          description: "Please connect your Microsoft account to fetch transcripts",
-          variant: "destructive"
-        });
-        return null;
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
+        throw new Error('Failed to fetch user profile');
       }
 
-      // Call edge function to fetch Teams data
-      const { data, error } = await supabase.functions.invoke('fetch-teams-transcript', {
-        body: {
-          meetingId: teamsId,
-          accessToken: profile.microsoft_access_token
-        }
-      });
+      if (!profile?.microsoft_access_token) {
+        console.error('No Microsoft access token found');
+        throw new Error('Microsoft account not connected. Please connect your Microsoft account in Settings.');
+      }
 
-      if (error) throw error;
-      return data;
+      console.log('Microsoft access token found, calling edge function...');
+
+      // Call edge function to fetch Teams data with retry logic
+      let lastError = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`Attempt ${attempt} to fetch Teams transcript`);
+          
+          const { data, error } = await supabase.functions.invoke('fetch-teams-transcript', {
+            body: {
+              meetingId: teamsId,
+              accessToken: profile.microsoft_access_token
+            }
+          });
+
+          if (error) {
+            console.error(`Attempt ${attempt} failed:`, error);
+            lastError = error;
+            
+            // If it's an auth error, try to refresh the token
+            if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+              console.log('Attempting to refresh Microsoft token...');
+              try {
+                const { error: refreshError } = await supabase.functions.invoke('refresh-microsoft-token', {
+                  body: { userId: user.id }
+                });
+                
+                if (!refreshError) {
+                  console.log('Token refreshed, retrying...');
+                  continue;
+                } else {
+                  console.error('Token refresh failed:', refreshError);
+                }
+              } catch (refreshErr) {
+                console.error('Token refresh error:', refreshErr);
+              }
+            }
+            
+            if (attempt === 3) throw error;
+            continue;
+          }
+
+          console.log('Teams transcript data received:', {
+            hasTranscript: !!data?.transcript,
+            transcriptCount: data?.transcript?.value?.length || 0,
+            hasContent: data?.hasContent,
+            contentLength: data?.transcriptContent?.length || 0,
+            hasAttendees: !!data?.attendees
+          });
+
+          return data;
+        } catch (err) {
+          console.error(`Attempt ${attempt} error:`, err);
+          lastError = err;
+          if (attempt === 3) throw err;
+          
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+      }
+
+      throw lastError;
     } catch (error: any) {
       console.error('Error fetching Teams transcript:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch Teams transcript",
-        variant: "destructive"
-      });
-      return null;
+      
+      let errorMessage = 'Failed to fetch Teams transcript';
+      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        errorMessage = 'Microsoft authentication expired. Please reconnect your Microsoft account in Settings.';
+      } else if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        errorMessage = 'Meeting transcript not found in Teams. Ensure the meeting was recorded and transcription was enabled.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      throw new Error(errorMessage);
     }
   };
 
@@ -110,6 +184,8 @@ export const useTranscripts = () => {
     }
   ) => {
     try {
+      console.log(`Saving transcript for meeting: ${meetingId}`);
+      
       const { data, error } = await supabase
         .from('meeting_transcripts')
         .upsert({
@@ -123,27 +199,21 @@ export const useTranscripts = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error saving transcript:', error);
+        throw error;
+      }
 
-      toast({
-        title: "Success",
-        description: "Meeting transcript saved successfully"
-      });
-
+      console.log('Transcript saved successfully');
       return data;
     } catch (error: any) {
       console.error('Error saving transcript:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save transcript",
-        variant: "destructive"
-      });
-      return null;
+      throw new Error('Failed to save transcript to database');
     }
   };
 
   const saveTranscriptToDocuments = async (transcript: MeetingTranscript, meetingTitle: string, meetingEndTime?: string) => {
-    if (!user) return;
+    if (!user) return false;
 
     try {
       const meetingTranscriptsFolderId = await getMeetingTranscriptsFolderId();
@@ -194,20 +264,10 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Transcript saved to ISKCON Repository > Meeting Transcripts folder"
-      });
-
       return true;
     } catch (error: any) {
       console.error('Error saving transcript to documents:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save transcript to documents",
-        variant: "destructive"
-      });
-      return false;
+      throw new Error('Failed to save transcript to documents');
     }
   };
 

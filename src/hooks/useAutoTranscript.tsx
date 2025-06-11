@@ -31,11 +31,16 @@ export const useAutoTranscript = () => {
   };
 
   const processExpiredMeetings = async () => {
-    if (!user || !isConnected || !accessToken) return;
+    if (!user || !isConnected || !accessToken) {
+      console.log('Auto-transcript: User not authenticated or Microsoft not connected');
+      return;
+    }
 
     try {
-      // Find meetings that ended in the last 2 hours and have Teams meeting IDs
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      console.log('Processing expired meetings for auto-transcript...');
+      
+      // Find meetings that ended in the last 4 hours and have Teams meeting IDs
+      const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
       const now = new Date().toISOString();
 
       const { data: meetings, error } = await supabase
@@ -48,11 +53,11 @@ export const useAutoTranscript = () => {
           meeting_transcripts(id)
         `)
         .not('teams_meeting_id', 'is', null)
-        .gte('end_time', twoHoursAgo)
+        .gte('end_time', fourHoursAgo)
         .lte('end_time', now);
 
       if (error) {
-        console.error('Error fetching meetings:', error);
+        console.error('Error fetching meetings for auto-transcript:', error);
         return;
       }
 
@@ -61,40 +66,72 @@ export const useAutoTranscript = () => {
         !meeting.meeting_transcripts || meeting.meeting_transcripts.length === 0
       ) || [];
 
-      console.log(`Found ${meetingsToProcess.length} meetings to process for transcripts`);
+      console.log(`Found ${meetingsToProcess.length} meetings to process for auto-transcript`);
 
       for (const meeting of meetingsToProcess) {
-        await processMeetingTranscript(meeting);
-        // Add delay between requests to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+          await processMeetingTranscript(meeting);
+          // Add delay between requests to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } catch (error) {
+          console.error(`Failed to process transcript for meeting ${meeting.id}:`, error);
+        }
       }
 
     } catch (error) {
-      console.error('Error processing expired meetings:', error);
+      console.error('Error in processExpiredMeetings:', error);
     }
   };
 
   const processMeetingTranscript = async (meeting: any) => {
     try {
-      console.log(`Processing transcript for meeting: ${meeting.title}`);
+      console.log(`Auto-processing transcript for meeting: ${meeting.title} (ID: ${meeting.id})`);
 
-      // Fetch transcript from Teams
-      const { data: transcriptData, error } = await supabase.functions.invoke('fetch-teams-transcript', {
-        body: {
-          meetingId: meeting.teams_meeting_id,
-          accessToken: accessToken
+      // Fetch transcript from Teams with retry logic
+      let transcriptData = null;
+      let lastError = null;
+
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`Attempt ${attempt} to fetch Teams transcript for ${meeting.title}`);
+          
+          const { data, error } = await supabase.functions.invoke('fetch-teams-transcript', {
+            body: {
+              meetingId: meeting.teams_meeting_id,
+              accessToken: accessToken
+            }
+          });
+
+          if (error) {
+            console.error(`Attempt ${attempt} failed for meeting ${meeting.id}:`, error);
+            lastError = error;
+            
+            if (attempt === 3) throw error;
+            await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+            continue;
+          }
+
+          transcriptData = data;
+          break;
+        } catch (err) {
+          console.error(`Attempt ${attempt} error for meeting ${meeting.id}:`, err);
+          lastError = err;
+          if (attempt === 3) throw err;
+          await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
         }
-      });
+      }
 
-      if (error) {
-        console.error(`Error fetching transcript for meeting ${meeting.id}:`, error);
+      if (!transcriptData) {
+        console.log(`No transcript data available for meeting: ${meeting.title}`);
         return;
       }
 
-      if (!transcriptData || !transcriptData.hasContent) {
+      if (!transcriptData.hasContent || !transcriptData.transcriptContent) {
         console.log(`No transcript content available yet for meeting: ${meeting.title}`);
         return;
       }
+
+      console.log(`Processing transcript content for meeting: ${meeting.title}`);
 
       // Process and save the transcript
       const processedTranscript = {
@@ -148,7 +185,7 @@ SUMMARY:
 ${processedTranscript.summary}
         `.trim();
 
-        await supabase
+        const { error: docError } = await supabase
           .from('documents')
           .insert({
             name: fileName,
@@ -159,7 +196,11 @@ ${processedTranscript.summary}
             file_size: transcriptText.length
           });
 
-        console.log(`Transcript saved to Meeting Transcripts folder for meeting: ${meeting.title}`);
+        if (docError) {
+          console.error('Error saving transcript to documents:', docError);
+        } else {
+          console.log(`Transcript saved to Meeting Transcripts folder for meeting: ${meeting.title}`);
+        }
 
       } catch (docError) {
         console.error('Error saving transcript to documents:', docError);
@@ -172,21 +213,28 @@ ${processedTranscript.summary}
       });
 
     } catch (error) {
-      console.error(`Error processing transcript for meeting ${meeting.id}:`, error);
+      console.error(`Error auto-processing transcript for meeting ${meeting.id}:`, error);
     }
   };
 
-  // Set up automatic checking every 30 minutes
+  // Set up automatic checking every 15 minutes (more frequent for better responsiveness)
   useEffect(() => {
     if (!user || !isConnected) return;
 
-    // Initial check
-    processExpiredMeetings();
+    console.log('Setting up auto-transcript monitoring...');
 
-    // Set up interval to check every 30 minutes
-    const interval = setInterval(processExpiredMeetings, 30 * 60 * 1000);
+    // Initial check after 1 minute delay
+    const initialTimeout = setTimeout(() => {
+      processExpiredMeetings();
+    }, 60000);
 
-    return () => clearInterval(interval);
+    // Set up interval to check every 15 minutes
+    const interval = setInterval(processExpiredMeetings, 15 * 60 * 1000);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
   }, [user, isConnected, accessToken]);
 
   return {
