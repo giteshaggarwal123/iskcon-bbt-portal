@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,8 +13,7 @@ interface AuthContextType {
   sendOTP: (phoneNumber: string) => Promise<{ error: any; otp?: string }>;
   sendLoginOTP: (email: string) => Promise<{ error: any; otp?: string }>;
   verifyOTP: (email: string, otp: string, newPassword: string) => Promise<{ error: any }>;
-  verifyLoginOTP: (email: string, otp: string, rememberMe?: boolean) => Promise<{ error: any }>;
-  verifyPasswordAndSendOTP: (email: string, password: string) => Promise<{ error: any; otp?: string; maskedPhone?: string }>;
+  verifyLoginOTP: (email: string, otp: string) => Promise<{ error: any }>;
   resetPasswordWithOTP: (email: string, otp: string, newPassword: string) => Promise<{ error: any }>;
   loading: boolean;
 }
@@ -43,7 +43,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (!shouldPersist || (rememberMeExpiry && Date.now() > parseInt(rememberMeExpiry))) {
       localStorage.removeItem('rememberMe');
       localStorage.removeItem('rememberMeExpiry');
-      localStorage.removeItem('otp_authenticated_user');
       // Clear any stored session
       localStorage.removeItem('sb-daiimiznlkffbbadhodw-auth-token');
       sessionStorage.removeItem('sb-daiimiznlkffbbadhodw-auth-token');
@@ -57,22 +56,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.error('Error getting session:', error);
         }
         
-        // Check for OTP authenticated user
-        const otpUser = localStorage.getItem('otp_authenticated_user');
-        if (otpUser && !session) {
-          try {
-            const userData = JSON.parse(otpUser);
-            console.log('Found OTP authenticated user:', userData);
-            setUser(userData);
-            setSession({
-              access_token: 'otp_temp_token',
-              user: userData
-            } as any);
-          } catch (error) {
-            console.error('Error parsing OTP user data:', error);
-            localStorage.removeItem('otp_authenticated_user');
-          }
-        } else if (session && (shouldPersist || isSessionFresh(session))) {
+        // Only set session if remember me is enabled or session is fresh
+        if (session && (shouldPersist || isSessionFresh(session))) {
           setSession(session);
           setUser(session?.user ?? null);
         } else {
@@ -100,7 +85,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (event === 'SIGNED_OUT') {
           setSession(null);
           setUser(null);
-          localStorage.removeItem('otp_authenticated_user');
         } else if (session) {
           const shouldPersist = localStorage.getItem('rememberMe') === 'true';
           
@@ -170,10 +154,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
-      // Clear any existing remember me settings and OTP auth first
+      // Clear any existing remember me settings first
       localStorage.removeItem('rememberMe');
       localStorage.removeItem('rememberMeExpiry');
-      localStorage.removeItem('otp_authenticated_user');
 
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -355,7 +338,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const verifyLoginOTP = async (email: string, otp: string, rememberMe: boolean = false) => {
+  const verifyLoginOTP = async (email: string, otp: string) => {
     try {
       console.log('Verifying login OTP for email:', email, 'OTP:', otp);
       
@@ -370,43 +353,57 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.error('Profile lookup error:', profileError);
         toast({
           title: "Authentication Error",
-          description: "User not found in the system. Please contact administrator to add your profile.",
+          description: "User not found in the system.",
           variant: "destructive"
         });
         return { error: profileError || new Error('User not found') };
       }
 
-      // Create a temporary session for OTP-authenticated users
-      const tempUser = {
-        id: profile.id,
-        email: profile.email,
-        user_metadata: {
-          first_name: profile.first_name,
-          last_name: profile.last_name
-        }
-      };
-      
-      // Handle remember me functionality
-      if (rememberMe) {
-        localStorage.setItem('rememberMe', 'true');
-        localStorage.setItem('rememberMeExpiry', (Date.now() + 30 * 24 * 60 * 60 * 1000).toString());
+      // For demo purposes, we'll sign in the user directly after OTP verification
+      // In production, you might want to create a session token or use a different method
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: 'temporary_password_for_otp_login' // This would need to be handled differently in production
+      });
+
+      // If password auth fails, we'll create a session manually for OTP login
+      if (signInError) {
+        console.log('Password sign-in failed, creating OTP session...');
+        
+        // Create a temporary session for OTP-authenticated users
+        // This is a simplified approach - in production you'd want more robust session management
+        const tempUser = {
+          id: profile.id,
+          email: profile.email,
+          user_metadata: {
+            first_name: profile.first_name,
+            last_name: profile.last_name
+          }
+        };
+        
+        // Store temporary auth state
+        localStorage.setItem('otp_authenticated_user', JSON.stringify(tempUser));
+        
+        // Set user state manually
+        setUser(tempUser as any);
+        setSession({
+          access_token: 'otp_temp_token',
+          user: tempUser as any
+        } as any);
+        
+        toast({
+          title: "Login Successful",
+          description: `Welcome back, ${profile.first_name || 'User'}!`
+        });
+        
+        return { error: null };
       }
-      
-      // Store temporary auth state
-      localStorage.setItem('otp_authenticated_user', JSON.stringify(tempUser));
-      
-      // Set user state manually
-      setUser(tempUser as any);
-      setSession({
-        access_token: 'otp_temp_token',
-        user: tempUser as any
-      } as any);
-      
+
       toast({
-        title: "Login Successful",
+        title: "Login Successful", 
         description: `Welcome back, ${profile.first_name || 'User'}!`
       });
-      
+
       return { error: null };
     } catch (error: any) {
       console.error('Verify login OTP error:', error);
@@ -419,90 +416,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const verifyPasswordAndSendOTP = async (email: string, password: string) => {
-    try {
-      console.log('Verifying password and sending OTP for email:', email);
-      
-      // First verify the password using Supabase auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (authError) {
-        console.error('Password verification error:', authError);
-        toast({
-          title: "Authentication Error",
-          description: authError.message,
-          variant: "destructive"
-        });
-        return { error: authError };
-      }
-
-      // Sign out immediately after verification (we don't want to log them in yet)
-      await supabase.auth.signOut();
-
-      // Now send OTP to their registered mobile number
-      const { data, error } = await supabase.functions.invoke('send-login-otp', {
-        body: { email }
-      });
-
-      if (error) {
-        console.error('Send login OTP error:', error);
-        toast({
-          title: "Authentication Error",
-          description: error.details || "Failed to send verification code. Please try again.",
-          variant: "destructive"
-        });
-        return { error };
-      }
-
-      if (data.error) {
-        console.error('Send login OTP data error:', data);
-        toast({
-          title: "Authentication Error", 
-          description: data.details || data.error,
-          variant: "destructive"
-        });
-        return { error: data };
-      }
-
-      console.log('Password verified and OTP sent successfully:', data);
-      toast({
-        title: "Password Verified",
-        description: data.message || "Verification code sent to your registered mobile number."
-      });
-
-      // Extract phone number from message for display
-      let maskedPhone = '';
-      if (data.message) {
-        const phoneMatch = data.message.match(/(\+91\*+\d{5})/);
-        if (phoneMatch) {
-          maskedPhone = phoneMatch[1];
-        }
-      }
-
-      return { error: null, otp: data.otp, maskedPhone };
-    } catch (error: any) {
-      console.error('Verify password and send OTP catch error:', error);
-      toast({
-        title: "Authentication Error",
-        description: "Network error. Please check your connection and try again.",
-        variant: "destructive"
-      });
-      return { error };
-    }
-  };
-
   const signOut = async () => {
     try {
-      // Clear remember me settings and OTP auth
+      // Clear remember me settings
       localStorage.removeItem('rememberMe');
       localStorage.removeItem('rememberMeExpiry');
       localStorage.removeItem('otp_authenticated_user');
 
-      if (!session || session.access_token === 'otp_temp_token') {
-        console.log('No active session found or OTP session, clearing local state');
+      if (!session) {
+        console.log('No active session found, clearing local state');
         setSession(null);
         setUser(null);
         toast({
@@ -543,147 +465,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const value = {
     user,
     session,
-    signUp: async (email: string, password: string, firstName: string, lastName: string, phone?: string) => {
-      try {
-        const redirectUrl = `${window.location.origin}/`;
-        
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: redirectUrl,
-            data: {
-              first_name: firstName,
-              last_name: lastName,
-              phone: phone
-            }
-          }
-        });
-
-        if (error) {
-          toast({
-            title: "Sign Up Error",
-            description: error.message,
-            variant: "destructive"
-          });
-          return { error };
-        }
-
-        toast({
-          title: "Check your email",
-          description: "We've sent you a confirmation link to complete your registration."
-        });
-
-        return { error: null };
-      } catch (error: any) {
-        toast({
-          title: "Sign Up Error",
-          description: error.message,
-          variant: "destructive"
-        });
-        return { error };
-      }
-    },
+    signUp,
     signIn,
     signOut,
-    sendOTP: async (phoneNumber: string) => {
-      try {
-        const { data, error } = await supabase.functions.invoke('send-otp', {
-          body: { phoneNumber }
-        });
-
-        if (error) {
-          toast({
-            title: "OTP Error",
-            description: error.details || "Failed to send OTP. Please try again.",
-            variant: "destructive"
-          });
-          return { error };
-        }
-
-        toast({
-          title: "OTP Sent",
-          description: data.message || "Please check your phone for the verification code."
-        });
-
-        return { error: null, otp: data.otp };
-      } catch (error: any) {
-        toast({
-          title: "OTP Error",
-          description: error.message,
-          variant: "destructive"
-        });
-        return { error };
-      }
-    },
+    sendOTP,
     sendLoginOTP,
-    verifyOTP: async (email: string, otp: string, newPassword: string) => {
-      try {
-        // In a real implementation, you would verify the OTP against stored values
-        // For now, we'll simulate OTP verification and reset the password
-        const { error } = await supabase.auth.updateUser({
-          password: newPassword
-        });
-
-        if (error) {
-          toast({
-            title: "Password Reset Error",
-            description: error.message,
-            variant: "destructive"
-          });
-          return { error };
-        }
-
-        toast({
-          title: "Password Reset Successful",
-          description: "Your password has been updated successfully."
-        });
-
-        return { error: null };
-      } catch (error: any) {
-        toast({
-          title: "Password Reset Error",
-          description: error.message,
-          variant: "destructive"
-        });
-        return { error };
-      }
-    },
+    verifyOTP,
     verifyLoginOTP,
-    verifyPasswordAndSendOTP,
-    resetPasswordWithOTP: async (email: string, otp: string, newPassword: string) => {
-      try {
-        // Use the edge function to reset password server-side
-        const { data, error } = await supabase.functions.invoke('send-otp', {
-          body: {
-            email: email, // Use explicit email field
-            type: 'reset_password',
-            otp: otp,
-            newPassword: newPassword
-          }
-        });
-
-        if (error) {
-          console.error('Password reset error:', error);
-          throw error;
-        }
-
-        toast({
-          title: "Password Reset Successful",
-          description: "Your password has been updated successfully. Please login with your new password."
-        });
-
-        return { error: null };
-      } catch (error: any) {
-        console.error('Password reset error:', error);
-        toast({
-          title: "Password Reset Error",
-          description: error.message || "Failed to reset password. Please try again.",
-          variant: "destructive"
-        });
-        return { error };
-      }
-    },
+    resetPasswordWithOTP,
     loading
   };
 

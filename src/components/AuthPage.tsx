@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Phone, Shield, Clock, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Phone, Shield, Clock, Mail } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
@@ -14,31 +13,47 @@ interface AuthPageProps {
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
-  const { verifyPasswordAndSendOTP, verifyLoginOTP, loading } = useAuth();
-  const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
+  const { sendLoginOTP, verifyLoginOTP, loading } = useAuth();
+  const [step, setStep] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [storedOTP, setStoredOTP] = useState('');
   const [maskedPhone, setMaskedPhone] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
-  const handlePasswordVerification = async () => {
-    if (!email || !password) return;
+  const handleSendOTP = async () => {
+    if (!email) return;
     
-    const { error, otp: receivedOTP, maskedPhone: phone } = await verifyPasswordAndSendOTP(email, password);
+    const { error, otp: receivedOTP } = await sendLoginOTP(email);
     
     if (!error && receivedOTP) {
       setStoredOTP(receivedOTP);
-      setMaskedPhone(phone || '');
       setStep('otp');
+      // Extract masked phone from response if available
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-login-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({ email })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.message) {
+          // Extract phone number from message for display
+          const phoneMatch = data.message.match(/(\+91\*+\d{5})/);
+          if (phoneMatch) {
+            setMaskedPhone(phoneMatch[1]);
+          }
+        }
+      }
     }
   };
 
   const handleVerifyOTP = async () => {
     if (otp === storedOTP) {
-      const { error } = await verifyLoginOTP(email, otp, rememberMe);
+      const { error } = await verifyLoginOTP(email, otp);
       if (!error) {
         onLogin();
       }
@@ -48,7 +63,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
   };
 
   const handleResendOTP = async () => {
-    const { error, otp: newOTP } = await verifyPasswordAndSendOTP(email, password);
+    const { error, otp: newOTP } = await sendLoginOTP(email);
     if (!error && newOTP) {
       setStoredOTP(newOTP);
       setOtp('');
@@ -75,18 +90,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center space-x-2">
               <Shield className="h-5 w-5 text-primary" />
-              <span>Secure Login</span>
+              <span>Secure OTP Login</span>
             </CardTitle>
             <CardDescription>
-              {step === 'credentials' 
-                ? 'Enter your email and password to proceed to OTP verification'
+              {step === 'email' 
+                ? 'Enter your registered email to receive OTP on your mobile'
                 : 'Enter the 6-digit OTP sent to your registered mobile number'
               }
             </CardDescription>
           </CardHeader>
           
           <CardContent className="space-y-6">
-            {step === 'credentials' ? (
+            {step === 'email' ? (
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
@@ -102,51 +117,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                       required
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 pr-10"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="remember"
-                    checked={rememberMe}
-                    onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                  />
-                  <Label htmlFor="remember" className="text-sm">Remember me for 30 days</Label>
+                  <p className="text-xs text-gray-500">
+                    OTP will be sent to the mobile number registered with this email
+                  </p>
                 </div>
                 
                 <Button 
-                  onClick={handlePasswordVerification}
-                  disabled={!email || !password || loading}
+                  onClick={handleSendOTP}
+                  disabled={!email || loading}
                   className="w-full bg-primary hover:bg-primary/90"
                 >
-                  {loading ? 'Verifying...' : 'Verify & Send OTP'}
+                  {loading ? 'Sending OTP...' : 'Send OTP'}
                 </Button>
-
-                <p className="text-xs text-gray-500 text-center">
-                  After password verification, OTP will be sent to your registered mobile number
-                </p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -182,10 +164,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Code sent to {email}</span>
                   <button 
-                    onClick={() => setStep('credentials')}
+                    onClick={() => setStep('email')}
                     className="text-primary hover:underline"
                   >
-                    Change credentials
+                    Change email
                   </button>
                 </div>
                 
@@ -215,12 +197,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                 <Clock className="h-4 w-4 text-gray-500 mt-0.5" />
                 <div className="text-xs text-gray-600">
                   <p className="font-medium mb-1">Security Notice</p>
-                  <p>
-                    {step === 'credentials' 
-                      ? 'Your password will be verified first, then OTP will be sent to your registered mobile number for additional security.'
-                      : 'OTP expires in 5 minutes. Only registered bureau members with verified mobile numbers can access this platform.'
-                    }
-                  </p>
+                  <p>OTP expires in 5 minutes. Only registered bureau members with verified mobile numbers can access this platform.</p>
                 </div>
               </div>
             </div>
