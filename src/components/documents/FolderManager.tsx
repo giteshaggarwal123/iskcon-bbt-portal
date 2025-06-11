@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,7 @@ interface FolderManagerProps {
   currentFolderId?: string | null;
   showCreateButton?: boolean;
   userCanAccessLocked?: boolean;
+  showFolderStructure?: boolean;
 }
 
 export const FolderManager: React.FC<FolderManagerProps> = ({
@@ -34,7 +36,8 @@ export const FolderManager: React.FC<FolderManagerProps> = ({
   onDeleteFolder,
   currentFolderId,
   showCreateButton = true,
-  userCanAccessLocked = false
+  userCanAccessLocked = false,
+  showFolderStructure = false
 }) => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [folderName, setFolderName] = useState('');
@@ -209,7 +212,7 @@ export const FolderManager: React.FC<FolderManagerProps> = ({
         </Dialog>
       )}
 
-      {folders.length > 0 && (
+      {showFolderStructure && folders.length > 0 && (
         <div className="border rounded-lg p-4">
           <h3 className="text-sm font-medium text-gray-700 mb-3">Folder Structure</h3>
           <div className="space-y-1">

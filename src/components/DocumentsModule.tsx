@@ -13,7 +13,6 @@ import { DocumentTable } from './documents/DocumentTable';
 import { FolderManager } from './documents/FolderManager';
 import { TrashFolder } from './documents/TrashFolder';
 import { DocumentViewer } from './DocumentViewer';
-import { DocumentAnalytics } from './DocumentAnalytics';
 import { Search, Upload, Trash2, Grid, List, Plus } from 'lucide-react';
 
 export const DocumentsModule = () => {
@@ -229,6 +228,7 @@ export const DocumentsModule = () => {
             onDeleteFolder={handleDeleteFolder}
             currentFolderId={selectedFolder}
             userCanAccessLocked={true}
+            showCreateButton={true}
           />
           
           <Button
