@@ -613,5 +613,3 @@ export const DocumentsModule: React.FC = () => {
 };
 
 export default DocumentsModule;
-
-}
