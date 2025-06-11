@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -59,11 +60,11 @@ export const DocumentsModule = () => {
         description: "Folder deleted successfully"
       });
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting folder:', error);
       toast({
         title: "Error",
-        description: "Failed to delete folder",
+        description: error.message || "Failed to delete folder",
         variant: "destructive"
       });
       return false;
@@ -82,7 +83,7 @@ export const DocumentsModule = () => {
         title: "Success",
         description: "Document renamed successfully"
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error renaming document:', error);
       toast({
         title: "Error",
@@ -99,7 +100,7 @@ export const DocumentsModule = () => {
         title: "Success",
         description: "Document copied successfully"
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error copying document:', error);
       toast({
         title: "Error",
@@ -116,7 +117,7 @@ export const DocumentsModule = () => {
         title: "Success",
         description: `"${documentName}" moved to trash`
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting document:', error);
       toast({
         title: "Error",
@@ -133,7 +134,7 @@ export const DocumentsModule = () => {
         title: "Success",
         description: `Document ${!currentStatus ? 'marked as important' : 'unmarked as important'}`
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error toggling important status:', error);
       toast({
         title: "Error",
@@ -150,7 +151,7 @@ export const DocumentsModule = () => {
         title: "Success",
         description: "Document moved successfully"
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error moving document:', error);
       toast({
         title: "Error",
@@ -242,14 +243,11 @@ export const DocumentsModule = () => {
           </Button>
           
           <FolderManager 
+            folders={folders}
+            onCreateFolder={createFolder}
+            onDeleteFolder={handleDeleteFolder}
             currentFolderId={selectedFolder}
-            onFolderCreated={() => {
-              refreshDocuments();
-              toast({
-                title: "Success",
-                description: "Folder created successfully"
-              });
-            }}
+            userCanAccessLocked={true}
           />
           
           <Button
@@ -275,10 +273,16 @@ export const DocumentsModule = () => {
           />
         </div>
         
-        <DocumentFilters 
-          filterType={filterType}
-          onFilterChange={setFilterType}
-        />
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Filter documents" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Documents</SelectItem>
+            <SelectItem value="important">Important</SelectItem>
+            <SelectItem value="recent">Recent (7 days)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Documents Display */}
@@ -362,8 +366,8 @@ export const DocumentsModule = () => {
       <DocumentUploadDialog
         isOpen={isUploadDialogOpen}
         onClose={() => setIsUploadDialogOpen(false)}
-        onUpload={(file, folder) => {
-          uploadDocument.mutate({ file, folderId: folder || selectedFolder });
+        onUpload={async (file, folder) => {
+          await uploadDocument(file, folder || selectedFolder || undefined);
           setIsUploadDialogOpen(false);
         }}
         currentFolderId={selectedFolder}
@@ -372,7 +376,7 @@ export const DocumentsModule = () => {
       <DocumentRenameDialog
         document={renameDocument}
         onClose={() => setRenameDocument(null)}
-        onRename={handleRenameSubmit}
+        onRename={(newName) => handleRenameSubmit(renameDocument?.id, newName)}
       />
 
       <TrashFolder

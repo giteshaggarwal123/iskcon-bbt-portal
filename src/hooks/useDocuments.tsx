@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
@@ -30,20 +31,51 @@ interface Folder {
   is_locked: boolean;
 }
 
-export const useDocuments = () => {
+export const useDocuments = (currentFolderId?: string | null) => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [userProfiles, setUserProfiles] = useState<{[key: string]: {first_name: string, last_name: string}}>({});
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const fetchUserProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name');
+
+      if (error) throw error;
+      
+      const profilesMap = (data || []).reduce((acc, profile) => {
+        acc[profile.id] = {
+          first_name: profile.first_name || '',
+          last_name: profile.last_name || ''
+        };
+        return acc;
+      }, {} as {[key: string]: {first_name: string, last_name: string}});
+      
+      setUserProfiles(profilesMap);
+    } catch (error: any) {
+      console.error('Error fetching user profiles:', error);
+    }
+  };
 
   const fetchDocuments = async () => {
     try {
       console.log('Fetching documents...');
-      const { data, error } = await supabase
+      let query = supabase
         .from('documents')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
+      
+      if (currentFolderId) {
+        query = query.eq('folder_id', currentFolderId);
+      } else {
+        query = query.is('folder_id', null);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       
@@ -81,118 +113,83 @@ export const useDocuments = () => {
     }
   };
 
-  const createFolder = async (folderName: string, parentFolderId?: string) => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to create folders",
-        variant: "destructive"
-      });
-      return null;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('folders')
-        .insert({
-          name: folderName.trim(),
-          parent_folder_id: parentFolderId || null,
-          created_by: user.id,
-          is_locked: false // Regular users cannot create locked folders
-        })
-        .select()
-        .single();
-
-      if (error) {
-        if (error.code === '23505') { // Unique constraint violation
-          throw new Error('A folder with this name already exists in this location');
-        }
-        throw error;
-      }
-
-      toast({
-        title: "Success",
-        description: `Folder "${folderName}" created successfully`
-      });
-
-      await fetchFolders(); // Refresh folders list
-      return data;
-    } catch (error: any) {
-      console.error('Error creating folder:', error);
-      toast({
-        title: "Create Failed",
-        description: error.message || "Failed to create folder",
-        variant: "destructive"
-      });
-      return null;
-    }
+  const refreshDocuments = async () => {
+    await Promise.all([fetchDocuments(), fetchFolders(), fetchUserProfiles()]);
   };
 
-  const deleteFolder = async (folderId: string) => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to delete folders",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    try {
-      // Check if folder has documents
-      const { data: folderDocuments } = await supabase
-        .from('documents')
-        .select('id')
-        .eq('folder_id', folderId);
-
-      if (folderDocuments && folderDocuments.length > 0) {
-        toast({
-          title: "Cannot Delete Folder",
-          description: "Please move or delete all documents in this folder first",
-          variant: "destructive"
-        });
-        return false;
-      }
-
-      // Check if folder has subfolders
-      const { data: subfolders } = await supabase
-        .from('folders')
-        .select('id')
-        .eq('parent_folder_id', folderId);
-
-      if (subfolders && subfolders.length > 0) {
-        toast({
-          title: "Cannot Delete Folder",
-          description: "Please delete all subfolders first",
-          variant: "destructive"
-        });
-        return false;
-      }
-
+  // React Query mutations
+  const renameDocumentMutation = useMutation({
+    mutationFn: async ({ documentId, newName }: { documentId: string; newName: string }) => {
       const { error } = await supabase
-        .from('folders')
-        .delete()
-        .eq('id', folderId);
+        .from('documents')
+        .update({ name: newName, updated_at: new Date().toISOString() })
+        .eq('id', documentId);
 
       if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Folder deleted successfully"
-      });
-
-      await fetchFolders(); // Refresh folders list
-      return true;
-    } catch (error: any) {
-      console.error('Error deleting folder:', error);
-      toast({
-        title: "Delete Failed",
-        description: error.message || "Failed to delete folder",
-        variant: "destructive"
-      });
-      return false;
+    },
+    onSuccess: () => {
+      refreshDocuments();
     }
-  };
+  });
+
+  const copyDocument = useMutation({
+    mutationFn: async (documentId: string) => {
+      const { data: original, error: fetchError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('id', documentId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const { error: insertError } = await supabase
+        .from('documents')
+        .insert({
+          ...original,
+          id: undefined,
+          name: `${original.name} (Copy)`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+      if (insertError) throw insertError;
+    },
+    onSuccess: () => {
+      refreshDocuments();
+    }
+  });
+
+  const toggleImportant = useMutation({
+    mutationFn: async ({ documentId, isImportant }: { documentId: string; isImportant: boolean }) => {
+      const { error } = await supabase
+        .from('documents')
+        .update({ is_important: isImportant, updated_at: new Date().toISOString() })
+        .eq('id', documentId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refreshDocuments();
+    }
+  });
+
+  const moveDocument = useMutation({
+    mutationFn: async ({ documentId, targetFolderId }: { documentId: string; targetFolderId: string | null }) => {
+      const { error } = await supabase
+        .from('documents')
+        .update({ 
+          folder_id: targetFolderId,
+          folder: targetFolderId ? null : 'general',
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', documentId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refreshDocuments();
+    }
+  });
 
   const uploadDocument = async (file: File, folderId?: string) => {
     if (!user) {
@@ -208,14 +205,12 @@ export const useDocuments = () => {
       console.log('Uploading document:', file.name, 'Size:', file.size, 'Type:', file.type);
       console.log('Target folder ID:', folderId);
       
-      // Create a unique file path
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = folderId ? `folders/${folderId}/${fileName}` : `root/${fileName}`;
       
       console.log('Uploading to storage path:', filePath);
       
-      // Upload file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file);
@@ -227,14 +222,12 @@ export const useDocuments = () => {
 
       console.log('File uploaded successfully:', uploadData);
 
-      // Get the public URL for the uploaded file
       const { data: urlData } = supabase.storage
         .from('documents')
         .getPublicUrl(filePath);
 
       console.log('Public URL:', urlData.publicUrl);
       
-      // Create document record in database
       const { data, error } = await supabase
         .from('documents')
         .insert({
@@ -258,7 +251,7 @@ export const useDocuments = () => {
         description: `Document "${file.name}" uploaded successfully`
       });
 
-      await fetchDocuments();
+      await refreshDocuments();
       return data;
     } catch (error: any) {
       console.error('Error uploading document:', error);
@@ -270,49 +263,89 @@ export const useDocuments = () => {
     }
   };
 
-  const moveDocument = async (documentId: string, newFolderId: string | null) => {
-    try {
-      const { error } = await supabase
-        .from('documents')
-        .update({ 
-          folder_id: newFolderId,
-          folder: newFolderId ? null : 'general', // Keep legacy folder field for backward compatibility
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', documentId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Document moved successfully"
-      });
-
-      await fetchDocuments(); // Refresh documents list
-    } catch (error: any) {
-      console.error('Error moving document:', error);
-      toast({
-        title: "Move Failed",
-        description: error.message || "Failed to move document",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const deleteDocument = async (documentId: string) => {
+  const createFolder = async (folderName: string, parentFolderId?: string) => {
     if (!user) {
       toast({
         title: "Authentication Required",
-        description: "Please sign in to delete documents",
+        description: "Please sign in to create folders",
         variant: "destructive"
       });
-      return;
+      return null;
     }
 
     try {
+      const { data, error } = await supabase
+        .from('folders')
+        .insert({
+          name: folderName.trim(),
+          parent_folder_id: parentFolderId || null,
+          created_by: user.id,
+          is_locked: false
+        })
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('A folder with this name already exists in this location');
+        }
+        throw error;
+      }
+
+      await refreshDocuments();
+      return data;
+    } catch (error: any) {
+      console.error('Error creating folder:', error);
+      toast({
+        title: "Create Failed",
+        description: error.message || "Failed to create folder",
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
+
+  const deleteFolder = useMutation({
+    mutationFn: async (folderId: string) => {
+      const { data: folderDocuments } = await supabase
+        .from('documents')
+        .select('id')
+        .eq('folder_id', folderId);
+
+      if (folderDocuments && folderDocuments.length > 0) {
+        throw new Error('Please move or delete all documents in this folder first');
+      }
+
+      const { data: subfolders } = await supabase
+        .from('folders')
+        .select('id')
+        .eq('parent_folder_id', folderId);
+
+      if (subfolders && subfolders.length > 0) {
+        throw new Error('Please delete all subfolders first');
+      }
+
+      const { error } = await supabase
+        .from('folders')
+        .delete()
+        .eq('id', folderId);
+
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: () => {
+      refreshDocuments();
+    }
+  });
+
+  const deleteDocument = useMutation({
+    mutationFn: async (documentId: string) => {
+      if (!user) {
+        throw new Error('Authentication required');
+      }
+
       console.log('Deleting document:', documentId);
       
-      // Use the database function to move to recycle bin
       const { error } = await supabase.rpc('move_to_recycle_bin', {
         _document_id: documentId,
         _deleted_by: user.id
@@ -321,80 +354,38 @@ export const useDocuments = () => {
       if (error) throw error;
       
       console.log('Document moved to recycle bin successfully');
-      
-      // Immediately update the local state to remove the document
-      setDocuments(prevDocuments => 
-        prevDocuments.filter(doc => doc.id !== documentId)
-      );
-      
-    } catch (error: any) {
-      console.error('Error deleting document:', error);
-      throw error;
+    },
+    onSuccess: () => {
+      refreshDocuments();
     }
-  };
-
-  const searchDocuments = async (searchTerm: string) => {
-    if (!searchTerm.trim()) {
-      fetchDocuments();
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('documents')
-        .select('*')
-        .ilike('name', `%${searchTerm}%`)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setDocuments(data || []);
-    } catch (error: any) {
-      console.error('Error searching documents:', error);
-      toast({
-        title: "Search Failed",
-        description: "Failed to search documents",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const getFolderPath = async (folderId: string) => {
-    try {
-      const { data, error } = await supabase.rpc('get_folder_path', {
-        folder_id: folderId
-      });
-
-      if (error) throw error;
-      return data || '';
-    } catch (error) {
-      console.error('Error getting folder path:', error);
-      return '';
-    }
-  };
+  });
 
   useEffect(() => {
     const fetchData = async () => {
       console.log('useDocuments - Initial data fetch');
       setLoading(true);
-      await Promise.all([fetchDocuments(), fetchFolders()]);
+      await Promise.all([fetchDocuments(), fetchFolders(), fetchUserProfiles()]);
       setLoading(false);
     };
 
     fetchData();
-  }, []);
+  }, [currentFolderId]);
 
   return {
     documents,
     folders,
+    userProfiles,
     loading,
     uploadDocument,
     deleteDocument,
     moveDocument,
     createFolder,
     deleteFolder,
-    searchDocuments,
+    renameDocumentMutation,
+    copyDocument,
+    toggleImportant,
+    refreshDocuments,
     fetchDocuments,
-    fetchFolders,
-    getFolderPath
+    fetchFolders
   };
 };
