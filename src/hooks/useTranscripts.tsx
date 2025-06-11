@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { useMicrosoftAuth } from './useMicrosoftAuth';
 
 interface MeetingTranscript {
   id: string;
@@ -20,6 +21,7 @@ export const useTranscripts = () => {
   const [transcripts, setTranscripts] = useState<MeetingTranscript[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
+  const { accessToken, isConnected, checkAndRefreshToken } = useMicrosoftAuth();
   const { toast } = useToast();
 
   const getMeetingTranscriptsFolderId = async () => {
@@ -56,7 +58,7 @@ export const useTranscripts = () => {
         throw error;
       }
       
-      console.log('Saved transcript found:', !!data);
+      console.log('Saved transcript found:', !!data, 'Has content:', !!data?.transcript_content);
       return data;
     } catch (error: any) {
       if (error.code === 'PGRST116') {
@@ -72,41 +74,31 @@ export const useTranscripts = () => {
   const fetchTeamsTranscript = async (meetingId: string, teamsId: string) => {
     if (!user) {
       console.error('No authenticated user found');
-      return null;
+      throw new Error('No authenticated user found');
+    }
+
+    if (!isConnected || !accessToken) {
+      console.error('Microsoft account not connected or no access token');
+      throw new Error('Microsoft account not connected. Please connect your Microsoft account in Settings.');
     }
 
     try {
       console.log(`Fetching Teams transcript for meeting: ${teamsId}`);
-      
-      // Get user's Microsoft access token
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('microsoft_access_token, microsoft_refresh_token')
-        .eq('id', user.id)
-        .single();
+      console.log('Using access token:', accessToken ? 'Present' : 'Missing');
 
-      if (profileError) {
-        console.error('Error fetching user profile:', profileError);
-        throw new Error('Failed to fetch user profile');
-      }
+      // Ensure we have a fresh token
+      await checkAndRefreshToken();
 
-      if (!profile?.microsoft_access_token) {
-        console.error('No Microsoft access token found');
-        throw new Error('Microsoft account not connected. Please connect your Microsoft account in Settings.');
-      }
-
-      console.log('Microsoft access token found, calling edge function...');
-
-      // Call edge function to fetch Teams data with retry logic
+      // Call edge function to fetch Teams data with enhanced retry logic
       let lastError = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
+      for (let attempt = 1; attempt <= 5; attempt++) {
         try {
           console.log(`Attempt ${attempt} to fetch Teams transcript`);
           
           const { data, error } = await supabase.functions.invoke('fetch-teams-transcript', {
             body: {
               meetingId: teamsId,
-              accessToken: profile.microsoft_access_token
+              accessToken: accessToken
             }
           });
 
@@ -116,24 +108,22 @@ export const useTranscripts = () => {
             
             // If it's an auth error, try to refresh the token
             if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-              console.log('Attempting to refresh Microsoft token...');
+              console.log('Token may be expired, attempting refresh...');
               try {
-                const { error: refreshError } = await supabase.functions.invoke('refresh-microsoft-token', {
-                  body: { userId: user.id }
-                });
-                
-                if (!refreshError) {
-                  console.log('Token refreshed, retrying...');
-                  continue;
-                } else {
-                  console.error('Token refresh failed:', refreshError);
-                }
+                await checkAndRefreshToken();
+                console.log('Token refreshed, retrying...');
+                // Continue to next attempt with refreshed token
+                continue;
               } catch (refreshErr) {
-                console.error('Token refresh error:', refreshErr);
+                console.error('Token refresh failed:', refreshErr);
+                throw new Error('Microsoft authentication expired. Please reconnect your Microsoft account in Settings.');
               }
             }
             
-            if (attempt === 3) throw error;
+            if (attempt === 5) throw error;
+            
+            // Exponential backoff
+            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
             continue;
           }
 
@@ -142,17 +132,28 @@ export const useTranscripts = () => {
             transcriptCount: data?.transcript?.value?.length || 0,
             hasContent: data?.hasContent,
             contentLength: data?.transcriptContent?.length || 0,
-            hasAttendees: !!data?.attendees
+            hasAttendees: !!data?.attendees,
+            attendeesCount: data?.attendees?.value?.[0]?.attendanceRecords?.length || 0
           });
 
+          // Validate that we got meaningful data
+          if (!data || (!data.transcript && !data.transcriptContent)) {
+            console.warn('No transcript data received from Teams API');
+            if (attempt < 5) {
+              await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+              continue;
+            }
+          }
+
           return data;
-        } catch (err) {
+        } catch (err: any) {
           console.error(`Attempt ${attempt} error:`, err);
           lastError = err;
-          if (attempt === 3) throw err;
           
-          // Wait before retry
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          if (attempt === 5) throw err;
+          
+          // Wait before retry with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
         }
       }
 
@@ -165,6 +166,8 @@ export const useTranscripts = () => {
         errorMessage = 'Microsoft authentication expired. Please reconnect your Microsoft account in Settings.';
       } else if (error.message?.includes('404') || error.message?.includes('Not Found')) {
         errorMessage = 'Meeting transcript not found in Teams. Ensure the meeting was recorded and transcription was enabled.';
+      } else if (error.message?.includes('403')) {
+        errorMessage = 'Access denied. Please ensure you have permission to access this meeting\'s transcript.';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -185,6 +188,7 @@ export const useTranscripts = () => {
   ) => {
     try {
       console.log(`Saving transcript for meeting: ${meetingId}`);
+      console.log('Transcript data length:', transcriptData.content?.length || 0);
       
       const { data, error } = await supabase
         .from('meeting_transcripts')
@@ -204,7 +208,7 @@ export const useTranscripts = () => {
         throw error;
       }
 
-      console.log('Transcript saved successfully');
+      console.log('Transcript saved successfully:', data.id);
       return data;
     } catch (error: any) {
       console.error('Error saving transcript:', error);

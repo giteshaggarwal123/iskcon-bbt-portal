@@ -9,6 +9,7 @@ import { FileText, Download, Save, RefreshCw, Users, Clock, CheckCircle, AlertCi
 import { useTranscripts } from '@/hooks/useTranscripts';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useToast } from '@/hooks/use-toast';
+import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 
 interface MeetingTranscriptDialogProps {
   open: boolean;
@@ -34,6 +35,7 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
     saveTranscriptToDocuments 
   } = useTranscripts();
   const { autoTrackOnlineAttendance } = useAttendance();
+  const { accessToken, isConnected, isExpired, forceRefresh } = useMicrosoftAuth();
   const { toast } = useToast();
 
   const loadTranscript = async (forceRefresh = false) => {
@@ -44,12 +46,14 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
     
     try {
       console.log(`Loading transcript for meeting: ${meeting.title} (ID: ${meeting.id})`);
+      console.log('Teams meeting ID:', meeting.teams_meeting_id);
+      console.log('Microsoft auth state:', { isConnected, isExpired, hasToken: !!accessToken });
       
       // First check if we have a saved transcript (skip if force refresh)
       if (!forceRefresh) {
         const savedTranscript = await fetchTranscriptForMeeting(meeting.id);
-        if (savedTranscript) {
-          console.log('Found saved transcript:', savedTranscript);
+        if (savedTranscript && savedTranscript.transcript_content) {
+          console.log('Found saved transcript with content:', savedTranscript);
           setTranscript(savedTranscript);
           setLoading(false);
           return;
@@ -59,11 +63,32 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
       // If no saved transcript or force refresh, and we have a Teams meeting ID
       if (meeting.teams_meeting_id) {
         console.log(`Fetching Teams transcript for meeting ID: ${meeting.teams_meeting_id}`);
+        
+        // Check Microsoft auth status first
+        if (!isConnected || isExpired) {
+          setError('Microsoft account is not connected or token has expired. Please reconnect in Settings.');
+          setLoading(false);
+          return;
+        }
+
+        if (!accessToken) {
+          setError('No Microsoft access token available. Please reconnect your Microsoft account in Settings.');
+          setLoading(false);
+          return;
+        }
+
         setAutoProcessing(true);
         
         try {
+          // Use the current access token from the hook
+          console.log('Calling fetch with access token...');
           const teamsData = await fetchTeamsTranscript(meeting.id, meeting.teams_meeting_id);
-          console.log('Teams data received:', teamsData);
+          console.log('Teams data received:', {
+            hasData: !!teamsData,
+            hasTranscript: teamsData?.transcript?.value?.length > 0,
+            hasContent: !!teamsData?.transcriptContent,
+            contentPreview: teamsData?.transcriptContent?.substring(0, 100)
+          });
           
           if (teamsData) {
             if (teamsData.hasContent && teamsData.transcriptContent) {
@@ -99,29 +124,46 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
               }
             } else if (teamsData.transcript?.value?.length > 0) {
               // Transcript exists in Teams but content might not be ready yet
-              setError('Transcript is available in Teams but content is still being processed. Please try again in a few minutes.');
+              const errorMsg = 'Transcript is available in Teams but content is still being processed. This can take up to 24 hours after the meeting ends.';
+              setError(errorMsg);
               toast({
                 title: "Transcript Processing",
-                description: "Transcript is still being processed by Teams. Please try again in a few minutes.",
+                description: errorMsg,
                 variant: "default"
               });
             } else {
               // No transcript found
-              setError('No transcript found for this meeting in Teams. Transcripts are only available if recording was enabled during the meeting.');
+              const errorMsg = 'No transcript found for this meeting in Teams. Transcripts are only available if recording and transcription were enabled during the meeting.';
+              setError(errorMsg);
+              toast({
+                title: "No Transcript Available",
+                description: errorMsg,
+                variant: "destructive"
+              });
             }
           } else {
             setError('Failed to fetch transcript from Teams. Please check if the meeting was recorded and transcription was enabled.');
           }
-        } catch (teamsError) {
+        } catch (teamsError: any) {
           console.error('Error fetching from Teams:', teamsError);
-          setError('Failed to connect to Teams or fetch transcript. Please ensure your Microsoft account is properly connected.');
+          let errorMessage = 'Failed to connect to Teams or fetch transcript.';
+          
+          if (teamsError.message?.includes('401') || teamsError.message?.includes('Unauthorized')) {
+            errorMessage = 'Microsoft authentication expired. Please reconnect your Microsoft account in Settings.';
+          } else if (teamsError.message?.includes('404')) {
+            errorMessage = 'Meeting not found in Teams or transcript not available yet.';
+          } else if (teamsError.message) {
+            errorMessage = teamsError.message;
+          }
+          
+          setError(errorMessage);
         }
         
         setAutoProcessing(false);
       } else {
         setError('This meeting was not created through Teams integration, so no transcript is available.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading transcript:', error);
       setError('An unexpected error occurred while loading the transcript. Please try again.');
       setAutoProcessing(false);
@@ -192,7 +234,12 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
     URL.revokeObjectURL(url);
   };
 
-  const handleForceRefresh = () => {
+  const handleForceRefresh = async () => {
+    // First refresh the Microsoft token if needed
+    if (isExpired) {
+      console.log('Refreshing Microsoft token before transcript fetch...');
+      await forceRefresh();
+    }
     loadTranscript(true);
   };
 
@@ -240,6 +287,12 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                 <Badge variant="secondary" className="flex items-center space-x-1">
                   <AlertCircle className="h-3 w-3" />
                   <span>No Teams Integration</span>
+                </Badge>
+              )}
+              {!isConnected && (
+                <Badge variant="destructive" className="flex items-center space-x-1">
+                  <AlertCircle className="h-3 w-3" />
+                  <span>Microsoft Disconnected</span>
                 </Badge>
               )}
             </div>
@@ -316,7 +369,7 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                       <ul className="list-disc list-inside mt-1 space-y-1">
                         <li>Ensure the meeting was recorded in Teams</li>
                         <li>Check that transcription was enabled during the meeting</li>
-                        <li>Wait a few minutes after the meeting ends for processing</li>
+                        <li>Wait up to 24 hours after the meeting ends for processing</li>
                         <li>Try the "Force Refresh from Teams" button</li>
                         <li>Verify your Microsoft account connection in Settings</li>
                       </ul>
