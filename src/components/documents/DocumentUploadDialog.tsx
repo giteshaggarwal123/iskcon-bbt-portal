@@ -8,15 +8,18 @@ import { Upload, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface DocumentUploadDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
   onUpload: (file: File, folderId?: string) => Promise<void>;
   currentFolderId?: string | null;
 }
 
 export const DocumentUploadDialog: React.FC<DocumentUploadDialogProps> = ({ 
+  isOpen,
+  onClose,
   onUpload, 
   currentFolderId 
 }) => {
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
 
@@ -39,7 +42,7 @@ export const DocumentUploadDialog: React.FC<DocumentUploadDialogProps> = ({
 
     await onUpload(selectedFile, currentFolderId || undefined);
     setSelectedFile(null);
-    setUploadDialogOpen(false);
+    onClose();
   };
 
   const formatFileSize = (bytes: number) => {
@@ -49,13 +52,7 @@ export const DocumentUploadDialog: React.FC<DocumentUploadDialogProps> = ({
   };
 
   return (
-    <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-      <DialogTrigger asChild>
-        <Button className="w-full sm:w-auto justify-center">
-          <Plus className="h-4 w-4 mr-2" />
-          <span>Upload Document</span>
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Upload New Document</DialogTitle>
@@ -80,7 +77,7 @@ export const DocumentUploadDialog: React.FC<DocumentUploadDialogProps> = ({
             )}
           </div>
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
+            <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
             <Button onClick={handleUpload} disabled={!selectedFile}>

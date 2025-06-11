@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -374,6 +373,7 @@ export const DocumentsModule = () => {
       />
 
       <DocumentRenameDialog
+        isOpen={!!renameDocument}
         document={renameDocument}
         onClose={() => setRenameDocument(null)}
         onRename={(newName) => handleRenameSubmit(renameDocument?.id, newName)}
