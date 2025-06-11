@@ -23,6 +23,7 @@ interface FolderSectionProps {
   onFolderClick: (folderId: string) => void;
   onDeleteFolder: (folderId: string) => Promise<boolean>;
   canAccessLockedFolders?: boolean;
+  viewMode?: 'card' | 'list';
 }
 
 export const FolderSection: React.FC<FolderSectionProps> = ({
@@ -30,7 +31,8 @@ export const FolderSection: React.FC<FolderSectionProps> = ({
   userProfiles,
   onFolderClick,
   onDeleteFolder,
-  canAccessLockedFolders = false
+  canAccessLockedFolders = false,
+  viewMode = 'card'
 }) => {
   const getUserDisplayName = (userId: string) => {
     const profile = userProfiles[userId];
@@ -51,6 +53,71 @@ export const FolderSection: React.FC<FolderSectionProps> = ({
     return null;
   }
 
+  if (viewMode === 'list') {
+    return (
+      <div className="mb-4 sm:mb-6">
+        <h3 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4 flex items-center">
+          <FolderOpen className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-blue-500" />
+          Folders ({folders.length})
+        </h3>
+        <div className="space-y-1">
+          {folders.map((folder) => (
+            <div
+              key={`folder-${folder.id}`}
+              className="bg-card border rounded-lg p-3 hover:bg-muted/30 transition-colors cursor-pointer group relative flex items-center justify-between"
+              onClick={() => onFolderClick(folder.id)}
+            >
+              <div className="flex items-center space-x-3 flex-1 min-w-0">
+                {folder.is_locked ? (
+                  <Lock className="h-5 w-5 text-red-500 flex-shrink-0" />
+                ) : (
+                  <FolderOpen className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2">
+                    <span className={`font-medium truncate text-sm ${folder.is_locked ? 'text-red-700' : ''}`}>
+                      {folder.name}
+                    </span>
+                    {folder.is_locked && (
+                      <Badge variant="destructive" className="text-xs">
+                        LOCKED
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Modified {format(new Date(folder.updated_at), 'MMM dd, yyyy')} • 
+                    Created by {getUserDisplayName(folder.created_by)}
+                  </div>
+                </div>
+              </div>
+              {canAccessLockedFolders && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600"
+                        onClick={() => handleDeleteFolderAction(folder.id, folder.name)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Card view (default)
   return (
     <div className="mb-4 sm:mb-6">
       <h3 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4 flex items-center">
