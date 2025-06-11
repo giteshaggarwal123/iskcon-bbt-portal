@@ -82,9 +82,9 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   };
 
   return (
-    <div className="bg-card rounded-lg border w-full overflow-hidden">
-      <div className="p-2 sm:p-4 lg:p-6 w-full">
-        {/* Folders Section */}
+    <div className="w-full space-y-6">
+      {/* Folders Section */}
+      {folders.length > 0 && (
         <FolderSection
           folders={folders}
           userProfiles={userProfiles}
@@ -93,8 +93,10 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
           canAccessLockedFolders={canAccessLockedFolders}
           viewMode={viewMode}
         />
+      )}
 
-        {/* Documents Section */}
+      {/* Documents Section */}
+      {documents.length > 0 && (
         <FileSection
           documents={documents}
           userProfiles={userProfiles}
@@ -110,26 +112,26 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
           onDragStart={handleDragStart}
           viewMode={viewMode}
         />
+      )}
 
-        {/* Empty State */}
-        {documents.length === 0 && folders.length === 0 && (
-          <div className="text-center py-6 sm:py-8 lg:py-12 w-full">
-            <FileText className="h-10 w-10 sm:h-12 sm:w-12 lg:h-16 lg:w-16 text-muted-foreground mx-auto mb-3 sm:mb-4" />
-            <h3 className="text-base sm:text-lg lg:text-xl font-medium text-foreground mb-2">No documents or folders found</h3>
-            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground">
-              Get started by uploading your first document or creating a folder
-            </p>
-          </div>
-        )}
+      {/* Empty State */}
+      {documents.length === 0 && folders.length === 0 && (
+        <div className="text-center py-12 w-full">
+          <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-xl font-medium text-foreground mb-2">No documents or folders found</h3>
+          <p className="text-muted-foreground">
+            Get started by uploading your first document or creating a folder
+          </p>
+        </div>
+      )}
 
-        {/* Drag and Drop Zone */}
-        <DragDropZone
-          folders={folders}
-          onMoveDocument={handleMoveDocument}
-          draggedDocumentId={draggedDocumentId}
-          canAccessLockedFolders={canAccessLockedFolders}
-        />
-      </div>
+      {/* Drag and Drop Zone */}
+      <DragDropZone
+        folders={folders}
+        onMoveDocument={handleMoveDocument}
+        draggedDocumentId={draggedDocumentId}
+        canAccessLockedFolders={canAccessLockedFolders}
+      />
     </div>
   );
 };

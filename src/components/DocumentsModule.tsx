@@ -1,22 +1,21 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { DocumentUploadDialog } from './documents/DocumentUploadDialog';
 import { DocumentRenameDialog } from './documents/DocumentRenameDialog';
 import { DocumentTable } from './documents/DocumentTable';
-import { DocumentFilters } from './documents/DocumentFilters';
 import { FolderManager } from './documents/FolderManager';
 import { TrashFolder } from './documents/TrashFolder';
 import { DocumentViewer } from './DocumentViewer';
 import { DocumentAnalytics } from './DocumentAnalytics';
-import { Search, Upload, Plus, FolderPlus, Trash2, Grid, List } from 'lucide-react';
+import { Search, Upload, Trash2, Grid, List } from 'lucide-react';
 
 export const DocumentsModule = () => {
   const { user } = useAuth();
@@ -25,7 +24,6 @@ export const DocumentsModule = () => {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [isCreateFolderDialogOpen, setIsCreateFolderDialogOpen] = useState(false);
   const [isTrashOpen, setIsTrashOpen] = useState(false);
   const [renameDocument, setRenameDocument] = useState<any>(null);
   const [viewDocument, setViewDocument] = useState<any>(null);
@@ -197,32 +195,34 @@ export const DocumentsModule = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Document Management</h1>
+    <div className="container mx-auto px-4 py-6 space-y-6">
+      {/* Header Section */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Document Management</h1>
           {currentFolder && (
-            <p className="text-muted-foreground mt-1">
-              Current folder: {currentFolder.name}
+            <p className="text-muted-foreground">
+              Current folder: <span className="font-medium">{currentFolder.name}</span>
             </p>
           )}
         </div>
         
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-3">
           {/* View Mode Toggle */}
-          <div className="flex border rounded-lg overflow-hidden">
+          <div className="flex border rounded-lg overflow-hidden bg-background">
             <Button
               variant={viewMode === 'card' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('card')}
-              className="rounded-none"
+              className="rounded-none border-none"
             >
               <Grid className="h-4 w-4" />
             </Button>
@@ -230,13 +230,13 @@ export const DocumentsModule = () => {
               variant={viewMode === 'list' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('list')}
-              className="rounded-none"
+              className="rounded-none border-none"
             >
               <List className="h-4 w-4" />
             </Button>
           </div>
 
-          <Button onClick={() => setIsUploadDialogOpen(true)} size="sm">
+          <Button onClick={() => setIsUploadDialogOpen(true)} size="sm" className="bg-primary hover:bg-primary/90">
             <Upload className="h-4 w-4 mr-2" />
             Upload
           </Button>
@@ -261,53 +261,55 @@ export const DocumentsModule = () => {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search documents..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+      <Card className="p-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search documents..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Filter documents" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Documents</SelectItem>
+              <SelectItem value="important">Important</SelectItem>
+              <SelectItem value="recent">Recent (7 days)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Filter documents" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Documents</SelectItem>
-            <SelectItem value="important">Important</SelectItem>
-            <SelectItem value="recent">Recent (7 days)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      </Card>
 
-      {/* Documents Display */}
+      {/* Main Content */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-4">
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle className="text-lg">
+              <CardTitle className="text-xl">
                 {currentFolder ? `${currentFolder.name} Contents` : 'All Documents'}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="mt-1">
                 {filteredDocuments.length} document{filteredDocuments.length !== 1 ? 's' : ''} found
               </CardDescription>
             </div>
             
-            {/* Document Analytics for current folder */}
+            {/* Folder Analytics */}
             {currentFolder && (
               <DocumentAnalytics
                 documentId={currentFolder.id}
                 documentName={currentFolder.name}
-                documentType="document"
+                documentType="folder"
               />
             )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <DocumentTable
             documents={filteredDocuments}
             folders={folders.filter(f => f.parent_folder_id === selectedFolder)}
@@ -316,13 +318,69 @@ export const DocumentsModule = () => {
             canDeleteDocument={canDeleteDocument}
             onViewDocument={handleViewDocument}
             onDownloadDocument={handleDownloadDocument}
-            onToggleImportant={handleToggleImportant}
-            onRenameDocument={handleRenameDocument}
-            onCopyDocument={handleCopyDocument}
-            onDeleteDocument={handleDeleteDocument}
+            onToggleImportant={async (documentId: string, currentStatus: boolean) => {
+              try {
+                await toggleImportant.mutateAsync({ documentId, isImportant: !currentStatus });
+                toast({
+                  title: "Success",
+                  description: `Document ${!currentStatus ? 'marked as important' : 'unmarked as important'}`
+                });
+              } catch (error: any) {
+                toast({
+                  title: "Error",
+                  description: "Failed to update document status",
+                  variant: "destructive"
+                });
+              }
+            }}
+            onRenameDocument={(document: any) => setRenameDocument(document)}
+            onCopyDocument={async (documentId: string) => {
+              try {
+                await copyDocument.mutateAsync(documentId);
+                toast({
+                  title: "Success",
+                  description: "Document copied successfully"
+                });
+              } catch (error: any) {
+                toast({
+                  title: "Error",
+                  description: "Failed to copy document",
+                  variant: "destructive"
+                });
+              }
+            }}
+            onDeleteDocument={async (documentId: string, documentName: string) => {
+              try {
+                await deleteDocument.mutateAsync(documentId);
+                toast({
+                  title: "Success",
+                  description: `"${documentName}" moved to trash`
+                });
+              } catch (error: any) {
+                toast({
+                  title: "Error",
+                  description: "Failed to delete document",
+                  variant: "destructive"
+                });
+              }
+            }}
             onDeleteFolder={handleDeleteFolder}
             onFolderClick={handleFolderClick}
-            onMoveDocument={handleMoveDocument}
+            onMoveDocument={async (documentId: string, targetFolderId: string | null) => {
+              try {
+                await moveDocument.mutateAsync({ documentId, targetFolderId });
+                toast({
+                  title: "Success",
+                  description: "Document moved successfully"
+                });
+              } catch (error: any) {
+                toast({
+                  title: "Error",
+                  description: "Failed to move document",
+                  variant: "destructive"
+                });
+              }
+            }}
             currentFolderId={selectedFolder}
             canAccessLockedFolders={true}
             viewMode={viewMode}
@@ -334,19 +392,20 @@ export const DocumentsModule = () => {
       {filteredDocuments.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Document Analytics</CardTitle>
+            <CardTitle className="text-lg">Document Analytics Overview</CardTitle>
             <CardDescription>
-              View detailed analytics for individual documents
+              Quick analytics for your most important documents
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredDocuments.slice(0, 6).map((document) => (
-                <div key={document.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex-1 min-w-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredDocuments.slice(0, 8).map((document) => (
+                <div key={document.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                  <div className="flex-1 min-w-0 mr-3">
                     <p className="font-medium text-sm truncate">{document.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {document.mime_type?.split('/')[1] || 'Unknown'}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {document.mime_type?.split('/')[1] || 'Unknown'} • 
+                      {document.is_important && <span className="text-yellow-600 ml-1">★</span>}
                     </p>
                   </div>
                   <DocumentAnalytics
@@ -366,8 +425,20 @@ export const DocumentsModule = () => {
         isOpen={isUploadDialogOpen}
         onClose={() => setIsUploadDialogOpen(false)}
         onUpload={async (file, folder) => {
-          await uploadDocument(file, folder || selectedFolder || undefined);
-          setIsUploadDialogOpen(false);
+          try {
+            await uploadDocument(file, folder || selectedFolder || undefined);
+            setIsUploadDialogOpen(false);
+            toast({
+              title: "Success",
+              description: `Document "${file.name}" uploaded successfully`
+            });
+          } catch (error: any) {
+            toast({
+              title: "Error",
+              description: "Failed to upload document",
+              variant: "destructive"
+            });
+          }
         }}
         currentFolderId={selectedFolder}
       />
@@ -376,7 +447,22 @@ export const DocumentsModule = () => {
         isOpen={!!renameDocument}
         document={renameDocument}
         onClose={() => setRenameDocument(null)}
-        onRename={(newName) => handleRenameSubmit(renameDocument?.id, newName)}
+        onRename={async (newName) => {
+          try {
+            await renameDocumentMutation.mutateAsync({ documentId: renameDocument?.id, newName });
+            setRenameDocument(null);
+            toast({
+              title: "Success",
+              description: "Document renamed successfully"
+            });
+          } catch (error: any) {
+            toast({
+              title: "Error",
+              description: "Failed to rename document",
+              variant: "destructive"
+            });
+          }
+        }}
       />
 
       <TrashFolder
