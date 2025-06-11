@@ -3,36 +3,48 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./hooks/useAuth";
+import { RealAuthPage } from "./components/RealAuthPage";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { MicrosoftCallback } from "./pages/MicrosoftCallback";
+import { MobileSplashScreen } from "./components/MobileSplashScreen";
+import { useDeviceInfo } from "./hooks/useDeviceInfo";
+import { useState, useEffect } from "react";
 
-// Create QueryClient instance inside the component to ensure proper React context
+const queryClient = new QueryClient();
+
 const App = () => {
-  const [queryClient] = React.useState(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 1000 * 60 * 5, // 5 minutes
-        gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
-      },
-    },
-  }));
+  const deviceInfo = useDeviceInfo();
+  const [showSplash, setShowSplash] = useState(deviceInfo.isNative);
+
+  useEffect(() => {
+    if (deviceInfo.isNative) {
+      const timer = setTimeout(() => {
+        setShowSplash(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [deviceInfo.isNative]);
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/microsoft-callback" element={<MicrosoftCallback />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <AuthProvider>
+          <Toaster />
+          <Sonner />
+          {showSplash && <MobileSplashScreen />}
+          <BrowserRouter>
+            <Routes>
+              <Route path="/auth" element={<RealAuthPage />} />
+              <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
+              <Route path="/" element={<Index />} />
+              <Route path="/404" element={<NotFound />} />
+              <Route path="*" element={<Navigate to="/404" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

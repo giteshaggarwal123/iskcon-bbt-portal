@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -10,14 +11,13 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true); // Default to open on desktop
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentModule, setCurrentModule] = useState('dashboard');
   const [showProfile, setShowProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const isMobile = useIsMobile();
 
-  // Listen for navigation events from other components
   useEffect(() => {
     if (isMobile) {
       setSidebarOpen(false);
@@ -70,7 +70,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return children;
   };
 
-  // Mobile bottom navigation items - Updated to show Home, Meeting, Docs, Attendance, and Voting
+  // Enhanced mobile navigation items with better touch targets
   const mobileNavItems = [
     { id: 'dashboard', icon: Home, label: 'Home' },
     { id: 'meetings', icon: Calendar, label: 'Meeting' },
@@ -124,7 +124,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           setShowSettings(false);
           if (isMobile) setSidebarOpen(false);
           
-          // Dispatch custom event for module navigation
           const event = new CustomEvent('navigate-to-module', {
             detail: { module }
           });
@@ -138,12 +137,34 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         !isMobile && sidebarOpen && sidebarCollapsed ? 'ml-16' : 'ml-0'
       }`}>
         <Header 
-          onMenuClick={toggleSidebar}
-          onProfileClick={handleProfileClick}
-          onSettingsClick={handleSettingsClick}
-          onNavigate={handleNavigateFromNotification}
-          showMenuButton={true} // Always show menu button for both mobile and desktop
+          onMenuClick={() => {
+            if (isMobile) {
+              setSidebarOpen(!sidebarOpen);
+            } else {
+              setSidebarCollapsed(!sidebarCollapsed);
+            }
+          }}
+          onProfileClick={() => {
+            setShowProfile(true);
+            setCurrentModule('profile');
+          }}
+          onSettingsClick={() => {
+            setShowSettings(true);
+            setCurrentModule('settings');
+          }}
+          onNavigate={(module) => {
+            setCurrentModule(module);
+            setShowProfile(false);
+            setShowSettings(false);
+            
+            const event = new CustomEvent('navigate-to-module', {
+              detail: { module }
+            });
+            window.dispatchEvent(event);
+          }}
+          showMenuButton={true}
         />
+        
         <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
           isMobile ? 'p-2 pb-20' : 'p-4 lg:p-6'
         } ${!isMobile && sidebarOpen && !sidebarCollapsed ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
@@ -152,21 +173,35 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </main>
         
-        {/* Mobile Bottom Navigation Bar */}
+        {/* Enhanced Mobile Bottom Navigation Bar with better touch targets */}
         {isMobile && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
-            <div className="flex items-center justify-between px-2 py-2 max-w-full overflow-hidden">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-inset-bottom">
+            <div className="flex items-center justify-between px-1 py-1 max-w-full overflow-hidden">
               {mobileNavItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => handleMobileNavigation(item.id)}
-                  className={`flex flex-col items-center justify-center flex-1 py-2 px-1 transition-colors ${
+                  onClick={() => {
+                    setCurrentModule(item.id);
+                    setShowProfile(false);
+                    setShowSettings(false);
+                    setSidebarOpen(false);
+                    
+                    const event = new CustomEvent('navigate-to-module', {
+                      detail: { module: item.id }
+                    });
+                    window.dispatchEvent(event);
+                  }}
+                  className={`flex flex-col items-center justify-center flex-1 py-3 px-2 transition-all duration-200 min-h-[60px] rounded-lg mx-1 ${
                     currentModule === item.id
-                      ? 'text-primary'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-primary bg-primary/10'
+                      : 'text-gray-500 hover:text-gray-700 active:bg-gray-100'
                   }`}
+                  style={{
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation'
+                  }}
                 >
-                  <item.icon className={`h-5 w-5 mb-1 ${
+                  <item.icon className={`h-6 w-6 mb-1 ${
                     currentModule === item.id ? 'text-primary' : 'text-gray-500'
                   }`} />
                   <span className={`text-xs font-medium ${
@@ -182,56 +217,44 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </div>
 
       <style>{`
-        /* Desktop styles - responsive sidebar handling */
-        @media (min-width: 768px) {
-          /* Ensure main content uses available width based on sidebar state */
-          main {
-            width: 100%;
-            max-width: 100%;
-          }
-          
-          /* Remove any artificial constraints */
-          main > div {
-            width: 100%;
-            max-width: 100%;
-          }
-          
-          /* Ensure flex containers expand properly */
-          .flex-1 {
-            min-width: 0;
-            width: 100%;
-          }
-
-          /* Optimize content width when sidebar is collapsed */
-          .sidebar-collapsed main {
-            padding-left: 2rem;
-            padding-right: 2rem;
-          }
-
-          /* Smooth transitions for all layout changes */
-          main, .flex-1 {
-            transition: all 0.3s ease-in-out;
-          }
-        }
-        
-        /* Mobile-only styles */
+        /* Enhanced mobile styles for better app experience */
         @media (max-width: 767px) {
-          /* Ensure proper touch targets */
+          /* Better touch targets and spacing */
           .mobile-nav-button {
-            min-height: 48px;
-            min-width: 48px;
+            min-height: 60px;
+            min-width: 60px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
           }
           
-          /* Better visual feedback for touch */
+          /* Smooth touch feedback */
           .mobile-nav-button:active {
-            transform: scale(0.95);
+            transform: scale(0.96);
             transition: transform 0.1s ease;
           }
           
-          /* Prevent content from going under bottom nav */
+          /* Native app feel */
+          * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+          }
+          
+          input, textarea, [contenteditable] {
+            -webkit-user-select: text;
+            user-select: text;
+          }
+          
+          /* Prevent content from going under bottom nav with safe area */
           main {
             max-width: 100vw;
             overflow-x: hidden;
+            padding-bottom: env(safe-area-inset-bottom, 80px);
+          }
+          
+          /* Safe area support for modern devices */
+          .safe-area-inset-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 0);
           }
           
           /* Hide scrollbars but keep functionality */
@@ -244,33 +267,34 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             scrollbar-width: none;
           }
           
-          /* Responsive content adjustments */
-          main * {
-            max-width: 100%;
-            word-wrap: break-word;
-            box-sizing: border-box;
-          }
-          
           /* Better form inputs on mobile */
           main input,
           main select,
           main textarea {
             font-size: 16px; /* Prevents zoom on iOS */
+            border-radius: 8px;
           }
           
-          /* Improve card layouts for mobile */
+          /* Improve button accessibility */
+          main button {
+            min-height: 44px;
+            min-width: 44px;
+            touch-action: manipulation;
+          }
+          
+          /* Native-like status bar handling */
+          .min-h-screen {
+            min-height: 100vh;
+            min-height: 100dvh;
+          }
+          
+          /* Improved card layouts for mobile */
           main .grid {
             grid-template-columns: 1fr;
             gap: 0.75rem;
           }
           
-          /* Better button spacing */
-          main button {
-            min-height: 44px;
-            min-width: 44px;
-          }
-          
-          /* Responsive text sizing */
+          /* Better typography for mobile */
           main h1 {
             font-size: 1.5rem;
             line-height: 1.4;
@@ -280,25 +304,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             font-size: 1.25rem;
             line-height: 1.4;
           }
-
-          /* Fix container width issues */
-          .min-h-screen {
-            width: 100vw;
-            max-width: 100vw;
-            overflow-x: hidden;
-          }
-
-          /* Prevent horizontal scroll in bottom navigation */
-          .fixed.bottom-0 {
-            width: 100vw;
-            max-width: 100vw;
-            overflow-x: hidden;
-          }
-
-          .fixed.bottom-0 .flex {
+        }
+        
+        /* Desktop optimizations */
+        @media (min-width: 768px) {
+          main {
             width: 100%;
             max-width: 100%;
-            overflow-x: hidden;
+          }
+          
+          .flex-1 {
+            min-width: 0;
+            width: 100%;
+          }
+
+          main, .flex-1 {
+            transition: all 0.3s ease-in-out;
           }
         }
       `}</style>

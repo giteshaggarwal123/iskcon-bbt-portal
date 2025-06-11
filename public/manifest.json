@@ -1,0 +1,55 @@
+
+{
+  "name": "ISKCON BBT Portal",
+  "short_name": "BBT Portal",
+  "description": "ISKCON BBT Portal - Manage meetings, documents, voting, and attendance",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#dc2626",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["productivity", "business"],
+  "shortcuts": [
+    {
+      "name": "Meetings",
+      "short_name": "Meetings",
+      "description": "View and manage meetings",
+      "url": "/?module=meetings",
+      "icons": [
+        {
+          "src": "/favicon.ico",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "short_name": "Documents",
+      "description": "Access document repository",
+      "url": "/?module=documents",
+      "icons": [
+        {
+          "src": "/favicon.ico",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
+}
