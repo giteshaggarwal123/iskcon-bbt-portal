@@ -14,7 +14,7 @@ import { FolderManager } from './documents/FolderManager';
 import { TrashFolder } from './documents/TrashFolder';
 import { DocumentViewer } from './DocumentViewer';
 import { DocumentAnalytics } from './DocumentAnalytics';
-import { Search, Upload, Trash2, Grid, List } from 'lucide-react';
+import { Search, Upload, Trash2, Grid, List, Plus } from 'lucide-react';
 
 export const DocumentsModule = () => {
   const { user } = useAuth();
@@ -26,7 +26,7 @@ export const DocumentsModule = () => {
   const [isTrashOpen, setIsTrashOpen] = useState(false);
   const [renameDocument, setRenameDocument] = useState<any>(null);
   const [viewDocument, setViewDocument] = useState<any>(null);
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
 
   const {
     documents,
@@ -204,40 +204,23 @@ export const DocumentsModule = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header Section */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Document Management</h1>
-          {currentFolder && (
-            <p className="text-muted-foreground">
-              Current folder: <span className="font-medium">{currentFolder.name}</span>
-            </p>
-          )}
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Document Repository</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage and organize your documents • {filteredDocuments.length} documents
+          </p>
         </div>
         
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* View Mode Toggle */}
-          <div className="flex border rounded-lg overflow-hidden bg-background">
-            <Button
-              variant={viewMode === 'card' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('card')}
-              className="rounded-none border-none"
-            >
-              <Grid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="rounded-none border-none"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <Button onClick={() => setIsUploadDialogOpen(true)} size="sm" className="bg-primary hover:bg-primary/90">
-            <Upload className="h-4 w-4 mr-2" />
-            Upload
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsTrashOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Trash
           </Button>
           
           <FolderManager 
@@ -249,168 +232,100 @@ export const DocumentsModule = () => {
           />
           
           <Button
-            variant="outline"
+            onClick={() => setIsUploadDialogOpen(true)}
             size="sm"
-            onClick={() => setIsTrashOpen(true)}
+            className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
           >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Trash
+            <Plus className="h-4 w-4" />
+            Upload Document
           </Button>
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <Card className="shadow-sm">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search documents..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Filter documents" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Documents</SelectItem>
-                <SelectItem value="important">Important</SelectItem>
-                <SelectItem value="recent">Recent (7 days)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Main Content */}
-      <Card className="shadow-sm">
-        <CardHeader className="pb-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle className="text-xl">
-                {currentFolder ? `${currentFolder.name} Contents` : 'All Documents'}
-              </CardTitle>
-              <CardDescription className="mt-1">
-                {filteredDocuments.length} document{filteredDocuments.length !== 1 ? 's' : ''} found
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <DocumentTable
-            documents={filteredDocuments}
-            folders={folders.filter(f => f.parent_folder_id === selectedFolder)}
-            userProfiles={userProfiles}
-            currentUserId={user?.id}
-            canDeleteDocument={canDeleteDocument}
-            onViewDocument={handleViewDocument}
-            onDownloadDocument={handleDownloadDocument}
-            onToggleImportant={async (documentId: string, currentStatus: boolean) => {
-              try {
-                await toggleImportant.mutateAsync({ documentId, isImportant: !currentStatus });
-                toast({
-                  title: "Success",
-                  description: `Document ${!currentStatus ? 'marked as important' : 'unmarked as important'}`
-                });
-              } catch (error: any) {
-                toast({
-                  title: "Error",
-                  description: "Failed to update document status",
-                  variant: "destructive"
-                });
-              }
-            }}
-            onRenameDocument={(document: any) => setRenameDocument(document)}
-            onCopyDocument={async (documentId: string) => {
-              try {
-                await copyDocument.mutateAsync(documentId);
-                toast({
-                  title: "Success",
-                  description: "Document copied successfully"
-                });
-              } catch (error: any) {
-                toast({
-                  title: "Error",
-                  description: "Failed to copy document",
-                  variant: "destructive"
-                });
-              }
-            }}
-            onDeleteDocument={async (documentId: string, documentName: string) => {
-              try {
-                await deleteDocument.mutateAsync(documentId);
-                toast({
-                  title: "Success",
-                  description: `"${documentName}" moved to trash`
-                });
-              } catch (error: any) {
-                toast({
-                  title: "Error",
-                  description: "Failed to delete document",
-                  variant: "destructive"
-                });
-              }
-            }}
-            onDeleteFolder={handleDeleteFolder}
-            onFolderClick={handleFolderClick}
-            onMoveDocument={async (documentId: string, targetFolderId: string | null) => {
-              try {
-                await moveDocument.mutateAsync({ documentId, targetFolderId });
-                toast({
-                  title: "Success",
-                  description: "Document moved successfully"
-                });
-              } catch (error: any) {
-                toast({
-                  title: "Error",
-                  description: "Failed to move document",
-                  variant: "destructive"
-                });
-              }
-            }}
-            currentFolderId={selectedFolder}
-            canAccessLockedFolders={true}
-            viewMode={viewMode}
+      {/* Search and Filters Bar */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Search documents..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
           />
-        </CardContent>
-      </Card>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="important">Important</SelectItem>
+              <SelectItem value="recent">Recent</SelectItem>
+            </SelectContent>
+          </Select>
 
-      {/* Individual Document Analytics */}
-      {filteredDocuments.length > 0 && (
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Document Analytics Overview</CardTitle>
-            <CardDescription>
-              Quick analytics for your most important documents
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredDocuments.slice(0, 8).map((document) => (
-                <div key={document.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
-                  <div className="flex-1 min-w-0 mr-3">
-                    <p className="font-medium text-sm truncate">{document.name}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {document.mime_type?.split('/')[1] || 'Unknown'} • 
-                      {document.is_important && <span className="text-yellow-600 ml-1">★</span>}
-                    </p>
-                  </div>
-                  <DocumentAnalytics
-                    documentId={document.id}
-                    documentName={document.name}
-                    documentType="document"
-                  />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          <Select value="all">
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="All People" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All People</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value="all">
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="All Dates" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Dates</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* View Mode Toggle */}
+          <div className="flex border rounded-md overflow-hidden">
+            <Button
+              variant={viewMode === 'card' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('card')}
+              className="rounded-none border-none h-8 px-3"
+            >
+              <Grid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className="rounded-none border-none h-8 px-3"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Document Table/Grid */}
+      <DocumentTable
+        documents={filteredDocuments}
+        folders={folders.filter(f => f.parent_folder_id === selectedFolder)}
+        userProfiles={userProfiles}
+        currentUserId={user?.id}
+        canDeleteDocument={canDeleteDocument}
+        onViewDocument={handleViewDocument}
+        onDownloadDocument={handleDownloadDocument}
+        onToggleImportant={handleToggleImportant}
+        onRenameDocument={handleRenameDocument}
+        onCopyDocument={handleCopyDocument}
+        onDeleteDocument={handleDeleteDocument}
+        onDeleteFolder={handleDeleteFolder}
+        onFolderClick={handleFolderClick}
+        onMoveDocument={handleMoveDocument}
+        currentFolderId={selectedFolder}
+        canAccessLockedFolders={true}
+        viewMode={viewMode}
+      />
 
       {/* Dialogs */}
       <DocumentUploadDialog

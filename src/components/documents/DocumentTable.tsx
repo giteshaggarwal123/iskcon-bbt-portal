@@ -1,9 +1,14 @@
 
 import React, { useState } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, FolderIcon, Eye, Download, MoreHorizontal, Star, StarOff } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 import { FolderSection } from './FolderSection';
 import { FileSection } from './FileSection';
 import { DragDropZone } from './DragDropZone';
+import { format } from 'date-fns';
 
 interface Document {
   id: string;
@@ -68,7 +73,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   onMoveDocument,
   currentFolderId,
   canAccessLockedFolders = false,
-  viewMode = 'card'
+  viewMode = 'list'
 }) => {
   const [draggedDocumentId, setDraggedDocumentId] = useState<string | null>(null);
 
@@ -81,38 +86,228 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
     setDraggedDocumentId(null);
   };
 
-  return (
-    <div className="w-full space-y-6">
-      {/* Folders Section */}
-      {folders.length > 0 && (
-        <FolderSection
-          folders={folders}
-          userProfiles={userProfiles}
-          onFolderClick={onFolderClick}
-          onDeleteFolder={onDeleteFolder}
-          canAccessLockedFolders={canAccessLockedFolders}
-          viewMode={viewMode}
-        />
-      )}
+  const getUserDisplayName = (userId: string) => {
+    const profile = userProfiles[userId];
+    if (profile) {
+      return `${profile.first_name} ${profile.last_name}`;
+    }
+    return 'You';
+  };
 
-      {/* Documents Section */}
-      {documents.length > 0 && (
-        <FileSection
-          documents={documents}
-          userProfiles={userProfiles}
-          currentUserId={currentUserId}
-          canDeleteDocument={canDeleteDocument}
-          onViewDocument={onViewDocument}
-          onDownloadDocument={onDownloadDocument}
-          onToggleImportant={onToggleImportant}
-          onRenameDocument={onRenameDocument}
-          onCopyDocument={onCopyDocument}
-          onDeleteDocument={onDeleteDocument}
-          onMoveDocument={onMoveDocument}
-          onDragStart={handleDragStart}
-          viewMode={viewMode}
+  const formatFileSize = (bytes: number | null) => {
+    if (bytes === null) return '—';
+    if (bytes === 0) return '—';
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const getFileType = (mimeType: string | null) => {
+    if (!mimeType) return 'folder';
+    return mimeType.split('/')[1] || 'unknown';
+  };
+
+  // If card view is selected, use the original card-based components
+  if (viewMode === 'card') {
+    return (
+      <div className="w-full space-y-6">
+        {folders.length > 0 && (
+          <FolderSection
+            folders={folders}
+            userProfiles={userProfiles}
+            onFolderClick={onFolderClick}
+            onDeleteFolder={onDeleteFolder}
+            canAccessLockedFolders={canAccessLockedFolders}
+            viewMode={viewMode}
+          />
+        )}
+
+        {documents.length > 0 && (
+          <FileSection
+            documents={documents}
+            userProfiles={userProfiles}
+            currentUserId={currentUserId}
+            canDeleteDocument={canDeleteDocument}
+            onViewDocument={onViewDocument}
+            onDownloadDocument={onDownloadDocument}
+            onToggleImportant={onToggleImportant}
+            onRenameDocument={onRenameDocument}
+            onCopyDocument={onCopyDocument}
+            onDeleteDocument={onDeleteDocument}
+            onMoveDocument={onMoveDocument}
+            onDragStart={handleDragStart}
+            viewMode={viewMode}
+          />
+        )}
+
+        {documents.length === 0 && folders.length === 0 && (
+          <div className="text-center py-12 w-full">
+            <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-xl font-medium text-foreground mb-2">No documents or folders found</h3>
+            <p className="text-muted-foreground">
+              Get started by uploading your first document or creating a folder
+            </p>
+          </div>
+        )}
+
+        <DragDropZone
+          folders={folders}
+          onMoveDocument={handleMoveDocument}
+          draggedDocumentId={draggedDocumentId}
+          canAccessLockedFolders={canAccessLockedFolders}
         />
-      )}
+      </div>
+    );
+  }
+
+  // Table view
+  return (
+    <div className="w-full">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[40%]">Name</TableHead>
+            <TableHead className="w-[10%]">Type</TableHead>
+            <TableHead className="w-[10%]">Size</TableHead>
+            <TableHead className="w-[15%]">Modified</TableHead>
+            <TableHead className="w-[15%]">Modified By</TableHead>
+            <TableHead className="w-[10%] text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {/* Folders */}
+          {folders.map((folder) => (
+            <TableRow 
+              key={folder.id} 
+              className="hover:bg-muted/50 cursor-pointer"
+              onClick={() => onFolderClick(folder.id)}
+            >
+              <TableCell className="flex items-center gap-3">
+                <FolderIcon className="h-5 w-5 text-blue-500" />
+                <span className="font-medium">{folder.name}</span>
+                {folder.is_locked && <Badge variant="secondary" className="text-xs">Locked</Badge>}
+              </TableCell>
+              <TableCell>
+                <span className="text-muted-foreground">folder</span>
+              </TableCell>
+              <TableCell>—</TableCell>
+              <TableCell>
+                {format(new Date(folder.updated_at), 'MMM d, yyyy, h:mm a')}
+              </TableCell>
+              <TableCell>{getUserDisplayName(folder.created_by)}</TableCell>
+              <TableCell className="text-right">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onFolderClick(folder.id)}>
+                      Open Folder
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      className="text-red-600"
+                      onClick={() => onDeleteFolder(folder.id)}
+                    >
+                      Delete Folder
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
+          ))}
+
+          {/* Documents */}
+          {documents.map((document) => (
+            <TableRow 
+              key={document.id}
+              className="hover:bg-muted/50"
+              draggable
+              onDragStart={() => handleDragStart(document.id)}
+            >
+              <TableCell className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-gray-500" />
+                <span className="font-medium">{document.name}</span>
+                {document.is_important && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+              </TableCell>
+              <TableCell>
+                <span className="text-muted-foreground">{getFileType(document.mime_type)}</span>
+              </TableCell>
+              <TableCell>{formatFileSize(document.file_size)}</TableCell>
+              <TableCell>
+                {format(new Date(document.updated_at), 'MMM d, yyyy, h:mm a')}
+              </TableCell>
+              <TableCell>{getUserDisplayName(document.uploaded_by)}</TableCell>
+              <TableCell className="text-right">
+                <div className="flex items-center justify-end gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => onViewDocument(document)}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => onDownloadDocument(document)}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onViewDocument(document)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onDownloadDocument(document)}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => onToggleImportant(document.id, document.is_important)}>
+                        {document.is_important ? (
+                          <>
+                            <StarOff className="h-4 w-4 mr-2" />
+                            Unmark Important
+                          </>
+                        ) : (
+                          <>
+                            <Star className="h-4 w-4 mr-2" />
+                            Mark Important
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onRenameDocument(document)}>
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onCopyDocument(document.id)}>
+                        Copy
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {canDeleteDocument(document) && (
+                        <DropdownMenuItem
+                          className="text-red-600"
+                          onClick={() => onDeleteDocument(document.id, document.name)}
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
       {/* Empty State */}
       {documents.length === 0 && folders.length === 0 && (
