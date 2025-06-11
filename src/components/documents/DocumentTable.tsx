@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { 
@@ -116,6 +117,13 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
     }
   };
 
+  const handleDeleteFolderAction = async (folderId: string, folderName: string) => {
+    const success = await onDeleteFolder(folderId);
+    if (success) {
+      // Handle success if needed
+    }
+  };
+
   return (
     <div className="bg-card rounded-lg border overflow-hidden">
       <div className="overflow-x-auto">
@@ -180,7 +188,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                       <DropdownMenuContent align="end" className="w-40">
                         <DropdownMenuItem
                           className="text-red-600 focus:text-red-600"
-                          onClick={() => handleDeleteFolder(folder.id, folder.name)}
+                          onClick={() => handleDeleteFolderAction(folder.id, folder.name)}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete
