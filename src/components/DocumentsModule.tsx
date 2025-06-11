@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -202,7 +201,7 @@ export const DocumentsModule = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header Section */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div className="flex-1">
@@ -261,33 +260,35 @@ export const DocumentsModule = () => {
       </div>
 
       {/* Search and Filters */}
-      <Card className="p-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search documents..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+      <Card className="shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search documents..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Filter documents" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Documents</SelectItem>
+                <SelectItem value="important">Important</SelectItem>
+                <SelectItem value="recent">Recent (7 days)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Filter documents" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Documents</SelectItem>
-              <SelectItem value="important">Important</SelectItem>
-              <SelectItem value="recent">Recent (7 days)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        </CardContent>
       </Card>
 
       {/* Main Content */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex justify-between items-center">
             <div>
@@ -298,15 +299,6 @@ export const DocumentsModule = () => {
                 {filteredDocuments.length} document{filteredDocuments.length !== 1 ? 's' : ''} found
               </CardDescription>
             </div>
-            
-            {/* Folder Analytics */}
-            {currentFolder && (
-              <DocumentAnalytics
-                documentId={currentFolder.id}
-                documentName={currentFolder.name}
-                documentType="folder"
-              />
-            )}
           </div>
         </CardHeader>
         <CardContent className="pt-0">
@@ -390,7 +382,7 @@ export const DocumentsModule = () => {
 
       {/* Individual Document Analytics */}
       {filteredDocuments.length > 0 && (
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg">Document Analytics Overview</CardTitle>
             <CardDescription>
