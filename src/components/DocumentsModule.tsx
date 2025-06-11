@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, ChevronRight, Home, Trash2 } from 'lucide-react';
+import { FileText, ChevronRight, Home, Trash2, Lock } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -39,6 +39,7 @@ interface Folder {
   created_at: string;
   updated_at: string;
   is_hidden: boolean;
+  is_locked: boolean;
 }
 
 export const DocumentsModule: React.FC = () => {
@@ -54,7 +55,7 @@ export const DocumentsModule: React.FC = () => {
     fetchDocuments 
   } = useDocuments();
   const { user } = useAuth();
-  const { isSuperAdmin, canDeleteContent } = useUserRole();
+  const { isSuperAdmin, isAdmin, canDeleteContent } = useUserRole();
   const { toast } = useToast();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -191,11 +192,40 @@ export const DocumentsModule: React.FC = () => {
     await uploadDocument(file, folderId || currentFolderId || undefined);
   };
 
+  // Check if user can access locked folders
+  const canAccessLockedFolders = isSuperAdmin || isAdmin;
+
   const handleFolderClick = (folderId: string) => {
+    const folder = folders.find(f => f.id === folderId);
+    
+    // Check if trying to access a locked folder
+    if (folder?.is_locked && !canAccessLockedFolders) {
+      toast({
+        title: "Access Denied",
+        description: "This folder is locked and only accessible to administrators",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setCurrentFolderId(folderId);
   };
 
   const handleBreadcrumbClick = (folderId: string | null) => {
+    if (folderId) {
+      const folder = folders.find(f => f.id === folderId);
+      
+      // Check if trying to access a locked folder
+      if (folder?.is_locked && !canAccessLockedFolders) {
+        toast({
+          title: "Access Denied",
+          description: "This folder is locked and only accessible to administrators",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
     setCurrentFolderId(folderId);
   };
 
@@ -382,13 +412,21 @@ export const DocumentsModule: React.FC = () => {
     return matchesSearch && matchesType && matchesPeople && matchesDate;
   });
 
-  // Filter folders for current level
+  // Filter folders for current level and access control
   const filteredFolders = folders.filter(folder => {
+    // Check parent folder matching
     if (currentFolderId) {
-      return folder.parent_folder_id === currentFolderId;
+      if (folder.parent_folder_id !== currentFolderId) return false;
     } else {
-      return folder.parent_folder_id === null;
+      if (folder.parent_folder_id !== null) return false;
     }
+
+    // Hide locked folders from non-admin users
+    if (folder.is_locked && !canAccessLockedFolders) {
+      return false;
+    }
+
+    return true;
   });
 
   // Check if user can delete a specific document
@@ -414,6 +452,12 @@ export const DocumentsModule: React.FC = () => {
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Document Repository</h1>
               <p className="text-sm sm:text-base text-muted-foreground">
                 Manage and organize your documents • {filteredDocuments.length} documents
+                {currentFolderId && folders.find(f => f.id === currentFolderId)?.is_locked && (
+                  <span className="inline-flex items-center ml-2 text-red-600">
+                    <Lock className="h-4 w-4 mr-1" />
+                    LOCKED FOLDER
+                  </span>
+                )}
               </p>
             </div>
             
@@ -462,9 +506,12 @@ export const DocumentsModule: React.FC = () => {
                     variant="ghost" 
                     size="sm" 
                     onClick={() => handleBreadcrumbClick(folder.id)}
-                    className="hover:bg-muted px-2 py-1 rounded whitespace-nowrap flex-shrink-0"
+                    className="hover:bg-muted px-2 py-1 rounded whitespace-nowrap flex-shrink-0 flex items-center space-x-1"
                   >
-                    {folder.name}
+                    {folder.is_locked && <Lock className="h-3 w-3 text-red-500" />}
+                    <span className={folder.is_locked ? 'text-red-600' : ''}>
+                      {folder.name}
+                    </span>
                   </Button>
                 </React.Fragment>
               ))}
@@ -532,6 +579,7 @@ export const DocumentsModule: React.FC = () => {
                 onFolderClick={handleFolderClick}
                 onMoveDocument={handleMoveDocument}
                 currentFolderId={currentFolderId}
+                canAccessLockedFolders={canAccessLockedFolders}
               />
             )}
           </div>
@@ -561,3 +609,5 @@ export const DocumentsModule: React.FC = () => {
     </div>
   );
 };
+
+export default DocumentsModule;

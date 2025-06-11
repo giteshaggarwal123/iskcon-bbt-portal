@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Folder, Plus } from 'lucide-react';
+import { Folder, Plus, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Folder {
@@ -16,24 +15,32 @@ interface Folder {
   created_at: string;
   updated_at: string;
   is_hidden: boolean;
+  is_locked: boolean;
 }
 
 interface CreateFolderDialogProps {
   onFolderCreated: (folderName: string, parentFolderId?: string) => Promise<any>;
   existingFolders: Folder[];
   currentFolderId?: string | null;
+  canAccessLockedFolders?: boolean;
 }
 
 export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({ 
   onFolderCreated, 
   existingFolders,
-  currentFolderId
+  currentFolderId,
+  canAccessLockedFolders = false
 }) => {
   const [open, setOpen] = useState(false);
   const [folderName, setFolderName] = useState('');
   const [parentFolderId, setParentFolderId] = useState<string | undefined>(currentFolderId || undefined);
   const [isCreating, setIsCreating] = useState(false);
   const { toast } = useToast();
+
+  // Filter folders to only show accessible ones for parent selection
+  const accessibleFolders = existingFolders.filter(folder => 
+    !folder.is_locked || canAccessLockedFolders
+  );
 
   const handleCreate = async () => {
     if (!folderName.trim()) {
@@ -89,7 +96,7 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
             />
           </div>
           
-          {existingFolders.length > 0 && (
+          {accessibleFolders.length > 0 && (
             <div>
               <Label htmlFor="parentFolder">Parent Folder (Optional)</Label>
               <Select value={parentFolderId || 'root'} onValueChange={(value) => setParentFolderId(value === 'root' ? undefined : value)}>
@@ -98,9 +105,14 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="root">Root (No parent)</SelectItem>
-                  {existingFolders.map(folder => (
+                  {accessibleFolders.map(folder => (
                     <SelectItem key={folder.id} value={folder.id}>
-                      {folder.name}
+                      <div className="flex items-center space-x-2">
+                        {folder.is_locked && <Lock className="h-3 w-3 text-red-500" />}
+                        <span className={folder.is_locked ? 'text-red-600' : ''}>
+                          {folder.name}
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -122,3 +134,5 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
     </Dialog>
   );
 };
+
+export default CreateFolderDialog;

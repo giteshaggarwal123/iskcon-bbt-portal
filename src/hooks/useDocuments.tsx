@@ -27,6 +27,7 @@ interface Folder {
   created_at: string;
   updated_at: string;
   is_hidden: boolean;
+  is_locked: boolean;
 }
 
 export const useDocuments = () => {
@@ -96,7 +97,8 @@ export const useDocuments = () => {
         .insert({
           name: folderName.trim(),
           parent_folder_id: parentFolderId || null,
-          created_by: user.id
+          created_by: user.id,
+          is_locked: false // Regular users cannot create locked folders
         })
         .select()
         .single();

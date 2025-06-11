@@ -270,6 +270,7 @@ export type Database = {
           created_by: string
           id: string
           is_hidden: boolean | null
+          is_locked: boolean | null
           name: string
           parent_folder_id: string | null
           updated_at: string
@@ -279,6 +280,7 @@ export type Database = {
           created_by: string
           id?: string
           is_hidden?: boolean | null
+          is_locked?: boolean | null
           name: string
           parent_folder_id?: string | null
           updated_at?: string
@@ -288,6 +290,7 @@ export type Database = {
           created_by?: string
           id?: string
           is_hidden?: boolean | null
+          is_locked?: boolean | null
           name?: string
           parent_folder_id?: string | null
           updated_at?: string

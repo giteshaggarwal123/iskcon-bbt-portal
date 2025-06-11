@@ -1,38 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { 
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-} from '@/components/ui/dropdown-menu';
-import { FileText, Download, Trash2, Eye, Edit, Copy, Star, MoreHorizontal, Folder, FolderOpen, Move } from 'lucide-react';
-import { DocumentAnalytics } from '../DocumentAnalytics';
-import { useIsMobile } from '@/hooks/use-mobile';
+  FileText, 
+  FolderOpen, 
+  MoreVertical, 
+  Download, 
+  Eye, 
+  Edit3, 
+  Copy, 
+  Trash2, 
+  Star, 
+  StarOff,
+  Move,
+  Lock
+} from 'lucide-react';
+import { format } from 'date-fns';
 
 interface Document {
   id: string;
@@ -57,13 +45,14 @@ interface Folder {
   created_at: string;
   updated_at: string;
   is_hidden: boolean;
+  is_locked: boolean;
 }
 
 interface DocumentTableProps {
   documents: Document[];
   folders: Folder[];
   userProfiles: {[key: string]: {first_name: string, last_name: string}};
-  currentUserId: string | undefined;
+  currentUserId?: string;
   canDeleteDocument: (document: Document) => boolean;
   onViewDocument: (document: Document) => void;
   onDownloadDocument: (document: Document) => void;
@@ -74,21 +63,9 @@ interface DocumentTableProps {
   onDeleteFolder: (folderId: string) => Promise<boolean>;
   onFolderClick: (folderId: string) => void;
   onMoveDocument: (documentId: string, targetFolderId: string | null) => void;
-  currentFolderId: string | null;
+  currentFolderId?: string | null;
+  canAccessLockedFolders?: boolean;
 }
-
-type TableItem = {
-  id: string;
-  name: string;
-  type: 'document' | 'folder';
-  created_at: string;
-  updated_at: string;
-  uploaded_by?: string;
-  created_by?: string;
-  size?: number | null;
-  mime_type?: string | null;
-  is_important?: boolean;
-} & (Document | Folder);
 
 export const DocumentTable: React.FC<DocumentTableProps> = ({
   documents,
@@ -105,573 +82,230 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   onDeleteFolder,
   onFolderClick,
   onMoveDocument,
-  currentFolderId
+  currentFolderId,
+  canAccessLockedFolders = false
 }) => {
-  const isMobile = useIsMobile();
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+
+  const getUserDisplayName = (userId: string) => {
+    const profile = userProfiles[userId];
+    if (profile) {
+      return `${profile.first_name} ${profile.last_name}`;
+    }
+    return 'Unknown User';
+  };
 
   const formatFileSize = (bytes: number | null) => {
-    if (!bytes) return 'Unknown';
+    if (bytes === null) return 'N/A';
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const handleMoveDocumentDialog = (documentId: string) => {
+    setSelectedDocumentId(documentId);
+    setMoveDialogOpen(true);
   };
 
-  const getFileIcon = (mimeType: string | null) => {
-    if (!mimeType) return <FileText className="h-4 w-4" />;
-    if (mimeType.includes('pdf')) return <FileText className="h-4 w-4 text-red-500" />;
-    if (mimeType.includes('word') || mimeType.includes('document')) return <FileText className="h-4 w-4 text-blue-500" />;
-    if (mimeType.includes('sheet') || mimeType.includes('excel')) return <FileText className="h-4 w-4 text-green-500" />;
-    if (mimeType.includes('image')) return <FileText className="h-4 w-4 text-purple-500" />;
-    return <FileText className="h-4 w-4" />;
-  };
-
-  const getUserDisplayName = (userId: string) => {
-    if (userId === currentUserId) return 'You';
-    const profile = userProfiles[userId];
-    if (profile && (profile.first_name || profile.last_name)) {
-      return `${profile.first_name} ${profile.last_name}`.trim();
-    }
-    return 'User';
-  };
-
-  const handleDeleteFolder = async (folderId: string, folderName: string) => {
-    const success = await onDeleteFolder(folderId);
-    if (success) {
-      // Success toast is handled in the parent component
+  const handleMoveDocumentConfirm = (targetFolderId: string | null) => {
+    if (selectedDocumentId) {
+      onMoveDocument(selectedDocumentId, targetFolderId);
+      setMoveDialogOpen(false);
+      setSelectedDocumentId(null);
     }
   };
 
-  // Get available folders for move operation (exclude current folder and its children)
-  const getAvailableFolders = (excludeFolderId?: string) => {
-    return folders.filter(folder => {
-      if (excludeFolderId && folder.id === excludeFolderId) return false;
-      // Could add logic to exclude child folders here if needed
-      return true;
-    });
-  };
-
-  // Combine documents and folders into a single array
-  const combinedItems: TableItem[] = [
-    ...folders.map(folder => ({
-      ...folder,
-      type: 'folder' as const,
-      size: null,
-      mime_type: null,
-      is_important: false
-    })),
-    ...documents.map(document => ({
-      ...document,
-      type: 'document' as const,
-      size: document.file_size,
-      created_by: document.uploaded_by
-    }))
-  ];
-
-  // Sort combined items: folders first, then by name
-  const sortedItems = combinedItems.sort((a, b) => {
-    if (a.type !== b.type) {
-      return a.type === 'folder' ? -1 : 1;
-    }
-    return a.name.localeCompare(b.name);
-  });
-
-  // Mobile Card View
-  if (isMobile) {
-    return (
-      <div className="space-y-3">
-        {sortedItems.map((item) => (
-          <div 
-            key={`${item.type}-${item.id}`}
-            className="bg-white rounded-lg border shadow-sm p-4 space-y-3"
-          >
-            {/* Header Row */}
-            <div className="flex items-start justify-between">
-              <div 
-                className="flex items-center space-x-3 flex-1 min-w-0 cursor-pointer"
-                onClick={() => {
-                  if (item.type === 'folder') {
-                    onFolderClick(item.id);
-                  } else {
-                    onViewDocument(item as Document);
-                  }
-                }}
-              >
-                <div className="flex items-center space-x-2 flex-shrink-0">
-                  {item.type === 'folder' ? (
-                    <Folder className="h-5 w-5 text-blue-500" />
-                  ) : (
-                    <>
-                      {getFileIcon(item.mime_type || null)}
-                      {item.is_important && (
-                        <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                      )}
-                    </>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm truncate">{item.name}</h3>
-                  {item.type === 'document' && (
-                    <p className="text-xs text-gray-500 capitalize">
-                      {(item as Document).folder || 'general'}
-                    </p>
-                  )}
-                </div>
-              </div>
-              
-              {/* Actions Menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 flex-shrink-0">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {item.type === 'document' ? (
-                    <>
-                      <DropdownMenuItem onClick={() => onViewDocument(item as Document)}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onDownloadDocument(item as Document)}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Download
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onToggleImportant(item.id, item.is_important || false)}>
-                        <Star className="h-4 w-4 mr-2" />
-                        {item.is_important ? 'Unmark Important' : 'Mark Important'}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onRenameDocument(item as Document)}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Rename
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onCopyDocument(item.id)}>
-                        <Copy className="h-4 w-4 mr-2" />
-                        Copy
-                      </DropdownMenuItem>
-                      {folders.length > 0 && (
-                        <DropdownMenuSub>
-                          <DropdownMenuSubTrigger>
-                            <Move className="h-4 w-4 mr-2" />
-                            Move to
-                          </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent>
-                            <DropdownMenuItem onClick={() => onMoveDocument(item.id, null)}>
-                              <Folder className="h-4 w-4 mr-2" />
-                              Root Folder
-                            </DropdownMenuItem>
-                            {getAvailableFolders().map(folder => (
-                              <DropdownMenuItem 
-                                key={folder.id}
-                                onClick={() => onMoveDocument(item.id, folder.id)}
-                              >
-                                <Folder className="h-4 w-4 mr-2" />
-                                {folder.name}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                      )}
-                      <DropdownMenuSeparator />
-                      {canDeleteDocument(item as Document) && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem 
-                              className="text-red-600"
-                              onSelect={(e) => e.preventDefault()}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Move to Trash
-                            </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Move to Recycle Bin</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to move "{item.name}" to the recycle bin? You can restore it from Settings &gt; Recycle Bin within 30 days.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => onDeleteDocument(item.id, item.name)}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                Move to Trash
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <DropdownMenuItem onClick={() => onFolderClick(item.id)}>
-                        <FolderOpen className="h-4 w-4 mr-2" />
-                        Open Folder
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <DropdownMenuItem 
-                            className="text-red-600"
-                            onSelect={(e) => e.preventDefault()}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete Folder
-                          </DropdownMenuItem>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Folder</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{item.name}"? This action cannot be undone.
-                              Make sure the folder is empty before deleting.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => handleDeleteFolder(item.id, item.name)}
-                              className="bg-red-600 hover:bg-red-700"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {/* Details Row */}
-            <div className="flex items-center justify-between text-xs text-gray-500">
-              <div className="flex items-center space-x-4">
-                <Badge variant="secondary" className="text-xs">
-                  {item.type === 'folder' ? 'folder' : (item.mime_type?.split('/')[1] || 'file')}
-                </Badge>
-                {item.type === 'document' && (
-                  <span>{formatFileSize(item.size)}</span>
-                )}
-              </div>
-              <span>{formatDate(item.updated_at || item.created_at)}</span>
-            </div>
-
-            {/* Author Row */}
-            <div className="flex items-center justify-between text-xs text-gray-500">
-              <span>
-                By {getUserDisplayName(item.type === 'folder' ? (item as Folder).created_by : (item as Document).uploaded_by)}
-              </span>
-              {item.type === 'document' && (
-                <div className="flex items-center space-x-2">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="h-7 px-2 text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewDocument(item as Document);
-                    }}
-                  >
-                    <Eye className="h-3 w-3 mr-1" />
-                    View
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="h-7 px-2 text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDownloadDocument(item as Document);
-                    }}
-                  >
-                    <Download className="h-3 w-3 mr-1" />
-                    Download
-                  </Button>
-                  <DocumentAnalytics 
-                    documentId={item.id}
-                    documentName={item.name}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Desktop Table View (unchanged)
   return (
-    <div className="bg-white rounded-lg border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-8"></TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Size</TableHead>
-            <TableHead>Modified</TableHead>
-            <TableHead>Modified By</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedItems.map((item) => (
-            <TableRow 
-              key={`${item.type}-${item.id}`}
-              className="hover:bg-gray-50 cursor-pointer"
-              onClick={() => {
-                if (item.type === 'folder') {
-                  onFolderClick(item.id);
-                } else {
-                  onViewDocument(item as Document);
-                }
-              }}
-            >
-              <TableCell onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center space-x-2">
-                  {item.type === 'folder' ? (
-                    <Folder className="h-4 w-4 text-blue-500" />
-                  ) : (
-                    <>
-                      {getFileIcon(item.mime_type || null)}
-                      {item.is_important && (
-                        <Star className="h-3 w-3 text-yellow-500 fill-current" />
+    <div className="bg-card rounded-lg border overflow-hidden">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50">
+              <TableHead className="min-w-[250px] sm:min-w-[300px]">Name</TableHead>
+              <TableHead className="hidden sm:table-cell min-w-[100px]">Type</TableHead>
+              <TableHead className="hidden md:table-cell min-w-[80px]">Size</TableHead>
+              <TableHead className="hidden lg:table-cell min-w-[120px]">Modified</TableHead>
+              <TableHead className="hidden xl:table-cell min-w-[150px]">Uploaded by</TableHead>
+              <TableHead className="w-[50px]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {/* Render folders first */}
+            {folders.map((folder) => (
+              <TableRow 
+                key={`folder-${folder.id}`} 
+                className="cursor-pointer hover:bg-muted/30 transition-colors"
+                onClick={() => onFolderClick(folder.id)}
+              >
+                <TableCell className="font-medium">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2">
+                      {folder.is_locked ? (
+                        <Lock className="h-5 w-5 text-red-500 flex-shrink-0" />
+                      ) : (
+                        <FolderOpen className="h-5 w-5 text-blue-500 flex-shrink-0" />
                       )}
-                    </>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-col">
-                  <span className="font-medium">{item.name}</span>
-                  {item.type === 'document' && (
-                    <span className="text-xs text-gray-500 capitalize">
-                      {(item as Document).folder || 'general'}
-                    </span>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge variant="secondary" className="text-xs">
-                  {item.type === 'folder' ? 'folder' : (item.mime_type?.split('/')[1] || 'file')}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {item.type === 'folder' ? '—' : formatFileSize(item.size)}
-              </TableCell>
-              <TableCell>{formatDate(item.updated_at || item.created_at)}</TableCell>
-              <TableCell>
-                {getUserDisplayName(item.type === 'folder' ? (item as Folder).created_by : (item as Document).uploaded_by)}
-              </TableCell>
-              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-end space-x-2">
-                  {item.type === 'document' ? (
-                    <>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-8 px-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onViewDocument(item as Document);
-                        }}
-                      >
-                        <Eye className="h-3 w-3 mr-1" />
-                        View
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-8 px-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDownloadDocument(item as Document);
-                        }}
-                      >
-                        <Download className="h-3 w-3 mr-1" />
-                        Download
-                      </Button>
-                      
-                      <DocumentAnalytics 
-                        documentId={item.id}
-                        documentName={item.name}
-                      />
-                      
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="sm" variant="outline" className="h-8 px-2">
-                            <MoreHorizontal className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onToggleImportant(item.id, item.is_important || false);
-                            }}
-                          >
-                            <Star className="h-4 w-4 mr-2" />
-                            {item.is_important ? 'Unmark Important' : 'Mark Important'}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onRenameDocument(item as Document);
-                            }}
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Rename
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onCopyDocument(item.id);
-                            }}
-                          >
-                            <Copy className="h-4 w-4 mr-2" />
-                            Copy
-                          </DropdownMenuItem>
-                          {folders.length > 0 && (
-                            <DropdownMenuSub>
-                              <DropdownMenuSubTrigger>
-                                <Move className="h-4 w-4 mr-2" />
-                                Move to
-                              </DropdownMenuSubTrigger>
-                              <DropdownMenuSubContent>
-                                <DropdownMenuItem 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onMoveDocument(item.id, null);
-                                  }}
-                                >
-                                  <Folder className="h-4 w-4 mr-2" />
-                                  Root Folder
-                                </DropdownMenuItem>
-                                {getAvailableFolders().map(folder => (
-                                  <DropdownMenuItem 
-                                    key={folder.id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onMoveDocument(item.id, folder.id);
-                                    }}
-                                  >
-                                    <Folder className="h-4 w-4 mr-2" />
-                                    {folder.name}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuSubContent>
-                            </DropdownMenuSub>
-                          )}
-                          <DropdownMenuSeparator />
-                          {canDeleteDocument(item as Document) && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem 
-                                  className="text-red-600"
-                                  onSelect={(e) => e.preventDefault()}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Move to Trash
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Move to Recycle Bin</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to move "{item.name}" to the recycle bin? You can restore it from Settings &gt; Recycle Bin within 30 days.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onDeleteDocument(item.id, item.name);
-                                    }}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Move to Trash
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </>
-                  ) : (
-                    // Folder actions (no analytics)
+                      <span className={`truncate ${folder.is_locked ? 'text-red-700 font-semibold' : ''}`}>
+                        {folder.name}
+                      </span>
+                    </div>
+                    {folder.is_locked && (
+                      <Badge variant="destructive" className="text-xs">
+                        LOCKED
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell text-muted-foreground">
+                  Folder
+                </TableCell>
+                <TableCell className="hidden md:table-cell text-muted-foreground">
+                  —
+                </TableCell>
+                <TableCell className="hidden lg:table-cell text-muted-foreground">
+                  {format(new Date(folder.updated_at), 'MMM dd, yyyy')}
+                </TableCell>
+                <TableCell className="hidden xl:table-cell text-muted-foreground">
+                  {getUserDisplayName(folder.created_by)}
+                </TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  {canAccessLockedFolders && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button size="sm" variant="outline" className="h-8 px-2">
-                          <MoreHorizontal className="h-3 w-3" />
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onFolderClick(item.id);
-                          }}
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600"
+                          onClick={() => handleDeleteFolder(folder.id, folder.name)}
                         >
-                          <FolderOpen className="h-4 w-4 mr-2" />
-                          Open Folder
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem 
-                              className="text-red-600"
-                              onSelect={(e) => e.preventDefault()}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete Folder
-                            </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Folder</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "{item.name}"? This action cannot be undone.
-                                Make sure the folder is empty before deleting.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteFolder(item.id, item.name);
-                                }}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                </TableCell>
+              </TableRow>
+            ))}
+
+            {/* Render documents */}
+            {documents.map((document) => (
+              <TableRow key={document.id} className="hover:bg-muted/30 transition-colors">
+                <TableCell className="font-medium">
+                  <div className="flex items-center space-x-3">
+                    <FileText className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                    <span className="truncate">{document.name}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell text-muted-foreground">
+                  {document.mime_type?.split('/')[1] || 'Unknown'}
+                </TableCell>
+                <TableCell className="hidden md:table-cell text-muted-foreground">
+                  {formatFileSize(document.file_size)}
+                </TableCell>
+                <TableCell className="hidden lg:table-cell text-muted-foreground">
+                  {format(new Date(document.updated_at), 'MMM dd, yyyy')}
+                </TableCell>
+                <TableCell className="hidden xl:table-cell text-muted-foreground">
+                  {getUserDisplayName(document.uploaded_by)}
+                </TableCell>
+                <TableCell className="relative" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuItem onClick={() => onViewDocument(document)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onDownloadDocument(document)}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => onToggleImportant(document.id, document.is_important)}>
+                        {document.is_important ? (
+                          <>
+                            <StarOff className="h-4 w-4 mr-2" />
+                            Unmark Important
+                          </>
+                        ) : (
+                          <>
+                            <Star className="h-4 w-4 mr-2" />
+                            Mark Important
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onRenameDocument(document)}>
+                        <Edit3 className="h-4 w-4 mr-2" />
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onCopyDocument(document.id)}>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleMoveDocumentDialog(document.id)}>
+                        <Move className="h-4 w-4 mr-2" />
+                        Move to
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {canDeleteDocument(document) && (
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600"
+                          onClick={() => onDeleteDocument(document.id, document.name)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Move to Folder Dialog */}
+      <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move Document</DialogTitle>
+            <DialogDescription>
+              Select the folder to move the document to.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Label htmlFor="folder">Target Folder</Label>
+            <Select onValueChange={(value) => handleMoveDocumentConfirm(value === "root" ? null : value)}>
+              <SelectTrigger className="w-[100%]">
+                <SelectValue placeholder="Select a folder" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="root">Root (No Folder)</SelectItem>
+                {folders.map((folder) => (
+                  <SelectItem key={folder.id} value={folder.id}>
+                    {folder.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setMoveDialogOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
