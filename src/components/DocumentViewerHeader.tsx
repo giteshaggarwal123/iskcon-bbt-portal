@@ -38,7 +38,7 @@ export const DocumentViewerHeader: React.FC<DocumentViewerHeaderProps> = ({
   const isImage = document.mime_type?.includes('image');
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between p-4 border-b">
       <div className="flex-1 min-w-0">
         <DialogTitle className="text-lg font-semibold truncate">
           {document.name}
@@ -52,40 +52,42 @@ export const DocumentViewerHeader: React.FC<DocumentViewerHeaderProps> = ({
         </div>
       </div>
       
-      <div className="flex items-center space-x-1 ml-4">
+      <div className="flex items-center space-x-2 ml-4">
         {isImage && (
-          <div className="flex items-center bg-muted rounded-md p-1">
+          <div className="flex items-center bg-muted rounded-md">
             <Button
               size="sm"
               variant="ghost"
               onClick={onZoomOut}
               disabled={zoom <= 25}
-              className="h-8 w-8 p-0"
+              className="h-9 w-9 p-0 rounded-r-none"
             >
               <ZoomOut className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-medium px-3 min-w-[60px] text-center">{zoom}%</span>
+            <div className="px-3 py-2 text-sm font-medium bg-muted border-x min-w-[60px] text-center">
+              {zoom}%
+            </div>
             <Button
               size="sm"
               variant="ghost"
               onClick={onZoomIn}
               disabled={zoom >= 200}
-              className="h-8 w-8 p-0"
+              className="h-9 w-9 p-0 rounded-l-none"
             >
               <ZoomIn className="h-4 w-4" />
             </Button>
           </div>
         )}
         
-        <Button size="sm" variant="outline" onClick={onDownload} className="h-8">
+        <Button size="sm" variant="outline" onClick={onDownload} className="h-9">
           <Download className="h-4 w-4" />
         </Button>
         
-        <Button size="sm" variant="outline" onClick={onExternalView} className="h-8">
+        <Button size="sm" variant="outline" onClick={onExternalView} className="h-9">
           <ExternalLink className="h-4 w-4" />
         </Button>
         
-        <Button size="sm" variant="ghost" onClick={onClose} className="h-8">
+        <Button size="sm" variant="ghost" onClick={onClose} className="h-9">
           <X className="h-4 w-4" />
         </Button>
       </div>
