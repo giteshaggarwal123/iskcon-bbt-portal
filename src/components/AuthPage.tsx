@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Phone, Shield, Clock, Mail } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Phone, Shield, Clock, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
@@ -13,12 +14,16 @@ interface AuthPageProps {
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
-  const { sendLoginOTP, verifyLoginOTP, loading } = useAuth();
+  const { sendLoginOTP, verifyLoginOTP, signIn, loading } = useAuth();
   const [step, setStep] = useState<'email' | 'otp'>('email');
+  const [loginMethod, setLoginMethod] = useState<'otp' | 'password'>('otp');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [storedOTP, setStoredOTP] = useState('');
   const [maskedPhone, setMaskedPhone] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSendOTP = async () => {
     if (!email) return;
@@ -29,11 +34,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
       setStoredOTP(receivedOTP);
       setStep('otp');
       // Extract masked phone from response if available
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-login-otp`, {
+      const response = await fetch(`https://daiimiznlkffbbadhodw.supabase.co/functions/v1/send-login-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhaWltaXpubGtmZmJiYWRob2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3NzgxMTIsImV4cCI6MjA2NDM1NDExMn0.gPvDe0Pfx5avJGvA5uLOi59pjodaCoTI2c17MIST9dA`
         },
         body: JSON.stringify({ email })
       });
@@ -48,6 +53,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
           }
         }
       }
+    }
+  };
+
+  const handlePasswordLogin = async () => {
+    if (!email || !password) return;
+    
+    const { error } = await signIn(email, password, rememberMe);
+    if (!error) {
+      onLogin();
     }
   };
 
@@ -90,11 +104,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center space-x-2">
               <Shield className="h-5 w-5 text-primary" />
-              <span>Secure OTP Login</span>
+              <span>Secure Login</span>
             </CardTitle>
             <CardDescription>
               {step === 'email' 
-                ? 'Enter your registered email to receive OTP on your mobile'
+                ? loginMethod === 'otp' 
+                  ? 'Enter your registered email to receive OTP on your mobile'
+                  : 'Sign in with your email and password'
                 : 'Enter the 6-digit OTP sent to your registered mobile number'
               }
             </CardDescription>
@@ -103,6 +119,30 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
           <CardContent className="space-y-6">
             {step === 'email' ? (
               <div className="space-y-4">
+                {/* Login Method Toggle */}
+                <div className="flex space-x-2 p-1 bg-gray-100 rounded-lg">
+                  <button
+                    onClick={() => setLoginMethod('otp')}
+                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                      loginMethod === 'otp'
+                        ? 'bg-white text-primary shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    OTP Login
+                  </button>
+                  <button
+                    onClick={() => setLoginMethod('password')}
+                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                      loginMethod === 'password'
+                        ? 'bg-white text-primary shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Password Login
+                  </button>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
                   <div className="relative">
@@ -117,17 +157,55 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                       required
                     />
                   </div>
-                  <p className="text-xs text-gray-500">
-                    OTP will be sent to the mobile number registered with this email
-                  </p>
+                  {loginMethod === 'otp' && (
+                    <p className="text-xs text-gray-500">
+                      OTP will be sent to the mobile number registered with this email
+                    </p>
+                  )}
                 </div>
+
+                {loginMethod === 'password' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                          id="password"
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Enter your password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="pl-10 pr-10"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="remember"
+                        checked={rememberMe}
+                        onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                      />
+                      <Label htmlFor="remember" className="text-sm">Remember me for 30 days</Label>
+                    </div>
+                  </>
+                )}
                 
                 <Button 
-                  onClick={handleSendOTP}
-                  disabled={!email || loading}
+                  onClick={loginMethod === 'otp' ? handleSendOTP : handlePasswordLogin}
+                  disabled={!email || (loginMethod === 'password' && !password) || loading}
                   className="w-full bg-primary hover:bg-primary/90"
                 >
-                  {loading ? 'Sending OTP...' : 'Send OTP'}
+                  {loading ? 'Processing...' : loginMethod === 'otp' ? 'Send OTP' : 'Sign In'}
                 </Button>
               </div>
             ) : (
@@ -197,7 +275,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                 <Clock className="h-4 w-4 text-gray-500 mt-0.5" />
                 <div className="text-xs text-gray-600">
                   <p className="font-medium mb-1">Security Notice</p>
-                  <p>OTP expires in 5 minutes. Only registered bureau members with verified mobile numbers can access this platform.</p>
+                  <p>
+                    {loginMethod === 'otp' 
+                      ? 'OTP expires in 5 minutes. Only registered bureau members with verified mobile numbers can access this platform.'
+                      : 'Only registered bureau members can access this platform. Enable "Remember me" to stay logged in for 30 days.'
+                    }
+                  </p>
                 </div>
               </div>
             </div>
