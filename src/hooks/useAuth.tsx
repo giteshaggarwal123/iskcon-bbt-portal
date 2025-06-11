@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -154,6 +153,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
+      setLoading(true);
+      
       // Clear any existing remember me settings first
       localStorage.removeItem('rememberMe');
       localStorage.removeItem('rememberMeExpiry');
@@ -164,9 +165,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) {
+        console.error('Sign in error:', error);
         toast({
-          title: "Sign In Error",
-          description: error.message,
+          title: "Authentication Error",
+          description: error.message === 'Invalid login credentials' 
+            ? "Invalid email or password. Please check your credentials and try again."
+            : error.message,
           variant: "destructive"
         });
         return { error };
@@ -185,12 +189,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       return { error: null };
     } catch (error: any) {
+      console.error('Sign in catch error:', error);
       toast({
-        title: "Sign In Error",
-        description: error.message,
+        title: "Authentication Error",
+        description: "Network error. Please check your connection and try again.",
         variant: "destructive"
       });
       return { error };
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -227,6 +234,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const sendLoginOTP = async (email: string) => {
     try {
+      setLoading(true);
       console.log('Sending login OTP for email:', email);
       
       const { data, error } = await supabase.functions.invoke('send-login-otp', {
@@ -268,6 +276,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         variant: "destructive"
       });
       return { error };
+    } finally {
+      setLoading(false);
     }
   };
 
