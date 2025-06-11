@@ -9,8 +9,8 @@ interface MeetingTranscript {
   meeting_id: string;
   transcript_content?: string;
   summary?: string;
-  action_items?: any[];
-  participants?: any[];
+  action_items?: any;
+  participants?: any;
   teams_transcript_id?: string;
   created_at: string;
   updated_at: string;

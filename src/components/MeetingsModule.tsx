@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +29,7 @@ import { CheckInDialog } from './CheckInDialog';
 import { CalendarView } from './CalendarView';
 import { RSVPResponseDialog } from './RSVPResponseDialog';
 import { MeetingDeletionProgress } from './MeetingDeletionProgress';
+import { MeetingTranscriptDialog } from './MeetingTranscriptDialog';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -42,6 +44,7 @@ export const MeetingsModule: React.FC = () => {
   const [showAttendeesDialog, setShowAttendeesDialog] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [showRSVPDialog, setShowRSVPDialog] = useState(false);
+  const [showTranscriptDialog, setShowTranscriptDialog] = useState(false);
   const [showDeletionProgress, setShowDeletionProgress] = useState<string | null>(null);
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
   const [preselectedDate, setPreselectedDate] = useState<Date | undefined>(undefined);
@@ -86,6 +89,11 @@ export const MeetingsModule: React.FC = () => {
   const handleViewAgenda = (meeting: any) => {
     setSelectedMeeting(meeting);
     setShowAgendaDialog(true);
+  };
+
+  const handleViewTranscript = (meeting: any) => {
+    setSelectedMeeting(meeting);
+    setShowTranscriptDialog(true);
   };
 
   const handleCheckIn = (meeting: any) => {
@@ -141,6 +149,26 @@ export const MeetingsModule: React.FC = () => {
 
   const handleJoinNow = (meeting: any) => {
     if (meeting.teams_join_url) {
+      // Allow super admins and admins to join anytime
+      if (userRole === 'super_admin' || userRole === 'admin') {
+        window.open(meeting.teams_join_url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      // For regular users, check if it's too early
+      const now = new Date();
+      const start = parseISO(meeting.start_time);
+      const hourBeforeStart = new Date(start.getTime() - 60 * 60 * 1000);
+      
+      if (now < hourBeforeStart) {
+        toast({
+          title: "Too Early",
+          description: "You can join the meeting up to 1 hour before the start time",
+          variant: "destructive"
+        });
+        return;
+      }
+
       window.open(meeting.teams_join_url, '_blank', 'noopener,noreferrer');
     } else {
       toast({
@@ -343,6 +371,17 @@ export const MeetingsModule: React.FC = () => {
             <Button 
               variant="outline" 
               size="sm"
+              onClick={() => handleViewTranscript(meeting)}
+              disabled={isDeleting}
+              className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Transcript
+            </Button>
+
+            <Button 
+              variant="outline" 
+              size="sm"
               onClick={() => handleViewRSVP(meeting)}
               disabled={isDeleting}
               className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
@@ -533,6 +572,11 @@ export const MeetingsModule: React.FC = () => {
       <RSVPResponseDialog
         open={showRSVPDialog}
         onOpenChange={setShowRSVPDialog}
+        meeting={selectedMeeting}
+      />
+      <MeetingTranscriptDialog
+        open={showTranscriptDialog}
+        onOpenChange={setShowTranscriptDialog}
         meeting={selectedMeeting}
       />
 
