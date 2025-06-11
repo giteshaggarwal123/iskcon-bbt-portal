@@ -9,28 +9,14 @@ import { EmailModule } from '@/components/EmailModule';
 import { MembersModule } from '@/components/MembersModule';
 import { ReportsModule } from '@/components/ReportsModule';
 import { SettingsModule } from '@/components/SettingsModule';
-import { AuthPage } from '@/components/AuthPage';
+import { RealAuthPage } from '@/components/RealAuthPage';
 import { Layout } from '@/components/Layout';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 
 const AppContent = () => {
-  const { user, session, loading } = useAuth();
+  const { user, loading } = useAuth();
   const [currentModule, setCurrentModule] = React.useState('dashboard');
   const [avatarRefreshTrigger, setAvatarRefreshTrigger] = React.useState(0);
-
-  // Check for OTP authenticated user on mount
-  React.useEffect(() => {
-    const otpUser = localStorage.getItem('otp_authenticated_user');
-    if (otpUser && !user) {
-      try {
-        const userData = JSON.parse(otpUser);
-        console.log('Found OTP authenticated user:', userData);
-      } catch (error) {
-        console.error('Error parsing OTP user data:', error);
-        localStorage.removeItem('otp_authenticated_user');
-      }
-    }
-  }, [user]);
 
   // Listen for navigation events from dashboard
   React.useEffect(() => {
@@ -69,11 +55,8 @@ const AppContent = () => {
     );
   }
 
-  // Check for user or session or OTP authenticated user
-  const isAuthenticated = user || session || localStorage.getItem('otp_authenticated_user');
-
-  if (!isAuthenticated) {
-    return <AuthPage onLogin={() => window.location.reload()} />;
+  if (!user) {
+    return <RealAuthPage />;
   }
 
   const renderModule = () => {

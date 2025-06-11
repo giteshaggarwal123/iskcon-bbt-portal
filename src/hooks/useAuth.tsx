@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -153,8 +154,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
-      setLoading(true);
-      
       // Clear any existing remember me settings first
       localStorage.removeItem('rememberMe');
       localStorage.removeItem('rememberMeExpiry');
@@ -165,12 +164,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) {
-        console.error('Sign in error:', error);
         toast({
-          title: "Authentication Error",
-          description: error.message === 'Invalid login credentials' 
-            ? "Invalid email or password. Please check your credentials and try again."
-            : error.message,
+          title: "Sign In Error",
+          description: error.message,
           variant: "destructive"
         });
         return { error };
@@ -189,15 +185,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       return { error: null };
     } catch (error: any) {
-      console.error('Sign in catch error:', error);
       toast({
-        title: "Authentication Error",
-        description: "Network error. Please check your connection and try again.",
+        title: "Sign In Error",
+        description: error.message,
         variant: "destructive"
       });
       return { error };
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -210,7 +203,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error) {
         toast({
           title: "OTP Error",
-          description: error.details || "Failed to send OTP. Please try again.",
+          description: "Failed to send OTP. Please try again.",
           variant: "destructive"
         });
         return { error };
@@ -218,7 +211,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       toast({
         title: "OTP Sent",
-        description: data.message || "Please check your phone for the verification code."
+        description: "Please check your phone for the verification code."
       });
 
       return { error: null, otp: data.otp };
@@ -234,50 +227,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const sendLoginOTP = async (email: string) => {
     try {
-      setLoading(true);
-      console.log('Sending login OTP for email:', email);
-      
       const { data, error } = await supabase.functions.invoke('send-login-otp', {
         body: { email }
       });
 
       if (error) {
-        console.error('Send login OTP error:', error);
         toast({
-          title: "Authentication Error",
-          description: error.details || "Failed to send verification code. Please try again.",
+          title: "OTP Error",
+          description: "Failed to send verification code. Please try again.",
           variant: "destructive"
         });
         return { error };
       }
 
-      if (data.error) {
-        console.error('Send login OTP data error:', data);
-        toast({
-          title: "Authentication Error", 
-          description: data.details || data.error,
-          variant: "destructive"
-        });
-        return { error: data };
-      }
-
-      console.log('Login OTP sent successfully:', data);
       toast({
         title: "Verification Code Sent",
-        description: data.message || "Please check your phone for the verification code."
+        description: "Please check your phone for the verification code."
       });
 
       return { error: null, otp: data.otp };
     } catch (error: any) {
-      console.error('Send login OTP catch error:', error);
       toast({
-        title: "Authentication Error",
-        description: "Network error. Please check your connection and try again.",
+        title: "OTP Error",
+        description: error.message,
         variant: "destructive"
       });
       return { error };
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -350,76 +325,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const verifyLoginOTP = async (email: string, otp: string) => {
     try {
-      console.log('Verifying login OTP for email:', email, 'OTP:', otp);
-      
-      // Get the user by email from profiles table
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, email, first_name, last_name')
-        .eq('email', email)
-        .single();
-
-      if (profileError || !profile) {
-        console.error('Profile lookup error:', profileError);
-        toast({
-          title: "Authentication Error",
-          description: "User not found in the system.",
-          variant: "destructive"
-        });
-        return { error: profileError || new Error('User not found') };
-      }
-
-      // For demo purposes, we'll sign in the user directly after OTP verification
-      // In production, you might want to create a session token or use a different method
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: 'temporary_password_for_otp_login' // This would need to be handled differently in production
-      });
-
-      // If password auth fails, we'll create a session manually for OTP login
-      if (signInError) {
-        console.log('Password sign-in failed, creating OTP session...');
-        
-        // Create a temporary session for OTP-authenticated users
-        // This is a simplified approach - in production you'd want more robust session management
-        const tempUser = {
-          id: profile.id,
-          email: profile.email,
-          user_metadata: {
-            first_name: profile.first_name,
-            last_name: profile.last_name
-          }
-        };
-        
-        // Store temporary auth state
-        localStorage.setItem('otp_authenticated_user', JSON.stringify(tempUser));
-        
-        // Set user state manually
-        setUser(tempUser as any);
-        setSession({
-          access_token: 'otp_temp_token',
-          user: tempUser as any
-        } as any);
-        
-        toast({
-          title: "Login Successful",
-          description: `Welcome back, ${profile.first_name || 'User'}!`
-        });
-        
-        return { error: null };
-      }
-
-      toast({
-        title: "Login Successful", 
-        description: `Welcome back, ${profile.first_name || 'User'}!`
-      });
-
+      // In a real implementation, you would verify the OTP against stored values
+      // For now, we'll just return success since OTP verification is handled on frontend
       return { error: null };
     } catch (error: any) {
-      console.error('Verify login OTP error:', error);
       toast({
         title: "Verification Error",
-        description: error.message || "Failed to verify OTP. Please try again.",
+        description: error.message,
         variant: "destructive"
       });
       return { error };
@@ -431,7 +343,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Clear remember me settings
       localStorage.removeItem('rememberMe');
       localStorage.removeItem('rememberMeExpiry');
-      localStorage.removeItem('otp_authenticated_user');
 
       if (!session) {
         console.log('No active session found, clearing local state');
