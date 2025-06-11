@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { FileText, MoreVertical, Download, Eye, Edit3, Copy, Trash2, Star, StarOff, Move } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DocumentAnalytics } from '../DocumentAnalytics';
 import { format } from 'date-fns';
 
 interface Document {
@@ -115,7 +116,12 @@ export const FileSection: React.FC<FileSectionProps> = ({
                   </div>
                 </div>
               </div>
-              <div onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <DocumentAnalytics
+                  documentId={document.id}
+                  documentName={document.name}
+                  documentType="document"
+                />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -196,7 +202,12 @@ export const FileSection: React.FC<FileSectionProps> = ({
                 <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-gray-500 flex-shrink-0" />
                 <span className="font-medium truncate text-sm sm:text-base">{document.name}</span>
               </div>
-              <div onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <DocumentAnalytics
+                  documentId={document.id}
+                  documentName={document.name}
+                  documentType="document"
+                />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">

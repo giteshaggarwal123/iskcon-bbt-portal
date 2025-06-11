@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { FolderSection } from './FolderSection';
 import { FileSection } from './FileSection';
 import { DragDropZone } from './DragDropZone';
+import { DocumentAnalytics } from '../DocumentAnalytics';
 import { format } from 'date-fns';
 
 interface Document {
@@ -256,6 +257,11 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                   >
                     <Download className="h-4 w-4" />
                   </Button>
+                  <DocumentAnalytics
+                    documentId={document.id}
+                    documentName={document.name}
+                    documentType="document"
+                  />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm">
