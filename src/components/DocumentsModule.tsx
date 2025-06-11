@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { useToast } from '@/hooks/use-toast';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,7 +14,7 @@ import { DocumentTable } from './documents/DocumentTable';
 import { FolderManager } from './documents/FolderManager';
 import { TrashFolder } from './documents/TrashFolder';
 import { DocumentViewer } from './DocumentViewer';
-import { Search, Upload, Trash2, Grid, List, Plus } from 'lucide-react';
+import { Search, Upload, Trash2, Grid, List, Plus, Home } from 'lucide-react';
 
 export const DocumentsModule = () => {
   const { user } = useAuth();
@@ -46,6 +47,28 @@ export const DocumentsModule = () => {
   const handleFolderClick = (folderId: string) => {
     setSelectedFolder(folderId);
   };
+
+  // Generate breadcrumb path
+  const getBreadcrumbPath = () => {
+    if (!selectedFolder) return [];
+    
+    const path = [];
+    let currentFolderId = selectedFolder;
+    
+    while (currentFolderId) {
+      const folder = folders.find(f => f.id === currentFolderId);
+      if (folder) {
+        path.unshift(folder);
+        currentFolderId = folder.parent_folder_id;
+      } else {
+        break;
+      }
+    }
+    
+    return path;
+  };
+
+  const breadcrumbPath = getBreadcrumbPath();
 
   const handleDeleteFolder = async (folderId: string): Promise<boolean> => {
     try {
@@ -240,6 +263,40 @@ export const DocumentsModule = () => {
             Upload Document
           </Button>
         </div>
+      </div>
+
+      {/* Breadcrumb Navigation */}
+      <div className="bg-muted/50 rounded-lg p-4">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink 
+                onClick={() => setSelectedFolder(null)}
+                className="cursor-pointer flex items-center gap-1"
+              >
+                <Home className="h-4 w-4" />
+                Home
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            {breadcrumbPath.map((folder, index) => (
+              <React.Fragment key={folder.id}>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {index === breadcrumbPath.length - 1 ? (
+                    <BreadcrumbPage>{folder.name}</BreadcrumbPage>
+                  ) : (
+                    <BreadcrumbLink 
+                      onClick={() => setSelectedFolder(folder.id)}
+                      className="cursor-pointer"
+                    >
+                      {folder.name}
+                    </BreadcrumbLink>
+                  )}
+                </BreadcrumbItem>
+              </React.Fragment>
+            ))}
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
 
       {/* Search and Filters Bar */}
