@@ -52,38 +52,40 @@ export const DocumentViewerHeader: React.FC<DocumentViewerHeaderProps> = ({
         </div>
       </div>
       
-      <div className="flex items-center space-x-2 ml-4">
+      <div className="flex items-center space-x-1 ml-4">
         {isImage && (
-          <>
+          <div className="flex items-center bg-muted rounded-md p-1">
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               onClick={onZoomOut}
               disabled={zoom <= 25}
+              className="h-8 w-8 p-0"
             >
               <ZoomOut className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-medium px-2">{zoom}%</span>
+            <span className="text-sm font-medium px-3 min-w-[60px] text-center">{zoom}%</span>
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               onClick={onZoomIn}
               disabled={zoom >= 200}
+              className="h-8 w-8 p-0"
             >
               <ZoomIn className="h-4 w-4" />
             </Button>
-          </>
+          </div>
         )}
         
-        <Button size="sm" variant="outline" onClick={onDownload}>
+        <Button size="sm" variant="outline" onClick={onDownload} className="h-8">
           <Download className="h-4 w-4" />
         </Button>
         
-        <Button size="sm" variant="outline" onClick={onExternalView}>
+        <Button size="sm" variant="outline" onClick={onExternalView} className="h-8">
           <ExternalLink className="h-4 w-4" />
         </Button>
         
-        <Button size="sm" variant="ghost" onClick={onClose}>
+        <Button size="sm" variant="ghost" onClick={onClose} className="h-8">
           <X className="h-4 w-4" />
         </Button>
       </div>
