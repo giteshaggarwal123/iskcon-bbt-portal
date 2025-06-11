@@ -10,6 +10,26 @@ export const useAutoTranscript = () => {
   const { accessToken, isConnected } = useMicrosoftAuth();
   const { toast } = useToast();
 
+  const getMeetingTranscriptsFolderId = async () => {
+    try {
+      // Find the "Meeting Transcripts" folder inside "ISKCON Repository"
+      const { data: folders, error } = await supabase
+        .from('folders')
+        .select('id, name, parent_folder_id')
+        .in('name', ['ISKCON Repository', 'Meeting Transcripts']);
+
+      if (error) throw error;
+
+      const iskconRepo = folders?.find(f => f.name === 'ISKCON Repository' && f.parent_folder_id === null);
+      const meetingTranscriptsFolder = folders?.find(f => f.name === 'Meeting Transcripts' && f.parent_folder_id === iskconRepo?.id);
+
+      return meetingTranscriptsFolder?.id || null;
+    } catch (error) {
+      console.error('Error finding Meeting Transcripts folder:', error);
+      return null;
+    }
+  };
+
   const processExpiredMeetings = async () => {
     if (!user || !isConnected || !accessToken) return;
 
@@ -102,19 +122,30 @@ export const useAutoTranscript = () => {
 
       console.log(`Successfully saved transcript for meeting: ${meeting.title}`);
 
-      // Auto-save to documents repository
+      // Auto-save to documents repository in Meeting Transcripts folder
       try {
-        const fileName = `${meeting.title}_transcript_${new Date().toISOString().split('T')[0]}.txt`;
+        const meetingTranscriptsFolderId = await getMeetingTranscriptsFolderId();
+        const meetingDate = new Date(meeting.end_time).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).replace(/\//g, '-');
+        
+        const fileName = `${meeting.title}_${meetingDate}_transcript.txt`;
         
         const transcriptText = `
 Meeting: ${meeting.title}
 Date: ${new Date(meeting.end_time).toLocaleDateString()}
+Time: ${new Date(meeting.end_time).toLocaleTimeString()}
 
 TRANSCRIPT:
 ${processedTranscript.transcript_content}
 
 PARTICIPANTS:
 ${processedTranscript.participants?.map((p: any) => `- ${p.identity?.displayName || p.identity?.user?.displayName || 'Unknown'}`).join('\n') || 'No participants listed'}
+
+SUMMARY:
+${processedTranscript.summary}
         `.trim();
 
         await supabase
@@ -122,13 +153,13 @@ ${processedTranscript.participants?.map((p: any) => `- ${p.identity?.displayName
           .insert({
             name: fileName,
             file_path: `transcripts/${meeting.id}/${fileName}`,
-            folder: 'Meeting Transcripts',
+            folder_id: meetingTranscriptsFolderId,
             uploaded_by: user.id,
             mime_type: 'text/plain',
             file_size: transcriptText.length
           });
 
-        console.log(`Transcript saved to documents for meeting: ${meeting.title}`);
+        console.log(`Transcript saved to Meeting Transcripts folder for meeting: ${meeting.title}`);
 
       } catch (docError) {
         console.error('Error saving transcript to documents:', docError);
@@ -137,7 +168,7 @@ ${processedTranscript.participants?.map((p: any) => `- ${p.identity?.displayName
       // Show success notification
       toast({
         title: "Transcript Auto-Saved",
-        description: `Meeting transcript for "${meeting.title}" has been automatically saved.`
+        description: `Meeting transcript for "${meeting.title}" has been automatically saved to ISKCON Repository > Meeting Transcripts.`
       });
 
     } catch (error) {

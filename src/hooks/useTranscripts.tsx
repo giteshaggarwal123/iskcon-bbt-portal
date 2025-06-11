@@ -22,6 +22,26 @@ export const useTranscripts = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const getMeetingTranscriptsFolderId = async () => {
+    try {
+      // Find the "Meeting Transcripts" folder inside "ISKCON Repository"
+      const { data: folders, error } = await supabase
+        .from('folders')
+        .select('id, name, parent_folder_id')
+        .in('name', ['ISKCON Repository', 'Meeting Transcripts']);
+
+      if (error) throw error;
+
+      const iskconRepo = folders?.find(f => f.name === 'ISKCON Repository' && f.parent_folder_id === null);
+      const meetingTranscriptsFolder = folders?.find(f => f.name === 'Meeting Transcripts' && f.parent_folder_id === iskconRepo?.id);
+
+      return meetingTranscriptsFolder?.id || null;
+    } catch (error) {
+      console.error('Error finding Meeting Transcripts folder:', error);
+      return null;
+    }
+  };
+
   const fetchTranscriptForMeeting = async (meetingId: string) => {
     try {
       const { data, error } = await supabase
@@ -122,29 +142,61 @@ export const useTranscripts = () => {
     }
   };
 
-  const saveTranscriptToDocuments = async (transcript: MeetingTranscript, meetingTitle: string) => {
+  const saveTranscriptToDocuments = async (transcript: MeetingTranscript, meetingTitle: string, meetingEndTime?: string) => {
     if (!user) return;
 
     try {
-      // Create a document entry for the transcript
-      const fileName = `${meetingTitle}_transcript_${new Date().toISOString().split('T')[0]}.txt`;
+      const meetingTranscriptsFolderId = await getMeetingTranscriptsFolderId();
+      
+      // Format the date for the filename
+      const meetingDate = meetingEndTime 
+        ? new Date(meetingEndTime).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).replace(/\//g, '-')
+        : new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).replace(/\//g, '-');
+      
+      const fileName = `${meetingTitle}_${meetingDate}_transcript.txt`;
+      
+      const transcriptText = `
+Meeting: ${meetingTitle}
+Date: ${meetingEndTime ? new Date(meetingEndTime).toLocaleDateString() : new Date().toLocaleDateString()}
+Time: ${meetingEndTime ? new Date(meetingEndTime).toLocaleTimeString() : new Date().toLocaleTimeString()}
+
+TRANSCRIPT:
+${transcript.transcript_content || 'No transcript content available'}
+
+PARTICIPANTS:
+${transcript.participants?.map((p: any) => `- ${p.identity?.displayName || p.identity?.user?.displayName || p.emailAddress || 'Unknown'}`).join('\n') || 'No participants listed'}
+
+SUMMARY:
+${transcript.summary || 'No summary available'}
+
+ACTION ITEMS:
+${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${item.text || item}`).join('\n') || 'No action items'}
+      `.trim();
       
       const { error } = await supabase
         .from('documents')
         .insert({
           name: fileName,
           file_path: `transcripts/${transcript.meeting_id}/${fileName}`,
-          folder: 'Meeting Transcripts',
+          folder_id: meetingTranscriptsFolderId,
           uploaded_by: user.id,
           mime_type: 'text/plain',
-          file_size: transcript.transcript_content?.length || 0
+          file_size: transcriptText.length
         });
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Transcript saved to documents folder"
+        description: "Transcript saved to ISKCON Repository > Meeting Transcripts folder"
       });
 
       return true;

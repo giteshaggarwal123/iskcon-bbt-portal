@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -90,7 +91,7 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
 
     setSaving(true);
     try {
-      await saveTranscriptToDocuments(transcript, meeting.title);
+      await saveTranscriptToDocuments(transcript, meeting.title, meeting.end_time);
     } catch (error) {
       console.error('Error saving to documents:', error);
     } finally {
@@ -100,6 +101,12 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
 
   const handleDownload = () => {
     if (!transcript) return;
+
+    const meetingDate = new Date(meeting.end_time || meeting.start_time).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).replace(/\//g, '-');
 
     const content = `
 Meeting: ${meeting.title}
@@ -123,7 +130,7 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${meeting.title}_transcript_${new Date().toISOString().split('T')[0]}.txt`;
+    a.download = `${meeting.title}_${meetingDate}_transcript.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -199,7 +206,7 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                     disabled={saving}
                   >
                     <Save className="h-4 w-4 mr-2" />
-                    {saving ? 'Saving...' : 'Save to Documents'}
+                    {saving ? 'Saving...' : 'Save to ISKCON Repository'}
                   </Button>
                 </>
               )}
@@ -221,7 +228,7 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
               <p>No transcript available for this meeting</p>
               {meeting.teams_meeting_id && !meetingEnded && (
                 <p className="text-sm mt-2">
-                  Transcript will be automatically processed after the meeting ends
+                  Transcript will be automatically processed after the meeting ends and saved to ISKCON Repository > Meeting Transcripts
                 </p>
               )}
               {meeting.teams_meeting_id && meetingEnded && (
