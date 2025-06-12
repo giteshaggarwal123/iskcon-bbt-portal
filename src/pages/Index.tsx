@@ -10,13 +10,46 @@ import { MembersModule } from '@/components/MembersModule';
 import { ReportsModule } from '@/components/ReportsModule';
 import { SettingsModule } from '@/components/SettingsModule';
 import { RealAuthPage } from '@/components/RealAuthPage';
-import { Layout } from '@/components/Layout';
+import { MobileResponsiveLayout } from '@/components/MobileResponsiveLayout';
+import { MicrosoftAuthPrompt } from '@/components/MicrosoftAuthPrompt';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 
 const AppContent = () => {
   const { user, loading } = useAuth();
+  const { isConnected, loading: msLoading } = useMicrosoftAuth();
   const [currentModule, setCurrentModule] = React.useState('dashboard');
   const [avatarRefreshTrigger, setAvatarRefreshTrigger] = React.useState(0);
+  const [showMicrosoftPrompt, setShowMicrosoftPrompt] = React.useState(false);
+
+  // Check if this is first time user or session reset
+  React.useEffect(() => {
+    if (user && !loading && !msLoading) {
+      const hasShownPrompt = localStorage.getItem('microsoft_prompt_shown');
+      const lastUserId = localStorage.getItem('last_user_id');
+      
+      // Show prompt if:
+      // 1. Never shown before, OR
+      // 2. Different user (session reset), OR
+      // 3. Not connected to Microsoft
+      if (!hasShownPrompt || lastUserId !== user.id || !isConnected) {
+        setShowMicrosoftPrompt(true);
+      }
+      
+      // Store current user ID
+      localStorage.setItem('last_user_id', user.id);
+    }
+  }, [user, loading, msLoading, isConnected]);
+
+  const handleMicrosoftPromptClose = () => {
+    setShowMicrosoftPrompt(false);
+    localStorage.setItem('microsoft_prompt_shown', 'true');
+  };
+
+  const handleMicrosoftPromptSkip = () => {
+    setShowMicrosoftPrompt(false);
+    localStorage.setItem('microsoft_prompt_shown', 'true');
+  };
 
   // Listen for navigation events from dashboard
   React.useEffect(() => {
@@ -26,7 +59,6 @@ const AppContent = () => {
 
     const handleNavigateToPoll = (event: any) => {
       setCurrentModule('voting');
-      // You can pass the pollId to the VotingModule if needed
     };
 
     const handleProfileUpdate = () => {
@@ -85,9 +117,17 @@ const AppContent = () => {
   };
 
   return (
-    <Layout>
-      {renderModule()}
-    </Layout>
+    <>
+      <MobileResponsiveLayout>
+        {renderModule()}
+      </MobileResponsiveLayout>
+      
+      <MicrosoftAuthPrompt
+        isOpen={showMicrosoftPrompt}
+        onClose={handleMicrosoftPromptClose}
+        onSkip={handleMicrosoftPromptSkip}
+      />
+    </>
   );
 };
 
