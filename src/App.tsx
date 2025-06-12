@@ -3,11 +3,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import { RealAuthPage } from "./components/RealAuthPage";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import { AppContent } from "./components/AppContent";
 import { MicrosoftCallback } from "./pages/MicrosoftCallback";
 import { MobileSplashScreen } from "./components/MobileSplashScreen";
 import { useDeviceInfo } from "./hooks/useDeviceInfo";
@@ -39,10 +38,7 @@ const App = () => {
             <Routes>
               <Route path="/auth" element={<RealAuthPage />} />
               <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
-              <Route path="/" element={<Index />} />
-              <Route path="/404" element={<NotFound />} />
-              {/* More specific catch-all that handles any unmatched routes */}
-              <Route path="*" element={<Index />} />
+              <Route path="/*" element={<AppContent />} />
             </Routes>
           </BrowserRouter>
         </AuthProvider>
