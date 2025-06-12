@@ -50,32 +50,30 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col w-full safe-area-container">
-      {/* Mobile Header with proper safe area */}
+      {/* Mobile Header */}
       {isMobile && (
-        <div className="safe-area-top">
-          <Header 
-            onMenuClick={() => setSidebarOpen(!sidebarOpen)}
-            onProfileClick={() => {
-              setShowProfile(true);
-              setCurrentModule('profile');
-            }}
-            onSettingsClick={() => {
-              setShowSettings(true);
-              setCurrentModule('settings');
-            }}
-            onNavigate={(module) => {
-              setCurrentModule(module);
-              setShowProfile(false);
-              setShowSettings(false);
-              
-              const event = new CustomEvent('navigate-to-module', {
-                detail: { module }
-              });
-              window.dispatchEvent(event);
-            }}
-            showMenuButton={true}
-          />
-        </div>
+        <Header 
+          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+          onProfileClick={() => {
+            setShowProfile(true);
+            setCurrentModule('profile');
+          }}
+          onSettingsClick={() => {
+            setShowSettings(true);
+            setCurrentModule('settings');
+          }}
+          onNavigate={(module) => {
+            setCurrentModule(module);
+            setShowProfile(false);
+            setShowSettings(false);
+            
+            const event = new CustomEvent('navigate-to-module', {
+              detail: { module }
+            });
+            window.dispatchEvent(event);
+          }}
+          showMenuButton={true}
+        />
       )}
 
       {/* Desktop Layout */}
@@ -205,38 +203,34 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
           height: 100dvh; /* Dynamic viewport height for better mobile support */
         }
         
-        .safe-area-top {
-          padding-top: env(safe-area-inset-top, 0);
-          background: white;
-        }
-        
         .safe-area-bottom {
           padding-bottom: env(safe-area-inset-bottom, 0);
         }
         
         /* Mobile-specific viewport fixes */
         @media (max-width: 767px) {
-          /* Prevent content from going above notch/camera */
+          /* Prevent content from going above notch/camera but minimize spacing */
           .safe-area-container {
-            padding-top: env(safe-area-inset-top, 0);
+            padding-top: max(env(safe-area-inset-top, 0), 0px);
             min-height: 100vh;
             min-height: 100svh; /* Small viewport height */
           }
           
-          /* Main content area adjustments */
+          /* Main content area adjustments - reduced top spacing */
           .mobile-main {
             margin-top: 0;
             padding-top: 0;
-            height: calc(100vh - env(safe-area-inset-top, 0) - 140px);
-            height: calc(100dvh - env(safe-area-inset-top, 0) - 140px);
+            height: calc(100vh - 140px);
+            height: calc(100dvh - 140px);
             overflow-y: auto;
           }
           
-          /* Header positioning */
+          /* Header positioning - minimize top padding */
           header {
             position: relative;
             z-index: 30;
             width: 100%;
+            padding-top: max(env(safe-area-inset-top, 0), 8px);
           }
           
           /* Better touch targets */
@@ -281,12 +275,24 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
             .safe-area-container {
               height: -webkit-fill-available;
             }
+            
+            /* More precise safe area handling for iOS */
+            header {
+              padding-top: max(env(safe-area-inset-top, 0), 4px);
+            }
           }
           
           /* Android specific fixes */
           @media screen and (max-height: 700px) {
             .mobile-main {
               height: calc(100vh - 120px);
+            }
+          }
+          
+          /* Devices with notch/dynamic island */
+          @supports (padding: max(0px)) {
+            header {
+              padding-top: max(env(safe-area-inset-top, 0), 4px);
             }
           }
         }
