@@ -41,7 +41,8 @@ const App = () => {
               <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
               <Route path="/" element={<Index />} />
               <Route path="/404" element={<NotFound />} />
-              <Route path="*" element={<Navigate to="/404" replace />} />
+              {/* Catch all unmatched routes and redirect to home */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
         </AuthProvider>
