@@ -24,15 +24,30 @@ const AppContent = () => {
 
   // Check if this is first time user or session reset
   React.useEffect(() => {
+    console.log('Microsoft auth check:', { user: !!user, loading, msLoading, isConnected });
+    
     if (user && !loading && !msLoading) {
       const hasShownPrompt = localStorage.getItem('microsoft_prompt_shown');
       const lastUserId = localStorage.getItem('last_user_id');
       
+      console.log('Microsoft prompt logic:', { 
+        hasShownPrompt, 
+        lastUserId, 
+        currentUserId: user.id, 
+        isConnected 
+      });
+      
       // Show prompt if:
-      // 1. Never shown before, OR
-      // 2. Different user (session reset), OR
+      // 1. Never shown before for this user, OR
+      // 2. Different user (session reset), OR  
       // 3. Not connected to Microsoft
-      if (!hasShownPrompt || lastUserId !== user.id || !isConnected) {
+      const shouldShowPrompt = !hasShownPrompt || 
+                              lastUserId !== user.id || 
+                              !isConnected;
+      
+      console.log('Should show Microsoft prompt:', shouldShowPrompt);
+      
+      if (shouldShowPrompt) {
         setShowMicrosoftPrompt(true);
       }
       
@@ -42,11 +57,13 @@ const AppContent = () => {
   }, [user, loading, msLoading, isConnected]);
 
   const handleMicrosoftPromptClose = () => {
+    console.log('Microsoft prompt closed');
     setShowMicrosoftPrompt(false);
     localStorage.setItem('microsoft_prompt_shown', 'true');
   };
 
   const handleMicrosoftPromptSkip = () => {
+    console.log('Microsoft prompt skipped');
     setShowMicrosoftPrompt(false);
     localStorage.setItem('microsoft_prompt_shown', 'true');
   };
