@@ -1,8 +1,8 @@
 
 {
-  "name": "ISKCON BBT Portal",
-  "short_name": "BBT Portal",
-  "description": "ISKCON BBT Portal - Manage meetings, documents, voting, and attendance",
+  "name": "ISKCON BUREAU PORTAL",
+  "short_name": "ISKCON Portal",
+  "description": "ISKCON Bureau Portal - Manage meetings, documents, voting, and attendance",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -10,17 +10,12 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    },
-    {
-      "src": "/android-chrome-192x192.png",
+      "src": "/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/android-chrome-512x512.png",
+      "src": "/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png",
       "sizes": "512x512",
       "type": "image/png"
     }
@@ -34,7 +29,7 @@
       "url": "/?module=meetings",
       "icons": [
         {
-          "src": "/favicon.ico",
+          "src": "/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png",
           "sizes": "96x96"
         }
       ]
@@ -46,7 +41,7 @@
       "url": "/?module=documents",
       "icons": [
         {
-          "src": "/favicon.ico",
+          "src": "/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png",
           "sizes": "96x96"
         }
       ]
