@@ -49,31 +49,33 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col w-full">
-      {/* Mobile Header */}
+    <div className="min-h-screen bg-gray-50 flex flex-col w-full safe-area-container">
+      {/* Mobile Header with proper safe area */}
       {isMobile && (
-        <Header 
-          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
-          onProfileClick={() => {
-            setShowProfile(true);
-            setCurrentModule('profile');
-          }}
-          onSettingsClick={() => {
-            setShowSettings(true);
-            setCurrentModule('settings');
-          }}
-          onNavigate={(module) => {
-            setCurrentModule(module);
-            setShowProfile(false);
-            setShowSettings(false);
-            
-            const event = new CustomEvent('navigate-to-module', {
-              detail: { module }
-            });
-            window.dispatchEvent(event);
-          }}
-          showMenuButton={true}
-        />
+        <div className="safe-area-top">
+          <Header 
+            onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+            onProfileClick={() => {
+              setShowProfile(true);
+              setCurrentModule('profile');
+            }}
+            onSettingsClick={() => {
+              setShowSettings(true);
+              setCurrentModule('settings');
+            }}
+            onNavigate={(module) => {
+              setCurrentModule(module);
+              setShowProfile(false);
+              setShowSettings(false);
+              
+              const event = new CustomEvent('navigate-to-module', {
+                detail: { module }
+              });
+              window.dispatchEvent(event);
+            }}
+            showMenuButton={true}
+          />
+        </div>
       )}
 
       {/* Desktop Layout */}
@@ -158,14 +160,14 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
             isCollapsed={false}
           />
           
-          <main className="flex-1 p-3 pb-20 overflow-y-auto">
+          <main className="flex-1 p-3 pb-20 overflow-y-auto mobile-main">
             <div className="w-full">
               {renderContent()}
             </div>
           </main>
           
-          {/* Enhanced Mobile Bottom Navigation */}
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-padding">
+          {/* Enhanced Mobile Bottom Navigation with safe area */}
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-bottom">
             <div className="flex items-center justify-around px-2 py-2">
               {mobileNavItems.map((item) => (
                 <button
@@ -197,10 +199,44 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
       )}
 
       <style>{`
-        /* Mobile-first responsive styles */
+        /* Safe area handling for modern mobile devices */
+        .safe-area-container {
+          height: 100vh;
+          height: 100dvh; /* Dynamic viewport height for better mobile support */
+        }
+        
+        .safe-area-top {
+          padding-top: env(safe-area-inset-top, 0);
+          background: white;
+        }
+        
+        .safe-area-bottom {
+          padding-bottom: env(safe-area-inset-bottom, 0);
+        }
+        
+        /* Mobile-specific viewport fixes */
         @media (max-width: 767px) {
-          .safe-area-padding {
-            padding-bottom: env(safe-area-inset-bottom, 0);
+          /* Prevent content from going above notch/camera */
+          .safe-area-container {
+            padding-top: env(safe-area-inset-top, 0);
+            min-height: 100vh;
+            min-height: 100svh; /* Small viewport height */
+          }
+          
+          /* Main content area adjustments */
+          .mobile-main {
+            margin-top: 0;
+            padding-top: 0;
+            height: calc(100vh - env(safe-area-inset-top, 0) - 140px);
+            height: calc(100dvh - env(safe-area-inset-top, 0) - 140px);
+            overflow-y: auto;
+          }
+          
+          /* Header positioning */
+          header {
+            position: relative;
+            z-index: 30;
+            width: 100%;
           }
           
           /* Better touch targets */
@@ -231,13 +267,34 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
           }
           
           /* Hide scrollbars but keep functionality */
-          main::-webkit-scrollbar {
+          .mobile-main::-webkit-scrollbar {
             display: none;
           }
           
-          main {
+          .mobile-main {
             -ms-overflow-style: none;
             scrollbar-width: none;
+          }
+          
+          /* iOS specific fixes */
+          @supports (-webkit-touch-callout: none) {
+            .safe-area-container {
+              height: -webkit-fill-available;
+            }
+          }
+          
+          /* Android specific fixes */
+          @media screen and (max-height: 700px) {
+            .mobile-main {
+              height: calc(100vh - 120px);
+            }
+          }
+        }
+        
+        /* Desktop remains unchanged */
+        @media (min-width: 768px) {
+          .safe-area-container {
+            height: 100vh;
           }
         }
       `}</style>
