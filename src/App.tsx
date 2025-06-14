@@ -9,6 +9,7 @@ import { RealAuthPage } from "./components/RealAuthPage";
 import { AppContent } from "./components/AppContent";
 import { MicrosoftCallback } from "./pages/MicrosoftCallback";
 import { MobileSplashScreen } from "./components/MobileSplashScreen";
+import { NotFound } from "./pages/NotFound";
 import { useDeviceInfo } from "./hooks/useDeviceInfo";
 import { useState, useEffect } from "react";
 
@@ -38,6 +39,7 @@ const App = () => {
             <Routes>
               <Route path="/auth" element={<RealAuthPage />} />
               <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
+              <Route path="/404" element={<NotFound />} />
               <Route path="/*" element={<AppContent />} />
             </Routes>
           </BrowserRouter>

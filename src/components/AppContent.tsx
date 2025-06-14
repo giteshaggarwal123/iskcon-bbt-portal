@@ -13,9 +13,9 @@ import { SettingsModule } from '@/components/SettingsModule';
 import { RealAuthPage } from '@/components/RealAuthPage';
 import { MobileResponsiveLayout } from '@/components/MobileResponsiveLayout';
 import { MicrosoftAuthPrompt } from '@/components/MicrosoftAuthPrompt';
+import { NotFound } from '@/pages/NotFound';
 import { useAuth } from '@/hooks/useAuth';
 import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
-import { NotFound } from '@/pages/NotFound';
 
 export const AppContent = () => {
   const { user, loading } = useAuth();
@@ -150,8 +150,7 @@ export const AppContent = () => {
           />
         </>
       } />
-      <Route path="/404" element={<NotFound />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };

@@ -1,9 +1,10 @@
 
 import React from 'react';
-import { AppContent } from '@/components/AppContent';
+import { Navigate } from 'react-router-dom';
 
 const Index = () => {
-  return <AppContent />;
+  // Redirect to root path to be handled by AppContent
+  return <Navigate to="/" replace />;
 };
 
 export default Index;
