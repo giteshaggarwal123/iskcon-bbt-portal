@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +37,7 @@ import { useAutoTranscript } from '@/hooks/useAutoTranscript';
 import { format, parseISO, compareAsc, compareDesc } from 'date-fns';
 import { useUserRole } from '@/hooks/useUserRole';
 import { RSVPSelector } from './RSVPSelector';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const MeetingsModule: React.FC = () => {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
@@ -60,6 +62,7 @@ export const MeetingsModule: React.FC = () => {
   } = useMeetings();
   const { user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   // Add auto-transcript functionality
   useAutoTranscript();

@@ -166,7 +166,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         />
         
         <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
-          isMobile ? 'p-2 pb-20' : 'p-4 lg:p-6'
+          isMobile ? 'p-2 pb-20 pt-6' : 'p-4 lg:p-6'
         } ${!isMobile && sidebarOpen && !sidebarCollapsed ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
           <div className="w-full max-w-none">
             {renderContent()}

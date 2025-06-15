@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -181,7 +182,7 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
             isCollapsed={false}
           />
           
-          <main className="flex-1 p-3 pb-20 overflow-y-auto mobile-main">
+          <main className="flex-1 px-4 pt-6 pb-20 overflow-y-auto mobile-main">
             <div className="w-full">
               {renderContent()}
             </div>
@@ -239,10 +240,10 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
             min-height: 100svh; /* Small viewport height */
           }
           
-          /* Main content area adjustments - reduced top spacing */
+          /* Main content area adjustments - improved top spacing */
           .mobile-main {
             margin-top: 0;
-            padding-top: 0;
+            padding-top: 1.5rem; /* 24px - consistent with Email module */
             height: calc(100vh - 140px);
             height: calc(100dvh - 140px);
             overflow-y: auto;
