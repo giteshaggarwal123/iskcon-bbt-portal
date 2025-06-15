@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,10 +5,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Mail, Paperclip, Search, RefreshCw, ExternalLink, Circle } from 'lucide-react';
 import { useEmails } from '@/hooks/useEmails';
+import { useDeepLinking } from '@/hooks/useDeepLinking';
 
 export const EmailModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const { emails, loading, fetchEmails, markAsRead } = useEmails();
+  const { openOutlookLink } = useDeepLinking();
 
   const filteredEmails = emails.filter(email => 
     email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -48,8 +49,7 @@ export const EmailModule: React.FC = () => {
   };
 
   const handleOpenInOutlook = (email: any) => {
-    const outlookUrl = `https://outlook.office.com/mail/inbox/id/${email.id}`;
-    window.open(outlookUrl, '_blank', 'noopener,noreferrer');
+    openOutlookLink(email.id);
   };
 
   return (
