@@ -105,6 +105,15 @@ export const MeetingsModule: React.FC = () => {
     setShowRSVPDialog(true);
   };
 
+  const handleViewReport = (meeting: any) => {
+    // Add logic for viewing reports
+    console.log('View report for meeting:', meeting.title);
+    toast({
+      title: "Report View",
+      description: "Report viewing functionality will be implemented soon"
+    });
+  };
+
   const handleDeleteMeeting = async (meetingId: string, meetingTitle: string) => {
     // Check if user role allows deletion (admin check)
     if (!canDeleteMeetings) {
@@ -239,11 +248,11 @@ export const MeetingsModule: React.FC = () => {
     
     return (
       <Card key={meeting.id} className={`w-full hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50' : ''}`}>
-        <CardHeader className="pb-3 sm:pb-4">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-lg sm:text-xl flex flex-wrap items-start gap-2">
-                <span className="break-words">{meeting.title}</span>
+        <CardHeader className="pb-4 sm:pb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+            <div className="flex-1 min-w-0 space-y-3">
+              <CardTitle className="text-xl sm:text-2xl flex flex-wrap items-start gap-2">
+                <span className="break-words leading-tight">{meeting.title}</span>
                 {isLive && (
                   <Badge className="bg-red-500 text-white animate-pulse shrink-0">
                     LIVE
@@ -261,7 +270,21 @@ export const MeetingsModule: React.FC = () => {
                   </Badge>
                 )}
               </CardTitle>
-              <CardDescription className="mt-2 break-words text-sm">
+              
+              {/* Better spaced meeting info */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2 text-gray-600">
+                  <Calendar className="h-4 w-4 shrink-0" />
+                  <span className="text-sm font-medium">{timeInfo.date} at {timeInfo.time}</span>
+                  <span className="text-xs text-gray-500">({timeInfo.duration})</span>
+                </div>
+                <div className="flex items-center space-x-2 text-gray-600">
+                  <Users className="h-4 w-4 shrink-0" />
+                  <span className="text-sm">{attendeeCount} expected attendees</span>
+                </div>
+              </div>
+              
+              <CardDescription className="break-words text-sm mt-2">
                 {meeting.description || 'No description provided'}
               </CardDescription>
             </div>
@@ -271,25 +294,6 @@ export const MeetingsModule: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div className="flex items-center space-x-2 min-w-0">
-              <Calendar className="h-4 w-4 text-gray-500 shrink-0" />
-              <span className="text-sm break-words">{timeInfo.date}</span>
-            </div>
-            <div className="flex items-center space-x-2 min-w-0">
-              <Clock className="h-4 w-4 text-gray-500 shrink-0" />
-              <span className="text-sm break-words">{timeInfo.time} ({timeInfo.duration})</span>
-            </div>
-            <div className="flex items-center space-x-2 min-w-0">
-              <Users className="h-4 w-4 text-gray-500 shrink-0" />
-              <span className="text-sm">{attendeeCount} attendees</span>
-            </div>
-            <div className="flex items-center space-x-2 min-w-0">
-              <Video className="h-4 w-4 text-gray-500 shrink-0" />
-              <span className="text-sm break-words">{meeting.location || 'No location'}</span>
-            </div>
-          </div>
-
           <RSVPSelector 
             meeting={meeting} 
             onResponseUpdate={handleRSVPUpdate}
