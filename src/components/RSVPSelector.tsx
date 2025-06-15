@@ -4,22 +4,31 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Clock, Users } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Users, Eye, CheckSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface RSVPSelectorProps {
   meeting: any;
   onResponseUpdate?: () => void;
+  onViewReport?: (meeting: any) => void;
+  onViewRSVP?: (meeting: any) => void;
 }
 
-export const RSVPSelector: React.FC<RSVPSelectorProps> = ({ meeting, onResponseUpdate }) => {
+export const RSVPSelector: React.FC<RSVPSelectorProps> = ({ 
+  meeting, 
+  onResponseUpdate, 
+  onViewReport, 
+  onViewRSVP 
+}) => {
   const [currentResponse, setCurrentResponse] = useState<'yes' | 'no' | 'maybe' | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const userRole = useUserRole();
 
   useEffect(() => {
     if (meeting && user) {
@@ -174,74 +183,127 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({ meeting, onResponseU
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center space-x-2 text-base md:text-lg">
-          <Users className="h-4 w-4 md:h-5 md:w-5" />
-          <span>RSVP for this Meeting</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0 space-y-4">
-        {/* Current Response Display */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-medium text-gray-600">Current Response:</span>
-          {getResponseBadge(currentResponse)}
-        </div>
-
-        {/* Response Selection */}
-        <div className="space-y-3">
-          <Label className="text-sm font-semibold text-gray-700">Select your response:</Label>
-          
-          <RadioGroup
-            value={currentResponse || ""}
-            onValueChange={(value) => setCurrentResponse(value as 'yes' | 'no' | 'maybe')}
-            className="space-y-2"
-          >
-            {/* Yes Option */}
-            <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 hover:bg-gray-50 ${
-              currentResponse === 'yes' ? 'bg-green-50 border-green-200' : 'border-gray-200'
-            }`}>
-              <RadioGroupItem value="yes" id="yes" className="flex-shrink-0" />
-              <Label htmlFor="yes" className="flex items-center space-x-2 cursor-pointer flex-1">
-                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-                <span className="text-sm font-medium text-gray-700">Yes, I will attend</span>
-              </Label>
-            </div>
-
-            {/* No Option */}
-            <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 hover:bg-gray-50 ${
-              currentResponse === 'no' ? 'bg-red-50 border-red-200' : 'border-gray-200'
-            }`}>
-              <RadioGroupItem value="no" id="no" className="flex-shrink-0" />
-              <Label htmlFor="no" className="flex items-center space-x-2 cursor-pointer flex-1">
-                <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
-                <span className="text-sm font-medium text-gray-700">No, I cannot attend</span>
-              </Label>
-            </div>
-
-            {/* Maybe Option */}
-            <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 hover:bg-gray-50 ${
-              currentResponse === 'maybe' ? 'bg-yellow-50 border-yellow-200' : 'border-gray-200'
-            }`}>
-              <RadioGroupItem value="maybe" id="maybe" className="flex-shrink-0" />
-              <Label htmlFor="maybe" className="flex items-center space-x-2 cursor-pointer flex-1">
-                <Clock className="h-4 w-4 text-yellow-600 flex-shrink-0" />
-                <span className="text-sm font-medium text-gray-700">Maybe, I'm not sure</span>
-              </Label>
-            </div>
-          </RadioGroup>
-        </div>
-
-        {/* Submit Button */}
+    <div className="space-y-4">
+      {/* Desktop: Action buttons at top, RSVP form below */}
+      <div className="hidden md:flex justify-end gap-2 mb-4">
         <Button
-          onClick={handleResponseSubmit}
-          disabled={!currentResponse || submitting}
-          className="w-full h-10 text-sm font-semibold"
-          size="default"
+          variant="outline"
+          size="sm"
+          onClick={() => onViewRSVP?.(meeting)}
+          className="bg-purple-50 hover:bg-purple-100 text-purple-700"
         >
-          {submitting ? 'Submitting...' : 'Submit RSVP Response'}
+          <CheckSquare className="h-4 w-4 mr-1" />
+          RSVP
         </Button>
-      </CardContent>
-    </Card>
+        
+        {userRole.canViewReports && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onViewReport?.(meeting)}
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            Report
+          </Button>
+        )}
+      </div>
+
+      <Card className="w-full">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center justify-between text-base md:text-lg">
+            <div className="flex items-center space-x-2">
+              <Users className="h-4 w-4 md:h-5 md:w-5" />
+              <span>RSVP for this Meeting</span>
+            </div>
+            
+            {/* Mobile: Show buttons in header */}
+            <div className="flex md:hidden gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onViewRSVP?.(meeting)}
+                className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs px-2 py-1 h-8"
+              >
+                <CheckSquare className="h-3 w-3 mr-1" />
+                RSVP
+              </Button>
+              
+              {userRole.canViewReports && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onViewReport?.(meeting)}
+                  className="text-xs px-2 py-1 h-8"
+                >
+                  <Eye className="h-3 w-3 mr-1" />
+                  Report
+                </Button>
+              )}
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-4">
+          {/* Current Response Display */}
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium text-gray-600">Current Response:</span>
+            {getResponseBadge(currentResponse)}
+          </div>
+
+          {/* Response Selection */}
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold text-gray-700">Select your response:</Label>
+            
+            <RadioGroup
+              value={currentResponse || ""}
+              onValueChange={(value) => setCurrentResponse(value as 'yes' | 'no' | 'maybe')}
+              className="space-y-2"
+            >
+              {/* Yes Option */}
+              <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 hover:bg-gray-50 ${
+                currentResponse === 'yes' ? 'bg-green-50 border-green-200' : 'border-gray-200'
+              }`}>
+                <RadioGroupItem value="yes" id="yes" className="flex-shrink-0" />
+                <Label htmlFor="yes" className="flex items-center space-x-2 cursor-pointer flex-1">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span className="text-sm font-medium text-gray-700">Yes, I will attend</span>
+                </Label>
+              </div>
+
+              {/* No Option */}
+              <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 hover:bg-gray-50 ${
+                currentResponse === 'no' ? 'bg-red-50 border-red-200' : 'border-gray-200'
+              }`}>
+                <RadioGroupItem value="no" id="no" className="flex-shrink-0" />
+                <Label htmlFor="no" className="flex items-center space-x-2 cursor-pointer flex-1">
+                  <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                  <span className="text-sm font-medium text-gray-700">No, I cannot attend</span>
+                </Label>
+              </div>
+
+              {/* Maybe Option */}
+              <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 hover:bg-gray-50 ${
+                currentResponse === 'maybe' ? 'bg-yellow-50 border-yellow-200' : 'border-gray-200'
+              }`}>
+                <RadioGroupItem value="maybe" id="maybe" className="flex-shrink-0" />
+                <Label htmlFor="maybe" className="flex items-center space-x-2 cursor-pointer flex-1">
+                  <Clock className="h-4 w-4 text-yellow-600 flex-shrink-0" />
+                  <span className="text-sm font-medium text-gray-700">Maybe, I'm not sure</span>
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {/* Submit Button */}
+          <Button
+            onClick={handleResponseSubmit}
+            disabled={!currentResponse || submitting}
+            className="w-full h-10 text-sm font-semibold"
+            size="default"
+          >
+            {submitting ? 'Submitting...' : 'Submit RSVP Response'}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 };

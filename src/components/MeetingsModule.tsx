@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -294,6 +293,8 @@ export const MeetingsModule: React.FC = () => {
           <RSVPSelector 
             meeting={meeting} 
             onResponseUpdate={handleRSVPUpdate}
+            onViewReport={handleViewReport}
+            onViewRSVP={handleViewRSVP}
           />
 
           {meeting.teams_join_url && (

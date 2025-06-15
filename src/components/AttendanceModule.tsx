@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -294,36 +293,16 @@ export const AttendanceModule: React.FC = () => {
                               Mark Attendance
                             </Button>
                           )}
-
-                          <div className="button-row">
-                            <Button
-                              variant="outline"
-                              onClick={() => handleViewRSVP(meeting)}
-                              size="sm"
-                            >
-                              <CheckSquare className="h-4 w-4 mr-2" />
-                              RSVP
-                            </Button>
-
-                            {userRole.canViewReports && (
-                              <Button
-                                variant="outline"
-                                onClick={() => handleViewReport(meeting)}
-                                size="sm"
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                Report
-                              </Button>
-                            )}
-                          </div>
                         </div>
                       </div>
 
-                      {/* Add RSVP Selector */}
+                      {/* Updated RSVP Selector with new props */}
                       <div className="rsvp-selector-mobile">
                         <RSVPSelector 
                           meeting={meeting} 
                           onResponseUpdate={handleRSVPUpdate}
+                          onViewReport={handleViewReport}
+                          onViewRSVP={handleViewRSVP}
                         />
                       </div>
                     </CardContent>
@@ -379,28 +358,6 @@ export const AttendanceModule: React.FC = () => {
 
                         <div className="meeting-card-actions">
                           <div className="button-group">
-                            <div className="button-row">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleViewRSVP(meeting)}
-                              >
-                                <CheckSquare className="h-4 w-4 mr-2" />
-                                RSVP
-                              </Button>
-
-                              {userRole.canViewReports && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleViewReport(meeting)}
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Report
-                                </Button>
-                              )}
-                            </div>
-
                             {userRole.canViewReports && (
                               <Button
                                 variant="outline"
@@ -415,11 +372,13 @@ export const AttendanceModule: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Add RSVP Selector for past meetings too */}
+                        {/* Updated RSVP Selector for past meetings */}
                         <div className="rsvp-selector-mobile">
                           <RSVPSelector 
                             meeting={meeting} 
                             onResponseUpdate={handleRSVPUpdate}
+                            onViewReport={handleViewReport}
+                            onViewRSVP={handleViewRSVP}
                           />
                         </div>
                       </CardContent>
