@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -11,7 +10,8 @@ interface MobileResponsiveLayoutProps {
 }
 
 export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentModule, setCurrentModule] = useState('dashboard');
   const [showProfile, setShowProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -26,6 +26,17 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
     { id: 'voting', icon: Vote, label: 'Voting' }
   ];
 
+  // Set initial sidebar state based on device
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+      setSidebarCollapsed(false);
+    } else {
+      setSidebarOpen(true);
+      setSidebarCollapsed(false);
+    }
+  }, [isMobile]);
+
   const handleMobileNavigation = (moduleId: string) => {
     setCurrentModule(moduleId);
     setShowProfile(false);
@@ -36,6 +47,15 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
       detail: { module: moduleId }
     });
     window.dispatchEvent(event);
+  };
+
+  const handleMenuClick = () => {
+    if (isMobile) {
+      setSidebarOpen(!sidebarOpen);
+    } else {
+      // On desktop, toggle between collapsed and expanded
+      setSidebarCollapsed(!sidebarCollapsed);
+    }
   };
 
   const renderContent = () => {
@@ -53,7 +73,7 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
       {/* Mobile Header */}
       {isMobile && (
         <Header 
-          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+          onMenuClick={handleMenuClick}
           onProfileClick={() => {
             setShowProfile(true);
             setCurrentModule('profile');
@@ -80,8 +100,8 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
       {!isMobile && (
         <div className="flex">
           <Sidebar 
-            isOpen={true} 
-            onClose={() => {}}
+            isOpen={sidebarOpen} 
+            onClose={() => setSidebarOpen(false)}
             currentModule={currentModule}
             onModuleChange={(module) => {
               setCurrentModule(module);
@@ -93,12 +113,15 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
               });
               window.dispatchEvent(event);
             }}
-            isCollapsed={false}
+            isCollapsed={sidebarCollapsed}
           />
           
-          <div className="flex-1 flex flex-col">
+          <div className={`flex-1 flex flex-col transition-all duration-300 ${
+            sidebarOpen && !sidebarCollapsed ? 'ml-64' : 
+            sidebarOpen && sidebarCollapsed ? 'ml-20' : 'ml-0'
+          }`}>
             <Header 
-              onMenuClick={() => {}}
+              onMenuClick={handleMenuClick}
               onProfileClick={() => {
                 setShowProfile(true);
                 setCurrentModule('profile');
@@ -117,7 +140,7 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
                 });
                 window.dispatchEvent(event);
               }}
-              showMenuButton={false}
+              showMenuButton={true}
             />
             
             <main className="flex-1 p-4 lg:p-6">
