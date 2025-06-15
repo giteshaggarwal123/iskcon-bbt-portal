@@ -18,19 +18,7 @@ const config: CapacitorConfig = {
     StatusBar: {
       style: 'default',
       backgroundColor: '#ffffff'
-    },
-    App: {
-      appendUserAgent: 'ISKCON Portal App'
     }
-  },
-  android: {
-    allowMixedContent: true,
-    captureInput: true,
-    webContentsDebuggingEnabled: true
-  },
-  ios: {
-    contentInset: 'automatic',
-    scrollEnabled: true
   }
 };
 
