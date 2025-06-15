@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -151,17 +150,6 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({ meeting, onResponseU
     }
   };
 
-  const getResponseIcon = (response: 'yes' | 'no' | 'maybe') => {
-    switch (response) {
-      case 'yes':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'no':
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      case 'maybe':
-        return <Clock className="h-4 w-4 text-yellow-600" />;
-    }
-  };
-
   const getResponseBadge = (response: 'yes' | 'no' | 'maybe' | null) => {
     if (!response) return <Badge variant="outline" className="text-xs">No Response</Badge>;
     
@@ -193,51 +181,51 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({ meeting, onResponseU
           <span>RSVP for this Meeting</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 space-y-4">
         {/* Current Response Display */}
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center">
           <span className="text-sm font-medium text-gray-600">Current Response:</span>
           {getResponseBadge(currentResponse)}
         </div>
 
         {/* Response Selection */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <Label className="text-sm font-semibold text-gray-700">Select your response:</Label>
           
           <RadioGroup
             value={currentResponse || ""}
             onValueChange={(value) => setCurrentResponse(value as 'yes' | 'no' | 'maybe')}
-            className="space-y-3"
+            className="space-y-2"
           >
             {/* Yes Option */}
-            <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 cursor-pointer hover:bg-gray-50 ${
-              currentResponse === 'yes' ? 'bg-green-50 border-green-200 ring-1 ring-green-200' : 'border-gray-200'
+            <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 hover:bg-gray-50 ${
+              currentResponse === 'yes' ? 'bg-green-50 border-green-200' : 'border-gray-200'
             }`}>
-              <RadioGroupItem value="yes" id="yes" />
+              <RadioGroupItem value="yes" id="yes" className="flex-shrink-0" />
               <Label htmlFor="yes" className="flex items-center space-x-2 cursor-pointer flex-1">
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
                 <span className="text-sm font-medium text-gray-700">Yes, I will attend</span>
               </Label>
             </div>
 
             {/* No Option */}
-            <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 cursor-pointer hover:bg-gray-50 ${
-              currentResponse === 'no' ? 'bg-red-50 border-red-200 ring-1 ring-red-200' : 'border-gray-200'
+            <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 hover:bg-gray-50 ${
+              currentResponse === 'no' ? 'bg-red-50 border-red-200' : 'border-gray-200'
             }`}>
-              <RadioGroupItem value="no" id="no" />
+              <RadioGroupItem value="no" id="no" className="flex-shrink-0" />
               <Label htmlFor="no" className="flex items-center space-x-2 cursor-pointer flex-1">
-                <XCircle className="h-4 w-4 text-red-600" />
+                <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
                 <span className="text-sm font-medium text-gray-700">No, I cannot attend</span>
               </Label>
             </div>
 
             {/* Maybe Option */}
-            <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 cursor-pointer hover:bg-gray-50 ${
-              currentResponse === 'maybe' ? 'bg-yellow-50 border-yellow-200 ring-1 ring-yellow-200' : 'border-gray-200'
+            <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 hover:bg-gray-50 ${
+              currentResponse === 'maybe' ? 'bg-yellow-50 border-yellow-200' : 'border-gray-200'
             }`}>
-              <RadioGroupItem value="maybe" id="maybe" />
+              <RadioGroupItem value="maybe" id="maybe" className="flex-shrink-0" />
               <Label htmlFor="maybe" className="flex items-center space-x-2 cursor-pointer flex-1">
-                <Clock className="h-4 w-4 text-yellow-600" />
+                <Clock className="h-4 w-4 text-yellow-600 flex-shrink-0" />
                 <span className="text-sm font-medium text-gray-700">Maybe, I'm not sure</span>
               </Label>
             </div>
@@ -248,7 +236,7 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({ meeting, onResponseU
         <Button
           onClick={handleResponseSubmit}
           disabled={!currentResponse || submitting}
-          className="w-full mt-6 h-10 text-sm font-semibold"
+          className="w-full h-10 text-sm font-semibold"
           size="default"
         >
           {submitting ? 'Submitting...' : 'Submit RSVP Response'}
