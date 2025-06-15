@@ -3,17 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar, Users, Search, RefreshCw, Copy, Edit, Trash2, ExternalLink } from 'lucide-react';
+import { Calendar, Users, Search, RefreshCw, Copy, Edit, Trash2, ExternalLink, Clock, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
   DialogContent,
@@ -50,7 +43,7 @@ export const MeetingsModule: React.FC = () => {
       setLocation(editMeeting.location || '');
       setDescription(editMeeting.description || '');
       setAttendees(String(editMeeting.attendee_count || 0));
-      setTeamsMeetingUrl(editMeeting.teams_join_url || '');
+      setTeamsMeetingUrl(editMeeting.teams_meeting_url || '');
     } else {
       setTitle('');
       setDate('');
@@ -67,6 +60,10 @@ export const MeetingsModule: React.FC = () => {
     (meeting.location && meeting.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (meeting.description && meeting.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const now = new Date();
+  const upcomingMeetings = filteredMeetings.filter(meeting => new Date(meeting.start_time) > now);
+  const pastMeetings = filteredMeetings.filter(meeting => new Date(meeting.start_time) <= now);
 
   const handleCreateMeeting = async () => {
     try {
@@ -142,8 +139,8 @@ export const MeetingsModule: React.FC = () => {
   };
 
   const handleJoinMeeting = (meeting: Meeting) => {
-    if (meeting.teams_join_url) {
-      openTeamsLink(meeting.teams_join_url);
+    if (meeting.teams_meeting_url) {
+      openTeamsLink(meeting.teams_meeting_url);
     } else {
       toast({
         title: "No Meeting Link",
@@ -153,16 +150,150 @@ export const MeetingsModule: React.FC = () => {
     }
   };
 
+  const formatMeetingDateTime = (meeting: Meeting) => {
+    const startTime = new Date(meeting.start_time);
+    const dateStr = startTime.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    const timeStr = startTime.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+    return { dateStr, timeStr };
+  };
+
+  const getDuration = (meeting: Meeting) => {
+    const start = new Date(meeting.start_time);
+    const end = new Date(meeting.end_time);
+    const diffInMinutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
+    const hours = Math.floor(diffInMinutes / 60);
+    const minutes = diffInMinutes % 60;
+    
+    if (hours > 0) {
+      return `${hours}h${minutes > 0 ? ` ${minutes}m` : ''}`;
+    }
+    return `${minutes}m`;
+  };
+
+  const MeetingCard = ({ meeting }: { meeting: Meeting }) => {
+    const { dateStr, timeStr } = formatMeetingDateTime(meeting);
+    const duration = getDuration(meeting);
+    const isUpcoming = new Date(meeting.start_time) > now;
+
+    return (
+      <Card className="w-full mb-4 hover:shadow-md transition-shadow">
+        <CardContent className="p-6">
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900">{meeting.title}</h3>
+                {meeting.teams_meeting_url && (
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                    Teams
+                  </Badge>
+                )}
+                <Badge variant="outline" className="bg-green-100 text-green-800">
+                  scheduled
+                </Badge>
+              </div>
+              
+              <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>{dateStr} at {timeStr}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock className="h-4 w-4" />
+                  <span>({duration})</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1 text-sm text-gray-600 mb-3">
+                <Users className="h-4 w-4" />
+                <span>{meeting.attendee_count || 0} expected attendees</span>
+              </div>
+
+              {meeting.description && (
+                <p className="text-sm text-gray-600 mb-3">{meeting.description}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <div className="flex gap-2">
+              {isUpcoming && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                  >
+                    RSVP
+                  </Button>
+                  {meeting.teams_meeting_url && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleJoinMeeting(meeting)}
+                      className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                    >
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      Join Now
+                    </Button>
+                  )}
+                </>
+              )}
+              {!isUpcoming && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-gray-600 border-gray-600 hover:bg-gray-50"
+                >
+                  Report
+                </Button>
+              )}
+            </div>
+            
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setEditMeeting(meeting);
+                  setOpen(true);
+                }}
+                className="text-gray-600 hover:bg-gray-100"
+              >
+                <Edit className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDeleteMeeting(meeting.id)}
+                className="text-red-600 hover:bg-red-100"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header Section */}
       <div className="flex flex-col space-y-2">
-        <h1 className="text-2xl font-semibold text-gray-900">Meetings</h1>
-        <p className="text-sm text-gray-600">Manage your meetings and events</p>
+        <h1 className="text-2xl font-semibold text-gray-900">Meeting Management</h1>
+        <p className="text-sm text-gray-600">Schedule, track, and manage all ISKCON meetings with Teams integration</p>
       </div>
 
-      {/* Search and Actions Bar */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+      {/* Actions Bar */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex-1 max-w-md">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -174,173 +305,182 @@ export const MeetingsModule: React.FC = () => {
             />
           </div>
         </div>
-        <Button
-          variant="outline"
-          onClick={fetchMeetings}
-          disabled={loading}
-          className="flex items-center gap-2 border-gray-300 hover:bg-gray-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Calendar className="mr-2 h-4 w-4" />
-              Add Meeting
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>{editMeeting ? 'Edit Meeting' : 'Create Meeting'}</DialogTitle>
-              <DialogDescription>
-                {editMeeting ? 'Update meeting details.' : 'Create a new meeting.'}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="title" className="text-right">
-                  Title
-                </Label>
-                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="date" className="text-right">
-                  Date
-                </Label>
-                <Input type="date" id="date" value={date} onChange={(e) => setDate(e.target.value)} className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="time" className="text-right">
-                  Time
-                </Label>
-                <Input type="time" id="time" value={time} onChange={(e) => setTime(e.target.value)} className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="location" className="text-right">
-                  Location
-                </Label>
-                <Input id="location" value={location} onChange={(e) => setLocation(e.target.value)} className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="attendees" className="text-right">
-                  Attendees
-                </Label>
-                <Input
-                  type="number"
-                  id="attendees"
-                  value={attendees}
-                  onChange={(e) => setAttendees(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="teams_meeting_url" className="text-right">
-                  Teams Meeting URL
-                </Label>
-                <Input
-                  id="teams_meeting_url"
-                  value={teamsMeetingUrl}
-                  onChange={(e) => setTeamsMeetingUrl(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="description" className="text-right mt-2">
-                  Description
-                </Label>
-                <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="col-span-3" />
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button type="submit" onClick={editMeeting ? handleUpdateMeeting : handleCreateMeeting}>
-                {editMeeting ? 'Update Meeting' : 'Create Meeting'}
+        
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={fetchMeetings}
+            disabled={loading}
+            className="flex items-center gap-2 border-gray-300 hover:bg-gray-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-red-500 hover:bg-red-600">
+                <Calendar className="mr-2 h-4 w-4" />
+                Schedule Meeting
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>{editMeeting ? 'Edit Meeting' : 'Schedule Meeting'}</DialogTitle>
+                <DialogDescription>
+                  {editMeeting ? 'Update meeting details.' : 'Create a new meeting.'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="title" className="text-right">
+                    Title
+                  </Label>
+                  <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="date" className="text-right">
+                    Date
+                  </Label>
+                  <Input type="date" id="date" value={date} onChange={(e) => setDate(e.target.value)} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="time" className="text-right">
+                    Time
+                  </Label>
+                  <Input type="time" id="time" value={time} onChange={(e) => setTime(e.target.value)} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="location" className="text-right">
+                    Location
+                  </Label>
+                  <Input id="location" value={location} onChange={(e) => setLocation(e.target.value)} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="attendees" className="text-right">
+                    Attendees
+                  </Label>
+                  <Input
+                    type="number"
+                    id="attendees"
+                    value={attendees}
+                    onChange={(e) => setAttendees(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="teams_meeting_url" className="text-right">
+                    Teams Meeting URL
+                  </Label>
+                  <Input
+                    id="teams_meeting_url"
+                    value={teamsMeetingUrl}
+                    onChange={(e) => setTeamsMeetingUrl(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label htmlFor="description" className="text-right mt-2">
+                    Description
+                  </Label>
+                  <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="col-span-3" />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button type="submit" onClick={editMeeting ? handleUpdateMeeting : handleCreateMeeting}>
+                  {editMeeting ? 'Update Meeting' : 'Create Meeting'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      {/* Meeting List */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <p className="text-sm text-gray-500">Loading meetings...</p>
+      {/* Tabs Section */}
+      <Tabs defaultValue="upcoming" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="upcoming">Upcoming ({upcomingMeetings.length})</TabsTrigger>
+          <TabsTrigger value="past">Past ({pastMeetings.length})</TabsTrigger>
+          <TabsTrigger value="calendar">Calendar</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="upcoming" className="mt-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <p className="text-sm text-gray-500">Loading meetings...</p>
+              </div>
             </div>
-          </div>
-        ) : filteredMeetings.length > 0 ? (
-          <Table>
-            <TableCaption>A list of your meetings.</TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMeetings.map((meeting) => (
-                <TableRow key={meeting.id}>
-                  <TableCell>{meeting.title}</TableCell>
-                  <TableCell>{meeting.date}</TableCell>
-                  <TableCell>{meeting.time}</TableCell>
-                  <TableCell>{meeting.location}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleJoinMeeting(meeting)}
-                        className="text-blue-600 hover:bg-blue-100"
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        Join Now
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setEditMeeting(meeting);
-                          setOpen(true);
-                        }}
-                        className="text-gray-600 hover:bg-gray-100"
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteMeeting(meeting.id)}
-                        className="text-red-600 hover:bg-red-100"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+          ) : upcomingMeetings.length > 0 ? (
+            <div className="space-y-4">
+              {upcomingMeetings.map((meeting) => (
+                <MeetingCard key={meeting.id} meeting={meeting} />
               ))}
-            </TableBody>
-          </Table>
-        ) : (
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                  <Calendar className="h-8 w-8 text-gray-400" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium text-gray-900">No upcoming meetings</h3>
+                  <p className="text-sm text-gray-500 max-w-sm">
+                    Schedule a meeting to get started.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="past" className="mt-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <p className="text-sm text-gray-500">Loading meetings...</p>
+              </div>
+            </div>
+          ) : pastMeetings.length > 0 ? (
+            <div className="space-y-4">
+              {pastMeetings.map((meeting) => (
+                <MeetingCard key={meeting.id} meeting={meeting} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                  <Calendar className="h-8 w-8 text-gray-400" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium text-gray-900">No past meetings</h3>
+                  <p className="text-sm text-gray-500 max-w-sm">
+                    Past meetings will appear here.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="calendar" className="mt-6">
           <div className="text-center py-16">
             <div className="flex flex-col items-center space-y-4">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                <Users className="h-8 w-8 text-gray-400" />
+                <Calendar className="h-8 w-8 text-gray-400" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-lg font-medium text-gray-900">No meetings scheduled</h3>
+                <h3 className="text-lg font-medium text-gray-900">Calendar View</h3>
                 <p className="text-sm text-gray-500 max-w-sm">
-                  Schedule a meeting to get started.
+                  Calendar view will be implemented soon.
                 </p>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
