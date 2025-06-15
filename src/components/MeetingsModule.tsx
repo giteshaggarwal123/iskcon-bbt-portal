@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,19 +24,8 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useMeetings } from '@/hooks/useMeetings';
+import { useMeetings, Meeting } from '@/hooks/useMeetings';
 import { useDeepLinking } from '@/hooks/useDeepLinking';
-
-export interface Meeting {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-  location: string;
-  description: string;
-  attendees: number;
-  teams_meeting_url: string;
-}
 
 export const MeetingsModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,7 +38,7 @@ export const MeetingsModule: React.FC = () => {
   const [time, setTime] = useState('');
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
-  const [attendees, setAttendees] = useState(0);
+  const [attendees, setAttendees] = useState('0');
   const [teamsMeetingUrl, setTeamsMeetingUrl] = useState('');
   const { openTeamsLink } = useDeepLinking();
 
@@ -57,37 +47,39 @@ export const MeetingsModule: React.FC = () => {
       setTitle(editMeeting.title);
       setDate(editMeeting.date);
       setTime(editMeeting.time);
-      setLocation(editMeeting.location);
-      setDescription(editMeeting.description);
-      setAttendees(editMeeting.attendees);
-      setTeamsMeetingUrl(editMeeting.teams_meeting_url);
+      setLocation(editMeeting.location || '');
+      setDescription(editMeeting.description || '');
+      setAttendees(String(editMeeting.attendee_count || 0));
+      setTeamsMeetingUrl(editMeeting.teams_join_url || '');
     } else {
       setTitle('');
       setDate('');
       setTime('');
       setLocation('');
       setDescription('');
-      setAttendees(0);
+      setAttendees('0');
       setTeamsMeetingUrl('');
     }
   }, [editMeeting]);
 
   const filteredMeetings = meetings.filter(meeting =>
     meeting.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    meeting.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    meeting.description.toLowerCase().includes(searchTerm.toLowerCase())
+    (meeting.location && meeting.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (meeting.description && meeting.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleCreateMeeting = async () => {
     try {
       await createMeeting({
         title,
-        date,
+        date: new Date(date),
         time,
+        duration: '60 minutes',
+        type: 'online',
         location,
         description,
-        attendees,
-        teams_meeting_url: teamsMeetingUrl
+        attendees: '',
+        rsvpEnabled: true
       });
       setOpen(false);
       toast({
@@ -113,7 +105,7 @@ export const MeetingsModule: React.FC = () => {
         time,
         location,
         description,
-        attendees,
+        attendees: parseInt(attendees) || 0,
         teams_meeting_url: teamsMeetingUrl
       });
       setEditMeeting(null);
@@ -150,8 +142,8 @@ export const MeetingsModule: React.FC = () => {
   };
 
   const handleJoinMeeting = (meeting: Meeting) => {
-    if (meeting.teams_meeting_url) {
-      openTeamsLink(meeting.teams_meeting_url);
+    if (meeting.teams_join_url) {
+      openTeamsLink(meeting.teams_join_url);
     } else {
       toast({
         title: "No Meeting Link",
@@ -237,8 +229,8 @@ export const MeetingsModule: React.FC = () => {
                 <Input
                   type="number"
                   id="attendees"
-                  value={String(attendees)}
-                  onChange={(e) => setAttendees(Number(e.target.value))}
+                  value={attendees}
+                  onChange={(e) => setAttendees(e.target.value)}
                   className="col-span-3"
                 />
               </div>

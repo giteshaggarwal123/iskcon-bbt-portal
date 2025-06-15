@@ -3,18 +3,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 
-interface Meeting {
+export interface Meeting {
   id: string;
   title: string;
   description: string | null;
-  start_time: string;
-  end_time: string;
+  date: string; // Formatted date string
+  time: string; // Formatted time string
+  start_time: string; // ISO timestamp
+  end_time: string; // ISO timestamp
   location: string | null;
   meeting_type: string | null;
   status: string | null;
   created_by: string;
   created_at: string;
   teams_join_url: string | null;
+  teams_meeting_url: string; // Alias for teams_join_url
   teams_meeting_id: string | null;
   outlook_event_id: string | null;
   attendees?: { user_id: string; status: string }[];
@@ -34,6 +37,20 @@ export const useMeetings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const formatMeetingData = (meeting: any): Meeting => {
+    const startTime = new Date(meeting.start_time);
+    const endTime = new Date(meeting.end_time);
+    
+    return {
+      ...meeting,
+      date: startTime.toISOString().split('T')[0], // YYYY-MM-DD format
+      time: startTime.toTimeString().slice(0, 5), // HH:MM format
+      teams_meeting_url: meeting.teams_join_url || '', // Alias for compatibility
+      attendees: meeting.meeting_attendees || [],
+      attendee_count: meeting.meeting_attendees ? meeting.meeting_attendees.length : 0
+    };
+  };
+
   const fetchMeetings = async () => {
     try {
       const { data, error } = await supabase
@@ -46,11 +63,7 @@ export const useMeetings = () => {
 
       if (error) throw error;
       
-      const processedMeetings = (data || []).map(meeting => ({
-        ...meeting,
-        attendees: meeting.meeting_attendees || [],
-        attendee_count: meeting.meeting_attendees ? meeting.meeting_attendees.length : 0
-      }));
+      const processedMeetings = (data || []).map(formatMeetingData);
       
       console.log('Fetched meetings with attendee counts:', processedMeetings);
       setMeetings(processedMeetings);
@@ -182,7 +195,7 @@ export const useMeetings = () => {
               variant: "destructive"
             });
           } else {
-            meeting = teamsData.meeting;
+            meeting = formatMeetingData(teamsData.meeting);
             
             toast({
               title: "Teams Meeting Created!",
@@ -229,7 +242,7 @@ export const useMeetings = () => {
         .single();
 
       if (error) throw error;
-      meeting = meetingResult;
+      meeting = formatMeetingData(meetingResult);
 
       toast({
         title: "Meeting Created",
@@ -253,6 +266,59 @@ export const useMeetings = () => {
         description: error.message || "Failed to create meeting",
         variant: "destructive"
       });
+    }
+  };
+
+  const updateMeeting = async (meetingId: string, meetingData: {
+    title: string;
+    date: string;
+    time: string;
+    location: string;
+    description: string;
+    attendees: number;
+    teams_meeting_url: string;
+  }) => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to update meetings",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const startDateTime = new Date(`${meetingData.date}T${meetingData.time}`);
+      // Assume 1 hour duration for updates if not specified
+      const endDateTime = new Date(startDateTime.getTime() + 60 * 60000);
+
+      const { data, error } = await supabase
+        .from('meetings')
+        .update({
+          title: meetingData.title,
+          description: meetingData.description,
+          start_time: startDateTime.toISOString(),
+          end_time: endDateTime.toISOString(),
+          location: meetingData.location,
+          teams_join_url: meetingData.teams_meeting_url
+        })
+        .eq('id', meetingId)
+        .eq('created_by', user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      fetchMeetings();
+      return formatMeetingData(data);
+    } catch (error: any) {
+      console.error('Error updating meeting:', error);
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update meeting",
+        variant: "destructive"
+      });
+      throw error;
     }
   };
 
@@ -736,6 +802,7 @@ export const useMeetings = () => {
     loading,
     deletingMeetings: deletingMeetings,
     createMeeting,
+    updateMeeting,
     deleteMeeting,
     deletePastMeeting,
     fetchMeetings,
