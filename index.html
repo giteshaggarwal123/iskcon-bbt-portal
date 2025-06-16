@@ -3,17 +3,35 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>ISKCON MANAGEMENT PORTAL</title>
     <meta name="description" content="ISKCON Management Portal - Comprehensive Bureau Meeting Management Platform" />
     <meta name="author" content="ISKCON" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="application-name" content="ISKCON Portal" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="ISKCON Portal" />
+    <meta name="msapplication-TileColor" content="#B8555A" />
+    <meta name="theme-color" content="#B8555A" />
+    
+    <!-- Icons -->
     <link rel="icon" href="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" type="image/png">
-
+    <link rel="apple-touch-icon" href="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png">
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Prevent zoom on input focus (iOS) -->
+    <meta name="format-detection" content="telephone=no">
+    
+    <!-- Open Graph -->
     <meta property="og:title" content="ISKCON MANAGEMENT PORTAL" />
     <meta property="og:description" content="ISKCON Management Portal - Comprehensive Bureau Meeting Management Platform" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
@@ -24,6 +42,65 @@
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+
+      // PWA Install Prompt
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // Show install button or banner
+        const installBanner = document.createElement('div');
+        installBanner.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          background: #B8555A;
+          color: white;
+          padding: 10px;
+          text-align: center;
+          z-index: 9999;
+          font-family: Arial, sans-serif;
+        `;
+        installBanner.innerHTML = `
+          <span>Install ISKCON Portal for better experience</span>
+          <button id="install-btn" style="margin-left: 10px; padding: 5px 10px; background: white; color: #B8555A; border: none; border-radius: 3px; cursor: pointer;">Install</button>
+          <button id="dismiss-btn" style="margin-left: 5px; padding: 5px 10px; background: transparent; color: white; border: 1px solid white; border-radius: 3px; cursor: pointer;">Maybe Later</button>
+        `;
+        
+        document.body.appendChild(installBanner);
+        
+        document.getElementById('install-btn').addEventListener('click', () => {
+          installBanner.remove();
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User accepted the install prompt');
+            }
+            deferredPrompt = null;
+          });
+        });
+        
+        document.getElementById('dismiss-btn').addEventListener('click', () => {
+          installBanner.remove();
+        });
+      });
+    </script>
     
     <!-- Footer with updated year - Hidden on mobile, visible on desktop -->
     <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.9); padding: 0.5rem; text-align: center; font-size: 0.75rem; color: #666; z-index: 1000; backdrop-filter: blur(4px); display: none;">
@@ -43,6 +120,17 @@
         footer {
           display: none !important;
         }
+      }
+      
+      /* Prevent zoom on iOS */
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+      
+      /* Hide scrollbars but keep functionality */
+      ::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
       }
     </style>
   </body>

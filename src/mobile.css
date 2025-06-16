@@ -1,0 +1,120 @@
+
+/* Mobile-specific optimizations */
+
+/* Prevent zoom on form inputs */
+input, select, textarea, button {
+  font-size: 16px !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Better touch targets */
+button, a, [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent text selection on UI elements */
+.no-select {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Better mobile viewport handling */
+@media screen and (max-width: 768px) {
+  /* Ensure content doesn't overflow horizontally */
+  * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  /* Better spacing for mobile */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Mobile-friendly tables */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  /* Better mobile forms */
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+  }
+  
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 0.375rem;
+    font-size: 16px;
+  }
+}
+
+/* PWA-specific styles */
+@media all and (display-mode: standalone) {
+  /* Styles when app is installed as PWA */
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  
+  /* Hide browser UI elements */
+  .browser-only {
+    display: none !important;
+  }
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* iOS-specific styles */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  textarea {
+    -webkit-appearance: none;
+    border-radius: 0;
+  }
+  
+  /* Fix for iOS Safari bottom bar */
+  .full-height {
+    height: -webkit-fill-available;
+  }
+}
+
+/* Android Chrome specific fixes */
+@media screen and (max-width: 768px) and (orientation: portrait) {
+  /* Portrait mode optimizations */
+  .mobile-portrait {
+    /* Add any portrait-specific styles */
+  }
+}
+
+@media screen and (max-width: 768px) and (orientation: landscape) {
+  /* Landscape mode optimizations */
+  .mobile-landscape {
+    /* Add any landscape-specific styles */
+  }
+}
