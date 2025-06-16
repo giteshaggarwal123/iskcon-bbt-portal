@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { SettingsModule } from './SettingsModule';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface MobileResponsiveLayoutProps {
   children: React.ReactNode;
@@ -13,19 +13,35 @@ interface MobileResponsiveLayoutProps {
 export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [currentModule, setCurrentModule] = useState('dashboard');
-  const [showProfile, setShowProfile] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const isMobile = useIsMobile();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // Enhanced mobile navigation items with better touch targets
   const mobileNavItems = [
-    { id: 'dashboard', icon: Home, label: 'Home' },
-    { id: 'meetings', icon: Calendar, label: 'Meeting' },
-    { id: 'documents', icon: File, label: 'Docs' },
-    { id: 'attendance', icon: UserCheck, label: 'Attendance' },
-    { id: 'voting', icon: Vote, label: 'Voting' }
+    { id: 'dashboard', icon: Home, label: 'Home', path: '/' },
+    { id: 'meetings', icon: Calendar, label: 'Meeting', path: '/meetings' },
+    { id: 'documents', icon: File, label: 'Docs', path: '/documents' },
+    { id: 'attendance', icon: UserCheck, label: 'Attendance', path: '/attendance' },
+    { id: 'voting', icon: Vote, label: 'Voting', path: '/voting' }
   ];
+
+  // Get current module from URL path
+  const getCurrentModule = () => {
+    const path = location.pathname;
+    if (path === '/' || path === '/dashboard') return 'dashboard';
+    if (path.startsWith('/meetings')) return 'meetings';
+    if (path.startsWith('/documents')) return 'documents';
+    if (path.startsWith('/voting')) return 'voting';
+    if (path.startsWith('/attendance')) return 'attendance';
+    if (path.startsWith('/email')) return 'email';
+    if (path.startsWith('/members')) return 'members';
+    if (path.startsWith('/reports')) return 'reports';
+    if (path.startsWith('/settings')) return 'settings';
+    return 'dashboard';
+  };
+
+  const currentModule = getCurrentModule();
 
   // Set initial sidebar state based on device
   useEffect(() => {
@@ -38,16 +54,9 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
     }
   }, [isMobile]);
 
-  const handleMobileNavigation = (moduleId: string) => {
-    setCurrentModule(moduleId);
-    setShowProfile(false);
-    setShowSettings(false);
+  const handleMobileNavigation = (moduleId: string, path: string) => {
+    navigate(path);
     setSidebarOpen(false);
-    
-    const event = new CustomEvent('navigate-to-module', {
-      detail: { module: moduleId }
-    });
-    window.dispatchEvent(event);
   };
 
   const handleMenuClick = () => {
@@ -59,14 +68,10 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
     }
   };
 
-  const renderContent = () => {
-    if (showProfile || currentModule === 'profile') {
-      return <SettingsModule />;
-    }
-    if (showSettings || currentModule === 'settings') {
-      return <SettingsModule />;
-    }
-    return children;
+  const handleModuleChange = (module: string) => {
+    const path = module === 'dashboard' ? '/' : `/${module}`;
+    navigate(path);
+    setSidebarOpen(false);
   };
 
   return (
@@ -75,24 +80,9 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
       {isMobile && (
         <Header 
           onMenuClick={handleMenuClick}
-          onProfileClick={() => {
-            setShowProfile(true);
-            setCurrentModule('profile');
-          }}
-          onSettingsClick={() => {
-            setShowSettings(true);
-            setCurrentModule('settings');
-          }}
-          onNavigate={(module) => {
-            setCurrentModule(module);
-            setShowProfile(false);
-            setShowSettings(false);
-            
-            const event = new CustomEvent('navigate-to-module', {
-              detail: { module }
-            });
-            window.dispatchEvent(event);
-          }}
+          onProfileClick={() => handleModuleChange('settings')}
+          onSettingsClick={() => handleModuleChange('settings')}
+          onNavigate={handleModuleChange}
           showMenuButton={true}
         />
       )}
@@ -104,16 +94,7 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
             isOpen={sidebarOpen} 
             onClose={() => setSidebarOpen(false)}
             currentModule={currentModule}
-            onModuleChange={(module) => {
-              setCurrentModule(module);
-              setShowProfile(false);
-              setShowSettings(false);
-              
-              const event = new CustomEvent('navigate-to-module', {
-                detail: { module }
-              });
-              window.dispatchEvent(event);
-            }}
+            onModuleChange={handleModuleChange}
             isCollapsed={sidebarCollapsed}
           />
           
@@ -123,30 +104,15 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
           }`}>
             <Header 
               onMenuClick={handleMenuClick}
-              onProfileClick={() => {
-                setShowProfile(true);
-                setCurrentModule('profile');
-              }}
-              onSettingsClick={() => {
-                setShowSettings(true);
-                setCurrentModule('settings');
-              }}
-              onNavigate={(module) => {
-                setCurrentModule(module);
-                setShowProfile(false);
-                setShowSettings(false);
-                
-                const event = new CustomEvent('navigate-to-module', {
-                  detail: { module }
-                });
-                window.dispatchEvent(event);
-              }}
+              onProfileClick={() => handleModuleChange('settings')}
+              onSettingsClick={() => handleModuleChange('settings')}
+              onNavigate={handleModuleChange}
               showMenuButton={true}
             />
             
             <main className="flex-1 p-4 lg:p-6">
               <div className="w-full max-w-none">
-                {renderContent()}
+                {children}
               </div>
             </main>
           </div>
@@ -168,23 +134,13 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
             isOpen={sidebarOpen} 
             onClose={() => setSidebarOpen(false)}
             currentModule={currentModule}
-            onModuleChange={(module) => {
-              setCurrentModule(module);
-              setShowProfile(false);
-              setShowSettings(false);
-              setSidebarOpen(false);
-              
-              const event = new CustomEvent('navigate-to-module', {
-                detail: { module }
-              });
-              window.dispatchEvent(event);
-            }}
+            onModuleChange={handleModuleChange}
             isCollapsed={false}
           />
           
           <main className="flex-1 px-4 pt-6 pb-24 overflow-y-auto mobile-main">
             <div className="w-full">
-              {renderContent()}
+              {children}
             </div>
           </main>
           
@@ -194,7 +150,7 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
               {mobileNavItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => handleMobileNavigation(item.id)}
+                  onClick={() => handleMobileNavigation(item.id, item.path)}
                   className={`flex flex-col items-center justify-center flex-1 py-3 px-2 transition-all duration-200 rounded-lg mx-1 ${
                     currentModule === item.id
                       ? 'text-primary bg-primary/10 scale-105'
@@ -220,6 +176,7 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
         </>
       )}
 
+      {/* ... keep existing code (styles section) */}
       <style>{`
         /* Safe area handling for modern mobile devices */
         .safe-area-container {

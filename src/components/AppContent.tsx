@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Dashboard } from '@/components/Dashboard';
 import { MeetingsModule } from '@/components/MeetingsModule';
 import { DocumentsModule } from '@/components/DocumentsModule';
@@ -20,9 +20,26 @@ export const AppContent = () => {
   const { user, loading } = useAuth();
   const { isConnected, loading: msLoading } = useMicrosoftAuth();
   const location = useLocation();
-  const [currentModule, setCurrentModule] = React.useState('dashboard');
+  const navigate = useNavigate();
   const [avatarRefreshTrigger, setAvatarRefreshTrigger] = React.useState(0);
   const [showMicrosoftPrompt, setShowMicrosoftPrompt] = React.useState(false);
+
+  // Get current module from URL path
+  const getCurrentModule = () => {
+    const path = location.pathname;
+    if (path === '/' || path === '/dashboard') return 'dashboard';
+    if (path.startsWith('/meetings')) return 'meetings';
+    if (path.startsWith('/documents')) return 'documents';
+    if (path.startsWith('/voting')) return 'voting';
+    if (path.startsWith('/attendance')) return 'attendance';
+    if (path.startsWith('/email')) return 'email';
+    if (path.startsWith('/members')) return 'members';
+    if (path.startsWith('/reports')) return 'reports';
+    if (path.startsWith('/settings')) return 'settings';
+    return 'dashboard';
+  };
+
+  const currentModule = getCurrentModule();
 
   // Check if this is first time user or session reset
   React.useEffect(() => {
@@ -70,14 +87,16 @@ export const AppContent = () => {
     localStorage.setItem('microsoft_prompt_shown', 'true');
   };
 
-  // Listen for navigation events from dashboard
+  // Listen for navigation events from dashboard and handle URL navigation
   React.useEffect(() => {
     const handleNavigateToModule = (event: any) => {
-      setCurrentModule(event.detail.module);
+      const module = event.detail.module;
+      const path = module === 'dashboard' ? '/' : `/${module}`;
+      navigate(path);
     };
 
     const handleNavigateToPoll = (event: any) => {
-      setCurrentModule('voting');
+      navigate('/voting');
     };
 
     const handleProfileUpdate = () => {
@@ -93,7 +112,7 @@ export const AppContent = () => {
       window.removeEventListener('navigate-to-poll', handleNavigateToPoll);
       window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
-  }, []);
+  }, [navigate]);
 
   if (loading) {
     return (
@@ -109,31 +128,6 @@ export const AppContent = () => {
   if (!user) {
     return <RealAuthPage />;
   }
-
-  const renderModule = () => {
-    switch (currentModule) {
-      case 'dashboard':
-        return <Dashboard />;
-      case 'meetings':
-        return <MeetingsModule />;
-      case 'documents':
-        return <DocumentsModule />;
-      case 'voting':
-        return <VotingModule />;
-      case 'attendance':
-        return <AttendanceModule />;
-      case 'email':
-        return <EmailModule />;
-      case 'members':
-        return <MembersModule />;
-      case 'reports':
-        return <ReportsModule />;
-      case 'settings':
-        return <SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />;
-      default:
-        return <Dashboard />;
-    }
-  };
 
   return (
     <>
