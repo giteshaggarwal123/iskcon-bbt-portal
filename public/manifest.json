@@ -1,8 +1,8 @@
 
 {
-  "name": "ISKCON BUREAU PORTAL",
+  "name": "ISKCON MANAGEMENT PORTAL",
   "short_name": "ISKCON Portal",
-  "description": "ISKCON Bureau Portal - Manage meetings, documents, voting, and attendance",
+  "description": "ISKCON Management Portal - Manage meetings, documents, voting, and attendance",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -22,12 +22,12 @@ export const MobileSplashScreen: React.FC = () => {
       <div className="flex flex-col items-center space-y-6">
         {/* App Logo */}
         <div className="w-24 h-24 bg-red-600 rounded-full flex items-center justify-center">
-          <span className="text-white text-2xl font-bold">BBT</span>
+          <span className="text-white text-2xl font-bold">IMP</span>
         </div>
         
         {/* App Name */}
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">ISKCON BBT Portal</h1>
+          <h1 className="text-2xl font-bold text-gray-900">ISKCON Management Portal</h1>
           <p className="text-gray-600 mt-1">
             {deviceInfo.isNative ? 'Mobile App' : 'Web Portal'}
           </p>
@@ -49,6 +49,13 @@ export const MobileSplashScreen: React.FC = () => {
           </p>
         </div>
       )}
+      
+      {/* Footer */}
+      <div className="absolute bottom-4 text-center">
+        <p className="text-xs text-gray-400">
+          © 2025 ISKCON Management Platform
+        </p>
+      </div>
     </div>
   );
 };
