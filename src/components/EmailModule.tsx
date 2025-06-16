@@ -1,14 +1,15 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Mail, Paperclip, Search, RefreshCw, ExternalLink, Circle } from 'lucide-react';
-import { useEmails } from '@/hooks/useEmails';
+import { useEmails, Email } from '@/hooks/useEmails';
+import { EmailDetailView } from './EmailDetailView';
 
 export const EmailModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const { emails, loading, fetchEmails, markAsRead } = useEmails();
 
   const filteredEmails = emails.filter(email => 
@@ -47,11 +48,33 @@ export const EmailModule: React.FC = () => {
     return null;
   };
 
-  const handleOpenInOutlook = (email: any) => {
+  const handleOpenInOutlook = (email: Email) => {
     const outlookUrl = `https://outlook.office.com/mail/inbox/id/${email.id}`;
     window.open(outlookUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const handleEmailClick = async (email: Email) => {
+    // Mark as read and show full email
+    await markAsRead(email.id);
+    setSelectedEmail(email);
+  };
+
+  const handleBackToInbox = () => {
+    setSelectedEmail(null);
+  };
+
+  // If an email is selected, show the detail view
+  if (selectedEmail) {
+    return (
+      <EmailDetailView
+        email={selectedEmail}
+        onBack={handleBackToInbox}
+        onOpenInOutlook={handleOpenInOutlook}
+      />
+    );
+  }
+
+  // Otherwise show the email list view
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header Section */}
@@ -101,7 +124,7 @@ export const EmailModule: React.FC = () => {
                 className={`group hover:bg-gray-50 transition-colors cursor-pointer ${
                   !email.isRead ? 'bg-blue-50/30' : ''
                 }`}
-                onClick={() => markAsRead(email.id)}
+                onClick={() => handleEmailClick(email)}
               >
                 <div className="px-6 py-4">
                   <div className="flex items-start justify-between gap-4">
