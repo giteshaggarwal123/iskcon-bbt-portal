@@ -61,13 +61,28 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
     setSidebarOpen(false);
   };
 
+  // Enhanced menu click handler with better state management
   const handleMenuClick = () => {
-    console.log('Menu button clicked, current state:', { sidebarOpen, isMobile, currentModule });
+    console.log('MobileResponsiveLayout: Menu button clicked');
+    console.log('Current state - sidebarOpen:', sidebarOpen, 'sidebarCollapsed:', sidebarCollapsed, 'isMobile:', isMobile);
+    
     if (isMobile) {
-      setSidebarOpen(!sidebarOpen);
+      // On mobile, toggle sidebar open/close
+      const newSidebarOpen = !sidebarOpen;
+      setSidebarOpen(newSidebarOpen);
+      console.log('Mobile: Setting sidebar open to:', newSidebarOpen);
     } else {
       // On desktop, toggle between collapsed and expanded
-      setSidebarCollapsed(!sidebarCollapsed);
+      if (sidebarOpen) {
+        const newCollapsed = !sidebarCollapsed;
+        setSidebarCollapsed(newCollapsed);
+        console.log('Desktop: Setting sidebar collapsed to:', newCollapsed);
+      } else {
+        // If sidebar is closed, open it
+        setSidebarOpen(true);
+        setSidebarCollapsed(false);
+        console.log('Desktop: Opening sidebar');
+      }
     }
   };
 
@@ -81,8 +96,8 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col w-full safe-area-container">
-      {/* Universal Header - ALWAYS render with consistent props */}
-      <div className="sticky top-0 z-50 w-full">
+      {/* Universal Header - ALWAYS render with menu click handler */}
+      <div className="w-full">
         <Header 
           onMenuClick={handleMenuClick}
           onProfileClick={() => handleModuleChange('settings')}

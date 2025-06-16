@@ -51,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  // Enhanced menu click handler
+  // Enhanced menu click handler with more debugging
   const handleMenuClick = () => {
     console.log('Header: Menu button clicked - onMenuClick available:', !!onMenuClick);
     if (onMenuClick) {
@@ -63,20 +63,18 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="w-full bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      <header className="w-full bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div className="flex items-center space-x-4 flex-1">
-          {/* Hamburger Menu Button - ALWAYS visible when showMenuButton is true */}
-          {showMenuButton && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleMenuClick}
-              className="hover:bg-gray-100 transition-colors flex-shrink-0 min-w-[40px] min-h-[40px] z-10"
-              title={isMobile ? "Open navigation menu" : "Toggle sidebar"}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          )}
+          {/* Hamburger Menu Button - ALWAYS visible and prominent */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleMenuClick}
+            className="hover:bg-gray-100 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] border border-gray-200 hover:border-gray-300"
+            title="Toggle menu"
+          >
+            <Menu className="h-6 w-6 text-gray-700" />
+          </Button>
           
           {/* Title */}
           <h1 className={`font-semibold text-gray-900 truncate ${isMobile ? 'text-lg' : 'text-xl'}`}>
