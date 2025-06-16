@@ -13,7 +13,6 @@ import { SettingsModule } from '@/components/SettingsModule';
 import { RealAuthPage } from '@/components/RealAuthPage';
 import { MobileResponsiveLayout } from '@/components/MobileResponsiveLayout';
 import { MicrosoftAuthPrompt } from '@/components/MicrosoftAuthPrompt';
-import { NotFound } from '@/pages/NotFound';
 import { useAuth } from '@/hooks/useAuth';
 import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 
@@ -136,21 +135,16 @@ export const AppContent = () => {
   };
 
   return (
-    <Routes>
-      <Route path="/" element={
-        <>
-          <MobileResponsiveLayout>
-            {renderModule()}
-          </MobileResponsiveLayout>
-          
-          <MicrosoftAuthPrompt
-            isOpen={showMicrosoftPrompt}
-            onClose={handleMicrosoftPromptClose}
-            onSkip={handleMicrosoftPromptSkip}
-          />
-        </>
-      } />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <>
+      <MobileResponsiveLayout>
+        {renderModule()}
+      </MobileResponsiveLayout>
+      
+      <MicrosoftAuthPrompt
+        isOpen={showMicrosoftPrompt}
+        onClose={handleMicrosoftPromptClose}
+        onSkip={handleMicrosoftPromptSkip}
+      />
+    </>
   );
 };
