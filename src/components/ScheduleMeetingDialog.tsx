@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -278,7 +277,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Schedule New Meeting</DialogTitle>
           <DialogDescription>
-            Create a new meeting with Teams integration, attendee management, and file attachments.
+            Create a new meeting with file attachments.
             {preselectedDate && (
               <span className="block mt-2 text-primary text-sm font-medium">
                 Creating meeting for {format(preselectedDate, 'MMMM dd, yyyy')}
