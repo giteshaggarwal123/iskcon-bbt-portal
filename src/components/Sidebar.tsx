@@ -201,7 +201,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </AlertDialog>
         </nav>
 
-        {/* User Profile Section */}
+        {/* User Profile Section - Removed role badge */}
         {(!isCollapsed || isMobile) && (
           <div className="border-t border-gray-200 p-4">
             <button 
@@ -216,20 +216,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {userName}
                 </p>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500 truncate">
-                    {userEmail}
-                  </p>
-                  {userRole.userRole && (
-                    <span className={`text-xs px-2 py-1 rounded ml-2 flex-shrink-0 ${
-                      userRole.isSuperAdmin ? 'bg-red-100 text-red-700' :
-                      userRole.isAdmin ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {userRole.userRole.replace('_', ' ')}
-                    </span>
-                  )}
-                </div>
+                <p className="text-xs text-gray-500 truncate">
+                  {userEmail}
+                </p>
               </div>
             </button>
           </div>
