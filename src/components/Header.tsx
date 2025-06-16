@@ -1,10 +1,8 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bell, Settings, User, Menu } from 'lucide-react';
 import { NotificationsDialog } from './NotificationsDialog';
-import { PWAInstallButton } from './PWAInstallButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -31,7 +29,6 @@ export const Header: React.FC<HeaderProps> = ({
 
   const unreadNotifications = getUnreadCount();
   console.log('Header - Unread notifications:', unreadNotifications);
-  console.log('Header rendered - showMenuButton:', showMenuButton, 'onMenuClick:', !!onMenuClick, 'isMobile:', isMobile);
 
   // Get user's name for personalized greeting
   const userName = user?.user_metadata?.first_name 
@@ -51,70 +48,105 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  // Enhanced menu click handler with more debugging
-  const handleMenuClick = () => {
-    console.log('Header: Menu button clicked - onMenuClick available:', !!onMenuClick, 'isMobile:', isMobile);
-    if (onMenuClick) {
-      onMenuClick();
-    } else {
-      console.warn('Header: No onMenuClick handler provided');
-    }
-  };
-
   return (
     <>
-      <header className="w-full bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center space-x-4 flex-1">
-          {/* Hamburger Menu Button - ALWAYS visible with robust styling */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleMenuClick}
-            className="hamburger-menu-button hover:bg-gray-100 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] border border-gray-200 hover:border-gray-300 bg-white"
-            title={isMobile ? "Toggle mobile menu" : "Toggle sidebar"}
-            style={{ 
-              display: 'flex',
-              visibility: 'visible',
-              opacity: 1,
-              position: 'relative',
-              zIndex: 100
-            }}
-          >
-            <Menu className="h-6 w-6 text-gray-700" />
-          </Button>
-          
-          {/* Title */}
-          <h1 className={`font-semibold text-gray-900 truncate ${isMobile ? 'text-lg' : 'text-xl'}`}>
-            ISKCON Management Portal
-          </h1>
-        </div>
-
-        <div className="flex items-center space-x-2 flex-shrink-0">
-          {/* PWA Install Button */}
-          <PWAInstallButton />
-
-          {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowNotifications(true)}
-            className="relative"
-          >
-            <Bell className="h-4 w-4" />
-            {unreadNotifications > 0 && (
-              <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+      <header className="bg-white border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            {/* Hamburger Menu Button - Show on both mobile and desktop */}
+            {onMenuClick && showMenuButton && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onMenuClick}
+                className="hover:bg-gray-100 transition-colors"
+                title={isMobile ? "Open navigation menu" : "Toggle sidebar"}
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
             )}
-          </Button>
+            {!isMobile && (
+              <h1 className="text-xl font-semibold text-gray-900">
+                ISKCON Management Portal
+              </h1>
+            )}
+            {isMobile && (
+              <h1 className="text-lg font-semibold text-gray-900">
+                ISKCON Management Portal
+              </h1>
+            )}
+          </div>
 
-          {/* Settings */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onSettingsClick}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center space-x-2">
+            {/* Notifications - Simple dot indicator when there are unread notifications */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowNotifications(true)}
+              className="relative"
+            >
+              <Bell className="h-4 w-4" />
+              {unreadNotifications > 0 && (
+                <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+              )}
+            </Button>
+
+            {/* Settings */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onSettingsClick}
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
+
+        {/* Mobile-specific styles to fix layout */}
+        <style>{`
+          @media (max-width: 767px) {
+            /* Ensure proper mobile header spacing */
+            header {
+              padding-left: 1rem;
+              padding-right: 1rem;
+            }
+            
+            /* Fix header text overflow on mobile */
+            header h1 {
+              font-size: 1rem;
+              line-height: 1.25;
+              max-width: calc(100vw - 8rem);
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+            
+            /* Ensure buttons don't get too small */
+            header button {
+              min-width: 2.5rem;
+              min-height: 2.5rem;
+            }
+            
+            /* Fix header container to prevent stretching */
+            header > div {
+              max-width: 100%;
+              overflow: hidden;
+            }
+          }
+
+          /* Desktop hamburger button styling */
+          @media (min-width: 768px) {
+            header button[title*="Toggle"] {
+              border-radius: 0.375rem;
+              transition: all 0.2s ease-in-out;
+            }
+            
+            header button[title*="Toggle"]:hover {
+              background-color: rgba(0, 0, 0, 0.05);
+              transform: scale(1.05);
+            }
+          }
+        `}</style>
       </header>
 
       {/* Dialogs */}

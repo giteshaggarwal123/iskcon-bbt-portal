@@ -5,7 +5,6 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { SettingsModule } from './SettingsModule';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useLocation, useNavigate } from 'react-router-dom';
 
 interface MobileResponsiveLayoutProps {
   children: React.ReactNode;
@@ -14,41 +13,22 @@ interface MobileResponsiveLayoutProps {
 export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [currentModule, setCurrentModule] = useState('dashboard');
+  const [showProfile, setShowProfile] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const isMobile = useIsMobile();
-  const location = useLocation();
-  const navigate = useNavigate();
 
   // Enhanced mobile navigation items with better touch targets
   const mobileNavItems = [
-    { id: 'dashboard', icon: Home, label: 'Home', path: '/' },
-    { id: 'meetings', icon: Calendar, label: 'Meeting', path: '/meetings' },
-    { id: 'documents', icon: File, label: 'Docs', path: '/documents' },
-    { id: 'attendance', icon: UserCheck, label: 'Attendance', path: '/attendance' },
-    { id: 'voting', icon: Vote, label: 'Voting', path: '/voting' }
+    { id: 'dashboard', icon: Home, label: 'Home' },
+    { id: 'meetings', icon: Calendar, label: 'Meeting' },
+    { id: 'documents', icon: File, label: 'Docs' },
+    { id: 'attendance', icon: UserCheck, label: 'Attendance' },
+    { id: 'voting', icon: Vote, label: 'Voting' }
   ];
 
-  // Get current module from URL path
-  const getCurrentModule = () => {
-    const path = location.pathname;
-    console.log('Current path:', path);
-    if (path === '/' || path === '/dashboard') return 'dashboard';
-    if (path.startsWith('/meetings')) return 'meetings';
-    if (path.startsWith('/documents')) return 'documents';
-    if (path.startsWith('/voting')) return 'voting';
-    if (path.startsWith('/attendance')) return 'attendance';
-    if (path.startsWith('/email')) return 'email';
-    if (path.startsWith('/members')) return 'members';
-    if (path.startsWith('/reports')) return 'reports';
-    if (path.startsWith('/settings')) return 'settings';
-    return 'dashboard';
-  };
-
-  const currentModule = getCurrentModule();
-  console.log('Current module:', currentModule, 'Is mobile:', isMobile);
-
-  // Set initial sidebar state based on device with better logic
+  // Set initial sidebar state based on device
   useEffect(() => {
-    console.log('Setting initial sidebar state - isMobile:', isMobile);
     if (isMobile) {
       setSidebarOpen(false);
       setSidebarCollapsed(false);
@@ -58,66 +38,82 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
     }
   }, [isMobile]);
 
-  const handleMobileNavigation = (moduleId: string, path: string) => {
-    navigate(path);
+  const handleMobileNavigation = (moduleId: string) => {
+    setCurrentModule(moduleId);
+    setShowProfile(false);
+    setShowSettings(false);
     setSidebarOpen(false);
-  };
-
-  // Robust menu click handler with comprehensive state management
-  const handleMenuClick = () => {
-    console.log('MobileResponsiveLayout: Menu button clicked');
-    console.log('Current state - sidebarOpen:', sidebarOpen, 'sidebarCollapsed:', sidebarCollapsed, 'isMobile:', isMobile);
     
+    const event = new CustomEvent('navigate-to-module', {
+      detail: { module: moduleId }
+    });
+    window.dispatchEvent(event);
+  };
+
+  const handleMenuClick = () => {
     if (isMobile) {
-      // On mobile, simply toggle sidebar open/close
-      const newSidebarOpen = !sidebarOpen;
-      setSidebarOpen(newSidebarOpen);
-      console.log('Mobile: Setting sidebar open to:', newSidebarOpen);
+      setSidebarOpen(!sidebarOpen);
     } else {
-      // On desktop, handle both collapsed and closed states
-      if (sidebarOpen) {
-        // If sidebar is open, toggle collapsed state
-        const newCollapsed = !sidebarCollapsed;
-        setSidebarCollapsed(newCollapsed);
-        console.log('Desktop: Setting sidebar collapsed to:', newCollapsed);
-      } else {
-        // If sidebar is completely closed, open it in expanded state
-        setSidebarOpen(true);
-        setSidebarCollapsed(false);
-        console.log('Desktop: Opening sidebar in expanded state');
-      }
+      // On desktop, toggle between collapsed and expanded
+      setSidebarCollapsed(!sidebarCollapsed);
     }
   };
 
-  const handleModuleChange = (module: string) => {
-    const path = module === 'dashboard' ? '/' : `/${module}`;
-    navigate(path);
-    if (isMobile) {
-      setSidebarOpen(false);
+  const renderContent = () => {
+    if (showProfile || currentModule === 'profile') {
+      return <SettingsModule />;
     }
+    if (showSettings || currentModule === 'settings') {
+      return <SettingsModule />;
+    }
+    return children;
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col w-full safe-area-container">
-      {/* Universal Header - ALWAYS render with menu click handler and forced visibility */}
-      <div className="w-full relative z-50">
+      {/* Mobile Header */}
+      {isMobile && (
         <Header 
           onMenuClick={handleMenuClick}
-          onProfileClick={() => handleModuleChange('settings')}
-          onSettingsClick={() => handleModuleChange('settings')}
-          onNavigate={handleModuleChange}
+          onProfileClick={() => {
+            setShowProfile(true);
+            setCurrentModule('profile');
+          }}
+          onSettingsClick={() => {
+            setShowSettings(true);
+            setCurrentModule('settings');
+          }}
+          onNavigate={(module) => {
+            setCurrentModule(module);
+            setShowProfile(false);
+            setShowSettings(false);
+            
+            const event = new CustomEvent('navigate-to-module', {
+              detail: { module }
+            });
+            window.dispatchEvent(event);
+          }}
           showMenuButton={true}
         />
-      </div>
+      )}
 
       {/* Desktop Layout */}
       {!isMobile && (
-        <div className="flex flex-1 relative">
+        <div className="flex">
           <Sidebar 
             isOpen={sidebarOpen} 
             onClose={() => setSidebarOpen(false)}
             currentModule={currentModule}
-            onModuleChange={handleModuleChange}
+            onModuleChange={(module) => {
+              setCurrentModule(module);
+              setShowProfile(false);
+              setShowSettings(false);
+              
+              const event = new CustomEvent('navigate-to-module', {
+                detail: { module }
+              });
+              window.dispatchEvent(event);
+            }}
             isCollapsed={sidebarCollapsed}
           />
           
@@ -125,9 +121,32 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
             sidebarOpen && !sidebarCollapsed ? 'ml-64' : 
             sidebarOpen && sidebarCollapsed ? 'ml-20' : 'ml-0'
           }`}>
+            <Header 
+              onMenuClick={handleMenuClick}
+              onProfileClick={() => {
+                setShowProfile(true);
+                setCurrentModule('profile');
+              }}
+              onSettingsClick={() => {
+                setShowSettings(true);
+                setCurrentModule('settings');
+              }}
+              onNavigate={(module) => {
+                setCurrentModule(module);
+                setShowProfile(false);
+                setShowSettings(false);
+                
+                const event = new CustomEvent('navigate-to-module', {
+                  detail: { module }
+                });
+                window.dispatchEvent(event);
+              }}
+              showMenuButton={true}
+            />
+            
             <main className="flex-1 p-4 lg:p-6">
               <div className="w-full max-w-none">
-                {children}
+                {renderContent()}
               </div>
             </main>
           </div>
@@ -149,13 +168,23 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
             isOpen={sidebarOpen} 
             onClose={() => setSidebarOpen(false)}
             currentModule={currentModule}
-            onModuleChange={handleModuleChange}
+            onModuleChange={(module) => {
+              setCurrentModule(module);
+              setShowProfile(false);
+              setShowSettings(false);
+              setSidebarOpen(false);
+              
+              const event = new CustomEvent('navigate-to-module', {
+                detail: { module }
+              });
+              window.dispatchEvent(event);
+            }}
             isCollapsed={false}
           />
           
           <main className="flex-1 px-4 pt-6 pb-24 overflow-y-auto mobile-main">
             <div className="w-full">
-              {children}
+              {renderContent()}
             </div>
           </main>
           
@@ -165,7 +194,7 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
               {mobileNavItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => handleMobileNavigation(item.id, item.path)}
+                  onClick={() => handleMobileNavigation(item.id)}
                   className={`flex flex-col items-center justify-center flex-1 py-3 px-2 transition-all duration-200 rounded-lg mx-1 ${
                     currentModule === item.id
                       ? 'text-primary bg-primary/10 scale-105'
@@ -191,16 +220,7 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
         </>
       )}
 
-      {/* Enhanced styles with better hamburger button visibility */}
       <style>{`
-        /* Force hamburger button visibility */
-        .hamburger-menu-button {
-          display: flex !important;
-          visibility: visible !important;
-          opacity: 1 !important;
-          z-index: 100 !important;
-        }
-        
         /* Safe area handling for modern mobile devices */
         .safe-area-container {
           height: 100vh;
@@ -314,18 +334,10 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
           }
         }
         
-        /* Desktop-specific hamburger button visibility */
+        /* Desktop remains unchanged */
         @media (min-width: 768px) {
           .safe-area-container {
             height: 100vh;
-          }
-          
-          /* Ensure hamburger button is always visible on desktop */
-          header button[title*="sidebar"], 
-          header button[title*="menu"] {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
           }
         }
       `}</style>

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from '@/components/Dashboard';
 import { MeetingsModule } from '@/components/MeetingsModule';
 import { DocumentsModule } from '@/components/DocumentsModule';
@@ -19,27 +19,9 @@ import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 export const AppContent = () => {
   const { user, loading } = useAuth();
   const { isConnected, loading: msLoading } = useMicrosoftAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
+  const [currentModule, setCurrentModule] = React.useState('dashboard');
   const [avatarRefreshTrigger, setAvatarRefreshTrigger] = React.useState(0);
   const [showMicrosoftPrompt, setShowMicrosoftPrompt] = React.useState(false);
-
-  // Get current module from URL path
-  const getCurrentModule = () => {
-    const path = location.pathname;
-    if (path === '/' || path === '/dashboard') return 'dashboard';
-    if (path.startsWith('/meetings')) return 'meetings';
-    if (path.startsWith('/documents')) return 'documents';
-    if (path.startsWith('/voting')) return 'voting';
-    if (path.startsWith('/attendance')) return 'attendance';
-    if (path.startsWith('/email')) return 'email';
-    if (path.startsWith('/members')) return 'members';
-    if (path.startsWith('/reports')) return 'reports';
-    if (path.startsWith('/settings')) return 'settings';
-    return 'dashboard';
-  };
-
-  const currentModule = getCurrentModule();
 
   // Check if this is first time user or session reset
   React.useEffect(() => {
@@ -87,16 +69,14 @@ export const AppContent = () => {
     localStorage.setItem('microsoft_prompt_shown', 'true');
   };
 
-  // Listen for navigation events from dashboard and handle URL navigation
+  // Listen for navigation events from dashboard
   React.useEffect(() => {
     const handleNavigateToModule = (event: any) => {
-      const module = event.detail.module;
-      const path = module === 'dashboard' ? '/' : `/${module}`;
-      navigate(path);
+      setCurrentModule(event.detail.module);
     };
 
     const handleNavigateToPoll = (event: any) => {
-      navigate('/voting');
+      setCurrentModule('voting');
     };
 
     const handleProfileUpdate = () => {
@@ -112,7 +92,7 @@ export const AppContent = () => {
       window.removeEventListener('navigate-to-poll', handleNavigateToPoll);
       window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
-  }, [navigate]);
+  }, []);
 
   if (loading) {
     return (
@@ -129,23 +109,35 @@ export const AppContent = () => {
     return <RealAuthPage />;
   }
 
+  const renderModule = () => {
+    switch (currentModule) {
+      case 'dashboard':
+        return <Dashboard />;
+      case 'meetings':
+        return <MeetingsModule />;
+      case 'documents':
+        return <DocumentsModule />;
+      case 'voting':
+        return <VotingModule />;
+      case 'attendance':
+        return <AttendanceModule />;
+      case 'email':
+        return <EmailModule />;
+      case 'members':
+        return <MembersModule />;
+      case 'reports':
+        return <ReportsModule />;
+      case 'settings':
+        return <SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />;
+      default:
+        return <Dashboard />;
+    }
+  };
+
   return (
     <>
       <MobileResponsiveLayout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/meetings" element={<MeetingsModule />} />
-          <Route path="/documents" element={<DocumentsModule />} />
-          <Route path="/voting" element={<VotingModule />} />
-          <Route path="/attendance" element={<AttendanceModule />} />
-          <Route path="/email" element={<EmailModule />} />
-          <Route path="/members" element={<MembersModule />} />
-          <Route path="/reports" element={<ReportsModule />} />
-          <Route path="/settings" element={<SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />} />
-          {/* Catch all other routes and redirect to dashboard */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        {renderModule()}
       </MobileResponsiveLayout>
       
       <MicrosoftAuthPrompt
