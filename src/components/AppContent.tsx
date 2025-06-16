@@ -137,7 +137,19 @@ export const AppContent = () => {
   return (
     <>
       <MobileResponsiveLayout>
-        {renderModule()}
+        <Routes>
+          <Route path="/" element={renderModule()} />
+          <Route path="/dashboard" element={renderModule()} />
+          <Route path="/meetings" element={<MeetingsModule />} />
+          <Route path="/documents" element={<DocumentsModule />} />
+          <Route path="/voting" element={<VotingModule />} />
+          <Route path="/attendance" element={<AttendanceModule />} />
+          <Route path="/email" element={<EmailModule />} />
+          <Route path="/members" element={<MembersModule />} />
+          <Route path="/reports" element={<ReportsModule />} />
+          <Route path="/settings" element={<SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </MobileResponsiveLayout>
       
       <MicrosoftAuthPrompt
