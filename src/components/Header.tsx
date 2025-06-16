@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* PWA Install Button */}
+            {/* PWA Install Button - Always render to ensure consistency */}
             <PWAInstallButton />
 
             {/* Notifications - Simple dot indicator when there are unread notifications */}
