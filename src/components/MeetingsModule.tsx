@@ -464,7 +464,7 @@ export const MeetingsModule: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">Meeting Management</h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">Schedule, track, and manage all ISKCON meetings with Teams integration</p>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">Schedule, track, and manage all your meetings</p>
           </div>
           {canScheduleMeetings && (
             <div className="flex-shrink-0">
