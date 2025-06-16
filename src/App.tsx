@@ -29,8 +29,19 @@ const queryClient = new QueryClient({
   },
 });
 
+const AppRoutes = () => {
+  useAutoRefresh(); // Now this is inside Router context
+  
+  return (
+    <Routes>
+      <Route path="/auth" element={<RealAuthPage />} />
+      <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
+      <Route path="/*" element={<AppContent />} />
+    </Routes>
+  );
+};
+
 const AppWrapper = () => {
-  useAutoRefresh(); // Initialize auto-refresh functionality
   const deviceInfo = useDeviceInfo();
   const [showSplash, setShowSplash] = useState(deviceInfo.isNative);
 
@@ -49,11 +60,7 @@ const AppWrapper = () => {
       <Sonner />
       {showSplash && <MobileSplashScreen />}
       <BrowserRouter>
-        <Routes>
-          <Route path="/auth" element={<RealAuthPage />} />
-          <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
-          <Route path="/*" element={<AppContent />} />
-        </Routes>
+        <AppRoutes />
       </BrowserRouter>
     </>
   );
