@@ -25,9 +25,25 @@
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Footer with updated year -->
-    <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.9); padding: 0.5rem; text-align: center; font-size: 0.75rem; color: #666; z-index: 1000; backdrop-filter: blur(4px);">
+    <!-- Footer with updated year - Hidden on mobile, visible on desktop -->
+    <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.9); padding: 0.5rem; text-align: center; font-size: 0.75rem; color: #666; z-index: 1000; backdrop-filter: blur(4px); display: none;">
       © 2025 ISKCON Management Platform - Secure • Reliable • Confidential
     </footer>
+    
+    <style>
+      /* Show footer only on desktop (768px and above) */
+      @media (min-width: 768px) {
+        footer {
+          display: block !important;
+        }
+      }
+      
+      /* Hide footer on mobile (below 768px) */
+      @media (max-width: 767px) {
+        footer {
+          display: none !important;
+        }
+      }
+    </style>
   </body>
 </html>
