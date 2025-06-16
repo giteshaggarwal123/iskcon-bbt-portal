@@ -63,7 +63,7 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
   };
 
   const handleMenuClick = () => {
-    console.log('Menu button clicked, current state:', { sidebarOpen, isMobile });
+    console.log('Menu button clicked, current state:', { sidebarOpen, isMobile, currentModule });
     if (isMobile) {
       setSidebarOpen(!sidebarOpen);
     } else {
@@ -75,12 +75,14 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
   const handleModuleChange = (module: string) => {
     const path = module === 'dashboard' ? '/' : `/${module}`;
     navigate(path);
-    setSidebarOpen(false);
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col w-full safe-area-container">
-      {/* Universal Header - ALWAYS render first, with sticky positioning */}
+      {/* Universal Header - ALWAYS render with consistent props */}
       <div className="sticky top-0 z-50 w-full">
         <Header 
           onMenuClick={handleMenuClick}

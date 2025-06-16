@@ -51,40 +51,52 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  // Default menu click handler if none provided
+  const handleMenuClick = () => {
+    console.log('Menu button clicked - onMenuClick:', !!onMenuClick);
+    if (onMenuClick) {
+      onMenuClick();
+    } else {
+      console.warn('No onMenuClick handler provided to Header');
+    }
+  };
+
   return (
     <>
-      <header className="bg-white border-b border-gray-200 px-4 py-3 relative z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            {/* Hamburger Menu Button - Show on both mobile and desktop */}
-            {onMenuClick && showMenuButton && (
+      <header className="bg-white border-b border-gray-200 px-4 py-3 relative z-50 w-full">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center space-x-4 flex-1">
+            {/* Hamburger Menu Button - ALWAYS show if showMenuButton is true */}
+            {showMenuButton && (
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={onMenuClick}
-                className="hover:bg-gray-100 transition-colors flex-shrink-0"
+                onClick={handleMenuClick}
+                className="hover:bg-gray-100 transition-colors flex-shrink-0 min-w-[40px] min-h-[40px]"
                 title={isMobile ? "Open navigation menu" : "Toggle sidebar"}
               >
-                <Menu className="h-4 w-4" />
+                <Menu className="h-5 w-5" />
               </Button>
             )}
+            
+            {/* Title */}
             {!isMobile && (
-              <h1 className="text-xl font-semibold text-gray-900">
+              <h1 className="text-xl font-semibold text-gray-900 truncate">
                 ISKCON Management Portal
               </h1>
             )}
             {isMobile && (
-              <h1 className="text-lg font-semibold text-gray-900">
+              <h1 className="text-lg font-semibold text-gray-900 truncate flex-1">
                 ISKCON Management Portal
               </h1>
             )}
           </div>
 
-          <div className="flex items-center space-x-2">
-            {/* PWA Install Button - Always render to ensure consistency */}
+          <div className="flex items-center space-x-2 flex-shrink-0">
+            {/* PWA Install Button */}
             <PWAInstallButton />
 
-            {/* Notifications - Simple dot indicator when there are unread notifications */}
+            {/* Notifications */}
             <Button
               variant="ghost"
               size="icon"
@@ -108,10 +120,9 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Mobile-specific styles to fix layout */}
+        {/* Enhanced mobile styles */}
         <style>{`
           @media (max-width: 767px) {
-            /* Ensure proper mobile header spacing */
             header {
               padding-left: 1rem;
               padding-right: 1rem;
@@ -120,30 +131,25 @@ export const Header: React.FC<HeaderProps> = ({
               z-index: 50;
             }
             
-            /* Fix header text overflow on mobile */
             header h1 {
               font-size: 1rem;
               line-height: 1.25;
-              max-width: calc(100vw - 8rem);
               overflow: hidden;
               text-overflow: ellipsis;
               white-space: nowrap;
             }
             
-            /* Ensure buttons don't get too small */
             header button {
-              min-width: 2.5rem;
-              min-height: 2.5rem;
+              min-width: 40px;
+              min-height: 40px;
             }
             
-            /* Fix header container to prevent stretching */
             header > div {
               max-width: 100%;
               overflow: hidden;
             }
           }
 
-          /* Desktop hamburger button styling */
           @media (min-width: 768px) {
             header {
               position: sticky;
