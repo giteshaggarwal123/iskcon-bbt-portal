@@ -51,123 +51,65 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  // Default menu click handler if none provided
+  // Enhanced menu click handler
   const handleMenuClick = () => {
-    console.log('Menu button clicked - onMenuClick:', !!onMenuClick);
+    console.log('Header: Menu button clicked - onMenuClick available:', !!onMenuClick);
     if (onMenuClick) {
       onMenuClick();
     } else {
-      console.warn('No onMenuClick handler provided to Header');
+      console.warn('Header: No onMenuClick handler provided');
     }
   };
 
   return (
     <>
-      <header className="bg-white border-b border-gray-200 px-4 py-3 relative z-50 w-full">
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center space-x-4 flex-1">
-            {/* Hamburger Menu Button - ALWAYS show if showMenuButton is true */}
-            {showMenuButton && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleMenuClick}
-                className="hover:bg-gray-100 transition-colors flex-shrink-0 min-w-[40px] min-h-[40px]"
-                title={isMobile ? "Open navigation menu" : "Toggle sidebar"}
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            )}
-            
-            {/* Title */}
-            {!isMobile && (
-              <h1 className="text-xl font-semibold text-gray-900 truncate">
-                ISKCON Management Portal
-              </h1>
-            )}
-            {isMobile && (
-              <h1 className="text-lg font-semibold text-gray-900 truncate flex-1">
-                ISKCON Management Portal
-              </h1>
-            )}
-          </div>
-
-          <div className="flex items-center space-x-2 flex-shrink-0">
-            {/* PWA Install Button */}
-            <PWAInstallButton />
-
-            {/* Notifications */}
+      <header className="w-full bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center space-x-4 flex-1">
+          {/* Hamburger Menu Button - ALWAYS visible when showMenuButton is true */}
+          {showMenuButton && (
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setShowNotifications(true)}
-              className="relative"
+              onClick={handleMenuClick}
+              className="hover:bg-gray-100 transition-colors flex-shrink-0 min-w-[40px] min-h-[40px] z-10"
+              title={isMobile ? "Open navigation menu" : "Toggle sidebar"}
             >
-              <Bell className="h-4 w-4" />
-              {unreadNotifications > 0 && (
-                <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
-              )}
+              <Menu className="h-5 w-5" />
             </Button>
-
-            {/* Settings */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onSettingsClick}
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
+          )}
+          
+          {/* Title */}
+          <h1 className={`font-semibold text-gray-900 truncate ${isMobile ? 'text-lg' : 'text-xl'}`}>
+            ISKCON Management Portal
+          </h1>
         </div>
 
-        {/* Enhanced mobile styles */}
-        <style>{`
-          @media (max-width: 767px) {
-            header {
-              padding-left: 1rem;
-              padding-right: 1rem;
-              position: sticky;
-              top: 0;
-              z-index: 50;
-            }
-            
-            header h1 {
-              font-size: 1rem;
-              line-height: 1.25;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            }
-            
-            header button {
-              min-width: 40px;
-              min-height: 40px;
-            }
-            
-            header > div {
-              max-width: 100%;
-              overflow: hidden;
-            }
-          }
+        <div className="flex items-center space-x-2 flex-shrink-0">
+          {/* PWA Install Button */}
+          <PWAInstallButton />
 
-          @media (min-width: 768px) {
-            header {
-              position: sticky;
-              top: 0;
-              z-index: 30;
-            }
-            
-            header button[title*="Toggle"] {
-              border-radius: 0.375rem;
-              transition: all 0.2s ease-in-out;
-            }
-            
-            header button[title*="Toggle"]:hover {
-              background-color: rgba(0, 0, 0, 0.05);
-              transform: scale(1.05);
-            }
-          }
-        `}</style>
+          {/* Notifications */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowNotifications(true)}
+            className="relative"
+          >
+            <Bell className="h-4 w-4" />
+            {unreadNotifications > 0 && (
+              <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+            )}
+          </Button>
+
+          {/* Settings */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onSettingsClick}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        </div>
       </header>
 
       {/* Dialogs */}

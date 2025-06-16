@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -174,7 +173,6 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
         </>
       )}
 
-      {/* ... keep existing code (styles section) */}
       <style>{`
         /* Safe area handling for modern mobile devices */
         .safe-area-container {
