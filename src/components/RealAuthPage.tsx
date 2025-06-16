@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Mail, Shield, Lock, Phone, ArrowLeft } from 'lucide-react';
+import { Mail, Shield, Lock, Phone, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
@@ -24,6 +23,9 @@ export const RealAuthPage: React.FC = () => {
   const [forgotPassword, setForgotPassword] = useState(false);
   const [storedOTP, setStoredOTP] = useState('');
   const [resetEmail, setResetEmail] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +119,7 @@ export const RealAuthPage: React.FC = () => {
               className="w-full h-full object-contain"
             />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">ISKCON Bureau</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">ISKCON Management Portal</h1>
           <p className="text-gray-600">Management Platform</p>
         </div>
 
@@ -165,13 +167,20 @@ export const RealAuthPage: React.FC = () => {
                         <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input
                           id="password"
-                          type="password"
+                          type={showPassword ? "text" : "password"}
                           placeholder="Enter your password"
                           value={formData.password}
                           onChange={(e) => updateFormData('password', e.target.value)}
-                          className="pl-10"
+                          className="pl-10 pr-10"
                           required
                         />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
                       </div>
                     </div>
 
@@ -306,13 +315,20 @@ export const RealAuthPage: React.FC = () => {
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       id="newPassword"
-                      type="password"
+                      type={showNewPassword ? "text" : "password"}
                       placeholder="Enter new password"
                       value={formData.newPassword}
                       onChange={(e) => updateFormData('newPassword', e.target.value)}
-                      className="pl-10"
+                      className="pl-10 pr-10"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
                 
@@ -322,13 +338,20 @@ export const RealAuthPage: React.FC = () => {
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       id="confirmPassword"
-                      type="password"
+                      type={showConfirmPassword ? "text" : "password"}
                       placeholder="Confirm new password"
                       value={formData.confirmPassword}
                       onChange={(e) => updateFormData('confirmPassword', e.target.value)}
-                      className="pl-10"
+                      className="pl-10 pr-10"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
                 
@@ -345,7 +368,7 @@ export const RealAuthPage: React.FC = () => {
         </Card>
         
         <div className="text-center mt-6 text-xs text-gray-500">
-          <p>© 2024 ISKCON Bureau Management Platform</p>
+          <p>© 2025 ISKCON Management Platform</p>
           <p>Secure • Reliable • Confidential</p>
         </div>
       </div>
