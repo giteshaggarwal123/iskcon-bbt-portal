@@ -76,20 +76,18 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col w-full safe-area-container">
-      {/* Mobile Header */}
-      {isMobile && (
-        <Header 
-          onMenuClick={handleMenuClick}
-          onProfileClick={() => handleModuleChange('settings')}
-          onSettingsClick={() => handleModuleChange('settings')}
-          onNavigate={handleModuleChange}
-          showMenuButton={true}
-        />
-      )}
+      {/* Universal Header - Always render on both mobile and desktop */}
+      <Header 
+        onMenuClick={handleMenuClick}
+        onProfileClick={() => handleModuleChange('settings')}
+        onSettingsClick={() => handleModuleChange('settings')}
+        onNavigate={handleModuleChange}
+        showMenuButton={true}
+      />
 
       {/* Desktop Layout */}
       {!isMobile && (
-        <div className="flex">
+        <div className="flex flex-1">
           <Sidebar 
             isOpen={sidebarOpen} 
             onClose={() => setSidebarOpen(false)}
@@ -102,14 +100,6 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
             sidebarOpen && !sidebarCollapsed ? 'ml-64' : 
             sidebarOpen && sidebarCollapsed ? 'ml-20' : 'ml-0'
           }`}>
-            <Header 
-              onMenuClick={handleMenuClick}
-              onProfileClick={() => handleModuleChange('settings')}
-              onSettingsClick={() => handleModuleChange('settings')}
-              onNavigate={handleModuleChange}
-              showMenuButton={true}
-            />
-            
             <main className="flex-1 p-4 lg:p-6">
               <div className="w-full max-w-none">
                 {children}
