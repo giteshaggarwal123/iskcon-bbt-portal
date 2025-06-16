@@ -70,12 +70,14 @@ export const Header: React.FC<HeaderProps> = ({
             variant="ghost"
             size="icon"
             onClick={handleMenuClick}
-            className="hover:bg-gray-100 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] border border-gray-200 hover:border-gray-300 bg-white relative z-10"
+            className="hamburger-menu-button hover:bg-gray-100 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] border border-gray-200 hover:border-gray-300 bg-white"
             title={isMobile ? "Toggle mobile menu" : "Toggle sidebar"}
             style={{ 
-              display: 'flex !important',
-              visibility: 'visible !important',
-              opacity: '1 !important' 
+              display: 'flex',
+              visibility: 'visible',
+              opacity: 1,
+              position: 'relative',
+              zIndex: 100
             }}
           >
             <Menu className="h-6 w-6 text-gray-700" />
