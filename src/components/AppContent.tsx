@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Dashboard } from '@/components/Dashboard';
 import { MeetingsModule } from '@/components/MeetingsModule';
 import { DocumentsModule } from '@/components/DocumentsModule';
@@ -19,6 +19,7 @@ import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 export const AppContent = () => {
   const { user, loading } = useAuth();
   const { isConnected, loading: msLoading } = useMicrosoftAuth();
+  const location = useLocation();
   const [currentModule, setCurrentModule] = React.useState('dashboard');
   const [avatarRefreshTrigger, setAvatarRefreshTrigger] = React.useState(0);
   const [showMicrosoftPrompt, setShowMicrosoftPrompt] = React.useState(false);
@@ -138,8 +139,8 @@ export const AppContent = () => {
     <>
       <MobileResponsiveLayout>
         <Routes>
-          <Route path="/" element={renderModule()} />
-          <Route path="/dashboard" element={renderModule()} />
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/meetings" element={<MeetingsModule />} />
           <Route path="/documents" element={<DocumentsModule />} />
           <Route path="/voting" element={<VotingModule />} />
@@ -148,6 +149,7 @@ export const AppContent = () => {
           <Route path="/members" element={<MembersModule />} />
           <Route path="/reports" element={<ReportsModule />} />
           <Route path="/settings" element={<SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />} />
+          {/* Catch all other routes and redirect to dashboard */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </MobileResponsiveLayout>
