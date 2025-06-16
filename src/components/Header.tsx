@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bell, Settings, User, Menu } from 'lucide-react';
 import { NotificationsDialog } from './NotificationsDialog';
+import { PWAInstallButton } from './PWAInstallButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -78,6 +80,9 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="flex items-center space-x-2">
+            {/* PWA Install Button */}
+            <PWAInstallButton />
+
             {/* Notifications - Simple dot indicator when there are unread notifications */}
             <Button
               variant="ghost"
