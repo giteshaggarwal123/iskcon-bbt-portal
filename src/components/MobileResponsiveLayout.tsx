@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -45,8 +46,9 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
   const currentModule = getCurrentModule();
   console.log('Current module:', currentModule, 'Is mobile:', isMobile);
 
-  // Set initial sidebar state based on device
+  // Set initial sidebar state based on device with better logic
   useEffect(() => {
+    console.log('Setting initial sidebar state - isMobile:', isMobile);
     if (isMobile) {
       setSidebarOpen(false);
       setSidebarCollapsed(false);
@@ -61,27 +63,28 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
     setSidebarOpen(false);
   };
 
-  // Enhanced menu click handler with better state management
+  // Robust menu click handler with comprehensive state management
   const handleMenuClick = () => {
     console.log('MobileResponsiveLayout: Menu button clicked');
     console.log('Current state - sidebarOpen:', sidebarOpen, 'sidebarCollapsed:', sidebarCollapsed, 'isMobile:', isMobile);
     
     if (isMobile) {
-      // On mobile, toggle sidebar open/close
+      // On mobile, simply toggle sidebar open/close
       const newSidebarOpen = !sidebarOpen;
       setSidebarOpen(newSidebarOpen);
       console.log('Mobile: Setting sidebar open to:', newSidebarOpen);
     } else {
-      // On desktop, toggle between collapsed and expanded
+      // On desktop, handle both collapsed and closed states
       if (sidebarOpen) {
+        // If sidebar is open, toggle collapsed state
         const newCollapsed = !sidebarCollapsed;
         setSidebarCollapsed(newCollapsed);
         console.log('Desktop: Setting sidebar collapsed to:', newCollapsed);
       } else {
-        // If sidebar is closed, open it
+        // If sidebar is completely closed, open it in expanded state
         setSidebarOpen(true);
         setSidebarCollapsed(false);
-        console.log('Desktop: Opening sidebar');
+        console.log('Desktop: Opening sidebar in expanded state');
       }
     }
   };
@@ -96,8 +99,8 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col w-full safe-area-container">
-      {/* Universal Header - ALWAYS render with menu click handler */}
-      <div className="w-full">
+      {/* Universal Header - ALWAYS render with menu click handler and forced visibility */}
+      <div className="w-full relative z-50">
         <Header 
           onMenuClick={handleMenuClick}
           onProfileClick={() => handleModuleChange('settings')}
@@ -109,7 +112,7 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
 
       {/* Desktop Layout */}
       {!isMobile && (
-        <div className="flex flex-1">
+        <div className="flex flex-1 relative">
           <Sidebar 
             isOpen={sidebarOpen} 
             onClose={() => setSidebarOpen(false)}
@@ -188,7 +191,16 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
         </>
       )}
 
+      {/* Enhanced styles with better hamburger button visibility */}
       <style>{`
+        /* Force hamburger button visibility */
+        .hamburger-menu-button {
+          display: flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          z-index: 100 !important;
+        }
+        
         /* Safe area handling for modern mobile devices */
         .safe-area-container {
           height: 100vh;
@@ -302,10 +314,18 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
           }
         }
         
-        /* Desktop remains unchanged */
+        /* Desktop-specific hamburger button visibility */
         @media (min-width: 768px) {
           .safe-area-container {
             height: 100vh;
+          }
+          
+          /* Ensure hamburger button is always visible on desktop */
+          header button[title*="sidebar"], 
+          header button[title*="menu"] {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
           }
         }
       `}</style>

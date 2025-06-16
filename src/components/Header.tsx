@@ -31,7 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const unreadNotifications = getUnreadCount();
   console.log('Header - Unread notifications:', unreadNotifications);
-  console.log('Header rendered - showMenuButton:', showMenuButton, 'onMenuClick:', !!onMenuClick);
+  console.log('Header rendered - showMenuButton:', showMenuButton, 'onMenuClick:', !!onMenuClick, 'isMobile:', isMobile);
 
   // Get user's name for personalized greeting
   const userName = user?.user_metadata?.first_name 
@@ -53,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Enhanced menu click handler with more debugging
   const handleMenuClick = () => {
-    console.log('Header: Menu button clicked - onMenuClick available:', !!onMenuClick);
+    console.log('Header: Menu button clicked - onMenuClick available:', !!onMenuClick, 'isMobile:', isMobile);
     if (onMenuClick) {
       onMenuClick();
     } else {
@@ -65,13 +65,18 @@ export const Header: React.FC<HeaderProps> = ({
     <>
       <header className="w-full bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div className="flex items-center space-x-4 flex-1">
-          {/* Hamburger Menu Button - ALWAYS visible and prominent */}
+          {/* Hamburger Menu Button - ALWAYS visible with robust styling */}
           <Button
             variant="ghost"
             size="icon"
             onClick={handleMenuClick}
-            className="hover:bg-gray-100 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] border border-gray-200 hover:border-gray-300"
-            title="Toggle menu"
+            className="hover:bg-gray-100 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] border border-gray-200 hover:border-gray-300 bg-white relative z-10"
+            title={isMobile ? "Toggle mobile menu" : "Toggle sidebar"}
+            style={{ 
+              display: 'flex !important',
+              visibility: 'visible !important',
+              opacity: '1 !important' 
+            }}
           >
             <Menu className="h-6 w-6 text-gray-700" />
           </Button>
