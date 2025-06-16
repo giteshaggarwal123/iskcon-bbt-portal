@@ -31,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const unreadNotifications = getUnreadCount();
   console.log('Header - Unread notifications:', unreadNotifications);
+  console.log('Header rendered - showMenuButton:', showMenuButton, 'onMenuClick:', !!onMenuClick);
 
   // Get user's name for personalized greeting
   const userName = user?.user_metadata?.first_name 
@@ -52,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="bg-white border-b border-gray-200 px-4 py-3">
+      <header className="bg-white border-b border-gray-200 px-4 py-3 relative z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             {/* Hamburger Menu Button - Show on both mobile and desktop */}
@@ -61,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
                 variant="ghost"
                 size="icon"
                 onClick={onMenuClick}
-                className="hover:bg-gray-100 transition-colors"
+                className="hover:bg-gray-100 transition-colors flex-shrink-0"
                 title={isMobile ? "Open navigation menu" : "Toggle sidebar"}
               >
                 <Menu className="h-4 w-4" />
@@ -114,6 +115,9 @@ export const Header: React.FC<HeaderProps> = ({
             header {
               padding-left: 1rem;
               padding-right: 1rem;
+              position: sticky;
+              top: 0;
+              z-index: 50;
             }
             
             /* Fix header text overflow on mobile */
@@ -141,6 +145,12 @@ export const Header: React.FC<HeaderProps> = ({
 
           /* Desktop hamburger button styling */
           @media (min-width: 768px) {
+            header {
+              position: sticky;
+              top: 0;
+              z-index: 30;
+            }
+            
             header button[title*="Toggle"] {
               border-radius: 0.375rem;
               transition: all 0.2s ease-in-out;

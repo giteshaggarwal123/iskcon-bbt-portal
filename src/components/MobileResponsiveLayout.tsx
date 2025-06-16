@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -29,6 +30,7 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
   // Get current module from URL path
   const getCurrentModule = () => {
     const path = location.pathname;
+    console.log('Current path:', path);
     if (path === '/' || path === '/dashboard') return 'dashboard';
     if (path.startsWith('/meetings')) return 'meetings';
     if (path.startsWith('/documents')) return 'documents';
@@ -42,6 +44,7 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
   };
 
   const currentModule = getCurrentModule();
+  console.log('Current module:', currentModule, 'Is mobile:', isMobile);
 
   // Set initial sidebar state based on device
   useEffect(() => {
@@ -60,6 +63,7 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
   };
 
   const handleMenuClick = () => {
+    console.log('Menu button clicked, current state:', { sidebarOpen, isMobile });
     if (isMobile) {
       setSidebarOpen(!sidebarOpen);
     } else {
@@ -76,14 +80,16 @@ export const MobileResponsiveLayout: React.FC<MobileResponsiveLayoutProps> = ({ 
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col w-full safe-area-container">
-      {/* Universal Header - Always render on both mobile and desktop */}
-      <Header 
-        onMenuClick={handleMenuClick}
-        onProfileClick={() => handleModuleChange('settings')}
-        onSettingsClick={() => handleModuleChange('settings')}
-        onNavigate={handleModuleChange}
-        showMenuButton={true}
-      />
+      {/* Universal Header - ALWAYS render first, with sticky positioning */}
+      <div className="sticky top-0 z-50 w-full">
+        <Header 
+          onMenuClick={handleMenuClick}
+          onProfileClick={() => handleModuleChange('settings')}
+          onSettingsClick={() => handleModuleChange('settings')}
+          onNavigate={handleModuleChange}
+          showMenuButton={true}
+        />
+      </div>
 
       {/* Desktop Layout */}
       {!isMobile && (
