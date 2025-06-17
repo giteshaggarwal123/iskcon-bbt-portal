@@ -16,57 +16,11 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
   const { user } = useAuth();
   const { isConnected, disconnectMicrosoft, canAttemptConnection } = useMicrosoftAuth();
 
-  // Enhanced configuration with proper URL encoding
-  const getAuthConfig = useCallback(() => {
-    const config = {
-      clientId: '44391516-babe-4072-8422-a4fc8a79fbde',
-      tenantId: 'b2333ef6-3378-4d02-b9b9-d8e66d9dfa3d',
-      baseUrl: window.location.origin,
-      scope: [
-        'https://graph.microsoft.com/User.Read',
-        'https://graph.microsoft.com/Mail.ReadWrite',
-        'https://graph.microsoft.com/Calendars.ReadWrite',
-        'https://graph.microsoft.com/Files.ReadWrite.All',
-        'https://graph.microsoft.com/Sites.ReadWrite.All',
-        'https://graph.microsoft.com/OnlineMeetings.ReadWrite',
-        'offline_access'
-      ].join(' ')
-    };
-
-    console.log('Microsoft OAuth Configuration:', {
-      ...config,
-      redirectUri: `${config.baseUrl}/microsoft/callback`
-    });
-
-    return config;
-  }, []);
-
-  const validateEnvironment = useCallback(() => {
-    const issues = [];
-    
-    if (!user) {
-      issues.push('User not authenticated');
-    }
-    
-    if (!window.location.origin) {
-      issues.push('Cannot determine application URL');
-    }
-    
-    const config = getAuthConfig();
-    if (!config.clientId || !config.tenantId) {
-      issues.push('Missing Microsoft OAuth configuration');
-    }
-
-    return issues;
-  }, [user, getAuthConfig]);
-
   const handleMicrosoftLogin = useCallback(async () => {
-    // Pre-flight validation
-    const issues = validateEnvironment();
-    if (issues.length > 0) {
+    if (!user) {
       toast({
-        title: "Configuration Error",
-        description: `Cannot connect: ${issues.join(', ')}`,
+        title: "Authentication Required",
+        description: "Please sign in first before connecting your Microsoft account.",
         variant: "destructive"
       });
       return;
@@ -81,100 +35,117 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       return;
     }
 
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in first before connecting your Microsoft account.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setLoading(true);
     
     try {
-      const config = getAuthConfig();
-      const redirectUri = `${config.baseUrl}/microsoft/callback`;
-      
-      // Generate a unique state parameter for security
-      const state = user.id;
-      const nonce = Math.random().toString(36).substring(2, 15);
-      
-      console.log('Initiating Microsoft OAuth flow:', {
-        redirectUri,
-        state,
-        clientId: config.clientId,
-        timestamp: new Date().toISOString()
-      });
-      
-      // Clear any existing session data
+      // Clear any existing errors first
       try {
+        localStorage.removeItem('microsoft_auth_error');
         sessionStorage.removeItem('microsoft_auth_user_id');
         sessionStorage.removeItem('microsoft_auth_nonce');
-        localStorage.removeItem('microsoft_auth_error');
-      } catch (storageError) {
-        console.warn('Storage cleanup warning:', storageError);
+        sessionStorage.removeItem('microsoft_auth_timestamp');
+      } catch (e) {
+        console.warn('Storage cleanup warning:', e);
       }
+
+      // Enhanced configuration
+      const clientId = '44391516-babe-4072-8422-a4fc8a79fbde';
+      const baseUrl = window.location.origin;
+      const redirectUri = `${baseUrl}/microsoft/callback`;
+      const state = user.id;
+      const nonce = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       
-      // Store session data with error handling
+      console.log('Microsoft OAuth Configuration:', {
+        clientId,
+        baseUrl,
+        redirectUri,
+        userId: state,
+        timestamp: new Date().toISOString()
+      });
+
+      // Store session data
       try {
-        sessionStorage.setItem('microsoft_auth_user_id', user.id);
+        sessionStorage.setItem('microsoft_auth_user_id', state);
         sessionStorage.setItem('microsoft_auth_nonce', nonce);
         sessionStorage.setItem('microsoft_auth_timestamp', Date.now().toString());
       } catch (storageError) {
-        console.error('Failed to store session data:', storageError);
+        console.error('Session storage error:', storageError);
         toast({
           title: "Storage Error",
-          description: "Unable to store session data. Please check browser storage permissions.",
+          description: "Unable to store session data. Please enable cookies and try again.",
           variant: "destructive"
         });
         setLoading(false);
         return;
       }
-      
-      // Construct OAuth URL with proper encoding
+
+      // Enhanced scope with proper permissions
+      const scope = [
+        'openid',
+        'profile',
+        'email',
+        'offline_access',
+        'https://graph.microsoft.com/User.Read',
+        'https://graph.microsoft.com/Mail.ReadWrite',
+        'https://graph.microsoft.com/Calendars.ReadWrite',
+        'https://graph.microsoft.com/Files.ReadWrite.All'
+      ].join(' ');
+
+      // Construct OAuth URL with enhanced parameters
       const authParams = new URLSearchParams({
-        client_id: config.clientId,
+        client_id: clientId,
         response_type: 'code',
         redirect_uri: redirectUri,
-        scope: config.scope,
+        scope: scope,
         response_mode: 'query',
         state: state,
         nonce: nonce,
-        prompt: 'consent', // Changed from 'select_account' to 'consent'
+        prompt: 'consent',
         access_type: 'offline'
       });
-      
-      // Use the common endpoint instead of tenant-specific
+
+      // Use Microsoft common endpoint for better compatibility
       const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${authParams.toString()}`;
       
-      console.log('Microsoft OAuth URL generated:', authUrl.substring(0, 100) + '...');
+      console.log('Redirecting to Microsoft OAuth URL');
       
-      // Add a small delay to ensure all preparations are complete
+      // Use a more reliable redirect method
       setTimeout(() => {
         try {
+          // First try window.location.href
           window.location.href = authUrl;
         } catch (navigationError) {
-          console.error('Navigation error:', navigationError);
-          toast({
-            title: "Navigation Failed",
-            description: "Unable to redirect to Microsoft login. Please try again.",
-            variant: "destructive"
-          });
-          setLoading(false);
+          console.error('Navigation failed, trying alternative method:', navigationError);
+          // Fallback: try window.open and focus
+          try {
+            const authWindow = window.open(authUrl, '_self');
+            if (authWindow) {
+              authWindow.focus();
+            } else {
+              throw new Error('Popup blocked');
+            }
+          } catch (popupError) {
+            console.error('All navigation methods failed:', popupError);
+            toast({
+              title: "Navigation Failed",
+              description: "Unable to redirect to Microsoft login. Please check popup blockers and try again.",
+              variant: "destructive"
+            });
+            setLoading(false);
+          }
         }
-      }, 200);
+      }, 100);
       
     } catch (error: any) {
       console.error('Microsoft OAuth initialization error:', error);
+      setLoading(false);
       toast({
         title: "Connection Failed",
         description: `Failed to initialize Microsoft connection: ${error.message}`,
         variant: "destructive"
       });
-      setLoading(false);
     }
-  }, [user, toast, canAttemptConnection, getAuthConfig, validateEnvironment]);
+  }, [user, toast, canAttemptConnection]);
 
   // Auto-trigger onSuccess when connection is established
   useEffect(() => {
@@ -191,7 +162,7 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         <div className="p-4 bg-green-50 rounded-lg border border-green-200">
           <h4 className="font-medium text-green-800 mb-2">Microsoft 365 Connected</h4>
           <p className="text-sm text-green-700 mb-3">
-            Your Microsoft account is connected with enhanced reliability. Tokens are automatically refreshed every 15 minutes.
+            Your Microsoft account is connected. You can now access Outlook, Teams, and SharePoint features.
           </p>
           <Button 
             onClick={disconnectMicrosoft}

@@ -14,7 +14,7 @@ export const MicrosoftCallback: React.FC = () => {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        setProgress('Validating callback parameters...');
+        setProgress('Processing Microsoft callback...');
         
         const code = searchParams.get('code');
         const state = searchParams.get('state');
@@ -22,42 +22,45 @@ export const MicrosoftCallback: React.FC = () => {
         const errorDescription = searchParams.get('error_description');
 
         console.log('Microsoft callback received:', { 
-          code: code ? 'present' : 'missing', 
-          state: state ? 'present' : 'missing', 
+          hasCode: !!code, 
+          hasState: !!state, 
           error, 
           errorDescription,
           timestamp: new Date().toISOString()
         });
 
-        // Handle Microsoft OAuth errors
+        // Handle OAuth errors from Microsoft
         if (error) {
           console.error('Microsoft OAuth error:', error, errorDescription);
           
-          const errorMessages = {
-            'access_denied': 'Microsoft authentication was cancelled by user',
-            'invalid_request': 'Invalid authentication request to Microsoft',
-            'invalid_client': 'Microsoft application configuration error',
-            'invalid_grant': 'Authentication grant expired or invalid',
-            'unauthorized_client': 'Application not authorized for Microsoft access'
+          const errorMessages: Record<string, string> = {
+            'access_denied': 'You cancelled the Microsoft authentication process.',
+            'invalid_request': 'Invalid authentication request. Please try again.',
+            'invalid_client': 'Microsoft application configuration error. Please contact support.',
+            'invalid_grant': 'Authentication expired. Please try again.',
+            'unauthorized_client': 'Application not authorized. Please contact support.',
+            'server_error': 'Microsoft server error. Please try again later.',
+            'temporarily_unavailable': 'Microsoft services temporarily unavailable. Please try again later.'
           };
           
-          const friendlyMessage = errorMessages[error as keyof typeof errorMessages] || errorDescription || `Microsoft authentication failed: ${error}`;
+          const friendlyMessage = errorMessages[error] || errorDescription || `Authentication failed: ${error}`;
           
           toast({
-            title: "Authentication Failed",
+            title: "Microsoft Authentication Failed",
             description: friendlyMessage,
             variant: "destructive"
           });
+          
           navigate('/', { replace: true });
           return;
         }
 
         // Validate required parameters
         if (!code) {
-          console.error('Missing authorization code');
+          console.error('Missing authorization code from Microsoft');
           toast({
             title: "Authentication Failed", 
-            description: "No authorization code received from Microsoft. Please try again.",
+            description: "No authorization code received from Microsoft. Please try connecting again.",
             variant: "destructive"
           });
           navigate('/', { replace: true });
@@ -65,67 +68,50 @@ export const MicrosoftCallback: React.FC = () => {
         }
 
         if (!state) {
-          console.error('Missing state parameter');
+          console.error('Missing state parameter from Microsoft');
           toast({
             title: "Authentication Failed", 
-            description: "Invalid callback state. Please try again.",
+            description: "Security validation failed. Please try connecting again.",
             variant: "destructive"
           });
           navigate('/', { replace: true });
           return;
         }
 
-        setProgress('Verifying session data...');
+        setProgress('Validating session...');
 
-        // Enhanced session validation
+        // Validate session data
         let storedUserId: string | null = null;
         let sessionTimestamp: string | null = null;
         
         try {
           storedUserId = sessionStorage.getItem('microsoft_auth_user_id');
           sessionTimestamp = sessionStorage.getItem('microsoft_auth_timestamp');
-        } catch (storageError) {
-          console.error('Session storage access error:', storageError);
+        } catch (e) {
+          console.error('Session storage access error:', e);
         }
         
-        console.log('Session validation:', { 
-          storedUserId: storedUserId ? 'present' : 'missing',
-          stateFromUrl: state,
-          sessionAge: sessionTimestamp ? Date.now() - parseInt(sessionTimestamp) : 'unknown'
-        });
-        
-        if (!storedUserId) {
-          console.error('No stored user ID found in session');
+        if (!storedUserId || storedUserId !== state) {
+          console.error('Session validation failed', { storedUserId, state });
           toast({
             title: "Session Error",
-            description: "Authentication session expired. Please try connecting again.",
-            variant: "destructive"
-          });
-          navigate('/', { replace: true });
-          return;
-        }
-        
-        if (storedUserId !== state) {
-          console.error('State parameter mismatch - possible CSRF attack', { storedUserId, state });
-          toast({
-            title: "Security Error",
-            description: "Invalid authentication state. This may indicate a security issue.",
+            description: "Authentication session is invalid. Please try connecting again.",
             variant: "destructive"
           });
           navigate('/', { replace: true });
           return;
         }
 
-        // Check session age (should not be older than 30 minutes)
+        // Check session age (30 minutes max)
         if (sessionTimestamp) {
           const sessionAge = Date.now() - parseInt(sessionTimestamp);
-          const maxAge = 30 * 60 * 1000; // 30 minutes
+          const maxAge = 30 * 60 * 1000;
           
           if (sessionAge > maxAge) {
-            console.error('Authentication session too old:', sessionAge);
+            console.error('Authentication session expired');
             toast({
               title: "Session Expired",
-              description: "Authentication session expired. Please try again.",
+              description: "Authentication session has expired. Please try connecting again.",
               variant: "destructive"
             });
             navigate('/', { replace: true });
@@ -133,34 +119,35 @@ export const MicrosoftCallback: React.FC = () => {
           }
         }
 
-        setProgress('Exchanging authorization code...');
+        setProgress('Exchanging code for tokens...');
 
-        console.log('Calling Microsoft auth edge function...');
-
-        // Call the Microsoft auth edge function with retry logic
+        // Call Microsoft auth edge function with enhanced retry logic
         let authResult;
         let lastError;
         
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             console.log(`Microsoft auth attempt ${attempt}/3`);
+            setProgress(`Authenticating with Microsoft (attempt ${attempt}/3)...`);
             
             const { data, error: authError } = await supabase.functions.invoke('microsoft-auth', {
-              body: {
-                code,
-                user_id: state
-              }
+              body: { code, user_id: state }
             });
 
             if (authError) {
-              throw authError;
+              throw new Error(`Edge function error: ${authError.message}`);
             }
 
-            if (data.error) {
+            if (data?.error) {
               throw new Error(data.error);
             }
 
+            if (!data?.success) {
+              throw new Error('Authentication failed - no success response');
+            }
+
             authResult = data;
+            console.log('Microsoft authentication successful');
             break;
             
           } catch (error: any) {
@@ -168,73 +155,58 @@ export const MicrosoftCallback: React.FC = () => {
             lastError = error;
             
             if (attempt < 3) {
-              setProgress(`Retrying authentication (${attempt}/3)...`);
               await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
             }
           }
         }
 
         if (!authResult) {
-          throw lastError || new Error('Authentication failed after 3 attempts');
+          throw new Error(`Authentication failed after 3 attempts: ${lastError?.message || 'Unknown error'}`);
         }
 
-        console.log('Microsoft auth successful:', authResult.user?.displayName || authResult.user?.mail);
-
-        setProgress('Completing setup...');
+        setProgress('Finalizing connection...');
 
         // Clean up session storage
         try {
           sessionStorage.removeItem('microsoft_auth_user_id');
           sessionStorage.removeItem('microsoft_auth_nonce');
           sessionStorage.removeItem('microsoft_auth_timestamp');
-        } catch (storageError) {
-          console.warn('Session cleanup warning:', storageError);
+        } catch (e) {
+          console.warn('Session cleanup warning:', e);
         }
 
-        // Mark prompt as shown to prevent it from appearing again
+        // Store success marker
         try {
-          localStorage.setItem('microsoft_prompt_shown', 'true');
-        } catch (storageError) {
-          console.warn('Local storage warning:', storageError);
+          localStorage.setItem('microsoft_auth_success', 'true');
+          localStorage.setItem('microsoft_auth_timestamp', Date.now().toString());
+        } catch (e) {
+          console.warn('Local storage warning:', e);
         }
 
         toast({
           title: "Microsoft Account Connected!",
-          description: `Successfully connected ${authResult.user.displayName || authResult.user.mail}. Enhanced reliability features are now active.`
+          description: `Successfully connected to ${authResult.user?.displayName || authResult.user?.mail || 'Microsoft 365'}`,
         });
 
-        // Navigate back to home
-        navigate('/', { replace: true });
-
-        // Force a page reload to ensure all components refresh their Microsoft auth state
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+        // Navigate back with success state
+        navigate('/?microsoft_connected=true', { replace: true });
 
       } catch (error: any) {
-        console.error('Microsoft callback error:', error);
+        console.error('Microsoft callback processing error:', error);
         
         setProgress('Error occurred...');
         
-        // Clean up session storage on error
+        // Clean up on error
         try {
           sessionStorage.removeItem('microsoft_auth_user_id');
           sessionStorage.removeItem('microsoft_auth_nonce');
           sessionStorage.removeItem('microsoft_auth_timestamp');
-        } catch (storageError) {
-          console.warn('Session cleanup error:', storageError);
-        }
-        
-        // Store error for debugging
-        try {
           localStorage.setItem('microsoft_auth_last_error', JSON.stringify({
             message: error.message,
-            timestamp: new Date().toISOString(),
-            code: searchParams.get('code') ? 'present' : 'missing',
-            state: searchParams.get('state') ? 'present' : 'missing'
+            timestamp: new Date().toISOString()
           }));
-        } catch (storageError) {
-          console.warn('Error storage warning:', storageError);
+        } catch (e) {
+          console.warn('Error cleanup warning:', e);
         }
         
         toast({
@@ -242,6 +214,7 @@ export const MicrosoftCallback: React.FC = () => {
           description: error.message || "Failed to complete Microsoft authentication. Please try again.",
           variant: "destructive"
         });
+        
         navigate('/', { replace: true });
       } finally {
         setProcessing(false);
@@ -255,13 +228,13 @@ export const MicrosoftCallback: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Connecting Microsoft Account</h2>
           <p className="text-gray-600 mb-4">{progress}</p>
           <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+            <div className="bg-blue-600 h-2 rounded-full animate-pulse transition-all duration-300" style={{ width: '70%' }}></div>
           </div>
-          <p className="text-sm text-gray-500 mt-4">This may take a few moments...</p>
+          <p className="text-sm text-gray-500 mt-4">Please wait while we complete the connection...</p>
         </div>
       </div>
     );
