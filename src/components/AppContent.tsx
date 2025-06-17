@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from '@/components/Dashboard';
@@ -15,13 +14,28 @@ import { MobileResponsiveLayout } from '@/components/MobileResponsiveLayout';
 import { MicrosoftAuthPrompt } from '@/components/MicrosoftAuthPrompt';
 import { useAuth } from '@/hooks/useAuth';
 import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
+import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 
 export const AppContent = () => {
   const { user, loading } = useAuth();
   const { isConnected, loading: msLoading } = useMicrosoftAuth();
+  const deviceInfo = useDeviceInfo();
   const [currentModule, setCurrentModule] = React.useState('dashboard');
   const [avatarRefreshTrigger, setAvatarRefreshTrigger] = React.useState(0);
   const [showMicrosoftPrompt, setShowMicrosoftPrompt] = React.useState(false);
+
+  // Add mobile-specific error handling
+  React.useEffect(() => {
+    if (deviceInfo.isNative) {
+      const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+        console.error('Unhandled promise rejection on mobile:', event.reason);
+        event.preventDefault();
+      };
+
+      window.addEventListener('unhandledrejection', handleUnhandledRejection);
+      return () => window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    }
+  }, [deviceInfo.isNative]);
 
   // Check if this is first time user or session reset
   React.useEffect(() => {
@@ -99,7 +113,10 @@ export const AppContent = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Loading ISKCON Portal...</p>
+          {deviceInfo.isNative && (
+            <p className="text-sm text-gray-500 mt-2">Mobile App Loading</p>
+          )}
         </div>
       </div>
     );
@@ -110,27 +127,44 @@ export const AppContent = () => {
   }
 
   const renderModule = () => {
-    switch (currentModule) {
-      case 'dashboard':
-        return <Dashboard />;
-      case 'meetings':
-        return <MeetingsModule />;
-      case 'documents':
-        return <DocumentsModule />;
-      case 'voting':
-        return <VotingModule />;
-      case 'attendance':
-        return <AttendanceModule />;
-      case 'email':
-        return <EmailModule />;
-      case 'members':
-        return <MembersModule />;
-      case 'reports':
-        return <ReportsModule />;
-      case 'settings':
-        return <SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />;
-      default:
-        return <Dashboard />;
+    try {
+      switch (currentModule) {
+        case 'dashboard':
+          return <Dashboard />;
+        case 'meetings':
+          return <MeetingsModule />;
+        case 'documents':
+          return <DocumentsModule />;
+        case 'voting':
+          return <VotingModule />;
+        case 'attendance':
+          return <AttendanceModule />;
+        case 'email':
+          return <EmailModule />;
+        case 'members':
+          return <MembersModule />;
+        case 'reports':
+          return <ReportsModule />;
+        case 'settings':
+          return <SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />;
+        default:
+          console.warn(`Unknown module: ${currentModule}, falling back to dashboard`);
+          return <Dashboard />;
+      }
+    } catch (error) {
+      console.error('Error rendering module:', error);
+      return (
+        <div className="p-6 text-center">
+          <h2 className="text-xl font-semibold text-red-600 mb-2">Module Error</h2>
+          <p className="text-gray-600 mb-4">There was an error loading this module.</p>
+          <button 
+            onClick={() => setCurrentModule('dashboard')}
+            className="bg-primary text-white px-4 py-2 rounded"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      );
     }
   };
 

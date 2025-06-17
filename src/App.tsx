@@ -28,6 +28,20 @@ const App = () => {
     }
   }, [deviceInfo.isNative]);
 
+  // Add error boundary for mobile
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('Global error caught:', event.error);
+      if (deviceInfo.isNative) {
+        // Prevent app crashes on mobile
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, [deviceInfo.isNative]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -35,11 +49,12 @@ const App = () => {
           <Toaster />
           <Sonner />
           {showSplash && <MobileSplashScreen />}
-          <BrowserRouter>
+          <BrowserRouter basename="/">
             <Routes>
               <Route path="/auth" element={<RealAuthPage />} />
               <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
-              <Route path="/*" element={<AppContent />} />
+              <Route path="/" element={<AppContent />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </AuthProvider>

@@ -6,9 +6,9 @@ const config: CapacitorConfig = {
   appName: 'ISKCON Management Portal',
   webDir: 'dist',
   server: {
-    // Remove this server config for production builds
-    // url: 'https://6a0fd4ef-a029-4c9d-95ed-74a4fa947c60.lovableproject.com?forceHideBadge=true',
-    // cleartext: true
+    // For production builds, comment out these server settings
+    url: 'https://6a0fd4ef-a029-4c9d-95ed-74a4fa947c60.lovableproject.com?forceHideBadge=true',
+    cleartext: true
   },
   plugins: {
     SplashScreen: {
@@ -36,7 +36,7 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: true,
     captureInput: true,
-    webContentsDebuggingEnabled: false
+    webContentsDebuggingEnabled: true
   },
   ios: {
     contentInset: 'automatic',
