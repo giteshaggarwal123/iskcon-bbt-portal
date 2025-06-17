@@ -26,16 +26,32 @@ serve(async (req) => {
     // Use the specific tenant ID
     const tenantId = Deno.env.get('MICROSOFT_TENANT_ID') || 'b2333ef6-3378-4d02-b9b9-d8e66d9dfa3d'
     
-    // Determine the correct redirect URI based on the request origin or site URL
-    const requestOrigin = req.headers.get('origin') || req.headers.get('referer')?.split('/')[0] + '//' + req.headers.get('referer')?.split('/')[2]
-    const siteUrl = Deno.env.get('SITE_URL') || requestOrigin || 'https://iskconbureau.in'
-    const redirectUri = `${siteUrl}/microsoft-callback`
+    // Get the redirect URI from the request origin or use the configured site URL
+    const requestOrigin = req.headers.get('origin')
+    const referer = req.headers.get('referer')
+    
+    let siteUrl = Deno.env.get('SITE_URL')
+    
+    // If no site URL configured, try to determine from request
+    if (!siteUrl) {
+      if (requestOrigin) {
+        siteUrl = requestOrigin
+      } else if (referer) {
+        const url = new URL(referer)
+        siteUrl = `${url.protocol}//${url.host}`
+      } else {
+        siteUrl = 'https://6a0fd4ef-a029-4c9d-95ed-74a4fa947c60.lovableproject.com'
+      }
+    }
+    
+    const redirectUri = `${siteUrl}/microsoft/callback`
     
     console.log('Using redirect URI:', redirectUri)
     console.log('Using tenant ID:', tenantId)
+    console.log('Request origin:', requestOrigin)
+    console.log('Site URL:', siteUrl)
 
     // Exchange authorization code for access token using tenant-specific endpoint
-    // Include offline_access scope to get refresh token
     const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
       method: 'POST',
       headers: {
@@ -89,7 +105,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Calculate expiration time with some buffer
+    // Calculate expiration time with buffer
     const expiresAt = new Date(Date.now() + (tokenData.expires_in - 300) * 1000).toISOString() // 5 minutes buffer
 
     const { error: updateError } = await supabase

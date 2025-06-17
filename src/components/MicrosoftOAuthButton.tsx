@@ -33,13 +33,18 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       const clientId = '44391516-babe-4072-8422-a4fc8a79fbde';
       const tenantId = 'b2333ef6-3378-4d02-b9b9-d8e66d9dfa3d';
       
-      // Use the exact domain from your current deployment
-      const currentDomain = window.location.origin;
-      const redirectUri = `${currentDomain}/microsoft/callback`;
+      // Use a more reliable redirect URI approach
+      const baseUrl = window.location.origin;
+      // Ensure we're using the correct path format
+      const redirectUri = `${baseUrl}/microsoft/callback`;
       
       console.log('Microsoft OAuth redirect URI:', redirectUri);
+      console.log('Base URL:', baseUrl);
       
       const scope = 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All https://graph.microsoft.com/Sites.ReadWrite.All https://graph.microsoft.com/OnlineMeetings.ReadWrite offline_access';
+      
+      // Clear any existing session data first
+      sessionStorage.removeItem('microsoft_auth_user_id');
       
       const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?` +
         `client_id=${clientId}&` +
@@ -47,13 +52,18 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `scope=${encodeURIComponent(scope)}&` +
         `response_mode=query&` +
-        `state=${user.id}`;
+        `state=${user.id}&` +
+        `prompt=select_account`; // Force account selection
+      
+      console.log('Microsoft OAuth URL:', authUrl);
       
       // Store user ID in session storage for callback
       sessionStorage.setItem('microsoft_auth_user_id', user.id);
       
-      // Redirect to Microsoft OAuth
-      window.location.href = authUrl;
+      // Add a small delay to ensure session storage is set
+      setTimeout(() => {
+        window.location.href = authUrl;
+      }, 100);
       
     } catch (error: any) {
       console.error('Microsoft OAuth error:', error);
