@@ -16,7 +16,7 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
   const { user } = useAuth();
   const { isConnected, disconnectMicrosoft, canAttemptConnection } = useMicrosoftAuth();
 
-  // Enhanced configuration with fallback values
+  // Enhanced configuration with proper URL encoding
   const getAuthConfig = useCallback(() => {
     const config = {
       clientId: '44391516-babe-4072-8422-a4fc8a79fbde',
@@ -116,23 +116,6 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         console.warn('Storage cleanup warning:', storageError);
       }
       
-      // Construct OAuth URL with enhanced parameters
-      const authParams = new URLSearchParams({
-        client_id: config.clientId,
-        response_type: 'code',
-        redirect_uri: redirectUri,
-        scope: config.scope,
-        response_mode: 'query',
-        state: state,
-        nonce: nonce,
-        prompt: 'select_account',
-        domain_hint: 'organizations' // Prefer organizational accounts
-      });
-      
-      const authUrl = `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/authorize?${authParams.toString()}`;
-      
-      console.log('Microsoft OAuth URL generated:', authUrl.substring(0, 100) + '...');
-      
       // Store session data with error handling
       try {
         sessionStorage.setItem('microsoft_auth_user_id', user.id);
@@ -148,6 +131,24 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         setLoading(false);
         return;
       }
+      
+      // Construct OAuth URL with proper encoding
+      const authParams = new URLSearchParams({
+        client_id: config.clientId,
+        response_type: 'code',
+        redirect_uri: redirectUri,
+        scope: config.scope,
+        response_mode: 'query',
+        state: state,
+        nonce: nonce,
+        prompt: 'consent', // Changed from 'select_account' to 'consent'
+        access_type: 'offline'
+      });
+      
+      // Use the common endpoint instead of tenant-specific
+      const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${authParams.toString()}`;
+      
+      console.log('Microsoft OAuth URL generated:', authUrl.substring(0, 100) + '...');
       
       // Add a small delay to ensure all preparations are complete
       setTimeout(() => {
