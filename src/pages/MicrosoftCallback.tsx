@@ -23,7 +23,7 @@ export const MicrosoftCallback: React.FC = () => {
           description: "Microsoft authentication was cancelled or failed.",
           variant: "destructive"
         });
-        navigate('/');
+        navigate('/', { replace: true });
         return;
       }
 
@@ -33,7 +33,7 @@ export const MicrosoftCallback: React.FC = () => {
           description: "Invalid callback parameters from Microsoft.",
           variant: "destructive"
         });
-        navigate('/');
+        navigate('/', { replace: true });
         return;
       }
 
@@ -63,12 +63,21 @@ export const MicrosoftCallback: React.FC = () => {
         // Clean up session storage
         sessionStorage.removeItem('microsoft_auth_user_id');
 
+        // Mark prompt as shown to prevent it from appearing again
+        localStorage.setItem('microsoft_prompt_shown', 'true');
+
         toast({
           title: "Microsoft Account Connected!",
           description: `Successfully connected ${data.user.displayName || data.user.mail}. You can now use Outlook, Teams, and SharePoint features.`
         });
 
-        navigate('/');
+        // Navigate back to home and force a refresh of Microsoft auth state
+        navigate('/', { replace: true });
+
+        // Trigger a page reload to ensure all components refresh their Microsoft auth state
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
 
       } catch (error: any) {
         console.error('Microsoft callback error:', error);
@@ -77,7 +86,7 @@ export const MicrosoftCallback: React.FC = () => {
           description: error.message || "Failed to complete Microsoft authentication.",
           variant: "destructive"
         });
-        navigate('/');
+        navigate('/', { replace: true });
       } finally {
         setProcessing(false);
       }
@@ -92,6 +101,7 @@ export const MicrosoftCallback: React.FC = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-gray-600">Connecting your Microsoft account...</p>
+          <p className="text-sm text-gray-500 mt-2">Please wait while we complete the setup.</p>
         </div>
       </div>
     );

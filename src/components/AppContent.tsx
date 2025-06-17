@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from '@/components/Dashboard';
@@ -37,9 +38,15 @@ export const AppContent = () => {
     }
   }, [deviceInfo.isNative]);
 
-  // Check if this is first time user or session reset
+  // Improved Microsoft prompt logic
   React.useEffect(() => {
-    console.log('Microsoft auth check:', { user: !!user, loading, msLoading, isConnected });
+    console.log('Microsoft auth check:', { 
+      user: !!user, 
+      loading, 
+      msLoading, 
+      isConnected,
+      showMicrosoftPrompt 
+    });
     
     if (user && !loading && !msLoading) {
       const hasShownPrompt = localStorage.getItem('microsoft_prompt_shown');
@@ -49,36 +56,49 @@ export const AppContent = () => {
         hasShownPrompt, 
         lastUserId, 
         currentUserId: user.id, 
-        isConnected 
+        isConnected,
+        isNewUser: lastUserId !== user.id
       });
       
-      // Show prompt if:
-      // 1. Never shown before for this user, OR
-      // 2. Different user (session reset), OR  
-      // 3. Not connected to Microsoft
-      const shouldShowPrompt = !hasShownPrompt || 
-                              lastUserId !== user.id || 
-                              !isConnected;
+      // Show prompt only if:
+      // 1. User is not already connected to Microsoft AND
+      // 2. (Never shown before OR different user) AND
+      // 3. Not currently showing the prompt
+      const shouldShowPrompt = !isConnected && 
+                              (!hasShownPrompt || lastUserId !== user.id) &&
+                              !showMicrosoftPrompt;
       
       console.log('Should show Microsoft prompt:', shouldShowPrompt);
       
       if (shouldShowPrompt) {
-        setShowMicrosoftPrompt(true);
+        // Small delay to ensure UI is ready
+        setTimeout(() => {
+          setShowMicrosoftPrompt(true);
+        }, 1000);
       }
       
       // Store current user ID
       localStorage.setItem('last_user_id', user.id);
     }
-  }, [user, loading, msLoading, isConnected]);
+  }, [user, loading, msLoading, isConnected, showMicrosoftPrompt]);
+
+  // Hide prompt when Microsoft gets connected
+  React.useEffect(() => {
+    if (isConnected && showMicrosoftPrompt) {
+      console.log('Microsoft connected, hiding prompt');
+      setShowMicrosoftPrompt(false);
+      localStorage.setItem('microsoft_prompt_shown', 'true');
+    }
+  }, [isConnected, showMicrosoftPrompt]);
 
   const handleMicrosoftPromptClose = () => {
-    console.log('Microsoft prompt closed');
+    console.log('Microsoft prompt closed by user');
     setShowMicrosoftPrompt(false);
     localStorage.setItem('microsoft_prompt_shown', 'true');
   };
 
   const handleMicrosoftPromptSkip = () => {
-    console.log('Microsoft prompt skipped');
+    console.log('Microsoft prompt skipped by user');
     setShowMicrosoftPrompt(false);
     localStorage.setItem('microsoft_prompt_shown', 'true');
   };

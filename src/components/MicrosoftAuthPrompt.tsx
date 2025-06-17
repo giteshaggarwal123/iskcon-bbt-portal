@@ -17,14 +17,41 @@ export const MicrosoftAuthPrompt: React.FC<MicrosoftAuthPromptProps> = ({
   onClose, 
   onSkip 
 }) => {
-  const { isConnected } = useMicrosoftAuth();
+  const { isConnected, loading } = useMicrosoftAuth();
   const { user } = useAuth();
+  const [isConnecting, setIsConnecting] = useState(false);
 
+  // Close dialog immediately when Microsoft account gets connected
   useEffect(() => {
-    if (isConnected) {
+    if (isConnected && !loading) {
+      console.log('Microsoft connected, closing prompt');
       onClose();
     }
-  }, [isConnected, onClose]);
+  }, [isConnected, loading, onClose]);
+
+  // Don't show the dialog if user is not authenticated
+  if (!user) {
+    return null;
+  }
+
+  // Don't show the dialog if Microsoft is already connected
+  if (isConnected) {
+    return null;
+  }
+
+  const handleConnect = () => {
+    setIsConnecting(true);
+  };
+
+  const handleSkip = () => {
+    console.log('User skipped Microsoft connection');
+    onSkip();
+  };
+
+  const handleClose = () => {
+    console.log('User closed Microsoft prompt');
+    onClose();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
@@ -58,14 +85,53 @@ export const MicrosoftAuthPrompt: React.FC<MicrosoftAuthPromptProps> = ({
           </div>
         </div>
 
+        <div className="space-y-3 mb-6">
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <h4 className="font-medium text-blue-800 mb-2">Enhanced Microsoft Integration</h4>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <div className="w-1 h-1 bg-blue-500 rounded-full"></div>
+                <span className="text-xs text-blue-700">Automatic token refresh every 30 minutes</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-1 h-1 bg-blue-500 rounded-full"></div>
+                <span className="text-xs text-blue-700">Persistent connection until manually disconnected</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-1 h-1 bg-blue-500 rounded-full"></div>
+                <span className="text-xs text-blue-700">Enhanced error handling and recovery</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="space-y-3">
-          <MicrosoftOAuthButton onSuccess={onClose} />
+          <Button 
+            onClick={handleConnect}
+            disabled={loading || isConnecting}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {loading || isConnecting ? (
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                <span>Connecting...</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/>
+                </svg>
+                <span>Connect Microsoft 365</span>
+              </div>
+            )}
+          </Button>
           
           <div className="flex space-x-2">
             <Button 
               variant="outline" 
-              onClick={onSkip}
+              onClick={handleSkip}
               className="flex-1"
+              disabled={loading || isConnecting}
             >
               Skip for now
             </Button>

@@ -35,7 +35,7 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       
       // Use the exact domain from your current deployment
       const currentDomain = window.location.origin;
-      const redirectUri = `${currentDomain}/microsoft-callback`;
+      const redirectUri = `${currentDomain}/microsoft/callback`;
       
       console.log('Microsoft OAuth redirect URI:', redirectUri);
       
@@ -66,6 +66,14 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
     }
   };
 
+  // Auto-trigger onSuccess when connection is established
+  React.useEffect(() => {
+    if (isConnected && onSuccess) {
+      console.log('Microsoft connected, calling onSuccess');
+      onSuccess();
+    }
+  }, [isConnected, onSuccess]);
+
   if (isConnected) {
     return (
       <div className="space-y-4">
@@ -90,22 +98,6 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
   return (
     <div className="space-y-4">
       <MicrosoftConnectionStatus />
-      
-      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <h4 className="font-medium text-blue-800 mb-2">Enhanced Microsoft Integration</h4>
-        <p className="text-sm text-blue-700 mb-2">
-          This integration now includes automatic token refresh to keep your connection persistent. Once connected, you won't need to reconnect frequently.
-        </p>
-        <div className="bg-white p-2 rounded border text-xs font-mono text-gray-800 mb-2">
-          ✓ Automatic token refresh every 30 minutes
-        </div>
-        <div className="bg-white p-2 rounded border text-xs font-mono text-gray-800 mb-2">
-          ✓ Persistent connection until manually disconnected
-        </div>
-        <div className="bg-white p-2 rounded border text-xs font-mono text-gray-800 mb-2">
-          ✓ Enhanced error handling and recovery
-        </div>
-      </div>
       
       <Button 
         onClick={handleMicrosoftLogin}
