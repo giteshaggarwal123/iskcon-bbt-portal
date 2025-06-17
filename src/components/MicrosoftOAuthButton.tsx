@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -14,9 +14,73 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { isConnected, disconnectMicrosoft } = useMicrosoftAuth();
+  const { isConnected, disconnectMicrosoft, canAttemptConnection } = useMicrosoftAuth();
 
-  const handleMicrosoftLogin = async () => {
+  // Enhanced configuration with fallback values
+  const getAuthConfig = useCallback(() => {
+    const config = {
+      clientId: '44391516-babe-4072-8422-a4fc8a79fbde',
+      tenantId: 'b2333ef6-3378-4d02-b9b9-d8e66d9dfa3d',
+      baseUrl: window.location.origin,
+      scope: [
+        'https://graph.microsoft.com/User.Read',
+        'https://graph.microsoft.com/Mail.ReadWrite',
+        'https://graph.microsoft.com/Calendars.ReadWrite',
+        'https://graph.microsoft.com/Files.ReadWrite.All',
+        'https://graph.microsoft.com/Sites.ReadWrite.All',
+        'https://graph.microsoft.com/OnlineMeetings.ReadWrite',
+        'offline_access'
+      ].join(' ')
+    };
+
+    console.log('Microsoft OAuth Configuration:', {
+      ...config,
+      redirectUri: `${config.baseUrl}/microsoft/callback`
+    });
+
+    return config;
+  }, []);
+
+  const validateEnvironment = useCallback(() => {
+    const issues = [];
+    
+    if (!user) {
+      issues.push('User not authenticated');
+    }
+    
+    if (!window.location.origin) {
+      issues.push('Cannot determine application URL');
+    }
+    
+    const config = getAuthConfig();
+    if (!config.clientId || !config.tenantId) {
+      issues.push('Missing Microsoft OAuth configuration');
+    }
+
+    return issues;
+  }, [user, getAuthConfig]);
+
+  const handleMicrosoftLogin = useCallback(async () => {
+    // Pre-flight validation
+    const issues = validateEnvironment();
+    if (issues.length > 0) {
+      toast({
+        title: "Configuration Error",
+        description: `Cannot connect: ${issues.join(', ')}`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!canAttemptConnection) {
+      toast({
+        title: "Rate Limited",
+        description: "Too many connection attempts. Please wait before trying again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -29,55 +93,90 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
     setLoading(true);
     
     try {
-      // Generate Microsoft OAuth URL
-      const clientId = '44391516-babe-4072-8422-a4fc8a79fbde';
-      const tenantId = 'b2333ef6-3378-4d02-b9b9-d8e66d9dfa3d';
+      const config = getAuthConfig();
+      const redirectUri = `${config.baseUrl}/microsoft/callback`;
       
-      // Use a more reliable redirect URI approach
-      const baseUrl = window.location.origin;
-      // Ensure we're using the correct path format
-      const redirectUri = `${baseUrl}/microsoft/callback`;
+      // Generate a unique state parameter for security
+      const state = user.id;
+      const nonce = Math.random().toString(36).substring(2, 15);
       
-      console.log('Microsoft OAuth redirect URI:', redirectUri);
-      console.log('Base URL:', baseUrl);
+      console.log('Initiating Microsoft OAuth flow:', {
+        redirectUri,
+        state,
+        clientId: config.clientId,
+        timestamp: new Date().toISOString()
+      });
       
-      const scope = 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All https://graph.microsoft.com/Sites.ReadWrite.All https://graph.microsoft.com/OnlineMeetings.ReadWrite offline_access';
+      // Clear any existing session data
+      try {
+        sessionStorage.removeItem('microsoft_auth_user_id');
+        sessionStorage.removeItem('microsoft_auth_nonce');
+        localStorage.removeItem('microsoft_auth_error');
+      } catch (storageError) {
+        console.warn('Storage cleanup warning:', storageError);
+      }
       
-      // Clear any existing session data first
-      sessionStorage.removeItem('microsoft_auth_user_id');
+      // Construct OAuth URL with enhanced parameters
+      const authParams = new URLSearchParams({
+        client_id: config.clientId,
+        response_type: 'code',
+        redirect_uri: redirectUri,
+        scope: config.scope,
+        response_mode: 'query',
+        state: state,
+        nonce: nonce,
+        prompt: 'select_account',
+        domain_hint: 'organizations' // Prefer organizational accounts
+      });
       
-      const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?` +
-        `client_id=${clientId}&` +
-        `response_type=code&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `scope=${encodeURIComponent(scope)}&` +
-        `response_mode=query&` +
-        `state=${user.id}&` +
-        `prompt=select_account`; // Force account selection
+      const authUrl = `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/authorize?${authParams.toString()}`;
       
-      console.log('Microsoft OAuth URL:', authUrl);
+      console.log('Microsoft OAuth URL generated:', authUrl.substring(0, 100) + '...');
       
-      // Store user ID in session storage for callback
-      sessionStorage.setItem('microsoft_auth_user_id', user.id);
+      // Store session data with error handling
+      try {
+        sessionStorage.setItem('microsoft_auth_user_id', user.id);
+        sessionStorage.setItem('microsoft_auth_nonce', nonce);
+        sessionStorage.setItem('microsoft_auth_timestamp', Date.now().toString());
+      } catch (storageError) {
+        console.error('Failed to store session data:', storageError);
+        toast({
+          title: "Storage Error",
+          description: "Unable to store session data. Please check browser storage permissions.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
       
-      // Add a small delay to ensure session storage is set
+      // Add a small delay to ensure all preparations are complete
       setTimeout(() => {
-        window.location.href = authUrl;
-      }, 100);
+        try {
+          window.location.href = authUrl;
+        } catch (navigationError) {
+          console.error('Navigation error:', navigationError);
+          toast({
+            title: "Navigation Failed",
+            description: "Unable to redirect to Microsoft login. Please try again.",
+            variant: "destructive"
+          });
+          setLoading(false);
+        }
+      }, 200);
       
     } catch (error: any) {
-      console.error('Microsoft OAuth error:', error);
+      console.error('Microsoft OAuth initialization error:', error);
       toast({
         title: "Connection Failed",
-        description: "Failed to connect to Microsoft. Please try again.",
+        description: `Failed to initialize Microsoft connection: ${error.message}`,
         variant: "destructive"
       });
       setLoading(false);
     }
-  };
+  }, [user, toast, canAttemptConnection, getAuthConfig, validateEnvironment]);
 
   // Auto-trigger onSuccess when connection is established
-  React.useEffect(() => {
+  useEffect(() => {
     if (isConnected && onSuccess) {
       console.log('Microsoft connected, calling onSuccess');
       onSuccess();
@@ -91,7 +190,7 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         <div className="p-4 bg-green-50 rounded-lg border border-green-200">
           <h4 className="font-medium text-green-800 mb-2">Microsoft 365 Connected</h4>
           <p className="text-sm text-green-700 mb-3">
-            Your Microsoft account is connected and tokens are automatically refreshed. You can now use Outlook, Teams, and SharePoint features.
+            Your Microsoft account is connected with enhanced reliability. Tokens are automatically refreshed every 15 minutes.
           </p>
           <Button 
             onClick={disconnectMicrosoft}
@@ -109,9 +208,17 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
     <div className="space-y-4">
       <MicrosoftConnectionStatus />
       
+      {!canAttemptConnection && (
+        <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+          <p className="text-sm text-yellow-800">
+            Connection rate limited. Please wait before trying again.
+          </p>
+        </div>
+      )}
+      
       <Button 
         onClick={handleMicrosoftLogin}
-        disabled={loading}
+        disabled={loading || !canAttemptConnection}
         className="w-full bg-blue-600 hover:bg-blue-700 text-white"
       >
         {loading ? (

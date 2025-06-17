@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
@@ -9,6 +9,13 @@ interface MicrosoftAuthState {
   isExpired: boolean;
   accessToken: string | null;
   expiresAt: string | null;
+  lastError: string | null;
+}
+
+interface ConnectionAttempt {
+  timestamp: number;
+  success: boolean;
+  error?: string;
 }
 
 export const useMicrosoftAuth = () => {
@@ -16,92 +23,163 @@ export const useMicrosoftAuth = () => {
     isConnected: false,
     isExpired: false,
     accessToken: null,
-    expiresAt: null
+    expiresAt: null,
+    lastError: null
   });
   const [loading, setLoading] = useState(true);
+  const [connectionAttempts, setConnectionAttempts] = useState<ConnectionAttempt[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const checkAndRefreshToken = async () => {
+  // Rate limiting: max 3 attempts per 5 minutes
+  const canAttemptConnection = useCallback(() => {
+    const now = Date.now();
+    const fiveMinutesAgo = now - 5 * 60 * 1000;
+    const recentAttempts = connectionAttempts.filter(attempt => attempt.timestamp > fiveMinutesAgo);
+    return recentAttempts.length < 3;
+  }, [connectionAttempts]);
+
+  const recordConnectionAttempt = useCallback((success: boolean, error?: string) => {
+    setConnectionAttempts(prev => [...prev.slice(-9), { // Keep last 10 attempts
+      timestamp: Date.now(),
+      success,
+      error
+    }]);
+  }, []);
+
+  const checkAndRefreshToken = useCallback(async (retryCount = 0): Promise<boolean> => {
     if (!user) {
-      setAuthState({ isConnected: false, isExpired: false, accessToken: null, expiresAt: null });
+      setAuthState(prev => ({ ...prev, isConnected: false, isExpired: false, accessToken: null, expiresAt: null, lastError: null }));
       setLoading(false);
-      return;
+      return false;
     }
 
     try {
+      console.log(`Microsoft auth check attempt ${retryCount + 1}`);
+      
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('microsoft_access_token, microsoft_refresh_token, token_expires_at')
         .eq('id', user.id)
         .single();
 
-      if (error || !profile?.microsoft_access_token) {
-        setAuthState({ isConnected: false, isExpired: false, accessToken: null, expiresAt: null });
+      if (error) {
+        console.error('Profile fetch error:', error);
+        if (retryCount < 2) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+          return checkAndRefreshToken(retryCount + 1);
+        }
+        throw new Error(`Profile fetch failed: ${error.message}`);
+      }
+
+      if (!profile?.microsoft_access_token) {
+        console.log('No Microsoft token found');
+        setAuthState(prev => ({ ...prev, isConnected: false, isExpired: false, accessToken: null, expiresAt: null, lastError: null }));
         setLoading(false);
-        return;
+        return false;
       }
 
       const expiresAt = new Date(profile.token_expires_at);
       const now = new Date();
-      const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes buffer
+      const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
 
-      // If token expires within 5 minutes, refresh it
-      if (expiresAt <= fiveMinutesFromNow) {
+      // If token expires within 10 minutes, refresh it
+      if (expiresAt <= tenMinutesFromNow) {
         console.log('Token expires soon, refreshing...');
         
-        const { data, error: refreshError } = await supabase.functions.invoke('refresh-microsoft-token', {
-          body: { user_id: user.id }
-        });
+        try {
+          const { data, error: refreshError } = await supabase.functions.invoke('refresh-microsoft-token', {
+            body: { user_id: user.id }
+          });
 
-        if (refreshError || data.error) {
-          console.error('Token refresh failed:', refreshError || data.error);
-          setAuthState({ 
+          if (refreshError) {
+            console.error('Token refresh error:', refreshError);
+            throw new Error(`Token refresh failed: ${refreshError.message}`);
+          }
+
+          if (data.error) {
+            console.error('Token refresh API error:', data.error);
+            
+            // If refresh fails, mark as expired but still connected
+            setAuthState(prev => ({ 
+              ...prev, 
+              isConnected: true, 
+              isExpired: true, 
+              accessToken: profile.microsoft_access_token, 
+              expiresAt: profile.token_expires_at,
+              lastError: `Token refresh failed: ${data.error}`
+            }));
+            setLoading(false);
+            return false;
+          }
+
+          console.log('Token refreshed successfully');
+          setAuthState(prev => ({ 
+            ...prev, 
+            isConnected: true, 
+            isExpired: false, 
+            accessToken: data.access_token, 
+            expiresAt: data.expires_at,
+            lastError: null
+          }));
+          setLoading(false);
+          return true;
+        } catch (refreshError: any) {
+          console.error('Token refresh exception:', refreshError);
+          setAuthState(prev => ({ 
+            ...prev, 
             isConnected: true, 
             isExpired: true, 
             accessToken: profile.microsoft_access_token, 
-            expiresAt: profile.token_expires_at 
-          });
+            expiresAt: profile.token_expires_at,
+            lastError: refreshError.message
+          }));
           setLoading(false);
-          return;
+          return false;
         }
-
-        console.log('Token refreshed successfully');
-        setAuthState({ 
-          isConnected: true, 
-          isExpired: false, 
-          accessToken: data.access_token, 
-          expiresAt: data.expires_at 
-        });
       } else {
         // Token is still valid
-        setAuthState({ 
+        console.log('Token is valid');
+        setAuthState(prev => ({ 
+          ...prev, 
           isConnected: true, 
           isExpired: false, 
           accessToken: profile.microsoft_access_token, 
-          expiresAt: profile.token_expires_at 
-        });
+          expiresAt: profile.token_expires_at,
+          lastError: null
+        }));
+        setLoading(false);
+        return true;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error checking Microsoft auth:', error);
-      setAuthState({ isConnected: false, isExpired: false, accessToken: null, expiresAt: null });
-    } finally {
+      setAuthState(prev => ({ 
+        ...prev, 
+        isConnected: false, 
+        isExpired: false, 
+        accessToken: null, 
+        expiresAt: null,
+        lastError: error.message
+      }));
       setLoading(false);
+      return false;
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (user) {
       checkAndRefreshToken();
       
-      // Set up automatic token refresh check every 30 minutes
-      const interval = setInterval(checkAndRefreshToken, 30 * 60 * 1000);
+      // Set up automatic token refresh check every 15 minutes
+      const interval = setInterval(() => {
+        checkAndRefreshToken();
+      }, 15 * 60 * 1000);
       
       return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, checkAndRefreshToken]);
 
-  const disconnectMicrosoft = async () => {
+  const disconnectMicrosoft = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -117,7 +195,16 @@ export const useMicrosoftAuth = () => {
 
       if (error) throw error;
 
-      setAuthState({ isConnected: false, isExpired: false, accessToken: null, expiresAt: null });
+      setAuthState({
+        isConnected: false,
+        isExpired: false,
+        accessToken: null,
+        expiresAt: null,
+        lastError: null
+      });
+      
+      // Clear connection attempts history
+      setConnectionAttempts([]);
       
       toast({
         title: "Microsoft Account Disconnected",
@@ -131,18 +218,30 @@ export const useMicrosoftAuth = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [user, toast]);
 
-  const forceRefresh = async () => {
+  const forceRefresh = useCallback(async () => {
+    if (!canAttemptConnection()) {
+      toast({
+        title: "Rate Limited",
+        description: "Too many connection attempts. Please wait 5 minutes before trying again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
-    await checkAndRefreshToken();
-  };
+    const success = await checkAndRefreshToken();
+    recordConnectionAttempt(success, authState.lastError || undefined);
+  }, [canAttemptConnection, checkAndRefreshToken, toast, authState.lastError, recordConnectionAttempt]);
 
   return {
     ...authState,
     loading,
     disconnectMicrosoft,
     forceRefresh,
-    checkAndRefreshToken
+    checkAndRefreshToken,
+    canAttemptConnection: canAttemptConnection(),
+    connectionAttempts: connectionAttempts.length
   };
 };
