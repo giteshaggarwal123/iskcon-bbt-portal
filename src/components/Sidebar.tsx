@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
@@ -150,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-4 pt-0 pb-6 space-y-1 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}
