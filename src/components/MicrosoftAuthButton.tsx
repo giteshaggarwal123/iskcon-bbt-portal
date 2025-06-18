@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,6 +12,8 @@ interface MicrosoftAuthButtonProps {
 
 export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSuccess }) => {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionTimeout, setConnectionTimeout] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const { session, loading, error, isConnected, startAuth, clearSession } = useMicrosoftSession();
@@ -20,9 +22,75 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
   useEffect(() => {
     if (isConnected && session && onSuccess) {
       console.log('Microsoft connected, calling onSuccess');
+      setIsConnecting(false);
+      setConnectionTimeout(false);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
       onSuccess();
     }
   }, [isConnected, session, onSuccess]);
+
+  // Handle connection timeout
+  useEffect(() => {
+    if (isConnecting) {
+      timeoutRef.current = setTimeout(() => {
+        console.log('Microsoft connection timeout after 15 seconds');
+        setConnectionTimeout(true);
+        setIsConnecting(false);
+        toast({
+          title: "Connection Timeout",
+          description: "Microsoft authentication is taking too long. Please try again.",
+          variant: "destructive"
+        });
+      }, 15000); // 15 second timeout
+
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+      };
+    }
+  }, [isConnecting, toast]);
+
+  // Clear timeout when component unmounts
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const clearBrokenSession = () => {
+    try {
+      // Clear all Microsoft-related storage
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('ms_session_') || key.includes('microsoft_') || key.includes('msal'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      // Clear session storage
+      const sessionKeysToRemove = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.includes('microsoft_')) {
+          sessionKeysToRemove.push(key);
+        }
+      }
+      sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+
+      console.log('Cleared broken Microsoft session data');
+    } catch (error) {
+      console.warn('Error clearing broken session:', error);
+    }
+  };
 
   const handleConnect = async () => {
     if (!user) {
@@ -35,12 +103,28 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
     }
 
     setIsConnecting(true);
+    setConnectionTimeout(false);
     
     try {
+      // Clear any broken session data first
+      clearBrokenSession();
+      
+      // Clear the session hook state as well
+      clearSession();
+      
+      // Small delay to ensure state is cleared
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('Starting Microsoft authentication...');
       await startAuth();
     } catch (error: any) {
       console.error('Microsoft auth error:', error);
       setIsConnecting(false);
+      setConnectionTimeout(false);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
       toast({
         title: "Connection Failed",
         description: error.message || "Failed to start Microsoft authentication",
@@ -51,10 +135,22 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
 
   const handleDisconnect = () => {
     clearSession();
+    clearBrokenSession();
+    setIsConnecting(false);
+    setConnectionTimeout(false);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
     toast({
       title: "Microsoft Account Disconnected",
       description: "Your Microsoft account has been disconnected successfully."
     });
+  };
+
+  const handleRetry = () => {
+    setConnectionTimeout(false);
+    handleConnect();
   };
 
   if (loading) {
@@ -107,6 +203,26 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
         </div>
       )}
 
+      {connectionTimeout && (
+        <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+          <div className="flex items-start space-x-2">
+            <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm text-yellow-800 font-medium">Connection Timeout</p>
+              <p className="text-sm text-yellow-700 mb-2">The connection attempt timed out. This might be due to popup blockers or network issues.</p>
+              <Button
+                size="sm"
+                onClick={handleRetry}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Try Again
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isConnecting ? (
         <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-center space-x-3">
@@ -114,6 +230,7 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
             <div>
               <h4 className="font-medium text-blue-800">Connecting to Microsoft</h4>
               <p className="text-sm text-blue-700">Redirecting to Microsoft authentication...</p>
+              <p className="text-xs text-blue-600 mt-1">This should complete within 15 seconds</p>
             </div>
           </div>
         </div>
