@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -174,9 +173,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </main>
         
-        {/* Mobile Bottom Navigation Bar - Styled like header */}
+        {/* Mobile Bottom Navigation Bar - With larger icons */}
         {isMobile && (
-          <div className="bg-white border-t border-gray-200 px-4 py-3 fixed bottom-0 left-0 right-0 z-50 h-16">
+          <div className="bg-white border-t border-gray-200 px-2 py-2 fixed bottom-0 left-0 right-0 z-50 h-20">
             <div className="flex items-center justify-around h-full max-w-full">
               {mobileNavItems.map((item) => (
                 <button
@@ -202,7 +201,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     touchAction: 'manipulation'
                   }}
                 >
-                  <item.icon className={`h-7 w-7 mb-1 ${
+                  <item.icon className={`h-8 w-8 mb-1 ${
                     currentModule === item.id ? 'text-primary' : 'text-gray-500'
                   }`} />
                   <span className={`text-xs font-medium leading-tight ${
