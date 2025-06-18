@@ -121,7 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className={`fixed inset-y-0 left-0 ${isMobile ? 'z-[46]' : 'z-50'} bg-white shadow-xl transform transition-all duration-300 ${
+    <div className={`fixed ${isMobile ? 'top-16' : 'top-0'} bottom-0 left-0 ${isMobile ? 'z-[49]' : 'z-50'} bg-white shadow-xl transform transition-all duration-300 ${
       isOpen ? 'translate-x-0' : '-translate-x-full'
     } ${isMobile ? 'w-64' : 'lg:translate-x-0'} ${
       !isMobile && isCollapsed ? 'w-20' : 'w-64'

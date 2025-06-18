@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -120,10 +121,40 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Mobile sidebar overlay - Lower z-index than header */}
       {isMobile && sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-[45]"
+          className="fixed inset-0 bg-black bg-opacity-50 z-[48]"
           onClick={() => setSidebarOpen(false)}
         />
       )}
+      
+      {/* Header - Fixed at top with highest z-index */}
+      <Header 
+        onMenuClick={() => {
+          if (isMobile) {
+            setSidebarOpen(!sidebarOpen);
+          } else {
+            setSidebarCollapsed(!sidebarCollapsed);
+          }
+        }}
+        onProfileClick={() => {
+          setShowProfile(true);
+          setCurrentModule('profile');
+        }}
+        onSettingsClick={() => {
+          setShowSettings(true);
+          setCurrentModule('settings');
+        }}
+        onNavigate={(module) => {
+          setCurrentModule(module);
+          setShowProfile(false);
+          setShowSettings(false);
+          
+          const event = new CustomEvent('navigate-to-module', {
+            detail: { module }
+          });
+          window.dispatchEvent(event);
+        }}
+        showMenuButton={true}
+      />
       
       <Sidebar 
         isOpen={sidebarOpen} 
@@ -146,36 +177,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${
         !isMobile && sidebarOpen && !sidebarCollapsed ? 'ml-64' : 
         !isMobile && sidebarOpen && sidebarCollapsed ? 'ml-16' : 'ml-0'
-      }`}>
-        <Header 
-          onMenuClick={() => {
-            if (isMobile) {
-              setSidebarOpen(!sidebarOpen);
-            } else {
-              setSidebarCollapsed(!sidebarCollapsed);
-            }
-          }}
-          onProfileClick={() => {
-            setShowProfile(true);
-            setCurrentModule('profile');
-          }}
-          onSettingsClick={() => {
-            setShowSettings(true);
-            setCurrentModule('settings');
-          }}
-          onNavigate={(module) => {
-            setCurrentModule(module);
-            setShowProfile(false);
-            setShowSettings(false);
-            
-            const event = new CustomEvent('navigate-to-module', {
-              detail: { module }
-            });
-            window.dispatchEvent(event);
-          }}
-          showMenuButton={true}
-        />
-        
+      } ${isMobile ? 'pt-16' : ''}`}>        
         <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
           isMobile ? 'p-4 pb-28 pt-4' : 'p-4 lg:p-6'
         } ${!isMobile && sidebarOpen && !sidebarCollapsed ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
@@ -250,15 +252,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             padding-top: env(safe-area-inset-top, 0px);
           }
 
-          /* Enhanced header styling - Fixed z-index and positioning */
+          /* Enhanced header styling - Fixed positioning and z-index */
           header {
+            position: fixed !important;
+            top: env(safe-area-inset-top, 0px);
+            left: 0;
+            right: 0;
+            z-index: 50 !important;
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(0, 0, 0, 0.08);
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            position: sticky;
-            top: 0;
-            z-index: 50;
+            padding-left: 1rem;
+            padding-right: 1rem;
+            height: 64px;
           }
 
           /* Main content improvements */

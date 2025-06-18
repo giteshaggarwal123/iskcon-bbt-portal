@@ -51,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className={`bg-white border-b border-gray-200 px-4 py-3 ${isMobile ? 'relative z-[47]' : 'relative z-10'}`}>
+      <header className={`bg-white border-b border-gray-200 px-4 py-3 ${isMobile ? 'fixed top-0 left-0 right-0 z-50' : 'relative z-10'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             {/* Hamburger Menu Button - Show on both mobile and desktop */}
@@ -102,58 +102,6 @@ export const Header: React.FC<HeaderProps> = ({
             </Button>
           </div>
         </div>
-
-        {/* Mobile-specific styles to fix layout */}
-        <style>{`
-          @media (max-width: 767px) {
-            /* Ensure proper mobile header spacing */
-            header {
-              padding-left: 1rem;
-              padding-right: 1rem;
-              position: sticky;
-              top: 0;
-              background: rgba(255, 255, 255, 0.95);
-              backdrop-filter: blur(10px);
-              border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            }
-            
-            /* Fix header text overflow on mobile */
-            header h1 {
-              font-size: 1rem;
-              line-height: 1.25;
-              max-width: calc(100vw - 8rem);
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            }
-            
-            /* Ensure buttons don't get too small */
-            header button {
-              min-width: 2.5rem;
-              min-height: 2.5rem;
-            }
-            
-            /* Fix header container to prevent stretching */
-            header > div {
-              max-width: 100%;
-              overflow: hidden;
-            }
-          }
-
-          /* Desktop hamburger button styling */
-          @media (min-width: 768px) {
-            header button[title*="Toggle"] {
-              border-radius: 0.375rem;
-              transition: all 0.2s ease-in-out;
-            }
-            
-            header button[title*="Toggle"]:hover {
-              background-color: rgba(0, 0, 0, 0.05);
-              transform: scale(1.05);
-            }
-          }
-        `}</style>
       </header>
 
       {/* Dialogs */}
