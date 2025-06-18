@@ -106,6 +106,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex w-full">
+      {/* Mobile status bar area with ISKCON maroon */}
+      {isMobile && (
+        <div className="fixed top-0 left-0 right-0 h-safe-area-top bg-primary z-60" style={{
+          height: 'env(safe-area-inset-top, 0)',
+          background: '#B8555A'
+        }} />
+      )}
+
       {/* Mobile sidebar overlay */}
       {isMobile && sidebarOpen && (
         <div 
@@ -219,11 +227,26 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <style>{`
         /* Enhanced mobile styles for web app-like experience */
         @media (max-width: 767px) {
-          /* Root layout improvements */
+          /* Root layout improvements with status bar support */
           .min-h-screen {
             min-height: 100vh;
             min-height: 100dvh;
             background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+          }
+
+          /* Body styling for proper notch handling */
+          body {
+            background-color: #B8555A;
+            padding-top: env(safe-area-inset-top, 0);
+            padding-bottom: env(safe-area-inset-bottom, 0);
+          }
+
+          /* Root app container */
+          #root {
+            background-color: #f8fafc;
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin-top: env(safe-area-inset-top, 0);
           }
 
           /* Enhanced header styling with notch support */
@@ -232,10 +255,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(0, 0, 0, 0.08);
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            padding-top: env(safe-area-inset-top, 0);
             position: sticky;
             top: 0;
             z-index: 50;
+            margin-top: 0;
+          }
+
+          /* Status bar area styling */
+          .h-safe-area-top {
+            height: env(safe-area-inset-top, 0);
+            background: #B8555A;
           }
 
           /* Main content improvements */
@@ -449,12 +478,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           .bg-black.bg-opacity-50 {
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(4px);
-          }
-
-          /* Ensure full viewport coverage */
-          body {
-            padding-top: env(safe-area-inset-top, 0);
-            padding-bottom: env(safe-area-inset-bottom, 0);
           }
 
           /* Fix potential layout shifts */
