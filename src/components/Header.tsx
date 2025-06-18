@@ -51,8 +51,8 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className={`bg-white border-b border-gray-200 px-4 py-3 ${isMobile ? 'fixed top-0 left-0 right-0 z-50' : 'relative z-10'}`}>
-        <div className="flex items-center justify-between">
+      <header className="bg-white border-b border-gray-200 px-4 py-3 fixed top-0 left-0 right-0 z-50 h-16">
+        <div className="flex items-center justify-between h-full">
           <div className="flex items-center space-x-4">
             {/* Hamburger Menu Button - Show on both mobile and desktop */}
             {onMenuClick && showMenuButton && (
@@ -73,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
             {isMobile && (
               <h1 className="text-lg font-semibold text-gray-900">
-                ISKCON Management Portal
+                Portal
               </h1>
             )}
           </div>
