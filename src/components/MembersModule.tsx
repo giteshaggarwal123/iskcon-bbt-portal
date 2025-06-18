@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Users, Mail, Phone, Shield, Search, Plus, Download } from 'lucide-react';
 import { AddMemberDialog } from './AddMemberDialog';
 import { MemberCard } from './MemberCard';
-import { OneTimeBulkAdd } from './OneTimeBulkAdd';
 import { useMembers } from '@/hooks/useMembers';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -15,7 +15,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 export const MembersModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
-  const [showBulkAdd, setShowBulkAdd] = useState(false);
   const { 
     members, 
     loading, 
@@ -98,7 +97,6 @@ export const MembersModule: React.FC = () => {
 
   return (
     <>
-      {/* ... keep existing code (styles) */}
       <style>{`
         @media (max-width: 767px) {
           .members-container {
@@ -162,15 +160,7 @@ export const MembersModule: React.FC = () => {
               </p>
             </div>
             {userRole.canManageMembers && (
-              <div className="flex-shrink-0 flex gap-2">
-                <Button 
-                  variant="outline"
-                  className={`${isMobile ? 'w-full' : 'w-full sm:w-auto'} h-10 sm:h-auto`}
-                  onClick={() => setShowBulkAdd(true)}
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  <span className="whitespace-nowrap">Bulk Add</span>
-                </Button>
+              <div className="flex-shrink-0">
                 <Button 
                   className={`${isMobile ? 'w-full' : 'w-full sm:w-auto'} h-10 sm:h-auto`}
                   onClick={() => setShowAddMemberDialog(true)}
@@ -182,19 +172,6 @@ export const MembersModule: React.FC = () => {
             )}
           </div>
         </div>
-
-        {/* Show bulk add dialog */}
-        {showBulkAdd && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold">Bulk Add Members</h2>
-                <Button variant="ghost" size="sm" onClick={() => setShowBulkAdd(false)}>×</Button>
-              </div>
-              <OneTimeBulkAdd />
-            </div>
-          </div>
-        )}
 
         {/* Tabs Section - Mobile Optimized */}
         <div className="w-full flex-1 min-h-0">
