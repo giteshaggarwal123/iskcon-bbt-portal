@@ -19,6 +19,21 @@ export const useMicrosoftSession = () => {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
+  // Get the correct redirect URI based on environment
+  const getRedirectUri = useCallback(() => {
+    // Use the production domain if available, otherwise fall back to current origin
+    const productionDomain = 'https://iskconbureau.in';
+    const currentOrigin = window.location.origin;
+    
+    // Check if we're on the production domain
+    if (currentOrigin.includes('iskconbureau.in')) {
+      return `${productionDomain}/microsoft/callback`;
+    }
+    
+    // For development and preview environments
+    return `${currentOrigin}/microsoft/callback`;
+  }, []);
+
   // Check for existing browser session with improved error handling
   const checkBrowserSession = useCallback(async () => {
     if (!user) return null;
@@ -186,7 +201,7 @@ export const useMicrosoftSession = () => {
     }
   }, [refreshToken]);
 
-  // Start new authentication flow with better error handling
+  // Start new authentication flow with corrected redirect URI
   const startAuth = useCallback(async () => {
     if (!user) {
       setError('User must be signed in first');
@@ -203,10 +218,12 @@ export const useMicrosoftSession = () => {
     setSession(null);
     setError(null);
 
-    // Prepare auth parameters with select_account prompt for better UX
+    // Prepare auth parameters with correct redirect URI
     const state = user.id;
     const nonce = Math.random().toString(36).substring(2, 15);
-    const redirectUri = `${window.location.origin}/microsoft/callback`;
+    const redirectUri = getRedirectUri();
+
+    console.log('Microsoft auth redirect URI:', redirectUri);
 
     // Store session data
     try {
@@ -226,16 +243,16 @@ export const useMicrosoftSession = () => {
       response_mode: 'query',
       state: state,
       nonce: nonce,
-      prompt: 'select_account' // Use select_account instead of consent for better UX
+      prompt: 'select_account'
     });
 
     const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${authParams.toString()}`;
     
-    console.log('Redirecting to Microsoft OAuth URL with select_account prompt');
+    console.log('Redirecting to Microsoft OAuth URL with redirect URI:', redirectUri);
     
     // Use window.location.href for redirect
     window.location.href = authUrl;
-  }, [user]);
+  }, [user, getRedirectUri]);
 
   // Store session after successful auth
   const storeSession = useCallback((sessionData: MicrosoftSession) => {

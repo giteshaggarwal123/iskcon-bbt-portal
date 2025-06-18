@@ -14,6 +14,21 @@ export const MicrosoftCallback: React.FC = () => {
   const [progress, setProgress] = useState('Initializing...');
   const [error, setError] = useState<string | null>(null);
 
+  // Get the correct redirect URI based on environment
+  const getRedirectUri = () => {
+    // Use the production domain if available, otherwise fall back to current origin
+    const productionDomain = 'https://iskconbureau.in';
+    const currentOrigin = window.location.origin;
+    
+    // Check if we're on the production domain
+    if (currentOrigin.includes('iskconbureau.in')) {
+      return `${productionDomain}/microsoft/callback`;
+    }
+    
+    // For development and preview environments
+    return `${currentOrigin}/microsoft/callback`;
+  };
+
   useEffect(() => {
     const handleCallback = async () => {
       // Set a timeout for the entire callback process
@@ -42,13 +57,13 @@ export const MicrosoftCallback: React.FC = () => {
           timestamp: new Date().toISOString()
         });
 
-        // Handle OAuth errors
+        // Handle OAuth errors with better error messages
         if (error) {
           clearTimeout(timeoutId);
           const errorMessages: Record<string, string> = {
             'access_denied': 'You cancelled the Microsoft authentication process.',
-            'invalid_request': 'Invalid authentication request. Please try again.',
-            'invalid_client': 'Microsoft application configuration error.',
+            'invalid_request': 'The authentication request was invalid. This usually means the redirect URI doesn\'t match what\'s configured in Azure. Please contact your administrator.',
+            'invalid_client': 'Microsoft application configuration error. Please contact your administrator.',
             'invalid_grant': 'Authentication expired. Please try again.',
             'server_error': 'Microsoft server error. Please try again later.',
             'temporarily_unavailable': 'Microsoft services temporarily unavailable.',
@@ -89,6 +104,9 @@ export const MicrosoftCallback: React.FC = () => {
 
         setProgress('Exchanging authorization code...');
 
+        const redirectUri = getRedirectUri();
+        console.log('Using redirect URI for token exchange:', redirectUri);
+
         // Exchange code for tokens with timeout
         const tokenController = new AbortController();
         const tokenTimeoutId = setTimeout(() => tokenController.abort(), 15000); // 15 second timeout
@@ -102,7 +120,7 @@ export const MicrosoftCallback: React.FC = () => {
             body: new URLSearchParams({
               client_id: '44391516-babe-4072-8422-a4fc8a79fbde',
               code: code,
-              redirect_uri: `${window.location.origin}/microsoft/callback`,
+              redirect_uri: redirectUri,
               grant_type: 'authorization_code',
               scope: 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All offline_access'
             }),
@@ -114,6 +132,22 @@ export const MicrosoftCallback: React.FC = () => {
           if (!tokenResponse.ok) {
             const errorText = await tokenResponse.text();
             console.error('Token exchange failed:', tokenResponse.status, errorText);
+            
+            // Handle specific token exchange errors
+            if (tokenResponse.status === 400) {
+              try {
+                const errorData = JSON.parse(errorText);
+                if (errorData.error === 'invalid_grant') {
+                  throw new Error('The authorization code is invalid or expired. Please try authenticating again.');
+                }
+                if (errorData.error === 'invalid_request' && errorData.error_description?.includes('redirect_uri')) {
+                  throw new Error('Redirect URI mismatch. Please contact your administrator to update the Azure App Registration.');
+                }
+              } catch (parseError) {
+                // Continue with generic error handling
+              }
+            }
+            
             throw new Error(`Failed to exchange authorization code: ${tokenResponse.status}`);
           }
 
@@ -246,8 +280,17 @@ export const MicrosoftCallback: React.FC = () => {
           </div>
         )}
 
+        {error && error.includes('redirect URI') && (
+          <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+            <p className="text-sm text-yellow-800">
+              <strong>Administrator Note:</strong> The redirect URI needs to be added to the Azure App Registration. 
+              Please add <code className="bg-yellow-100 px-1 rounded">{getRedirectUri()}</code> to the list of redirect URIs.
+            </p>
+          </div>
+        )}
+
         {error && (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 mt-4">
             Redirecting back to the main page...
           </p>
         )}
