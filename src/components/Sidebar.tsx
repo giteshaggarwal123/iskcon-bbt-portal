@@ -143,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             {(!isCollapsed || isMobile) && (
               <div className="text-left">
-                <h1 className="text-lg font-semibold text-gray-900">ISKCON</h1>
+                <h1 className="text-lg font-bold text-gray-900">ISKCON Bureau</h1>
                 <p className="text-sm text-gray-500">Management Portal</p>
               </div>
             )}

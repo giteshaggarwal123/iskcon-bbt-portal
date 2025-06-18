@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -69,14 +70,24 @@ export const Header: React.FC<HeaderProps> = ({
               </Button>
             )}
             {!isMobile && (
-              <h1 className="text-xl font-semibold text-gray-900">
-                ISKCON Management Portal
-              </h1>
+              <div className="text-left">
+                <h1 className="text-xl font-bold text-gray-900">
+                  ISKCON Bureau
+                </h1>
+                <p className="text-sm text-gray-600 -mt-1">
+                  Management Portal
+                </p>
+              </div>
             )}
             {isMobile && (
-              <h1 className="text-lg font-semibold text-gray-900">
-                Portal
-              </h1>
+              <div className="text-left">
+                <h1 className="text-lg font-bold text-gray-900">
+                  ISKCON Bureau
+                </h1>
+                <p className="text-xs text-gray-600 -mt-1">
+                  Management Portal
+                </p>
+              </div>
             )}
           </div>
 
