@@ -9,6 +9,7 @@ import { LoadingFallback } from "@/components/LoadingFallback";
 import { AppContent } from "@/components/AppContent";
 import { MicrosoftCallback } from "@/pages/MicrosoftCallback";
 import { NotFound } from "@/pages/NotFound";
+import { AuthProvider } from "@/hooks/useAuth";
 import React, { Suspense } from "react";
 
 const queryClient = new QueryClient({
@@ -23,21 +24,23 @@ const queryClient = new QueryClient({
 const App = () => {
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Suspense fallback={<LoadingFallback />}>
-              <Routes>
-                <Route path="/" element={<AppContent />} />
-                <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
-      </QueryClientProvider>
+      <AuthProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Suspense fallback={<LoadingFallback />}>
+                <Routes>
+                  <Route path="/" element={<AppContent />} />
+                  <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </TooltipProvider>
+        </QueryClientProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
 };
