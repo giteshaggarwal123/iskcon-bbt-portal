@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -11,6 +12,7 @@ interface MicrosoftAuthButtonProps {
 
 export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSuccess }) => {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionTimeout, setConnectionTimeout] = useState(false);
   const [showManualLink, setShowManualLink] = useState(false);
   const [authUrl, setAuthUrl] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
