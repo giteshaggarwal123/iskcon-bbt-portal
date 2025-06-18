@@ -167,17 +167,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         !isMobile && sidebarOpen && sidebarCollapsed ? 'ml-16' : 'ml-0'
       } pt-28`}>        
         <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
-          isMobile ? 'p-4 pb-32 pt-4' : 'p-4 lg:p-6'
+          isMobile ? 'p-4 pb-20 pt-4' : 'p-4 lg:p-6'
         } ${!isMobile && sidebarOpen && !sidebarCollapsed ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
           <div className="w-full max-w-none">
             {renderContent()}
           </div>
         </main>
         
-        {/* Enhanced Mobile Bottom Navigation Bar - Positioned higher */}
+        {/* Structured Mobile Bottom Navigation Bar - Fixed like header */}
         {isMobile && (
-          <div className="fixed bottom-6 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-20 safe-area-bottom">
-            <div className="flex items-center justify-around px-2 py-2 max-w-full">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 h-16">
+            <div className="flex items-center justify-around px-2 py-2 h-full max-w-full">
               {mobileNavItems.map((item) => (
                 <button
                   key={item.id}
@@ -192,9 +192,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     });
                     window.dispatchEvent(event);
                   }}
-                  className={`flex flex-col items-center justify-center flex-1 py-2 px-3 transition-all duration-200 min-h-[56px] rounded-xl mx-1 ${
+                  className={`flex flex-col items-center justify-center flex-1 py-2 px-3 transition-all duration-200 h-full rounded-none ${
                     currentModule === item.id
-                      ? 'text-primary bg-primary/10 shadow-sm'
+                      ? 'text-primary bg-primary/10'
                       : 'text-gray-500 hover:text-gray-700 active:bg-gray-100'
                   }`}
                   style={{
