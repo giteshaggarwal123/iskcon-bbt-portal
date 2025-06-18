@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -51,10 +50,10 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      {/* Red status bar indicator - Always visible at the very top */}
-      <div className="fixed top-0 left-0 right-0 h-1 bg-red-500 z-[60]" />
+      {/* Red status bar indicator - Thicker to properly cover notch */}
+      <div className="fixed top-0 left-0 right-0 h-12 bg-red-500 z-[60]" />
       
-      <header className="bg-white border-b border-gray-200 px-4 py-3 fixed top-1 left-0 right-0 z-50 h-16">
+      <header className="bg-white border-b border-gray-200 px-4 py-3 fixed top-12 left-0 right-0 z-50 h-16">
         <div className="flex items-center justify-between h-full">
           <div className="flex items-center space-x-4">
             {/* Hamburger Menu Button - Show on both mobile and desktop */}

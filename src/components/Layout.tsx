@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -164,18 +165,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${
         !isMobile && sidebarOpen && !sidebarCollapsed ? 'ml-64' : 
         !isMobile && sidebarOpen && sidebarCollapsed ? 'ml-16' : 'ml-0'
-      } pt-17`}>        
+      } pt-28`}>        
         <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
-          isMobile ? 'p-4 pb-28 pt-4' : 'p-4 lg:p-6'
+          isMobile ? 'p-4 pb-32 pt-4' : 'p-4 lg:p-6'
         } ${!isMobile && sidebarOpen && !sidebarCollapsed ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
           <div className="w-full max-w-none">
             {renderContent()}
           </div>
         </main>
         
-        {/* Enhanced Mobile Bottom Navigation Bar - More web app like */}
+        {/* Enhanced Mobile Bottom Navigation Bar - Positioned higher */}
         {isMobile && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-20 safe-area-bottom">
+          <div className="fixed bottom-6 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-20 safe-area-bottom">
             <div className="flex items-center justify-around px-2 py-2 max-w-full">
               {mobileNavItems.map((item) => (
                 <button
