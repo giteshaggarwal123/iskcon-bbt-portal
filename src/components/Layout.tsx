@@ -166,16 +166,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         !isMobile && sidebarOpen && sidebarCollapsed ? 'ml-16' : 'ml-0'
       } ${isMobile ? 'pt-28' : 'pt-16'}`}>        
         <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
-          isMobile ? 'p-4 pb-24 pt-4' : 'p-4 lg:p-6'
+          isMobile ? 'p-4 pb-32 pt-4' : 'p-4 lg:p-6'
         } ${!isMobile && sidebarOpen && !sidebarCollapsed ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
           <div className="w-full max-w-none">
             {renderContent()}
           </div>
         </main>
         
-        {/* Mobile Bottom Navigation Bar - With larger icons */}
+        {/* Mobile Bottom Navigation Bar - Shifted up to avoid system controls */}
         {isMobile && (
-          <div className="bg-white border-t border-gray-200 px-2 py-2 fixed bottom-0 left-0 right-0 z-50 h-20">
+          <div className="bg-white border-t border-gray-200 px-2 py-2 fixed bottom-2 left-0 right-0 z-50 h-20 mx-2 rounded-lg shadow-lg">
             <div className="flex items-center justify-around h-full max-w-full">
               {mobileNavItems.map((item) => (
                 <button
