@@ -46,7 +46,7 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
     setIsConnecting(true);
     
     try {
-      // Clear any existing session data and errors
+      // Clear any existing session data and errors first
       try {
         localStorage.removeItem('microsoft_auth_error');
         localStorage.removeItem('microsoft_auth_success');
@@ -79,6 +79,7 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
         return;
       }
 
+      // Force fresh consent to ensure we get new tokens
       const scope = [
         'openid',
         'profile',
@@ -98,7 +99,7 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
         response_mode: 'query',
         state: state,
         nonce: nonce,
-        prompt: 'consent'
+        prompt: 'consent' // Force consent to get fresh tokens
       });
 
       const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${authParams.toString()}`;
