@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Folder, Plus, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Folder {
   id: string;
@@ -36,6 +38,7 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
   const [parentFolderId, setParentFolderId] = useState<string | undefined>(currentFolderId || undefined);
   const [isCreating, setIsCreating] = useState(false);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   // Filter folders to only show accessible ones for parent selection
   const accessibleFolders = existingFolders.filter(folder => 
@@ -68,12 +71,12 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full sm:w-auto justify-center">
+        <Button variant="outline" size="sm" className={`${isMobile ? 'w-full justify-center' : 'w-full sm:w-auto justify-center'}`}>
           <Plus className="h-4 w-4 mr-2" />
           New Folder
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className={isMobile ? 'mx-4 max-w-[calc(100vw-2rem)]' : ''}>
         <DialogHeader>
           <DialogTitle>Create New Folder</DialogTitle>
           <DialogDescription>
@@ -120,11 +123,11 @@ export const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
             </div>
           )}
           
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={isCreating}>
+          <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'justify-end space-x-2'}`}>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isCreating} className={isMobile ? 'w-full' : ''}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={isCreating}>
+            <Button onClick={handleCreate} disabled={isCreating} className={isMobile ? 'w-full' : ''}>
               <Folder className="h-4 w-4 mr-2" />
               {isCreating ? 'Creating...' : 'Create Folder'}
             </Button>

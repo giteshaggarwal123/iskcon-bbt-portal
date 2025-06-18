@@ -8,6 +8,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { useToast } from '@/hooks/use-toast';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { DocumentUploadDialog } from './documents/DocumentUploadDialog';
 import { DocumentRenameDialog } from './documents/DocumentRenameDialog';
 import { DocumentTable } from './documents/DocumentTable';
@@ -19,6 +20,7 @@ import { Search, Upload, Trash2, Grid, List, Plus, Home } from 'lucide-react';
 export const DocumentsModule = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
@@ -223,41 +225,43 @@ export const DocumentsModule = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+    <div className={`${isMobile ? 'px-3 py-4' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6'} space-y-4`}>
+      {/* Header Section - Mobile Optimized */}
+      <div className={`${isMobile ? 'space-y-3' : 'flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4'}`}>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Document Repository</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-foreground`}>Document Repository</h1>
+          <p className={`text-muted-foreground ${isMobile ? 'text-sm' : 'mt-1'}`}>
             Manage and organize your documents • {filteredDocuments.length} documents
           </p>
         </div>
         
-        {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Action Buttons - Mobile Stack Layout */}
+        <div className={`${isMobile ? 'flex flex-col space-y-2 w-full' : 'flex flex-wrap items-center gap-2'}`}>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsTrashOpen(true)}
-            className="flex items-center gap-2"
+            className={`${isMobile ? 'w-full justify-start' : ''} flex items-center gap-2`}
           >
             <Trash2 className="h-4 w-4" />
             Trash
           </Button>
           
-          <FolderManager 
-            folders={folders}
-            onCreateFolder={createFolder}
-            onDeleteFolder={handleDeleteFolder}
-            currentFolderId={selectedFolder}
-            userCanAccessLocked={true}
-            showCreateButton={true}
-          />
+          <div className={isMobile ? 'w-full' : ''}>
+            <FolderManager 
+              folders={folders}
+              onCreateFolder={createFolder}
+              onDeleteFolder={handleDeleteFolder}
+              currentFolderId={selectedFolder}
+              userCanAccessLocked={true}
+              showCreateButton={true}
+            />
+          </div>
           
           <Button
             onClick={() => setIsUploadDialogOpen(true)}
             size="sm"
-            className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
+            className={`${isMobile ? 'w-full justify-center' : ''} bg-red-600 hover:bg-red-700 text-white flex items-center gap-2`}
           >
             <Plus className="h-4 w-4" />
             Upload Document
@@ -265,8 +269,8 @@ export const DocumentsModule = () => {
         </div>
       </div>
 
-      {/* Breadcrumb Navigation */}
-      <div className="bg-muted/50 rounded-lg p-4">
+      {/* Breadcrumb Navigation - Mobile Optimized */}
+      <div className={`bg-muted/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -275,7 +279,7 @@ export const DocumentsModule = () => {
                 className="cursor-pointer flex items-center gap-1"
               >
                 <Home className="h-4 w-4" />
-                Home
+                {isMobile ? '' : 'Home'}
               </BreadcrumbLink>
             </BreadcrumbItem>
             {breadcrumbPath.map((folder, index) => (
@@ -283,11 +287,11 @@ export const DocumentsModule = () => {
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   {index === breadcrumbPath.length - 1 ? (
-                    <BreadcrumbPage>{folder.name}</BreadcrumbPage>
+                    <BreadcrumbPage className={isMobile ? 'text-sm' : ''}>{folder.name}</BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink 
                       onClick={() => setSelectedFolder(folder.id)}
-                      className="cursor-pointer"
+                      className={`cursor-pointer ${isMobile ? 'text-sm' : ''}`}
                     >
                       {folder.name}
                     </BreadcrumbLink>
@@ -299,8 +303,8 @@ export const DocumentsModule = () => {
         </Breadcrumb>
       </div>
 
-      {/* Search and Filters Bar */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center">
+      {/* Search and Filters Bar - Mobile Optimized */}
+      <div className={`${isMobile ? 'space-y-3' : 'flex flex-col sm:flex-row gap-4 items-center'}`}>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
@@ -311,9 +315,9 @@ export const DocumentsModule = () => {
           />
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className={`${isMobile ? 'grid grid-cols-2 gap-2' : 'flex items-center gap-2'}`}>
           <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className={isMobile ? 'text-sm' : 'w-32'}>
               <SelectValue placeholder="All Types" />
             </SelectTrigger>
             <SelectContent>
@@ -323,43 +327,49 @@ export const DocumentsModule = () => {
             </SelectContent>
           </Select>
 
-          <Select value="all">
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="All People" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All People</SelectItem>
-            </SelectContent>
-          </Select>
+          {!isMobile && (
+            <>
+              <Select value="all">
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="All People" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All People</SelectItem>
+                </SelectContent>
+              </Select>
 
-          <Select value="all">
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="All Dates" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Dates</SelectItem>
-            </SelectContent>
-          </Select>
+              <Select value="all">
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="All Dates" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Dates</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          )}
 
-          {/* View Mode Toggle */}
-          <div className="flex border rounded-md overflow-hidden">
-            <Button
-              variant={viewMode === 'card' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('card')}
-              className="rounded-none border-none h-8 px-3"
-            >
-              <Grid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="rounded-none border-none h-8 px-3"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* View Mode Toggle - Hidden on Mobile */}
+          {!isMobile && (
+            <div className="flex border rounded-md overflow-hidden">
+              <Button
+                variant={viewMode === 'card' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('card')}
+                className="rounded-none border-none h-8 px-3"
+              >
+                <Grid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="rounded-none border-none h-8 px-3"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -381,7 +391,7 @@ export const DocumentsModule = () => {
         onMoveDocument={handleMoveDocument}
         currentFolderId={selectedFolder}
         canAccessLockedFolders={true}
-        viewMode={viewMode}
+        viewMode={isMobile ? 'list' : viewMode}
       />
 
       {/* Dialogs */}
