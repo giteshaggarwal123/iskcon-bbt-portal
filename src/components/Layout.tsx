@@ -108,7 +108,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Mobile status bar area - Only covers actual notch */}
       {isMobile && (
         <div 
-          className="fixed top-0 left-0 right-0 z-60" 
+          className="fixed top-0 left-0 right-0 z-[60]" 
           style={{
             height: 'env(safe-area-inset-top, 0px)',
             background: '#B8555A',
@@ -117,10 +117,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         />
       )}
 
-      {/* Mobile sidebar overlay */}
+      {/* Mobile sidebar overlay - Lower z-index than header */}
       {isMobile && sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          className="fixed inset-0 bg-black bg-opacity-50 z-[45]"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -186,7 +186,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         
         {/* Enhanced Mobile Bottom Navigation Bar - More web app like */}
         {isMobile && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 safe-area-bottom">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-[40] safe-area-bottom">
             <div className="flex items-center justify-around px-2 py-2 max-w-full">
               {mobileNavItems.map((item) => (
                 <button
@@ -250,7 +250,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             padding-top: env(safe-area-inset-top, 0px);
           }
 
-          /* Enhanced header styling - no extra padding */
+          /* Enhanced header styling - Fixed z-index and positioning */
           header {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
@@ -120,9 +121,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className={`fixed inset-y-0 left-0 z-50 bg-white shadow-xl transform transition-all duration-300 ${
+    <div className={`fixed inset-y-0 left-0 ${isMobile ? 'z-[46]' : 'z-50'} bg-white shadow-xl transform transition-all duration-300 ${
       isOpen ? 'translate-x-0' : '-translate-x-full'
-    } ${isMobile ? 'z-50 w-64' : 'lg:translate-x-0'} ${
+    } ${isMobile ? 'w-64' : 'lg:translate-x-0'} ${
       !isMobile && isCollapsed ? 'w-20' : 'w-64'
     }`}>
       <div className="flex flex-col h-full">

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -50,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="bg-white border-b border-gray-200 px-4 py-3">
+      <header className={`bg-white border-b border-gray-200 px-4 py-3 ${isMobile ? 'relative z-[47]' : 'relative z-10'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             {/* Hamburger Menu Button - Show on both mobile and desktop */}
@@ -109,6 +110,12 @@ export const Header: React.FC<HeaderProps> = ({
             header {
               padding-left: 1rem;
               padding-right: 1rem;
+              position: sticky;
+              top: 0;
+              background: rgba(255, 255, 255, 0.95);
+              backdrop-filter: blur(10px);
+              border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             }
             
             /* Fix header text overflow on mobile */
