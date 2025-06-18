@@ -12,19 +12,9 @@ interface MicrosoftAuthButtonProps {
 
 export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSuccess }) => {
   const [isConnecting, setIsConnecting] = useState(false);
-  const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { isConnected, disconnectMicrosoft, canAttemptConnection } = useMicrosoftAuth();
-
-  // Clear timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (connectionTimeout) {
-        clearTimeout(connectionTimeout);
-      }
-    };
-  }, [connectionTimeout]);
+  const { isConnected, disconnectMicrosoft, canAttemptConnection, lastError } = useMicrosoftAuth();
 
   // Auto-trigger onSuccess when connection is established
   useEffect(() => {
@@ -33,15 +23,6 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
       onSuccess();
     }
   }, [isConnected, onSuccess]);
-
-  const handleTimeout = useCallback(() => {
-    setIsConnecting(false);
-    toast({
-      title: "Connection Timeout",
-      description: "Microsoft authentication is taking too long. Please try again.",
-      variant: "destructive"
-    });
-  }, [toast]);
 
   const handleMicrosoftAuth = useCallback(async () => {
     if (!user) {
@@ -63,15 +44,12 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
     }
 
     setIsConnecting(true);
-
-    // Set a 30-second timeout
-    const timeout = setTimeout(handleTimeout, 30000);
-    setConnectionTimeout(timeout);
     
     try {
-      // Clear any existing session data
+      // Clear any existing session data and errors
       try {
         localStorage.removeItem('microsoft_auth_error');
+        localStorage.removeItem('microsoft_auth_success');
         sessionStorage.removeItem('microsoft_auth_user_id');
         sessionStorage.removeItem('microsoft_auth_nonce');
         sessionStorage.removeItem('microsoft_auth_timestamp');
@@ -83,7 +61,7 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
       const baseUrl = window.location.origin;
       const redirectUri = `${baseUrl}/microsoft/callback`;
       const state = user.id;
-      const nonce = Math.random().toString(36).substring(2, 15);
+      const nonce = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       
       // Store session data with error handling
       try {
@@ -93,7 +71,6 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
       } catch (storageError) {
         console.error('Session storage error:', storageError);
         setIsConnecting(false);
-        clearTimeout(timeout);
         toast({
           title: "Storage Error",
           description: "Unable to store session data. Please enable cookies and try again.",
@@ -121,38 +98,32 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
         response_mode: 'query',
         state: state,
         nonce: nonce,
-        prompt: 'select_account'
+        prompt: 'consent'
       });
 
       const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${authParams.toString()}`;
       
       console.log('Redirecting to Microsoft OAuth:', { authUrl, timestamp: new Date().toISOString() });
       
-      // Use window.location.assign for better compatibility
-      window.location.assign(authUrl);
+      // Use window.location.href for reliable redirection
+      window.location.href = authUrl;
       
     } catch (error: any) {
       console.error('Microsoft OAuth initialization error:', error);
       setIsConnecting(false);
-      if (connectionTimeout) {
-        clearTimeout(connectionTimeout);
-      }
       toast({
         title: "Connection Failed",
         description: `Failed to initialize Microsoft connection: ${error.message}`,
         variant: "destructive"
       });
     }
-  }, [user, toast, canAttemptConnection, connectionTimeout, handleTimeout]);
+  }, [user, toast, canAttemptConnection]);
 
   const handleRetry = useCallback(() => {
-    if (connectionTimeout) {
-      clearTimeout(connectionTimeout);
-    }
     setIsConnecting(false);
     // Small delay before retry
     setTimeout(handleMicrosoftAuth, 1000);
-  }, [handleMicrosoftAuth, connectionTimeout]);
+  }, [handleMicrosoftAuth]);
 
   if (isConnected) {
     return (
@@ -176,6 +147,18 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
 
   return (
     <div className="space-y-4">
+      {lastError && (
+        <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+          <div className="flex items-start space-x-2">
+            <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm text-red-800 font-medium">Connection Error</p>
+              <p className="text-sm text-red-700">{lastError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!canAttemptConnection && (
         <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
           <p className="text-sm text-yellow-800">
@@ -191,7 +174,7 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
               <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
               <div>
                 <h4 className="font-medium text-blue-800">Connecting to Microsoft</h4>
-                <p className="text-sm text-blue-700">Please complete the authentication in the Microsoft window...</p>
+                <p className="text-sm text-blue-700">Redirecting to Microsoft authentication...</p>
               </div>
             </div>
           </div>
@@ -206,10 +189,7 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
               Retry Connection
             </Button>
             <Button 
-              onClick={() => {
-                setIsConnecting(false);
-                if (connectionTimeout) clearTimeout(connectionTimeout);
-              }}
+              onClick={() => setIsConnecting(false)}
               variant="ghost"
               className="flex-1"
             >

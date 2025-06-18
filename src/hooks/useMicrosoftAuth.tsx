@@ -47,6 +47,30 @@ export const useMicrosoftAuth = () => {
     }]);
   }, []);
 
+  const clearTokens = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          microsoft_user_id: null,
+          microsoft_access_token: null,
+          microsoft_refresh_token: null,
+          token_expires_at: null
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error clearing tokens:', error);
+      } else {
+        console.log('Microsoft tokens cleared successfully');
+      }
+    } catch (error) {
+      console.error('Exception clearing tokens:', error);
+    }
+  }, [user]);
+
   const checkAndRefreshToken = useCallback(async (retryCount = 0): Promise<boolean> => {
     if (!user) {
       setAuthState(prev => ({ ...prev, isConnected: false, isExpired: false, accessToken: null, expiresAt: null, lastError: null }));
@@ -81,33 +105,43 @@ export const useMicrosoftAuth = () => {
 
       const expiresAt = new Date(profile.token_expires_at);
       const now = new Date();
-      const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
 
-      // If token expires within 10 minutes, refresh it
-      if (expiresAt <= tenMinutesFromNow) {
-        console.log('Token expires soon, refreshing...');
+      // If token is expired, try to refresh it
+      if (expiresAt <= now) {
+        console.log('Token expired, attempting refresh...');
         
         try {
           const { data, error: refreshError } = await supabase.functions.invoke('refresh-microsoft-token', {
             body: { user_id: user.id }
           });
 
-          if (refreshError) {
-            console.error('Token refresh error:', refreshError);
-            throw new Error(`Token refresh failed: ${refreshError.message}`);
-          }
-
-          if (data.error) {
-            console.error('Token refresh API error:', data.error);
+          if (refreshError || data?.error) {
+            console.error('Token refresh failed:', refreshError || data?.error);
             
-            // If refresh fails, mark as expired but still connected
+            // Check if it's an invalid_grant error (expired refresh token)
+            if (data?.error?.includes('invalid_grant') || data?.error?.includes('AADSTS50173')) {
+              console.log('Refresh token expired, clearing all tokens');
+              await clearTokens();
+              setAuthState(prev => ({ 
+                ...prev, 
+                isConnected: false, 
+                isExpired: false, 
+                accessToken: null, 
+                expiresAt: null,
+                lastError: 'Authentication expired. Please reconnect your Microsoft account.'
+              }));
+              setLoading(false);
+              return false;
+            }
+            
+            // Mark as expired but still connected
             setAuthState(prev => ({ 
               ...prev, 
               isConnected: true, 
               isExpired: true, 
               accessToken: profile.microsoft_access_token, 
               expiresAt: profile.token_expires_at,
-              lastError: `Token refresh failed: ${data.error}`
+              lastError: `Token refresh failed: ${refreshError?.message || data?.error}`
             }));
             setLoading(false);
             return false;
@@ -126,13 +160,16 @@ export const useMicrosoftAuth = () => {
           return true;
         } catch (refreshError: any) {
           console.error('Token refresh exception:', refreshError);
+          
+          // Clear tokens if refresh completely fails
+          await clearTokens();
           setAuthState(prev => ({ 
             ...prev, 
-            isConnected: true, 
-            isExpired: true, 
-            accessToken: profile.microsoft_access_token, 
-            expiresAt: profile.token_expires_at,
-            lastError: refreshError.message
+            isConnected: false, 
+            isExpired: false, 
+            accessToken: null, 
+            expiresAt: null,
+            lastError: 'Authentication expired. Please reconnect your Microsoft account.'
           }));
           setLoading(false);
           return false;
@@ -164,7 +201,7 @@ export const useMicrosoftAuth = () => {
       setLoading(false);
       return false;
     }
-  }, [user]);
+  }, [user, clearTokens]);
 
   useEffect(() => {
     if (user) {
@@ -183,17 +220,7 @@ export const useMicrosoftAuth = () => {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          microsoft_user_id: null,
-          microsoft_access_token: null,
-          microsoft_refresh_token: null,
-          token_expires_at: null
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
+      await clearTokens();
 
       setAuthState({
         isConnected: false,
@@ -218,7 +245,7 @@ export const useMicrosoftAuth = () => {
         variant: "destructive"
       });
     }
-  }, [user, toast]);
+  }, [user, toast, clearTokens]);
 
   const forceRefresh = useCallback(async () => {
     if (!canAttemptConnection()) {

@@ -73,16 +73,17 @@ export const MicrosoftCallback: React.FC = () => {
 
         setProgress('Exchanging authorization code...');
 
-        // Call Microsoft auth edge function with timeout
+        // Call Microsoft auth edge function with extended timeout
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // Increased to 60 seconds
 
         try {
           const { data, error: authError } = await supabase.functions.invoke('microsoft-auth', {
             body: { code, user_id: state },
             headers: {
               'Content-Type': 'application/json'
-            }
+            },
+            signal: controller.signal
           });
 
           clearTimeout(timeoutId);
@@ -147,6 +148,7 @@ export const MicrosoftCallback: React.FC = () => {
           sessionStorage.removeItem('microsoft_auth_user_id');
           sessionStorage.removeItem('microsoft_auth_nonce');
           sessionStorage.removeItem('microsoft_auth_timestamp');
+          localStorage.setItem('microsoft_auth_error', error.message);
         } catch (e) {
           console.warn('Error cleanup warning:', e);
         }
