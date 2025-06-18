@@ -245,7 +245,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             user-select: text;
           }
           
-          /* Adjusted main content padding - no longer need to compensate for footer */
+          /* Clean mobile layout - no footer compensation needed */
           main {
             max-width: 100vw;
             overflow-x: hidden;
