@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -165,7 +164,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${
         !isMobile && sidebarOpen && !sidebarCollapsed ? 'ml-64' : 
         !isMobile && sidebarOpen && sidebarCollapsed ? 'ml-16' : 'ml-0'
-      } pt-16`}>        
+      } pt-17`}>        
         <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
           isMobile ? 'p-4 pb-28 pt-4' : 'p-4 lg:p-6'
         } ${!isMobile && sidebarOpen && !sidebarCollapsed ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
@@ -216,8 +215,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         )}
       </div>
-
-      {/* Remove the extensive mobile styles since they're causing issues */}
     </div>
   );
 };
