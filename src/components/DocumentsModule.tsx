@@ -214,23 +214,75 @@ export const DocumentsModule = () => {
 
   // Filter documents based on all filters
   const filteredDocuments = documents.filter(doc => {
-    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
+    console.log('Filtering document:', doc.name);
+    console.log('Search term:', searchTerm);
+    console.log('Type filter:', typeFilter);
+    console.log('People filter:', peopleFilter);
+    console.log('Date filter:', dateFilter);
     
-    const matchesType = typeFilter === 'all' || 
-      (typeFilter === 'pdf' && doc.mime_type?.includes('pdf')) ||
-      (typeFilter === 'word' && (doc.mime_type?.includes('word') || doc.mime_type?.includes('document'))) ||
-      (typeFilter === 'excel' && (doc.mime_type?.includes('excel') || doc.mime_type?.includes('spreadsheet'))) ||
-      (typeFilter === 'image' && doc.mime_type?.includes('image'));
+    // Search filter
+    const matchesSearch = !searchTerm || doc.name.toLowerCase().includes(searchTerm.toLowerCase());
+    console.log('Matches search:', matchesSearch);
     
+    // Type filter
+    let matchesType = typeFilter === 'all';
+    if (!matchesType && doc.mime_type) {
+      const mimeType = doc.mime_type.toLowerCase();
+      switch (typeFilter) {
+        case 'pdf':
+          matchesType = mimeType.includes('pdf');
+          break;
+        case 'word':
+          matchesType = mimeType.includes('word') || mimeType.includes('document') || mimeType.includes('msword');
+          break;
+        case 'excel':
+          matchesType = mimeType.includes('excel') || mimeType.includes('spreadsheet') || mimeType.includes('sheet');
+          break;
+        case 'image':
+          matchesType = mimeType.includes('image');
+          break;
+        default:
+          matchesType = true;
+      }
+    }
+    console.log('Matches type:', matchesType);
+    
+    // People filter
     const matchesPeople = peopleFilter === 'all' || doc.uploaded_by === peopleFilter;
+    console.log('Matches people:', matchesPeople);
     
-    const matchesDate = dateFilter === 'all' || 
-      (dateFilter === 'today' && new Date(doc.created_at).toDateString() === new Date().toDateString()) ||
-      (dateFilter === 'week' && new Date(doc.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)) ||
-      (dateFilter === 'month' && new Date(doc.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+    // Date filter
+    let matchesDate = dateFilter === 'all';
+    if (!matchesDate) {
+      const docDate = new Date(doc.created_at);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      switch (dateFilter) {
+        case 'today':
+          matchesDate = docDate >= today;
+          break;
+        case 'week':
+          matchesDate = docDate >= weekAgo;
+          break;
+        case 'month':
+          matchesDate = docDate >= monthAgo;
+          break;
+        default:
+          matchesDate = true;
+      }
+    }
+    console.log('Matches date:', matchesDate);
     
-    return matchesSearch && matchesType && matchesPeople && matchesDate;
+    const finalMatch = matchesSearch && matchesType && matchesPeople && matchesDate;
+    console.log('Final match:', finalMatch);
+    return finalMatch;
   });
+
+  console.log('Total documents:', documents.length);
+  console.log('Filtered documents:', filteredDocuments.length);
 
   const currentFolder = folders.find(f => f.id === selectedFolder);
 
@@ -333,19 +385,34 @@ export const DocumentsModule = () => {
           uniqueUploaders={uniqueUploaders}
           userProfiles={userProfiles}
           currentUserId={user?.id}
-          onSearchChange={setSearchTerm}
-          onTypeFilterChange={setTypeFilter}
-          onPeopleFilterChange={setPeopleFilter}
-          onDateFilterChange={setDateFilter}
+          onSearchChange={(value) => {
+            console.log('Search changed to:', value);
+            setSearchTerm(value);
+          }}
+          onTypeFilterChange={(value) => {
+            console.log('Type filter changed to:', value);
+            setTypeFilter(value);
+          }}
+          onPeopleFilterChange={(value) => {
+            console.log('People filter changed to:', value);
+            setPeopleFilter(value);
+          }}
+          onDateFilterChange={(value) => {
+            console.log('Date filter changed to:', value);
+            setDateFilter(value);
+          }}
         />
 
         {/* View Mode Toggle */}
         <div className="flex justify-end">
-          <div className="flex border rounded-md overflow-hidden">
+          <div className="flex border rounded-md overflow-hidden bg-background">
             <Button
               variant={viewMode === 'card' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => setViewMode('card')}
+              onClick={() => {
+                console.log('Switching to card view');
+                setViewMode('card');
+              }}
               className="rounded-none border-none h-9 px-3"
             >
               <Grid className="h-4 w-4" />
@@ -353,7 +420,10 @@ export const DocumentsModule = () => {
             <Button
               variant={viewMode === 'list' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => setViewMode('list')}
+              onClick={() => {
+                console.log('Switching to list view');
+                setViewMode('list');
+              }}
               className="rounded-none border-none h-9 px-3"
             >
               <List className="h-4 w-4" />

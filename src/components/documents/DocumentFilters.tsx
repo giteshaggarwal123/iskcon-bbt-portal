@@ -47,14 +47,23 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
         <Input
           placeholder="Search documents..."
           value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-10"
+          onChange={(e) => {
+            console.log('Search input changed:', e.target.value);
+            onSearchChange(e.target.value);
+          }}
+          className="pl-10 bg-background border-input"
         />
       </div>
       
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-        <Select value={typeFilter} onValueChange={onTypeFilterChange}>
-          <SelectTrigger className="w-full sm:w-32">
+        <Select 
+          value={typeFilter} 
+          onValueChange={(value) => {
+            console.log('Type filter select changed:', value);
+            onTypeFilterChange(value);
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-32 bg-background border-input">
             <SelectValue placeholder="All Types" />
           </SelectTrigger>
           <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg z-50">
@@ -66,8 +75,14 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
           </SelectContent>
         </Select>
 
-        <Select value={peopleFilter} onValueChange={onPeopleFilterChange}>
-          <SelectTrigger className="w-full sm:w-32">
+        <Select 
+          value={peopleFilter} 
+          onValueChange={(value) => {
+            console.log('People filter select changed:', value);
+            onPeopleFilterChange(value);
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-32 bg-background border-input">
             <SelectValue placeholder="All People" />
           </SelectTrigger>
           <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg z-50">
@@ -80,8 +95,14 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
           </SelectContent>
         </Select>
 
-        <Select value={dateFilter} onValueChange={onDateFilterChange}>
-          <SelectTrigger className="w-full sm:w-32">
+        <Select 
+          value={dateFilter} 
+          onValueChange={(value) => {
+            console.log('Date filter select changed:', value);
+            onDateFilterChange(value);
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-32 bg-background border-input">
             <SelectValue placeholder="All Dates" />
           </SelectTrigger>
           <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg z-50">
