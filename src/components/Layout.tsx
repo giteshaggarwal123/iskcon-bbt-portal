@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -106,12 +105,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex w-full">
-      {/* Mobile status bar area with ISKCON maroon */}
+      {/* Mobile status bar area - Only covers actual notch */}
       {isMobile && (
-        <div className="fixed top-0 left-0 right-0 h-safe-area-top bg-primary z-60" style={{
-          height: 'env(safe-area-inset-top, 0)',
-          background: '#B8555A'
-        }} />
+        <div 
+          className="fixed top-0 left-0 right-0 z-60" 
+          style={{
+            height: 'env(safe-area-inset-top, 0px)',
+            background: '#B8555A',
+            minHeight: '0px'
+          }} 
+        />
       )}
 
       {/* Mobile sidebar overlay */}
@@ -227,29 +230,27 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <style>{`
         /* Enhanced mobile styles for web app-like experience */
         @media (max-width: 767px) {
-          /* Root layout improvements with status bar support */
+          /* Root layout improvements with minimal status bar */
           .min-h-screen {
             min-height: 100vh;
             min-height: 100dvh;
             background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
           }
 
-          /* Body styling for proper notch handling */
+          /* Body styling - only set background color for notch */
           body {
             background-color: #B8555A;
-            padding-top: env(safe-area-inset-top, 0);
-            padding-bottom: env(safe-area-inset-bottom, 0);
           }
 
-          /* Root app container */
+          /* Root app container with proper offset */
           #root {
             background-color: #f8fafc;
             min-height: 100vh;
             min-height: 100dvh;
-            margin-top: env(safe-area-inset-top, 0);
+            padding-top: env(safe-area-inset-top, 0px);
           }
 
-          /* Enhanced header styling with notch support */
+          /* Enhanced header styling - no extra padding */
           header {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
@@ -258,13 +259,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             position: sticky;
             top: 0;
             z-index: 50;
-            margin-top: 0;
-          }
-
-          /* Status bar area styling */
-          .h-safe-area-top {
-            height: env(safe-area-inset-top, 0);
-            background: #B8555A;
           }
 
           /* Main content improvements */
