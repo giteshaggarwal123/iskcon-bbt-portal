@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -54,7 +53,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const toggleSidebar = () => {
     if (isMobile) {
       setSidebarOpen(!sidebarOpen);
-    } else {{
+    } else {
       // On desktop, toggle between collapsed and expanded
       setSidebarCollapsed(!sidebarCollapsed);
     }
