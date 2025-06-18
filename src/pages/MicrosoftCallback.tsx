@@ -3,12 +3,14 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useMicrosoftSession } from '@/hooks/useMicrosoftSession';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 export const MicrosoftCallback: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { storeSession } = useMicrosoftSession();
   const [processing, setProcessing] = useState(true);
   const [progress, setProgress] = useState('Initializing...');
   const [error, setError] = useState<string | null>(null);
@@ -31,10 +33,8 @@ export const MicrosoftCallback: React.FC = () => {
           timestamp: new Date().toISOString()
         });
 
-        // Handle OAuth errors from Microsoft
+        // Handle OAuth errors
         if (error) {
-          console.error('Microsoft OAuth error:', error, errorDescription);
-          
           const errorMessages: Record<string, string> = {
             'access_denied': 'You cancelled the Microsoft authentication process.',
             'invalid_request': 'Invalid authentication request. Please try again.',
@@ -48,96 +48,94 @@ export const MicrosoftCallback: React.FC = () => {
           throw new Error(friendlyMessage);
         }
 
-        // Validate required parameters
-        if (!code) {
-          throw new Error('No authorization code received from Microsoft. Please try connecting again.');
-        }
-
-        if (!state) {
-          throw new Error('Security validation failed. Please try connecting again.');
+        if (!code || !state) {
+          throw new Error('Invalid callback parameters received from Microsoft.');
         }
 
         setProgress('Validating session...');
 
         // Validate session data
-        let storedUserId: string | null = null;
-        try {
-          storedUserId = sessionStorage.getItem('microsoft_auth_user_id');
-        } catch (e) {
-          console.error('Session storage access error:', e);
-        }
-        
+        const storedUserId = sessionStorage.getItem('microsoft_auth_user_id');
         if (!storedUserId || storedUserId !== state) {
-          throw new Error('Authentication session is invalid. Please try connecting again.');
+          throw new Error('Authentication session is invalid. Please try again.');
         }
 
         setProgress('Exchanging authorization code...');
 
-        // Call Microsoft auth edge function with timeout handling
-        try {
-          console.log('Calling microsoft-auth function...');
-          
-          // Set a promise-based timeout
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Request timeout after 60 seconds')), 60000);
-          });
+        // Exchange code for tokens
+        const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            client_id: '44391516-babe-4072-8422-a4fc8a79fbde',
+            client_secret: '', // This should be handled server-side in production
+            code: code,
+            redirect_uri: `${window.location.origin}/microsoft/callback`,
+            grant_type: 'authorization_code',
+            scope: 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All offline_access'
+          })
+        });
 
-          const authPromise = supabase.functions.invoke('microsoft-auth', {
-            body: { code, user_id: state },
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-
-          const { data, error: authError } = await Promise.race([authPromise, timeoutPromise]) as any;
-
-          if (authError) {
-            throw new Error(`Authentication service error: ${authError.message}`);
-          }
-
-          if (data?.error) {
-            throw new Error(data.error);
-          }
-
-          if (!data?.success) {
-            throw new Error('Authentication failed - no success response');
-          }
-
-          setProgress('Connection successful!');
-
-          // Clean up session storage
-          try {
-            sessionStorage.removeItem('microsoft_auth_user_id');
-            sessionStorage.removeItem('microsoft_auth_nonce');
-            sessionStorage.removeItem('microsoft_auth_timestamp');
-          } catch (e) {
-            console.warn('Session cleanup warning:', e);
-          }
-
-          // Store success marker
-          try {
-            localStorage.setItem('microsoft_auth_success', 'true');
-            localStorage.setItem('microsoft_auth_timestamp', Date.now().toString());
-          } catch (e) {
-            console.warn('Local storage warning:', e);
-          }
-
-          toast({
-            title: "Microsoft Account Connected!",
-            description: `Successfully connected to ${data.user?.displayName || data.user?.mail || 'Microsoft 365'}`,
-          });
-
-          // Navigate back with success state
-          setTimeout(() => {
-            navigate('/?microsoft_connected=true', { replace: true });
-          }, 1500);
-
-        } catch (fetchError: any) {
-          if (fetchError.message?.includes('timeout')) {
-            throw new Error('Authentication request timed out. Please try again.');
-          }
-          throw fetchError;
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          console.error('Token exchange failed:', errorText);
+          throw new Error('Failed to exchange authorization code for tokens');
         }
+
+        const tokenData = await tokenResponse.json();
+        setProgress('Fetching user information...');
+
+        // Fetch user info
+        const userResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`
+          }
+        });
+
+        if (!userResponse.ok) {
+          throw new Error('Failed to fetch user information from Microsoft Graph');
+        }
+
+        const userInfo = await userResponse.json();
+        setProgress('Storing session...');
+
+        // Create session object
+        const sessionData = {
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          expiresAt: Date.now() + (tokenData.expires_in - 300) * 1000, // 5-minute buffer
+          userInfo: {
+            displayName: userInfo.displayName,
+            mail: userInfo.mail || userInfo.userPrincipalName,
+            id: userInfo.id
+          }
+        };
+
+        // Store the session
+        storeSession(sessionData);
+
+        // Clean up session storage
+        try {
+          sessionStorage.removeItem('microsoft_auth_user_id');
+          sessionStorage.removeItem('microsoft_auth_nonce');
+          sessionStorage.removeItem('microsoft_auth_timestamp');
+        } catch (e) {
+          console.warn('Session cleanup warning:', e);
+        }
+
+        setProgress('Connection successful!');
+
+        toast({
+          title: "Microsoft Account Connected!",
+          description: `Successfully connected to ${userInfo.displayName || userInfo.mail}`,
+        });
+
+        // Navigate back with success
+        setTimeout(() => {
+          navigate('/?microsoft_connected=true', { replace: true });
+        }, 1500);
 
       } catch (error: any) {
         console.error('Microsoft callback processing error:', error);
@@ -150,7 +148,6 @@ export const MicrosoftCallback: React.FC = () => {
           sessionStorage.removeItem('microsoft_auth_user_id');
           sessionStorage.removeItem('microsoft_auth_nonce');
           sessionStorage.removeItem('microsoft_auth_timestamp');
-          localStorage.setItem('microsoft_auth_error', error.message);
         } catch (e) {
           console.warn('Error cleanup warning:', e);
         }
@@ -171,7 +168,7 @@ export const MicrosoftCallback: React.FC = () => {
     };
 
     handleCallback();
-  }, [searchParams, navigate, toast]);
+  }, [searchParams, navigate, toast, storeSession]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -203,12 +200,6 @@ export const MicrosoftCallback: React.FC = () => {
         {error && (
           <p className="text-sm text-gray-500">
             Redirecting back to the main page...
-          </p>
-        )}
-
-        {!error && processing && (
-          <p className="text-sm text-gray-500">
-            Please wait while we complete the connection...
           </p>
         )}
       </div>

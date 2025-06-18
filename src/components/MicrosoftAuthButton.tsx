@@ -1,10 +1,10 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { useMicrosoftSession } from '@/hooks/useMicrosoftSession';
+import { CheckCircle, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 
 interface MicrosoftAuthButtonProps {
   onSuccess?: () => void;
@@ -14,17 +14,17 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
   const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { isConnected, disconnectMicrosoft, canAttemptConnection, lastError } = useMicrosoftAuth();
+  const { session, loading, error, isConnected, startAuth, clearSession } = useMicrosoftSession();
 
   // Auto-trigger onSuccess when connection is established
   useEffect(() => {
-    if (isConnected && onSuccess) {
+    if (isConnected && session && onSuccess) {
       console.log('Microsoft connected, calling onSuccess');
       onSuccess();
     }
-  }, [isConnected, onSuccess]);
+  }, [isConnected, session, onSuccess]);
 
-  const handleMicrosoftAuth = useCallback(async () => {
+  const handleConnect = async () => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -34,112 +34,59 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
       return;
     }
 
-    if (!canAttemptConnection) {
-      toast({
-        title: "Rate Limited",
-        description: "Too many connection attempts. Please wait before trying again.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsConnecting(true);
     
     try {
-      // Clear any existing session data and errors first
-      try {
-        localStorage.removeItem('microsoft_auth_error');
-        localStorage.removeItem('microsoft_auth_success');
-        sessionStorage.removeItem('microsoft_auth_user_id');
-        sessionStorage.removeItem('microsoft_auth_nonce');
-        sessionStorage.removeItem('microsoft_auth_timestamp');
-      } catch (e) {
-        console.warn('Session cleanup warning:', e);
-      }
-
-      const clientId = '44391516-babe-4072-8422-a4fc8a79fbde';
-      const baseUrl = window.location.origin;
-      const redirectUri = `${baseUrl}/microsoft/callback`;
-      const state = user.id;
-      const nonce = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      
-      // Store session data with error handling
-      try {
-        sessionStorage.setItem('microsoft_auth_user_id', state);
-        sessionStorage.setItem('microsoft_auth_nonce', nonce);
-        sessionStorage.setItem('microsoft_auth_timestamp', Date.now().toString());
-      } catch (storageError) {
-        console.error('Session storage error:', storageError);
-        setIsConnecting(false);
-        toast({
-          title: "Storage Error",
-          description: "Unable to store session data. Please enable cookies and try again.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Force fresh consent to ensure we get new tokens
-      const scope = [
-        'openid',
-        'profile',
-        'email',
-        'offline_access',
-        'https://graph.microsoft.com/User.Read',
-        'https://graph.microsoft.com/Mail.ReadWrite',
-        'https://graph.microsoft.com/Calendars.ReadWrite',
-        'https://graph.microsoft.com/Files.ReadWrite.All'
-      ].join(' ');
-
-      const authParams = new URLSearchParams({
-        client_id: clientId,
-        response_type: 'code',
-        redirect_uri: redirectUri,
-        scope: scope,
-        response_mode: 'query',
-        state: state,
-        nonce: nonce,
-        prompt: 'consent' // Force consent to get fresh tokens
-      });
-
-      const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${authParams.toString()}`;
-      
-      console.log('Redirecting to Microsoft OAuth:', { authUrl, timestamp: new Date().toISOString() });
-      
-      // Use window.location.href for reliable redirection
-      window.location.href = authUrl;
-      
+      await startAuth();
     } catch (error: any) {
-      console.error('Microsoft OAuth initialization error:', error);
+      console.error('Microsoft auth error:', error);
       setIsConnecting(false);
       toast({
         title: "Connection Failed",
-        description: `Failed to initialize Microsoft connection: ${error.message}`,
+        description: error.message || "Failed to start Microsoft authentication",
         variant: "destructive"
       });
     }
-  }, [user, toast, canAttemptConnection]);
+  };
 
-  const handleRetry = useCallback(() => {
-    setIsConnecting(false);
-    // Small delay before retry
-    setTimeout(handleMicrosoftAuth, 1000);
-  }, [handleMicrosoftAuth]);
+  const handleDisconnect = () => {
+    clearSession();
+    toast({
+      title: "Microsoft Account Disconnected",
+      description: "Your Microsoft account has been disconnected successfully."
+    });
+  };
 
-  if (isConnected) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-4">
+        <Loader2 className="w-6 h-6 animate-spin" />
+        <span className="ml-2">Checking Microsoft connection...</span>
+      </div>
+    );
+  }
+
+  if (isConnected && session) {
     return (
       <div className="space-y-4">
         <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-          <h4 className="font-medium text-green-800 mb-2">Microsoft 365 Connected</h4>
-          <p className="text-sm text-green-700 mb-3">
-            Your Microsoft account is connected and ready to use.
+          <div className="flex items-center space-x-2 mb-2">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <h4 className="font-medium text-green-800">Microsoft 365 Connected</h4>
+          </div>
+          <p className="text-sm text-green-700 mb-2">
+            Connected as: {session.userInfo.displayName} ({session.userInfo.mail})
+          </p>
+          <p className="text-xs text-green-600 mb-3">
+            Token expires: {new Date(session.expiresAt).toLocaleString()}
           </p>
           <Button 
-            onClick={disconnectMicrosoft}
+            onClick={handleDisconnect}
             variant="outline"
+            size="sm"
             className="text-red-600 border-red-200 hover:bg-red-50"
           >
-            Disconnect Microsoft Account
+            Disconnect Account
           </Button>
         </div>
       </div>
@@ -148,60 +95,31 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
 
   return (
     <div className="space-y-4">
-      {lastError && (
+      {error && (
         <div className="p-3 bg-red-50 rounded-lg border border-red-200">
           <div className="flex items-start space-x-2">
             <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm text-red-800 font-medium">Connection Error</p>
-              <p className="text-sm text-red-700">{lastError}</p>
+              <p className="text-sm text-red-700">{error}</p>
             </div>
           </div>
-        </div>
-      )}
-
-      {!canAttemptConnection && (
-        <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-          <p className="text-sm text-yellow-800">
-            Connection rate limited. Please wait before trying again.
-          </p>
         </div>
       )}
 
       {isConnecting ? (
-        <div className="space-y-3">
-          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex items-center space-x-3">
-              <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-              <div>
-                <h4 className="font-medium text-blue-800">Connecting to Microsoft</h4>
-                <p className="text-sm text-blue-700">Redirecting to Microsoft authentication...</p>
-              </div>
+        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center space-x-3">
+            <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+            <div>
+              <h4 className="font-medium text-blue-800">Connecting to Microsoft</h4>
+              <p className="text-sm text-blue-700">Redirecting to Microsoft authentication...</p>
             </div>
-          </div>
-          
-          <div className="flex space-x-2">
-            <Button 
-              onClick={handleRetry}
-              variant="outline"
-              className="flex-1"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Retry Connection
-            </Button>
-            <Button 
-              onClick={() => setIsConnecting(false)}
-              variant="ghost"
-              className="flex-1"
-            >
-              Cancel
-            </Button>
           </div>
         </div>
       ) : (
         <Button 
-          onClick={handleMicrosoftAuth}
-          disabled={!canAttemptConnection}
+          onClick={handleConnect}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
         >
           <div className="flex items-center space-x-2">
