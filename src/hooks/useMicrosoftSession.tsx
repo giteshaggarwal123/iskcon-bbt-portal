@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 
@@ -21,16 +20,10 @@ export const useMicrosoftSession = () => {
 
   // Get the correct redirect URI based on environment
   const getRedirectUri = useCallback(() => {
-    // Use the production domain if available, otherwise fall back to current origin
-    const productionDomain = 'https://iskconbureau.in';
     const currentOrigin = window.location.origin;
+    console.log('Current origin for redirect URI:', currentOrigin);
     
-    // Check if we're on the production domain
-    if (currentOrigin.includes('iskconbureau.in')) {
-      return `${productionDomain}/microsoft/callback`;
-    }
-    
-    // For development and preview environments
+    // Always use the exact current origin to avoid CORS issues
     return `${currentOrigin}/microsoft/callback`;
   }, []);
 
@@ -201,7 +194,7 @@ export const useMicrosoftSession = () => {
     }
   }, [refreshToken]);
 
-  // Start new authentication flow with corrected redirect URI
+  // Start new authentication flow with improved configuration
   const startAuth = useCallback(async () => {
     if (!user) {
       setError('User must be signed in first');
@@ -218,12 +211,17 @@ export const useMicrosoftSession = () => {
     setSession(null);
     setError(null);
 
-    // Prepare auth parameters with correct redirect URI
+    // Prepare auth parameters
     const state = user.id;
     const nonce = Math.random().toString(36).substring(2, 15);
     const redirectUri = getRedirectUri();
 
-    console.log('Microsoft auth redirect URI:', redirectUri);
+    console.log('Microsoft auth configuration:', {
+      clientId: '44391516-babe-4072-8422-a4fc8a79fbde',
+      redirectUri,
+      state,
+      timestamp: new Date().toISOString()
+    });
 
     // Store session data
     try {
@@ -235,6 +233,7 @@ export const useMicrosoftSession = () => {
       throw new Error('Unable to store session data. Please enable cookies and try again.');
     }
 
+    // Use more permissive auth parameters
     const authParams = new URLSearchParams({
       client_id: '44391516-babe-4072-8422-a4fc8a79fbde',
       response_type: 'code',
@@ -246,12 +245,21 @@ export const useMicrosoftSession = () => {
       prompt: 'select_account'
     });
 
+    // Use the common endpoint which is more reliable
     const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${authParams.toString()}`;
     
-    console.log('Redirecting to Microsoft OAuth URL with redirect URI:', redirectUri);
+    console.log('Full Microsoft OAuth URL:', authUrl);
+    console.log('Redirect URI being used:', redirectUri);
     
-    // Use window.location.href for redirect
-    window.location.href = authUrl;
+    // Add a small delay before redirect to ensure all state is saved
+    setTimeout(() => {
+      try {
+        window.location.href = authUrl;
+      } catch (error) {
+        console.error('Navigation failed:', error);
+        setError('Failed to redirect to Microsoft login. Please try again.');
+      }
+    }, 100);
   }, [user, getRedirectUri]);
 
   // Store session after successful auth

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -16,22 +15,12 @@ export const MicrosoftCallback: React.FC = () => {
 
   // Get the correct redirect URI based on environment
   const getRedirectUri = () => {
-    // Use the production domain if available, otherwise fall back to current origin
-    const productionDomain = 'https://iskconbureau.in';
     const currentOrigin = window.location.origin;
-    
-    // Check if we're on the production domain
-    if (currentOrigin.includes('iskconbureau.in')) {
-      return `${productionDomain}/microsoft/callback`;
-    }
-    
-    // For development and preview environments
     return `${currentOrigin}/microsoft/callback`;
   };
 
   useEffect(() => {
     const handleCallback = async () => {
-      // Set a timeout for the entire callback process
       const timeoutId = setTimeout(() => {
         if (processing) {
           console.error('Microsoft callback processing timeout');
@@ -39,7 +28,7 @@ export const MicrosoftCallback: React.FC = () => {
           setProgress('Connection timeout');
           setProcessing(false);
         }
-      }, 30000); // 30 second timeout
+      }, 30000);
 
       try {
         setProgress('Processing Microsoft callback...');
@@ -54,7 +43,8 @@ export const MicrosoftCallback: React.FC = () => {
           hasState: !!state, 
           error, 
           errorDescription,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          currentUrl: window.location.href
         });
 
         // Handle OAuth errors with better error messages
@@ -62,7 +52,7 @@ export const MicrosoftCallback: React.FC = () => {
           clearTimeout(timeoutId);
           const errorMessages: Record<string, string> = {
             'access_denied': 'You cancelled the Microsoft authentication process.',
-            'invalid_request': 'The authentication request was invalid. This usually means the redirect URI doesn\'t match what\'s configured in Azure. Please contact your administrator.',
+            'invalid_request': 'The authentication request was invalid. Please try again or contact support.',
             'invalid_client': 'Microsoft application configuration error. Please contact your administrator.',
             'invalid_grant': 'Authentication expired. Please try again.',
             'server_error': 'Microsoft server error. Please try again later.',
@@ -96,7 +86,7 @@ export const MicrosoftCallback: React.FC = () => {
         if (storedTimestamp) {
           const timestamp = parseInt(storedTimestamp);
           const age = Date.now() - timestamp;
-          if (age > 10 * 60 * 1000) { // 10 minutes
+          if (age > 10 * 60 * 1000) {
             clearTimeout(timeoutId);
             throw new Error('Authentication session expired. Please try again.');
           }
@@ -107,9 +97,9 @@ export const MicrosoftCallback: React.FC = () => {
         const redirectUri = getRedirectUri();
         console.log('Using redirect URI for token exchange:', redirectUri);
 
-        // Exchange code for tokens with timeout
+        // Exchange code for tokens with improved error handling
         const tokenController = new AbortController();
-        const tokenTimeoutId = setTimeout(() => tokenController.abort(), 15000); // 15 second timeout
+        const tokenTimeoutId = setTimeout(() => tokenController.abort(), 15000);
 
         try {
           const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
@@ -131,9 +121,14 @@ export const MicrosoftCallback: React.FC = () => {
 
           if (!tokenResponse.ok) {
             const errorText = await tokenResponse.text();
-            console.error('Token exchange failed:', tokenResponse.status, errorText);
+            console.error('Token exchange failed:', {
+              status: tokenResponse.status,
+              statusText: tokenResponse.statusText,
+              error: errorText,
+              redirectUri,
+              code: code.substring(0, 10) + '...'
+            });
             
-            // Handle specific token exchange errors
             if (tokenResponse.status === 400) {
               try {
                 const errorData = JSON.parse(errorText);
@@ -141,14 +136,14 @@ export const MicrosoftCallback: React.FC = () => {
                   throw new Error('The authorization code is invalid or expired. Please try authenticating again.');
                 }
                 if (errorData.error === 'invalid_request' && errorData.error_description?.includes('redirect_uri')) {
-                  throw new Error('Redirect URI mismatch. Please contact your administrator to update the Azure App Registration.');
+                  throw new Error(`Redirect URI mismatch. Expected: ${redirectUri}. Please contact your administrator.`);
                 }
               } catch (parseError) {
                 // Continue with generic error handling
               }
             }
             
-            throw new Error(`Failed to exchange authorization code: ${tokenResponse.status}`);
+            throw new Error(`Token exchange failed (${tokenResponse.status}). Please try again.`);
           }
 
           const tokenData = await tokenResponse.json();
@@ -156,7 +151,7 @@ export const MicrosoftCallback: React.FC = () => {
 
           // Fetch user info with timeout
           const userController = new AbortController();
-          const userTimeoutId = setTimeout(() => userController.abort(), 10000); // 10 second timeout
+          const userTimeoutId = setTimeout(() => userController.abort(), 10000);
 
           try {
             const userResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
@@ -213,7 +208,7 @@ export const MicrosoftCallback: React.FC = () => {
         } catch (tokenError) {
           clearTimeout(tokenTimeoutId);
           if (tokenError.name === 'AbortError') {
-            throw new Error('Timeout exchanging authorization code. Please try again.');
+            throw new Error('Request timeout. Please check your connection and try again.');
           }
           throw tokenError;
         }
