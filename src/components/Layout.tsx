@@ -106,43 +106,45 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex w-full">
-      {/* Mobile sidebar overlay with blur effect - Higher z-index than header */}
+      {/* Mobile sidebar overlay with blur effect - Covers entire screen */}
       {isMobile && sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
           onClick={() => setSidebarOpen(false)}
         />
       )}
       
-      {/* Header - Fixed at top with highest z-index */}
-      <Header 
-        onMenuClick={() => {
-          if (isMobile) {
-            setSidebarOpen(!sidebarOpen);
-          } else {
-            setSidebarCollapsed(!sidebarCollapsed);
-          }
-        }}
-        onProfileClick={() => {
-          setShowProfile(true);
-          setCurrentModule('profile');
-        }}
-        onSettingsClick={() => {
-          setShowSettings(true);
-          setCurrentModule('settings');
-        }}
-        onNavigate={(module) => {
-          setCurrentModule(module);
-          setShowProfile(false);
-          setShowSettings(false);
-          
-          const event = new CustomEvent('navigate-to-module', {
-            detail: { module }
-          });
-          window.dispatchEvent(event);
-        }}
-        showMenuButton={true}
-      />
+      {/* Header - Blurred when sidebar is open on mobile */}
+      <div className={`${isMobile && sidebarOpen ? 'blur-sm pointer-events-none' : ''}`}>
+        <Header 
+          onMenuClick={() => {
+            if (isMobile) {
+              setSidebarOpen(!sidebarOpen);
+            } else {
+              setSidebarCollapsed(!sidebarCollapsed);
+            }
+          }}
+          onProfileClick={() => {
+            setShowProfile(true);
+            setCurrentModule('profile');
+          }}
+          onSettingsClick={() => {
+            setShowSettings(true);
+            setCurrentModule('settings');
+          }}
+          onNavigate={(module) => {
+            setCurrentModule(module);
+            setShowProfile(false);
+            setShowSettings(false);
+            
+            const event = new CustomEvent('navigate-to-module', {
+              detail: { module }
+            });
+            window.dispatchEvent(event);
+          }}
+          showMenuButton={true}
+        />
+      </div>
       
       <Sidebar 
         isOpen={sidebarOpen} 
@@ -165,7 +167,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${
         !isMobile && sidebarOpen && !sidebarCollapsed ? 'ml-64' : 
         !isMobile && sidebarOpen && sidebarCollapsed ? 'ml-16' : 'ml-0'
-      } ${isMobile ? 'pt-28' : 'pt-16'}`}>        
+      } ${isMobile ? 'pt-28' : 'pt-16'} ${isMobile && sidebarOpen ? 'blur-sm pointer-events-none' : ''}`}>        
         <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
           isMobile ? 'p-4 pb-32 pt-4' : 'p-4 lg:p-6'
         } ${!isMobile && sidebarOpen && !sidebarCollapsed ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
@@ -174,9 +176,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </main>
         
-        {/* Mobile Bottom Navigation Bar - Shifted up to avoid system controls */}
+        {/* Mobile Bottom Navigation Bar - Blurred when sidebar is open */}
         {isMobile && (
-          <div className="bg-white border-t border-gray-200 px-2 py-2 fixed bottom-2 left-0 right-0 z-50 h-20 mx-2 rounded-lg shadow-lg">
+          <div className={`bg-white border-t border-gray-200 px-2 py-2 fixed bottom-2 left-0 right-0 z-50 h-20 mx-2 rounded-lg shadow-lg ${
+            sidebarOpen ? 'blur-sm pointer-events-none' : ''
+          }`}>
             <div className="flex items-center justify-around h-full max-w-full">
               {mobileNavItems.map((item) => (
                 <button
