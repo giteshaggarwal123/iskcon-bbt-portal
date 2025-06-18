@@ -51,10 +51,14 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      {/* Theme-colored status bar indicator - Thicker to properly cover notch */}
-      <div className="fixed top-0 left-0 right-0 h-12 bg-primary z-[60]" />
+      {/* Theme-colored status bar indicator - Only on mobile */}
+      {isMobile && (
+        <div className="fixed top-0 left-0 right-0 h-12 bg-primary z-[60]" />
+      )}
       
-      <header className="bg-white border-b border-gray-200 px-4 py-3 fixed top-12 left-0 right-0 z-50 h-16">
+      <header className={`bg-white border-b border-gray-200 px-4 py-3 fixed left-0 right-0 z-50 h-16 ${
+        isMobile ? 'top-12' : 'top-0'
+      }`}>
         <div className="flex items-center justify-between h-full">
           <div className="flex items-center space-x-4">
             {/* Hamburger Menu Button - Show on both mobile and desktop */}

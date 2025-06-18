@@ -150,6 +150,7 @@ export const AppContent = () => {
     try {
       switch (currentModule) {
         case 'dashboard':
+        default:
           return <Dashboard />;
         case 'meetings':
           return <MeetingsModule />;
@@ -167,9 +168,6 @@ export const AppContent = () => {
           return <ReportsModule />;
         case 'settings':
           return <SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />;
-        default:
-          console.warn(`Unknown module: ${currentModule}, falling back to dashboard`);
-          return <Dashboard />;
       }
     } catch (error) {
       console.error('Error rendering module:', error);
