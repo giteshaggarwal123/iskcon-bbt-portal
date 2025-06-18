@@ -1,7 +1,7 @@
 
 <resources>
-    <string name="app_name">ISKCON Bureau Management Portal</string>
-    <string name="title_activity_main">ISKCON Bureau Management Portal</string>
-    <string name="package_name">app.lovable.6a0fd4efa0294c9d95ed74a4fa947c60</string>
+    <string name="app_name">ISKCON Management Portal</string>
+    <string name="title_activity_main">ISKCON Management Portal</string>
+    <string name="package_name">com.iskcon.bbtportal</string>
     <string name="custom_url_scheme">iskcon-portal</string>
 </resources>

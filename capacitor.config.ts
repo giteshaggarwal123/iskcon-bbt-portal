@@ -1,10 +1,11 @@
+
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.iskcon.bbtportal',
   appName: 'ISKCON Management Portal',
   webDir: 'dist',
-  // Comment out server config for native iOS builds
+  // Comment out server config for native builds (both iOS and Android)
   // server: {
   //   // For development, keep the server URL for hot reload
   //   // For production builds, comment out these server settings
