@@ -166,17 +166,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         />
         
         <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
-          isMobile ? 'p-2 pb-20 pt-6' : 'p-4 lg:p-6'
+          isMobile ? 'p-4 pb-24 pt-4' : 'p-4 lg:p-6'
         } ${!isMobile && sidebarOpen && !sidebarCollapsed ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
           <div className="w-full max-w-none">
             {renderContent()}
           </div>
         </main>
         
-        {/* Enhanced Mobile Bottom Navigation Bar with better touch targets */}
+        {/* Enhanced Mobile Bottom Navigation Bar - More web app like */}
         {isMobile && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-inset-bottom">
-            <div className="flex items-center justify-between px-1 py-1 max-w-full overflow-hidden">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 safe-area-inset-bottom">
+            <div className="flex items-center justify-around px-2 py-2 max-w-full">
               {mobileNavItems.map((item) => (
                 <button
                   key={item.id}
@@ -191,9 +191,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     });
                     window.dispatchEvent(event);
                   }}
-                  className={`flex flex-col items-center justify-center flex-1 py-3 px-2 transition-all duration-200 min-h-[60px] rounded-lg mx-1 ${
+                  className={`flex flex-col items-center justify-center flex-1 py-2 px-3 transition-all duration-200 min-h-[56px] rounded-xl mx-1 ${
                     currentModule === item.id
-                      ? 'text-primary bg-primary/10'
+                      ? 'text-primary bg-primary/10 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700 active:bg-gray-100'
                   }`}
                   style={{
@@ -201,10 +201,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     touchAction: 'manipulation'
                   }}
                 >
-                  <item.icon className={`h-6 w-6 mb-1 ${
+                  <item.icon className={`h-5 w-5 mb-1 ${
                     currentModule === item.id ? 'text-primary' : 'text-gray-500'
                   }`} />
-                  <span className={`text-xs font-medium ${
+                  <span className={`text-xs font-medium leading-tight ${
                     currentModule === item.id ? 'text-primary' : 'text-gray-500'
                   }`}>
                     {item.label}
@@ -217,103 +217,243 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </div>
 
       <style>{`
-        /* Enhanced mobile styles for better app experience */
+        /* Enhanced mobile styles for web app-like experience */
         @media (max-width: 767px) {
-          /* Better touch targets and spacing */
-          .mobile-nav-button {
-            min-height: 60px;
-            min-width: 60px;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
+          /* Root layout improvements */
+          .min-h-screen {
+            min-height: 100vh;
+            min-height: 100dvh;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
           }
-          
-          /* Smooth touch feedback */
-          .mobile-nav-button:active {
-            transform: scale(0.96);
-            transition: transform 0.1s ease;
+
+          /* Enhanced header styling */
+          header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
           }
-          
-          /* Native app feel */
-          * {
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
-          }
-          
-          input, textarea, [contenteditable] {
-            -webkit-user-select: text;
-            user-select: text;
-          }
-          
-          /* Clean mobile layout - no footer compensation needed */
+
+          /* Main content improvements */
           main {
-            max-width: 100vw;
-            overflow-x: hidden;
-            padding-bottom: 80px; /* Only for mobile bottom nav */
+            padding: 1rem;
+            padding-bottom: 6rem;
+            padding-top: 1rem;
+            background: transparent;
+            min-height: calc(100vh - 64px - 72px);
           }
-          
-          /* Safe area support for modern devices */
+
+          /* Enhanced bottom navigation */
+          .fixed.bottom-0 {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            height: 72px;
+          }
+
+          /* Navigation button enhancements */
+          .fixed.bottom-0 button {
+            border-radius: 12px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: 56px;
+            position: relative;
+            overflow: hidden;
+          }
+
+          .fixed.bottom-0 button:active {
+            transform: scale(0.95);
+          }
+
+          .fixed.bottom-0 button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: currentColor;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            border-radius: inherit;
+          }
+
+          .fixed.bottom-0 button:active::before {
+            opacity: 0.1;
+          }
+
+          /* Icon and text spacing */
+          .fixed.bottom-0 button .h-5 {
+            margin-bottom: 0.25rem;
+            transition: transform 0.2s ease;
+          }
+
+          .fixed.bottom-0 button[class*="text-primary"] .h-5 {
+            transform: scale(1.1);
+          }
+
+          /* Card improvements for mobile */
+          main .bg-card,
+          main .bg-white {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 16px;
+          }
+
+          /* Text improvements */
+          main h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            line-height: 1.3;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+          }
+
+          main h2 {
+            font-size: 1.375rem;
+            font-weight: 600;
+            line-height: 1.3;
+            color: #334155;
+          }
+
+          main p {
+            line-height: 1.5;
+            color: #64748b;
+          }
+
+          /* Button improvements */
+          main button {
+            border-radius: 10px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          }
+
+          main button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+          }
+
+          /* Grid and spacing improvements */
+          main .grid {
+            gap: 1rem;
+          }
+
+          main .space-y-4 > * + * {
+            margin-top: 1rem;
+          }
+
+          main .space-y-6 > * + * {
+            margin-top: 1.5rem;
+          }
+
+          /* Form elements */
+          main input,
+          main select,
+          main textarea {
+            border-radius: 10px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            padding: 0.75rem;
+          }
+
+          main input:focus,
+          main select:focus,
+          main textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+          }
+
+          /* Status indicators */
+          .bg-green-100 {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+          }
+
+          .bg-red-100 {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+          }
+
+          .bg-blue-100 {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+          }
+
+          .bg-purple-100 {
+            background: rgba(147, 51, 234, 0.1);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+          }
+
+          /* Safe area support */
           .safe-area-inset-bottom {
             padding-bottom: env(safe-area-inset-bottom, 0);
           }
-          
+
+          /* Smooth scrolling */
+          main {
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+          }
+
           /* Hide scrollbars but keep functionality */
           main::-webkit-scrollbar {
             display: none;
           }
-          
+
           main {
             -ms-overflow-style: none;
             scrollbar-width: none;
           }
-          
-          /* Better form inputs on mobile */
-          main input,
-          main select,
-          main textarea {
-            font-size: 16px; /* Prevents zoom on iOS */
-            border-radius: 8px;
+
+          /* Touch feedback improvements */
+          * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
           }
-          
-          /* Improve button accessibility */
-          main button {
-            min-height: 44px;
-            min-width: 44px;
-            touch-action: manipulation;
+
+          input, textarea, [contenteditable] {
+            -webkit-user-select: text;
+            user-select: text;
           }
-          
-          /* Native-like status bar handling */
-          .min-h-screen {
-            min-height: 100vh;
-            min-height: 100dvh;
+
+          /* Loading states */
+          .animate-spin {
+            border-color: #e5e7eb;
+            border-top-color: #3b82f6;
           }
-          
-          /* Improved card layouts for mobile */
-          main .grid {
-            grid-template-columns: 1fr;
-            gap: 0.75rem;
+
+          /* Enhanced animations */
+          .transition-all {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           }
-          
-          /* Better typography for mobile */
-          main h1 {
-            font-size: 1.5rem;
-            line-height: 1.4;
+
+          /* Accessibility improvements */
+          button:focus-visible {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
           }
-          
-          main h2 {
-            font-size: 1.25rem;
-            line-height: 1.4;
+
+          /* Modal and overlay improvements */
+          .bg-black.bg-opacity-50 {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
           }
         }
-        
-        /* Desktop optimizations */
+
+        /* Desktop styles remain clean and unchanged */
         @media (min-width: 768px) {
           main {
-            width: 100%;
-            max-width: 100%;
-            padding-bottom: 1rem; /* Clean bottom padding for desktop */
+            background: transparent;
+            padding-bottom: 1rem;
           }
-          
+
           .flex-1 {
             min-width: 0;
             width: 100%;
@@ -321,6 +461,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           main, .flex-1 {
             transition: all 0.3s ease-in-out;
+          }
+
+          .bg-card,
+          .bg-white {
+            background: white;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
           }
         }
       `}</style>
