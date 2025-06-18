@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useMicrosoftSession } from '@/hooks/useMicrosoftSession';
-import { CheckCircle, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertCircle, RefreshCw, Loader2, ExternalLink } from 'lucide-react';
 
 interface MicrosoftAuthButtonProps {
   onSuccess?: () => void;
@@ -12,7 +11,8 @@ interface MicrosoftAuthButtonProps {
 
 export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSuccess }) => {
   const [isConnecting, setIsConnecting] = useState(false);
-  const [connectionTimeout, setConnectionTimeout] = useState(false);
+  const [showManualLink, setShowManualLink] = useState(false);
+  const [authUrl, setAuthUrl] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -64,6 +64,27 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
     };
   }, []);
 
+  const generateAuthUrl = () => {
+    if (!user) return null;
+
+    const state = user.id;
+    const nonce = Math.random().toString(36).substring(2, 15);
+    const redirectUri = `${window.location.origin}/microsoft/callback`;
+
+    const authParams = new URLSearchParams({
+      client_id: '44391516-babe-4072-8422-a4fc8a79fbde',
+      response_type: 'code',
+      redirect_uri: redirectUri,
+      scope: 'openid profile email offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All',
+      response_mode: 'query',
+      state: state,
+      nonce: nonce,
+      prompt: 'select_account'
+    });
+
+    return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${authParams.toString()}`;
+  };
+
   const clearBrokenSession = () => {
     try {
       // Clear all Microsoft-related storage
@@ -103,31 +124,46 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
     }
 
     setIsConnecting(true);
-    setConnectionTimeout(false);
+    setShowManualLink(false);
     
     try {
-      // Clear any broken session data first
       clearBrokenSession();
-      
-      // Clear the session hook state as well
       clearSession();
-      
-      // Small delay to ensure state is cleared
       await new Promise(resolve => setTimeout(resolve, 100));
       
       console.log('Starting Microsoft authentication...');
+      
+      // Generate the auth URL for manual fallback
+      const url = generateAuthUrl();
+      setAuthUrl(url);
+      
+      // Try automatic redirect first
       await startAuth();
+      
+      // If we reach here, automatic redirect failed
+      setTimeout(() => {
+        if (isConnecting) {
+          console.log('Automatic redirect may have failed, showing manual option');
+          setShowManualLink(true);
+        }
+      }, 2000);
+      
     } catch (error: any) {
       console.error('Microsoft auth error:', error);
       setIsConnecting(false);
-      setConnectionTimeout(false);
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
+      
+      // Show manual link as fallback
+      const url = generateAuthUrl();
+      setAuthUrl(url);
+      setShowManualLink(true);
+      
       toast({
-        title: "Connection Failed",
-        description: error.message || "Failed to start Microsoft authentication",
+        title: "Connection Issue",
+        description: "Automatic redirect failed. Please try the manual link below.",
         variant: "destructive"
       });
     }
@@ -203,38 +239,46 @@ export const MicrosoftAuthButton: React.FC<MicrosoftAuthButtonProps> = ({ onSucc
         </div>
       )}
 
-      {connectionTimeout && (
-        <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-          <div className="flex items-start space-x-2">
-            <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+      {(isConnecting || showManualLink) && (
+        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-start space-x-3">
+            {!showManualLink && <Loader2 className="h-5 w-5 animate-spin text-blue-600 mt-0.5" />}
             <div className="flex-1">
-              <p className="text-sm text-yellow-800 font-medium">Connection Timeout</p>
-              <p className="text-sm text-yellow-700 mb-2">The connection attempt timed out. This might be due to popup blockers or network issues.</p>
-              <Button
-                size="sm"
-                onClick={handleRetry}
-                className="bg-yellow-600 hover:bg-yellow-700 text-white"
-              >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Try Again
-              </Button>
+              <h4 className="font-medium text-blue-800">
+                {showManualLink ? 'Manual Connection Required' : 'Connecting to Microsoft'}
+              </h4>
+              {!showManualLink ? (
+                <>
+                  <p className="text-sm text-blue-700">Redirecting to Microsoft authentication...</p>
+                  <p className="text-xs text-blue-600 mt-1">This should complete within 15 seconds</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-blue-700 mb-3">
+                    Automatic redirect didn't work. Please click the link below to continue:
+                  </p>
+                  {authUrl && (
+                    <a
+                      href={authUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      <span>Open Microsoft Login</span>
+                    </a>
+                  )}
+                  <p className="text-xs text-blue-600 mt-2">
+                    After logging in, you'll be redirected back to this page.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {isConnecting ? (
-        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-center space-x-3">
-            <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-            <div>
-              <h4 className="font-medium text-blue-800">Connecting to Microsoft</h4>
-              <p className="text-sm text-blue-700">Redirecting to Microsoft authentication...</p>
-              <p className="text-xs text-blue-600 mt-1">This should complete within 15 seconds</p>
-            </div>
-          </div>
-        </div>
-      ) : (
+      {!isConnecting && !showManualLink && (
         <Button 
           onClick={handleConnect}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white"

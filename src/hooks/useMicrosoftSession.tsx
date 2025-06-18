@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 
@@ -186,7 +185,7 @@ export const useMicrosoftSession = () => {
     }
   }, [refreshToken]);
 
-  // Start new authentication flow with improved error handling
+  // Updated startAuth function with better CSP handling
   const startAuth = useCallback(async () => {
     if (!user) {
       setError('User must be signed in first');
@@ -223,7 +222,7 @@ export const useMicrosoftSession = () => {
       throw new Error('Unable to store session data. Please enable cookies and try again.');
     }
 
-    // Use the common endpoint with proper encoding
+    // Build auth URL with proper parameters
     const authParams = new URLSearchParams({
       client_id: '44391516-babe-4072-8422-a4fc8a79fbde',
       response_type: 'code',
@@ -238,17 +237,20 @@ export const useMicrosoftSession = () => {
     const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${authParams.toString()}`;
     
     console.log('Microsoft OAuth URL:', authUrl);
-    console.log('Current page URL:', window.location.href);
     
-    // Use window.open with _self to avoid popup blockers and CSP issues
-    setTimeout(() => {
+    // Use window.location.assign for better compatibility
+    try {
+      window.location.assign(authUrl);
+    } catch (error) {
+      console.error('Navigation failed:', error);
+      // Fallback to href
       try {
-        window.open(authUrl, '_self');
-      } catch (error) {
-        console.error('Navigation failed:', error);
-        setError('Failed to redirect to Microsoft login. Please try again or check popup blockers.');
+        window.location.href = authUrl;
+      } catch (hrefError) {
+        console.error('All navigation methods failed:', hrefError);
+        setError('Failed to redirect to Microsoft login. Please try opening the link in a new tab.');
       }
-    }, 100);
+    }
   }, [user, getRedirectUri, getCurrentOrigin]);
 
   // Store session after successful auth
