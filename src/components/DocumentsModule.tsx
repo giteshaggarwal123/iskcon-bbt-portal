@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -226,7 +227,7 @@ export const DocumentsModule = () => {
 
   return (
     <div className={`${isMobile ? 'px-3 py-4' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6'} space-y-4`}>
-      {/* Header Section - Mobile Optimized */}
+      {/* Header Section */}
       <div className={`${isMobile ? 'space-y-3' : 'flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4'}`}>
         <div>
           <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-foreground`}>Document Repository</h1>
@@ -235,33 +236,35 @@ export const DocumentsModule = () => {
           </p>
         </div>
         
-        {/* Action Buttons - Mobile Stack Layout */}
-        <div className={`${isMobile ? 'flex flex-col space-y-2 w-full' : 'flex flex-wrap items-center gap-2'}`}>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsTrashOpen(true)}
-            className={`${isMobile ? 'w-full justify-start' : ''} flex items-center gap-2`}
-          >
-            <Trash2 className="h-4 w-4" />
-            Trash
-          </Button>
-          
-          <div className={isMobile ? 'w-full' : ''}>
-            <FolderManager 
-              folders={folders}
-              onCreateFolder={createFolder}
-              onDeleteFolder={handleDeleteFolder}
-              currentFolderId={selectedFolder}
-              userCanAccessLocked={true}
-              showCreateButton={true}
-            />
+        {/* Action Buttons */}
+        <div className={`${isMobile ? 'grid grid-cols-1 gap-2 w-full' : 'flex flex-wrap items-center gap-2'}`}>
+          <div className={`${isMobile ? 'grid grid-cols-2 gap-2' : 'flex gap-2'}`}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsTrashOpen(true)}
+              className={`${isMobile ? 'text-xs' : ''} flex items-center justify-center gap-2`}
+            >
+              <Trash2 className="h-4 w-4" />
+              {isMobile ? 'Trash' : 'Trash'}
+            </Button>
+            
+            <div className={isMobile ? 'w-full' : ''}>
+              <FolderManager 
+                folders={folders}
+                onCreateFolder={createFolder}
+                onDeleteFolder={handleDeleteFolder}
+                currentFolderId={selectedFolder}
+                userCanAccessLocked={true}
+                showCreateButton={true}
+              />
+            </div>
           </div>
           
           <Button
             onClick={() => setIsUploadDialogOpen(true)}
             size="sm"
-            className={`${isMobile ? 'w-full justify-center' : ''} bg-red-600 hover:bg-red-700 text-white flex items-center gap-2`}
+            className={`${isMobile ? 'w-full' : ''} bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-2`}
           >
             <Plus className="h-4 w-4" />
             Upload Document
@@ -269,7 +272,7 @@ export const DocumentsModule = () => {
         </div>
       </div>
 
-      {/* Breadcrumb Navigation - Mobile Optimized */}
+      {/* Breadcrumb Navigation */}
       <div className={`bg-muted/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
         <Breadcrumb>
           <BreadcrumbList>
@@ -303,7 +306,7 @@ export const DocumentsModule = () => {
         </Breadcrumb>
       </div>
 
-      {/* Search and Filters Bar - Mobile Optimized */}
+      {/* Search and Filters Bar */}
       <div className={`${isMobile ? 'space-y-3' : 'flex flex-col sm:flex-row gap-4 items-center'}`}>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -315,17 +318,39 @@ export const DocumentsModule = () => {
           />
         </div>
         
-        <div className={`${isMobile ? 'grid grid-cols-2 gap-2' : 'flex items-center gap-2'}`}>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className={isMobile ? 'text-sm' : 'w-32'}>
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="important">Important</SelectItem>
-              <SelectItem value="recent">Recent</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className={`${isMobile ? 'flex flex-col gap-2 w-full' : 'flex items-center gap-2'}`}>
+          <div className={`${isMobile ? 'grid grid-cols-2 gap-2' : 'flex gap-2'}`}>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className={isMobile ? 'text-sm' : 'w-32'}>
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="important">Important</SelectItem>
+                <SelectItem value="recent">Recent</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* View Mode Toggle - Now visible on mobile too */}
+            <div className="flex border rounded-md overflow-hidden">
+              <Button
+                variant={viewMode === 'card' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('card')}
+                className="rounded-none border-none h-9 px-3"
+              >
+                <Grid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="rounded-none border-none h-9 px-3"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
 
           {!isMobile && (
             <>
@@ -348,28 +373,6 @@ export const DocumentsModule = () => {
               </Select>
             </>
           )}
-
-          {/* View Mode Toggle - Hidden on Mobile */}
-          {!isMobile && (
-            <div className="flex border rounded-md overflow-hidden">
-              <Button
-                variant={viewMode === 'card' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('card')}
-                className="rounded-none border-none h-8 px-3"
-              >
-                <Grid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-                className="rounded-none border-none h-8 px-3"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -391,7 +394,7 @@ export const DocumentsModule = () => {
         onMoveDocument={handleMoveDocument}
         currentFolderId={selectedFolder}
         canAccessLockedFolders={true}
-        viewMode={isMobile ? 'list' : viewMode}
+        viewMode={viewMode}
       />
 
       {/* Dialogs */}
