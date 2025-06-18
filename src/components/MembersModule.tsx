@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Users, Mail, Phone, Shield, Search, Plus, Download } from 'lucide-react';
 import { AddMemberDialog } from './AddMemberDialog';
 import { MemberCard } from './MemberCard';
+import { DeleteRecentMembersDialog } from './DeleteRecentMembersDialog';
 import { useMembers } from '@/hooks/useMembers';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -159,17 +160,20 @@ export const MembersModule: React.FC = () => {
                 Manage bureau members, roles, and permissions
               </p>
             </div>
-            {userRole.canManageMembers && (
-              <div className="flex-shrink-0">
-                <Button 
-                  className={`${isMobile ? 'w-full' : 'w-full sm:w-auto'} h-10 sm:h-auto`}
-                  onClick={() => setShowAddMemberDialog(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  <span className="whitespace-nowrap">Add Member</span>
-                </Button>
-              </div>
-            )}
+            <div className="flex-shrink-0 flex gap-2">
+              {userRole.canManageMembers && (
+                <>
+                  <Button 
+                    className={`${isMobile ? 'w-full' : 'w-full sm:w-auto'} h-10 sm:h-auto`}
+                    onClick={() => setShowAddMemberDialog(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    <span className="whitespace-nowrap">Add Member</span>
+                  </Button>
+                  <DeleteRecentMembersDialog onMembersDeleted={handleMemberUpdated} />
+                </>
+              )}
+            </div>
           </div>
         </div>
 
