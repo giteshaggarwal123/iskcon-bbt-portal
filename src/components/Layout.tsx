@@ -166,7 +166,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         />
         
         <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
-          isMobile ? 'p-4 pb-24 pt-4' : 'p-4 lg:p-6'
+          isMobile ? 'p-4 pb-28 pt-4' : 'p-4 lg:p-6'
         } ${!isMobile && sidebarOpen && !sidebarCollapsed ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
           <div className="w-full max-w-none">
             {renderContent()}
@@ -175,7 +175,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         
         {/* Enhanced Mobile Bottom Navigation Bar - More web app like */}
         {isMobile && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 safe-area-inset-bottom">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 safe-area-bottom">
             <div className="flex items-center justify-around px-2 py-2 max-w-full">
               {mobileNavItems.map((item) => (
                 <button
@@ -226,30 +226,40 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
           }
 
-          /* Enhanced header styling */
+          /* Enhanced header styling with notch support */
           header {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(0, 0, 0, 0.08);
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding-top: env(safe-area-inset-top, 0);
+            position: sticky;
+            top: 0;
+            z-index: 50;
           }
 
           /* Main content improvements */
           main {
             padding: 1rem;
-            padding-bottom: 6rem;
+            padding-bottom: 7rem;
             padding-top: 1rem;
             background: transparent;
-            min-height: calc(100vh - 64px - 72px);
+            min-height: calc(100vh - 64px - env(safe-area-inset-top, 0) - 80px);
+            padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0));
           }
 
-          /* Enhanced bottom navigation */
+          /* Enhanced bottom navigation with safe area support */
           .fixed.bottom-0 {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-top: 1px solid rgba(0, 0, 0, 0.08);
             box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-            height: 72px;
+            height: auto;
+            min-height: 72px;
+          }
+
+          .safe-area-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 1rem);
           }
 
           /* Navigation button enhancements */
@@ -389,11 +399,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             border: 1px solid rgba(147, 51, 234, 0.2);
           }
 
-          /* Safe area support */
-          .safe-area-inset-bottom {
-            padding-bottom: env(safe-area-inset-bottom, 0);
-          }
-
           /* Smooth scrolling */
           main {
             scroll-behavior: smooth;
@@ -444,6 +449,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           .bg-black.bg-opacity-50 {
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(4px);
+          }
+
+          /* Ensure full viewport coverage */
+          body {
+            padding-top: env(safe-area-inset-top, 0);
+            padding-bottom: env(safe-area-inset-bottom, 0);
+          }
+
+          /* Fix potential layout shifts */
+          .flex-1 {
+            min-height: calc(100vh - env(safe-area-inset-top, 0) - env(safe-area-inset-bottom, 0));
           }
         }
 
