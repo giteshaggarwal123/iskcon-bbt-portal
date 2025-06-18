@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from '@/components/Dashboard';
 import { MeetingsModule } from '@/components/MeetingsModule';
 import { DocumentsModule } from '@/components/DocumentsModule';
@@ -106,10 +105,12 @@ export const AppContent = () => {
   // Listen for navigation events from dashboard
   React.useEffect(() => {
     const handleNavigateToModule = (event: any) => {
+      console.log('Navigating to module:', event.detail.module);
       setCurrentModule(event.detail.module);
     };
 
     const handleNavigateToPoll = (event: any) => {
+      console.log('Navigating to poll');
       setCurrentModule('voting');
     };
 
@@ -128,7 +129,10 @@ export const AppContent = () => {
     };
   }, []);
 
+  console.log('AppContent render:', { user: !!user, loading, currentModule });
+
   if (loading) {
+    console.log('Showing loading screen');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -143,14 +147,17 @@ export const AppContent = () => {
   }
 
   if (!user) {
+    console.log('No user, showing auth page');
     return <RealAuthPage />;
   }
 
+  console.log('User authenticated, rendering module:', currentModule);
+
   const renderModule = () => {
     try {
+      console.log('Rendering module:', currentModule);
       switch (currentModule) {
         case 'dashboard':
-        default:
           return <Dashboard />;
         case 'meetings':
           return <MeetingsModule />;
@@ -168,6 +175,9 @@ export const AppContent = () => {
           return <ReportsModule />;
         case 'settings':
           return <SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />;
+        default:
+          console.log('Unknown module, defaulting to dashboard:', currentModule);
+          return <Dashboard />;
       }
     } catch (error) {
       console.error('Error rendering module:', error);
