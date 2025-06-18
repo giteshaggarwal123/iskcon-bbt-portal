@@ -13,6 +13,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { DocumentUploadDialog } from './documents/DocumentUploadDialog';
 import { DocumentRenameDialog } from './documents/DocumentRenameDialog';
 import { DocumentTable } from './documents/DocumentTable';
+import { DocumentFilters } from './documents/DocumentFilters';
 import { FolderManager } from './documents/FolderManager';
 import { TrashFolder } from './documents/TrashFolder';
 import { DocumentViewer } from './DocumentViewer';
@@ -24,7 +25,9 @@ export const DocumentsModule = () => {
   const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const [filterType, setFilterType] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [peopleFilter, setPeopleFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('all');
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isTrashOpen, setIsTrashOpen] = useState(false);
   const [renameDocument, setRenameDocument] = useState<any>(null);
@@ -206,13 +209,27 @@ export const DocumentsModule = () => {
     });
   };
 
-  // Filter documents based on search term and filter type
+  // Get unique uploaders for people filter
+  const uniqueUploaders = [...new Set(documents.map(doc => doc.uploaded_by))];
+
+  // Filter documents based on all filters
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || 
-      (filterType === 'important' && doc.is_important) ||
-      (filterType === 'recent' && new Date(doc.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
-    return matchesSearch && matchesType;
+    
+    const matchesType = typeFilter === 'all' || 
+      (typeFilter === 'pdf' && doc.mime_type?.includes('pdf')) ||
+      (typeFilter === 'word' && (doc.mime_type?.includes('word') || doc.mime_type?.includes('document'))) ||
+      (typeFilter === 'excel' && (doc.mime_type?.includes('excel') || doc.mime_type?.includes('spreadsheet'))) ||
+      (typeFilter === 'image' && doc.mime_type?.includes('image'));
+    
+    const matchesPeople = peopleFilter === 'all' || doc.uploaded_by === peopleFilter;
+    
+    const matchesDate = dateFilter === 'all' || 
+      (dateFilter === 'today' && new Date(doc.created_at).toDateString() === new Date().toDateString()) ||
+      (dateFilter === 'week' && new Date(doc.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)) ||
+      (dateFilter === 'month' && new Date(doc.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+    
+    return matchesSearch && matchesType && matchesPeople && matchesDate;
   });
 
   const currentFolder = folders.find(f => f.id === selectedFolder);
@@ -306,73 +323,42 @@ export const DocumentsModule = () => {
         </Breadcrumb>
       </div>
 
-      {/* Search and Filters Bar */}
-      <div className={`${isMobile ? 'space-y-3' : 'flex flex-col sm:flex-row gap-4 items-center'}`}>
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search documents..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        
-        <div className={`${isMobile ? 'flex flex-col gap-2 w-full' : 'flex items-center gap-2'}`}>
-          <div className={`${isMobile ? 'grid grid-cols-2 gap-2' : 'flex gap-2'}`}>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className={isMobile ? 'text-sm' : 'w-32'}>
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="important">Important</SelectItem>
-                <SelectItem value="recent">Recent</SelectItem>
-              </SelectContent>
-            </Select>
+      {/* Document Filters */}
+      <div className="space-y-4">
+        <DocumentFilters
+          searchTerm={searchTerm}
+          typeFilter={typeFilter}
+          peopleFilter={peopleFilter}
+          dateFilter={dateFilter}
+          uniqueUploaders={uniqueUploaders}
+          userProfiles={userProfiles}
+          currentUserId={user?.id}
+          onSearchChange={setSearchTerm}
+          onTypeFilterChange={setTypeFilter}
+          onPeopleFilterChange={setPeopleFilter}
+          onDateFilterChange={setDateFilter}
+        />
 
-            {/* View Mode Toggle - Now visible on mobile too */}
-            <div className="flex border rounded-md overflow-hidden">
-              <Button
-                variant={viewMode === 'card' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('card')}
-                className="rounded-none border-none h-9 px-3"
-              >
-                <Grid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-                className="rounded-none border-none h-9 px-3"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
+        {/* View Mode Toggle */}
+        <div className="flex justify-end">
+          <div className="flex border rounded-md overflow-hidden">
+            <Button
+              variant={viewMode === 'card' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('card')}
+              className="rounded-none border-none h-9 px-3"
+            >
+              <Grid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className="rounded-none border-none h-9 px-3"
+            >
+              <List className="h-4 w-4" />
+            </Button>
           </div>
-
-          {!isMobile && (
-            <>
-              <Select value="all">
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="All People" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All People</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value="all">
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="All Dates" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Dates</SelectItem>
-                </SelectContent>
-              </Select>
-            </>
-          )}
         </div>
       </div>
 

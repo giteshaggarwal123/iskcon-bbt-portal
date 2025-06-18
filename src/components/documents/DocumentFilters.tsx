@@ -41,23 +41,23 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
   };
 
   return (
-    <div className="flex justify-between items-center space-x-4">
-      <div className="flex space-x-4 flex-1">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search documents..."
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        
+    <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+      <div className="flex-1 relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Input
+          placeholder="Search documents..."
+          value={searchTerm}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+      
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
         <Select value={typeFilter} onValueChange={onTypeFilterChange}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Type" />
+          <SelectTrigger className="w-full sm:w-32">
+            <SelectValue placeholder="All Types" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg z-50">
             <SelectItem value="all">All Types</SelectItem>
             <SelectItem value="pdf">PDF</SelectItem>
             <SelectItem value="word">Word</SelectItem>
@@ -67,10 +67,10 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
         </Select>
 
         <Select value={peopleFilter} onValueChange={onPeopleFilterChange}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="People" />
+          <SelectTrigger className="w-full sm:w-32">
+            <SelectValue placeholder="All People" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg z-50">
             <SelectItem value="all">All People</SelectItem>
             {uniqueUploaders.map(uploaderId => (
               <SelectItem key={uploaderId} value={uploaderId}>
@@ -81,10 +81,10 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
         </Select>
 
         <Select value={dateFilter} onValueChange={onDateFilterChange}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Date" />
+          <SelectTrigger className="w-full sm:w-32">
+            <SelectValue placeholder="All Dates" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg z-50">
             <SelectItem value="all">All Dates</SelectItem>
             <SelectItem value="today">Today</SelectItem>
             <SelectItem value="week">This Week</SelectItem>
