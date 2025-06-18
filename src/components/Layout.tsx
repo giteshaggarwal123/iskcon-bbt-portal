@@ -245,11 +245,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             user-select: text;
           }
           
-          /* Prevent content from going under bottom nav with safe area */
+          /* Adjusted main content padding - no longer need to compensate for footer */
           main {
             max-width: 100vw;
             overflow-x: hidden;
-            padding-bottom: env(safe-area-inset-bottom, 80px);
+            padding-bottom: 80px; /* Only for mobile bottom nav */
           }
           
           /* Safe area support for modern devices */
@@ -311,6 +311,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           main {
             width: 100%;
             max-width: 100%;
+            padding-bottom: 1rem; /* Clean bottom padding for desktop */
           }
           
           .flex-1 {
