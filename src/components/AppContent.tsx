@@ -24,6 +24,8 @@ export const AppContent = () => {
   const [avatarRefreshTrigger, setAvatarRefreshTrigger] = React.useState(0);
   const [showMicrosoftPrompt, setShowMicrosoftPrompt] = React.useState(false);
 
+  console.log('AppContent rendering:', { user: !!user, loading, currentModule });
+
   // Add mobile-specific error handling
   React.useEffect(() => {
     if (deviceInfo.isNative) {
@@ -39,44 +41,20 @@ export const AppContent = () => {
 
   // Improved Microsoft prompt logic
   React.useEffect(() => {
-    console.log('Microsoft auth check:', { 
-      user: !!user, 
-      loading, 
-      msLoading, 
-      isConnected,
-      showMicrosoftPrompt 
-    });
-    
     if (user && !loading && !msLoading) {
       const hasShownPrompt = localStorage.getItem('microsoft_prompt_shown');
       const lastUserId = localStorage.getItem('last_user_id');
       
-      console.log('Microsoft prompt logic:', { 
-        hasShownPrompt, 
-        lastUserId, 
-        currentUserId: user.id, 
-        isConnected,
-        isNewUser: lastUserId !== user.id
-      });
-      
-      // Show prompt only if:
-      // 1. User is not already connected to Microsoft AND
-      // 2. (Never shown before OR different user) AND
-      // 3. Not currently showing the prompt
       const shouldShowPrompt = !isConnected && 
                               (!hasShownPrompt || lastUserId !== user.id) &&
                               !showMicrosoftPrompt;
       
-      console.log('Should show Microsoft prompt:', shouldShowPrompt);
-      
       if (shouldShowPrompt) {
-        // Small delay to ensure UI is ready
         setTimeout(() => {
           setShowMicrosoftPrompt(true);
         }, 1000);
       }
       
-      // Store current user ID
       localStorage.setItem('last_user_id', user.id);
     }
   }, [user, loading, msLoading, isConnected, showMicrosoftPrompt]);
@@ -84,20 +62,17 @@ export const AppContent = () => {
   // Hide prompt when Microsoft gets connected
   React.useEffect(() => {
     if (isConnected && showMicrosoftPrompt) {
-      console.log('Microsoft connected, hiding prompt');
       setShowMicrosoftPrompt(false);
       localStorage.setItem('microsoft_prompt_shown', 'true');
     }
   }, [isConnected, showMicrosoftPrompt]);
 
   const handleMicrosoftPromptClose = () => {
-    console.log('Microsoft prompt closed by user');
     setShowMicrosoftPrompt(false);
     localStorage.setItem('microsoft_prompt_shown', 'true');
   };
 
   const handleMicrosoftPromptSkip = () => {
-    console.log('Microsoft prompt skipped by user');
     setShowMicrosoftPrompt(false);
     localStorage.setItem('microsoft_prompt_shown', 'true');
   };
@@ -128,8 +103,6 @@ export const AppContent = () => {
       window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
   }, []);
-
-  console.log('AppContent render:', { user: !!user, loading, currentModule });
 
   if (loading) {
     console.log('Showing loading screen');
@@ -187,7 +160,7 @@ export const AppContent = () => {
           <p className="text-gray-600 mb-4">There was an error loading this module.</p>
           <button 
             onClick={() => setCurrentModule('dashboard')}
-            className="bg-primary text-white px-4 py-2 rounded"
+            className="bg-primary text-white px-4 py-2 rounded hover:bg-primary/90"
           >
             Return to Dashboard
           </button>

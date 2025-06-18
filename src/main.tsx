@@ -15,17 +15,36 @@ const rootElement = document.getElementById("root");
 
 if (!rootElement) {
   console.error('Root element not found!');
-  throw new Error('Root element not found');
+  // Create a fallback div if root is missing
+  const fallbackRoot = document.createElement('div');
+  fallbackRoot.id = 'root';
+  document.body.appendChild(fallbackRoot);
+  console.log('Created fallback root element');
 }
 
 console.log('Root element found, creating React root...');
 
-const root = createRoot(rootElement);
+const root = createRoot(rootElement || document.getElementById('root')!);
 
-root.render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
-
-console.log('React application rendered successfully');
+try {
+  root.render(
+    <StrictMode>
+      <App />
+    </StrictMode>
+  );
+  console.log('React application rendered successfully');
+} catch (error) {
+  console.error('Error rendering React application:', error);
+  // Fallback error display
+  const errorDiv = document.createElement('div');
+  errorDiv.innerHTML = `
+    <div style="padding: 20px; text-align: center; font-family: Arial, sans-serif;">
+      <h1>Application Error</h1>
+      <p>There was an error loading the application. Please refresh the page.</p>
+      <button onclick="window.location.reload()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        Refresh Page
+      </button>
+    </div>
+  `;
+  document.body.appendChild(errorDiv);
+}
