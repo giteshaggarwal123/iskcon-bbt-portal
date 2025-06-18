@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -13,10 +14,9 @@ export const MicrosoftCallback: React.FC = () => {
   const [progress, setProgress] = useState('Initializing...');
   const [error, setError] = useState<string | null>(null);
 
-  // Get the correct redirect URI based on environment
-  const getRedirectUri = () => {
-    const currentOrigin = window.location.origin;
-    return `${currentOrigin}/microsoft/callback`;
+  // Get the current redirect URI
+  const getCurrentRedirectUri = () => {
+    return `${window.location.origin}/microsoft/callback`;
   };
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export const MicrosoftCallback: React.FC = () => {
       }, 30000);
 
       try {
-        setProgress('Processing Microsoft callback...');
+        setProgress('Processing Microsoft authentication...');
         
         const code = searchParams.get('code');
         const state = searchParams.get('state');
@@ -43,16 +43,17 @@ export const MicrosoftCallback: React.FC = () => {
           hasState: !!state, 
           error, 
           errorDescription,
-          timestamp: new Date().toISOString(),
-          currentUrl: window.location.href
+          currentUrl: window.location.href,
+          origin: window.location.origin,
+          timestamp: new Date().toISOString()
         });
 
-        // Handle OAuth errors with better error messages
+        // Handle OAuth errors
         if (error) {
           clearTimeout(timeoutId);
           const errorMessages: Record<string, string> = {
             'access_denied': 'You cancelled the Microsoft authentication process.',
-            'invalid_request': 'The authentication request was invalid. Please try again or contact support.',
+            'invalid_request': 'The authentication request was invalid. Please try again.',
             'invalid_client': 'Microsoft application configuration error. Please contact your administrator.',
             'invalid_grant': 'Authentication expired. Please try again.',
             'server_error': 'Microsoft server error. Please try again later.',
@@ -94,124 +95,94 @@ export const MicrosoftCallback: React.FC = () => {
 
         setProgress('Exchanging authorization code...');
 
-        const redirectUri = getRedirectUri();
+        const redirectUri = getCurrentRedirectUri();
         console.log('Using redirect URI for token exchange:', redirectUri);
 
-        // Exchange code for tokens with improved error handling
-        const tokenController = new AbortController();
-        const tokenTimeoutId = setTimeout(() => tokenController.abort(), 15000);
+        // Exchange code for tokens
+        const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            client_id: '44391516-babe-4072-8422-a4fc8a79fbde',
+            code: code,
+            redirect_uri: redirectUri,
+            grant_type: 'authorization_code',
+            scope: 'openid profile email offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All'
+          })
+        });
 
-        try {
-          const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-              client_id: '44391516-babe-4072-8422-a4fc8a79fbde',
-              code: code,
-              redirect_uri: redirectUri,
-              grant_type: 'authorization_code',
-              scope: 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All offline_access'
-            }),
-            signal: tokenController.signal
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          console.error('Token exchange failed:', {
+            status: tokenResponse.status,
+            statusText: tokenResponse.statusText,
+            error: errorText,
+            redirectUri,
+            code: code.substring(0, 10) + '...'
           });
-
-          clearTimeout(tokenTimeoutId);
-
-          if (!tokenResponse.ok) {
-            const errorText = await tokenResponse.text();
-            console.error('Token exchange failed:', {
-              status: tokenResponse.status,
-              statusText: tokenResponse.statusText,
-              error: errorText,
-              redirectUri,
-              code: code.substring(0, 10) + '...'
-            });
-            
-            if (tokenResponse.status === 400) {
-              try {
-                const errorData = JSON.parse(errorText);
-                if (errorData.error === 'invalid_grant') {
-                  throw new Error('The authorization code is invalid or expired. Please try authenticating again.');
-                }
-                if (errorData.error === 'invalid_request' && errorData.error_description?.includes('redirect_uri')) {
-                  throw new Error(`Redirect URI mismatch. Expected: ${redirectUri}. Please contact your administrator.`);
-                }
-              } catch (parseError) {
-                // Continue with generic error handling
+          
+          if (tokenResponse.status === 400) {
+            try {
+              const errorData = JSON.parse(errorText);
+              if (errorData.error === 'invalid_grant') {
+                throw new Error('The authorization code is invalid or expired. Please try authenticating again.');
               }
-            }
-            
-            throw new Error(`Token exchange failed (${tokenResponse.status}). Please try again.`);
-          }
-
-          const tokenData = await tokenResponse.json();
-          setProgress('Fetching user information...');
-
-          // Fetch user info with timeout
-          const userController = new AbortController();
-          const userTimeoutId = setTimeout(() => userController.abort(), 10000);
-
-          try {
-            const userResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
-              headers: {
-                'Authorization': `Bearer ${tokenData.access_token}`
-              },
-              signal: userController.signal
-            });
-
-            clearTimeout(userTimeoutId);
-
-            if (!userResponse.ok) {
-              throw new Error(`Failed to fetch user information: ${userResponse.status}`);
-            }
-
-            const userInfo = await userResponse.json();
-            setProgress('Storing session...');
-
-            // Create session object
-            const sessionData = {
-              accessToken: tokenData.access_token,
-              refreshToken: tokenData.refresh_token,
-              expiresAt: Date.now() + (tokenData.expires_in - 300) * 1000, // 5-minute buffer
-              userInfo: {
-                displayName: userInfo.displayName,
-                mail: userInfo.mail || userInfo.userPrincipalName,
-                id: userInfo.id
+              if (errorData.error === 'invalid_request' && errorData.error_description?.includes('redirect_uri')) {
+                throw new Error(`Redirect URI mismatch. Expected: ${redirectUri}. Please contact your administrator.`);
               }
-            };
-
-            // Store the session
-            storeSession(sessionData);
-
-            setProgress('Connection successful!');
-
-            toast({
-              title: "Microsoft Account Connected!",
-              description: `Successfully connected to ${userInfo.displayName || userInfo.mail}`,
-            });
-
-            // Navigate back with success
-            setTimeout(() => {
-              navigate('/?microsoft_connected=true', { replace: true });
-            }, 1500);
-
-          } catch (userError) {
-            clearTimeout(userTimeoutId);
-            if (userError.name === 'AbortError') {
-              throw new Error('Timeout fetching user information. Please try again.');
+            } catch (parseError) {
+              // Continue with generic error handling
             }
-            throw userError;
           }
-
-        } catch (tokenError) {
-          clearTimeout(tokenTimeoutId);
-          if (tokenError.name === 'AbortError') {
-            throw new Error('Request timeout. Please check your connection and try again.');
-          }
-          throw tokenError;
+          
+          throw new Error(`Token exchange failed (${tokenResponse.status}). Please try again.`);
         }
+
+        const tokenData = await tokenResponse.json();
+        setProgress('Fetching user information...');
+
+        // Fetch user info
+        const userResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`
+          }
+        });
+
+        if (!userResponse.ok) {
+          throw new Error(`Failed to fetch user information: ${userResponse.status}`);
+        }
+
+        const userInfo = await userResponse.json();
+        setProgress('Storing session...');
+
+        // Create session object
+        const sessionData = {
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          expiresAt: Date.now() + (tokenData.expires_in - 300) * 1000,
+          userInfo: {
+            displayName: userInfo.displayName,
+            mail: userInfo.mail || userInfo.userPrincipalName,
+            id: userInfo.id
+          }
+        };
+
+        // Store the session
+        storeSession(sessionData);
+
+        setProgress('Connection successful!');
+
+        toast({
+          title: "Microsoft Account Connected!",
+          description: `Successfully connected to ${userInfo.displayName || userInfo.mail}`,
+        });
+
+        // Navigate back with success
+        setTimeout(() => {
+          navigate('/?microsoft_connected=true', { replace: true });
+        }, 1500);
 
         clearTimeout(timeoutId);
 
@@ -279,7 +250,7 @@ export const MicrosoftCallback: React.FC = () => {
           <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
             <p className="text-sm text-yellow-800">
               <strong>Administrator Note:</strong> The redirect URI needs to be added to the Azure App Registration. 
-              Please add <code className="bg-yellow-100 px-1 rounded">{getRedirectUri()}</code> to the list of redirect URIs.
+              Please add <code className="bg-yellow-100 px-1 rounded">{getCurrentRedirectUri()}</code> to the list of redirect URIs.
             </p>
           </div>
         )}

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 
@@ -18,33 +19,33 @@ export const useMicrosoftSession = () => {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  // Get the correct redirect URI based on environment
-  const getRedirectUri = useCallback(() => {
-    const currentOrigin = window.location.origin;
-    console.log('Current origin for redirect URI:', currentOrigin);
-    
-    // Always use the exact current origin to avoid CORS issues
-    return `${currentOrigin}/microsoft/callback`;
+  // Get the current origin dynamically
+  const getCurrentOrigin = useCallback(() => {
+    return window.location.origin;
   }, []);
 
-  // Check for existing browser session with improved error handling
+  // Get the correct redirect URI
+  const getRedirectUri = useCallback(() => {
+    const origin = getCurrentOrigin();
+    const redirectUri = `${origin}/microsoft/callback`;
+    console.log('Microsoft redirect URI:', redirectUri);
+    return redirectUri;
+  }, [getCurrentOrigin]);
+
+  // Check for existing browser session
   const checkBrowserSession = useCallback(async () => {
     if (!user) return null;
 
     try {
-      // Check localStorage for cached session
       const cachedSession = localStorage.getItem(`ms_session_${user.id}`);
       if (cachedSession) {
         const parsed: MicrosoftSession = JSON.parse(cachedSession);
         
-        // Check if token is still valid (with 5-minute buffer)
         if (parsed.expiresAt > Date.now() + 5 * 60 * 1000) {
           console.log('Found valid cached Microsoft session');
           return parsed;
         }
         
-        console.log('Cached Microsoft session expired, attempting refresh');
-        // Try to refresh if expired
         if (parsed.refreshToken) {
           const refreshed = await refreshToken(parsed.refreshToken);
           if (refreshed) {
@@ -52,13 +53,10 @@ export const useMicrosoftSession = () => {
           }
         }
         
-        // If refresh failed, clear the invalid session
-        console.log('Refresh failed, clearing invalid session');
         localStorage.removeItem(`ms_session_${user.id}`);
       }
     } catch (error) {
       console.warn('Failed to check browser session:', error);
-      // Clear corrupted session data
       try {
         localStorage.removeItem(`ms_session_${user.id}`);
       } catch (e) {
@@ -69,7 +67,7 @@ export const useMicrosoftSession = () => {
     return null;
   }, [user]);
 
-  // Silent token refresh with improved error handling
+  // Token refresh function
   const refreshToken = useCallback(async (refreshToken: string): Promise<MicrosoftSession | null> => {
     if (!user) return null;
 
@@ -89,14 +87,11 @@ export const useMicrosoftSession = () => {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Token refresh failed:', response.status, errorText);
         throw new Error(`Token refresh failed: ${response.status}`);
       }
 
       const data = await response.json();
       
-      // Fetch user info with new token
       const userResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
         headers: {
           'Authorization': `Bearer ${data.access_token}`
@@ -112,7 +107,7 @@ export const useMicrosoftSession = () => {
       const newSession: MicrosoftSession = {
         accessToken: data.access_token,
         refreshToken: data.refresh_token || refreshToken,
-        expiresAt: Date.now() + (data.expires_in - 300) * 1000, // 5-minute buffer
+        expiresAt: Date.now() + (data.expires_in - 300) * 1000,
         userInfo: {
           displayName: userInfo.displayName,
           mail: userInfo.mail || userInfo.userPrincipalName,
@@ -120,14 +115,12 @@ export const useMicrosoftSession = () => {
         }
       };
 
-      // Cache the session
       localStorage.setItem(`ms_session_${user.id}`, JSON.stringify(newSession));
       console.log('Microsoft token refreshed successfully');
       
       return newSession;
     } catch (error) {
       console.error('Token refresh failed:', error);
-      // Clear invalid session
       try {
         localStorage.removeItem(`ms_session_${user.id}`);
       } catch (e) {
@@ -137,7 +130,7 @@ export const useMicrosoftSession = () => {
     }
   }, [user]);
 
-  // Initialize session on mount with better error handling
+  // Initialize session on mount
   useEffect(() => {
     const initializeSession = async () => {
       if (!user) {
@@ -155,7 +148,6 @@ export const useMicrosoftSession = () => {
         const existingSession = await checkBrowserSession();
         if (existingSession) {
           setSession(existingSession);
-          // Schedule next refresh
           scheduleTokenRefresh(existingSession);
         } else {
           setSession(null);
@@ -172,10 +164,10 @@ export const useMicrosoftSession = () => {
     initializeSession();
   }, [user, checkBrowserSession]);
 
-  // Schedule automatic token refresh with better error handling
+  // Schedule automatic token refresh
   const scheduleTokenRefresh = useCallback((currentSession: MicrosoftSession) => {
     const now = Date.now();
-    const timeUntilRefresh = currentSession.expiresAt - now - 5 * 60 * 1000; // 5 minutes before expiry
+    const timeUntilRefresh = currentSession.expiresAt - now - 5 * 60 * 1000;
 
     if (timeUntilRefresh > 0) {
       console.log(`Scheduling Microsoft token refresh in ${Math.round(timeUntilRefresh / 1000)} seconds`);
@@ -194,14 +186,13 @@ export const useMicrosoftSession = () => {
     }
   }, [refreshToken]);
 
-  // Start new authentication flow with improved configuration
+  // Start new authentication flow with improved error handling
   const startAuth = useCallback(async () => {
     if (!user) {
       setError('User must be signed in first');
       return;
     }
 
-    // Clear any existing session
     try {
       localStorage.removeItem(`ms_session_${user.id}`);
     } catch (e) {
@@ -211,7 +202,6 @@ export const useMicrosoftSession = () => {
     setSession(null);
     setError(null);
 
-    // Prepare auth parameters
     const state = user.id;
     const nonce = Math.random().toString(36).substring(2, 15);
     const redirectUri = getRedirectUri();
@@ -220,10 +210,10 @@ export const useMicrosoftSession = () => {
       clientId: '44391516-babe-4072-8422-a4fc8a79fbde',
       redirectUri,
       state,
+      origin: getCurrentOrigin(),
       timestamp: new Date().toISOString()
     });
 
-    // Store session data
     try {
       sessionStorage.setItem('microsoft_auth_user_id', state);
       sessionStorage.setItem('microsoft_auth_nonce', nonce);
@@ -233,34 +223,33 @@ export const useMicrosoftSession = () => {
       throw new Error('Unable to store session data. Please enable cookies and try again.');
     }
 
-    // Use more permissive auth parameters
+    // Use the common endpoint with proper encoding
     const authParams = new URLSearchParams({
       client_id: '44391516-babe-4072-8422-a4fc8a79fbde',
       response_type: 'code',
       redirect_uri: redirectUri,
-      scope: 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All offline_access openid profile email',
+      scope: 'openid profile email offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All',
       response_mode: 'query',
       state: state,
       nonce: nonce,
       prompt: 'select_account'
     });
 
-    // Use the common endpoint which is more reliable
     const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${authParams.toString()}`;
     
-    console.log('Full Microsoft OAuth URL:', authUrl);
-    console.log('Redirect URI being used:', redirectUri);
+    console.log('Microsoft OAuth URL:', authUrl);
+    console.log('Current page URL:', window.location.href);
     
-    // Add a small delay before redirect to ensure all state is saved
+    // Use window.open with _self to avoid popup blockers and CSP issues
     setTimeout(() => {
       try {
-        window.location.href = authUrl;
+        window.open(authUrl, '_self');
       } catch (error) {
         console.error('Navigation failed:', error);
-        setError('Failed to redirect to Microsoft login. Please try again.');
+        setError('Failed to redirect to Microsoft login. Please try again or check popup blockers.');
       }
     }, 100);
-  }, [user, getRedirectUri]);
+  }, [user, getRedirectUri, getCurrentOrigin]);
 
   // Store session after successful auth
   const storeSession = useCallback((sessionData: MicrosoftSession) => {
