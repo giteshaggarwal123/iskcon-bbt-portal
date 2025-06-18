@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -173,10 +174,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </main>
         
-        {/* Structured Mobile Bottom Navigation Bar - Fixed like header */}
+        {/* Mobile Bottom Navigation Bar - Styled like header */}
         {isMobile && (
-          <div className="fixed bottom-4 left-4 right-4 bg-white border border-gray-200 shadow-lg z-50 h-18 rounded-xl">
-            <div className="flex items-center justify-around px-2 py-3 h-full max-w-full">
+          <div className="bg-white border-t border-gray-200 px-4 py-3 fixed bottom-0 left-0 right-0 z-50 h-16">
+            <div className="flex items-center justify-around h-full max-w-full">
               {mobileNavItems.map((item) => (
                 <button
                   key={item.id}
@@ -191,17 +192,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     });
                     window.dispatchEvent(event);
                   }}
-                  className={`flex flex-col items-center justify-center flex-1 py-2 px-3 transition-all duration-200 h-full rounded-lg ${
+                  className={`flex flex-col items-center justify-center flex-1 py-2 px-1 transition-colors duration-200 h-full ${
                     currentModule === item.id
-                      ? 'text-primary bg-primary/10'
-                      : 'text-gray-500 hover:text-gray-700 active:bg-gray-100'
+                      ? 'text-primary'
+                      : 'text-gray-500 hover:text-gray-700'
                   }`}
                   style={{
                     WebkitTapHighlightColor: 'transparent',
                     touchAction: 'manipulation'
                   }}
                 >
-                  <item.icon className={`h-6 w-6 mb-1 ${
+                  <item.icon className={`h-5 w-5 mb-1 ${
                     currentModule === item.id ? 'text-primary' : 'text-gray-500'
                   }`} />
                   <span className={`text-xs font-medium leading-tight ${
