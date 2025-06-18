@@ -54,7 +54,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const toggleSidebar = () => {
     if (isMobile) {
       setSidebarOpen(!sidebarOpen);
-    } else {
+    } else {{
       // On desktop, toggle between collapsed and expanded
       setSidebarCollapsed(!sidebarCollapsed);
     }
@@ -167,7 +167,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         !isMobile && sidebarOpen && sidebarCollapsed ? 'ml-16' : 'ml-0'
       } pt-28`}>        
         <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
-          isMobile ? 'p-4 pb-20 pt-4' : 'p-4 lg:p-6'
+          isMobile ? 'p-4 pb-24 pt-4' : 'p-4 lg:p-6'
         } ${!isMobile && sidebarOpen && !sidebarCollapsed ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
           <div className="w-full max-w-none">
             {renderContent()}
@@ -176,8 +176,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         
         {/* Structured Mobile Bottom Navigation Bar - Fixed like header */}
         {isMobile && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 h-16">
-            <div className="flex items-center justify-around px-2 py-2 h-full max-w-full">
+          <div className="fixed bottom-4 left-4 right-4 bg-white border border-gray-200 shadow-lg z-50 h-18 rounded-xl">
+            <div className="flex items-center justify-around px-2 py-3 h-full max-w-full">
               {mobileNavItems.map((item) => (
                 <button
                   key={item.id}
@@ -192,7 +192,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     });
                     window.dispatchEvent(event);
                   }}
-                  className={`flex flex-col items-center justify-center flex-1 py-2 px-3 transition-all duration-200 h-full rounded-none ${
+                  className={`flex flex-col items-center justify-center flex-1 py-2 px-3 transition-all duration-200 h-full rounded-lg ${
                     currentModule === item.id
                       ? 'text-primary bg-primary/10'
                       : 'text-gray-500 hover:text-gray-700 active:bg-gray-100'
@@ -202,7 +202,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     touchAction: 'manipulation'
                   }}
                 >
-                  <item.icon className={`h-5 w-5 mb-1 ${
+                  <item.icon className={`h-6 w-6 mb-1 ${
                     currentModule === item.id ? 'text-primary' : 'text-gray-500'
                   }`} />
                   <span className={`text-xs font-medium leading-tight ${
