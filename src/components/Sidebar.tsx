@@ -120,11 +120,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className={`fixed bottom-0 left-0 z-40 bg-white shadow-xl transform transition-all duration-300 ${
+    <div className={`fixed z-50 bg-white shadow-xl transform transition-all duration-300 ${
       isOpen ? 'translate-x-0' : '-translate-x-full'
-    } ${isMobile ? 'w-64 top-28' : 'top-16 lg:translate-x-0'} ${
+    } ${isMobile ? 'w-64 top-28 bottom-24' : 'top-16 bottom-0 lg:translate-x-0'} ${
       !isMobile && isCollapsed ? 'w-20' : 'w-64'
-    }`}>
+    } left-0`}>
       <div className="flex flex-col h-full">
         {/* Logo Section - Now Clickable */}
         <div className="p-6 border-b border-gray-200">
