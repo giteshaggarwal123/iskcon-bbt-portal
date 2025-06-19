@@ -125,8 +125,8 @@ export const Dashboard: React.FC = () => {
 
   return (
     <>
-      <div className="dashboard-container w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-        <div className="space-y-4 sm:space-y-6">
+      <div className="dashboard-container w-full max-w-7xl mx-auto px-4 lg:px-6">
+        <div className="space-y-6">
           {/* Header Section - Clean and aligned */}
           <div className="dashboard-header space-y-2">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Bureau Dashboard</h1>
@@ -141,7 +141,7 @@ export const Dashboard: React.FC = () => {
           </div>
 
           {/* Main Grid - Clean Layout */}
-          <div className="dashboard-grid grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="dashboard-grid grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Recent Emails */}
             <Card className="dashboard-card border border-border bg-card">
               <CardHeader className="pb-4">
@@ -365,28 +365,19 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile-specific responsive styles - Fixed to match Meetings module alignment */}
+        {/* Updated mobile-specific responsive styles */}
         <style>{`
-          /* Mobile-only styles (max-width: 767px) - Perfect alignment like Meetings module */
+          /* Mobile-only styles (max-width: 767px) */
           @media (max-width: 767px) {
-            /* Dashboard container - Match Layout.tsx mobile padding exactly */
             .dashboard-container {
               width: 100%;
               max-width: 100%;
               margin: 0;
-              padding: 0; /* Remove all padding to match Layout.tsx mobile structure */
+              padding: 0 1rem;
               overflow-x: hidden;
               box-sizing: border-box;
             }
 
-            /* Dashboard main content wrapper */
-            .dashboard-container > div {
-              padding: 0;
-              margin: 0;
-              width: 100%;
-            }
-
-            /* Dashboard header mobile spacing - Match other modules */
             .dashboard-header {
               margin-bottom: 1rem;
               padding: 0;
@@ -405,7 +396,6 @@ export const Dashboard: React.FC = () => {
               margin-bottom: 0.5rem;
             }
 
-            /* Dashboard grid - Perfect mobile layout */
             .dashboard-grid {
               grid-template-columns: 1fr;
               gap: 1rem;
@@ -415,7 +405,6 @@ export const Dashboard: React.FC = () => {
               padding: 0;
             }
 
-            /* Dashboard cards - Match other module card spacing */
             .dashboard-card {
               width: 100%;
               max-width: 100%;
@@ -425,7 +414,6 @@ export const Dashboard: React.FC = () => {
               box-sizing: border-box;
             }
 
-            /* Card titles mobile responsive */
             .dashboard-card-title {
               flex-wrap: wrap;
               gap: 0.5rem;
@@ -434,13 +422,6 @@ export const Dashboard: React.FC = () => {
               line-height: 1.3;
             }
 
-            .dashboard-card-title span {
-              word-wrap: break-word;
-              flex: 1;
-              min-width: 0;
-            }
-
-            /* Dashboard items mobile layout */
             .dashboard-item {
               width: 100%;
               max-width: 100%;
@@ -449,7 +430,6 @@ export const Dashboard: React.FC = () => {
               box-sizing: border-box;
             }
 
-            /* Item headers mobile responsive */
             .dashboard-item-header {
               flex-wrap: wrap;
               gap: 0.5rem;
@@ -457,7 +437,6 @@ export const Dashboard: React.FC = () => {
               margin-bottom: 0.5rem;
             }
 
-            /* Item titles mobile text handling */
             .dashboard-item-title {
               word-wrap: break-word;
               overflow-wrap: break-word;
@@ -467,7 +446,6 @@ export const Dashboard: React.FC = () => {
               margin-right: 0.5rem;
             }
 
-            /* Item buttons mobile sizing */
             .dashboard-item-button {
               min-height: 32px;
               min-width: fit-content;
@@ -475,108 +453,34 @@ export const Dashboard: React.FC = () => {
               font-size: 0.75rem;
               flex-shrink: 0;
             }
+          }
 
-            /* Card content mobile spacing */
-            .dashboard-card .pt-0 {
-              padding-top: 0.5rem;
+          /* Desktop styles - Improved alignment */
+          @media (min-width: 768px) {
+            .dashboard-container {
+              max-width: 7xl;
+              margin: 0 auto;
+              padding: 0 1.5rem;
             }
 
-            .dashboard-card .pb-4 {
-              padding-bottom: 0.75rem;
+            .dashboard-grid {
+              grid-template-columns: repeat(2, 1fr);
+              gap: 1.5rem;
             }
 
-            /* Text mobile optimization */
-            .dashboard-container .text-xs {
-              font-size: 0.75rem;
-              line-height: 1.3;
+            .dashboard-card {
+              height: fit-content;
             }
 
-            .dashboard-container .text-sm {
-              font-size: 0.875rem;
-              line-height: 1.4;
-            }
-
-            /* Prevent horizontal overflow */
-            .dashboard-container * {
-              max-width: 100%;
-              box-sizing: border-box;
-            }
-
-            /* Text wrapping improvements */
-            .dashboard-container .truncate {
-              white-space: normal;
-              overflow: visible;
-              text-overflow: unset;
-            }
-
-            /* Badge mobile responsive */
-            .dashboard-container .rounded-full {
-              font-size: 0.75rem;
-              padding: 0.125rem 0.5rem;
-              white-space: nowrap;
-            }
-
-            /* Button mobile improvements */
-            .dashboard-container button {
-              min-height: 44px;
-              font-size: 0.875rem;
-              word-wrap: break-word;
-            }
-
-            /* Space adjustments */
-            .dashboard-container .space-y-3 > * + * {
-              margin-top: 0.75rem;
-            }
-
-            .dashboard-container .space-y-4 > * + * {
-              margin-top: 1rem;
-            }
-
-            /* Microsoft connection status mobile */
-            .dashboard-header .flex.justify-start {
-              padding-top: 0.5rem;
-            }
-
-            /* Empty state mobile */
-            .dashboard-container .text-center.py-8 {
-              padding: 1.5rem 0.5rem;
-            }
-
-            /* Flex improvements */
-            .dashboard-container .flex.items-center.justify-between {
-              flex-wrap: wrap;
-              gap: 0.5rem;
-              align-items: flex-start;
-            }
-
-            /* Icon sizing */
-            .dashboard-container .h-5.w-5 {
-              height: 1.125rem;
-              width: 1.125rem;
-            }
-
-            .dashboard-container .h-3.w-3 {
-              height: 0.75rem;
-              width: 0.75rem;
-            }
-
-            /* Remove auto margins */
-            .dashboard-container .mx-auto {
-              margin-left: 0;
-              margin-right: 0;
-            }
-
-            /* Viewport handling */
-            body {
-              overflow-x: hidden;
+            .dashboard-item {
+              padding: 1rem;
             }
           }
 
-          /* Desktop styles remain unchanged */
-          @media (min-width: 768px) {
-            .dashboard-container {
-              /* All desktop styles remain as they were */
-            }
+          /* Prevent horizontal overflow */
+          .dashboard-container * {
+            max-width: 100%;
+            box-sizing: border-box;
           }
         `}</style>
       </div>

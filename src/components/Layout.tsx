@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -104,7 +105,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex w-full">
+    <div className="min-h-screen bg-gray-50 flex w-full overflow-hidden">
       {/* Mobile sidebar overlay with blur effect - Covers entire screen */}
       {isMobile && sidebarOpen && (
         <div 
@@ -113,7 +114,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         />
       )}
       
-      {/* Header - Keep visible (no blur) */}
+      {/* Header - Fixed positioning */}
       <Header 
         onMenuClick={() => {
           if (isMobile) {
@@ -143,6 +144,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         showMenuButton={true}
       />
       
+      {/* Sidebar - Fixed positioning */}
       <Sidebar 
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)}
@@ -161,23 +163,23 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         isCollapsed={!isMobile && sidebarCollapsed}
       />
       
+      {/* Main content area - Properly aligned with sidebar */}
       <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${
-        !isMobile && sidebarOpen && !sidebarCollapsed ? 'ml-64' : 
-        !isMobile && sidebarOpen && sidebarCollapsed ? 'ml-16' : 'ml-0'
-      } ${isMobile ? 'pt-28' : 'pt-16'} ${isMobile && sidebarOpen ? 'blur-sm pointer-events-none' : ''}`}>        
+        isMobile ? 'ml-0' : 
+        (!isMobile && sidebarOpen && !sidebarCollapsed) ? 'ml-64' : 
+        (!isMobile && sidebarOpen && sidebarCollapsed) ? 'ml-16' : 'ml-0'
+      } ${isMobile ? 'pt-28' : 'pt-16'}`}>        
         <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
-          isMobile ? 'p-4 pb-32 pt-4' : 'p-4 lg:p-6'
-        } ${!isMobile && sidebarOpen && !sidebarCollapsed ? 'pr-4 lg:pr-6' : 'px-4 lg:px-6'}`}>
-          <div className="w-full max-w-none">
+          isMobile ? 'p-4 pb-32 pt-4' : 'p-6'
+        }`}>
+          <div className="w-full max-w-none mx-auto">
             {renderContent()}
           </div>
         </main>
         
-        {/* Mobile Bottom Navigation Bar - Blurred when sidebar is open */}
+        {/* Mobile Bottom Navigation Bar */}
         {isMobile && (
-          <div className={`bg-white border-t border-gray-200 px-2 py-2 fixed bottom-2 left-0 right-0 z-50 h-20 mx-2 rounded-lg shadow-lg transition-all duration-300 ${
-            sidebarOpen ? 'blur-sm' : ''
-          }`}>
+          <div className="bg-white border-t border-gray-200 px-2 py-2 fixed bottom-2 left-0 right-0 z-50 h-20 mx-2 rounded-lg shadow-lg">
             <div className="flex items-center justify-around h-full max-w-full">
               {mobileNavItems.map((item) => (
                 <button
