@@ -16,6 +16,19 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
   const { user } = useAuth();
   const { isConnected, disconnectMicrosoft, canAttemptConnection } = useMicrosoftAuth();
 
+  // Check network connectivity
+  const checkNetworkConnectivity = async (): Promise<boolean> => {
+    try {
+      const response = await fetch(window.location.origin + '/favicon.ico', {
+        method: 'HEAD',
+        cache: 'no-cache'
+      });
+      return response.ok;
+    } catch (error) {
+      return false;
+    }
+  };
+
   const handleMicrosoftLogin = useCallback(async () => {
     if (!user) {
       toast({
@@ -38,6 +51,18 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
     setLoading(true);
     
     try {
+      // Check network connectivity first
+      const isOnline = await checkNetworkConnectivity();
+      if (!isOnline) {
+        toast({
+          title: "Network Connection Error",
+          description: "Unable to connect to the internet. Please check your network connection and try again.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
       // Clear any existing errors and session data first
       try {
         localStorage.removeItem('microsoft_auth_error');
@@ -51,7 +76,7 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
 
       // Enhanced configuration with tenant-specific endpoint
       const clientId = '44391516-babe-4072-8422-a4fc8a79fbde';
-      const tenantId = 'b2333ef6-3378-4d02-b9b9-d8e66d9dfa3d'; // Your specific tenant ID
+      const tenantId = 'b2333ef6-3378-4d02-b9b9-d8e66d9dfa3d';
       const baseUrl = window.location.origin;
       const redirectUri = `${baseUrl}/microsoft/callback`;
       const state = user.id;
@@ -65,6 +90,28 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         userId: state,
         timestamp: new Date().toISOString()
       });
+
+      // Validate redirect URI accessibility
+      try {
+        const redirectTest = await fetch(redirectUri, { method: 'HEAD', cache: 'no-cache' });
+        if (!redirectTest.ok && redirectTest.status !== 404) {
+          toast({
+            title: "Configuration Error",
+            description: "The redirect URL is not accessible. This may be a temporary network issue.",
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
+        }
+      } catch (redirectError) {
+        toast({
+          title: "Network Error",
+          description: "Unable to verify redirect URL. Please check your internet connection.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
 
       // Store session data with error handling
       try {
@@ -122,34 +169,64 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       if (!popup) {
         toast({
           title: "Popup Blocked",
-          description: "Please allow popups for this site and try again. Or try opening in a new tab.",
+          description: "Please allow popups for this site and try again. You may need to disable ad blockers.",
           variant: "destructive"
         });
         setLoading(false);
         return;
       }
 
+      // Enhanced popup monitoring with network error detection
+      let popupCheckInterval: NodeJS.Timeout;
+      let networkCheckInterval: NodeJS.Timeout;
+      
+      const cleanupIntervals = () => {
+        if (popupCheckInterval) clearInterval(popupCheckInterval);
+        if (networkCheckInterval) clearInterval(networkCheckInterval);
+      };
+
       // Monitor popup for completion
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkClosed);
-          setLoading(false);
-          // Check if authentication was successful by checking for tokens
-          setTimeout(() => {
-            window.location.reload(); // Refresh to check auth state
-          }, 1000);
+      popupCheckInterval = setInterval(() => {
+        try {
+          if (popup.closed) {
+            cleanupIntervals();
+            setLoading(false);
+            // Check if authentication was successful by checking for tokens
+            setTimeout(() => {
+              window.location.reload(); // Refresh to check auth state
+            }, 1000);
+          }
+        } catch (error) {
+          console.warn('Popup monitoring error:', error);
         }
       }, 1000);
+
+      // Monitor network connectivity during authentication
+      networkCheckInterval = setInterval(async () => {
+        const isStillOnline = await checkNetworkConnectivity();
+        if (!isStillOnline) {
+          if (!popup.closed) {
+            popup.close();
+          }
+          cleanupIntervals();
+          setLoading(false);
+          toast({
+            title: "Network Connection Lost",
+            description: "Network connection was lost during authentication. Please check your connection and try again.",
+            variant: "destructive"
+          });
+        }
+      }, 5000);
 
       // Timeout after 5 minutes
       setTimeout(() => {
         if (!popup.closed) {
           popup.close();
-          clearInterval(checkClosed);
+          cleanupIntervals();
           setLoading(false);
           toast({
             title: "Authentication Timeout",
-            description: "Microsoft authentication took too long. Please try again.",
+            description: "Microsoft authentication took too long. This may be due to network issues. Please try again.",
             variant: "destructive"
           });
         }
@@ -158,9 +235,19 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
     } catch (error: any) {
       console.error('Microsoft OAuth initialization error:', error);
       setLoading(false);
+      
+      // Provide specific error messages based on error type
+      let errorMessage = `Failed to initialize Microsoft connection: ${error.message}`;
+      
+      if (error.message.includes('NetworkError') || error.message.includes('ERR_NAME_NOT_RESOLVED')) {
+        errorMessage = "Network connection error. Please check your internet connection and try again.";
+      } else if (error.message.includes('popup')) {
+        errorMessage = "Popup was blocked. Please allow popups for this site and try again.";
+      }
+      
       toast({
         title: "Connection Failed",
-        description: `Failed to initialize Microsoft connection: ${error.message}`,
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -217,10 +304,11 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
         <h4 className="font-medium text-blue-800 mb-2">Connection Tips:</h4>
         <ul className="text-sm text-blue-700 space-y-1">
+          <li>• Ensure you have a stable internet connection</li>
           <li>• Make sure popups are allowed for this site</li>
           <li>• Use admin@iskconbureau.in when prompted</li>
-          <li>• If popup fails, try disabling ad blockers</li>
-          <li>• Clear browser cache if issues persist</li>
+          <li>• Try disabling ad blockers if issues persist</li>
+          <li>• Clear browser cache if connection fails</li>
         </ul>
       </div>
       
@@ -232,7 +320,7 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         {loading ? (
           <div className="flex items-center space-x-2">
             <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-            <span>Opening Microsoft Login...</span>
+            <span>Connecting to Microsoft...</span>
           </div>
         ) : (
           <div className="flex items-center space-x-2">
