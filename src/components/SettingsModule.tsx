@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { User, Settings, Bell, Shield, Palette, Globe, Plug } from 'lucide-react';
+import { User, Settings, Bell, Shield, Plug } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { NotificationSettings } from './NotificationSettings';
@@ -25,13 +24,6 @@ export const SettingsModule: React.FC = () => {
     first_name: profile?.first_name || '',
     last_name: profile?.last_name || '',
     phone: profile?.phone || '',
-  });
-
-  // Appearance settings state
-  const [appearanceSettings, setAppearanceSettings] = useState({
-    darkMode: localStorage.getItem('darkMode') === 'true',
-    compactView: localStorage.getItem('compactView') === 'true',
-    highContrast: localStorage.getItem('highContrast') === 'true',
   });
 
   // Privacy settings state
@@ -60,42 +52,6 @@ export const SettingsModule: React.FC = () => {
     window.location.reload();
   };
 
-  const handleAppearanceChange = (setting: string, value: boolean) => {
-    const newSettings = { ...appearanceSettings, [setting]: value };
-    setAppearanceSettings(newSettings);
-    localStorage.setItem(setting, value.toString());
-    
-    // Apply the changes immediately
-    if (setting === 'darkMode') {
-      if (value) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    }
-    
-    if (setting === 'compactView') {
-      if (value) {
-        document.body.classList.add('compact-view');
-      } else {
-        document.body.classList.remove('compact-view');
-      }
-    }
-    
-    if (setting === 'highContrast') {
-      if (value) {
-        document.body.classList.add('high-contrast');
-      } else {
-        document.body.classList.remove('high-contrast');
-      }
-    }
-    
-    toast({
-      title: "Appearance Updated",
-      description: `${setting.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} ${value ? 'enabled' : 'disabled'}.`,
-    });
-  };
-
   const handlePrivacyChange = (setting: string, value: boolean) => {
     const newSettings = { ...privacySettings, [setting]: value };
     setPrivacySettings(newSettings);
@@ -115,7 +71,7 @@ export const SettingsModule: React.FC = () => {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile" className="flex items-center space-x-2">
             <User className="h-4 w-4" />
             <span>Profile</span>
@@ -131,10 +87,6 @@ export const SettingsModule: React.FC = () => {
           <TabsTrigger value="privacy" className="flex items-center space-x-2">
             <Shield className="h-4 w-4" />
             <span>Privacy</span>
-          </TabsTrigger>
-          <TabsTrigger value="appearance" className="flex items-center space-x-2">
-            <Palette className="h-4 w-4" />
-            <span>Appearance</span>
           </TabsTrigger>
         </TabsList>
 
@@ -292,52 +244,6 @@ export const SettingsModule: React.FC = () => {
                 <Switch 
                   checked={privacySettings.dataAnalytics}
                   onCheckedChange={(checked) => handlePrivacyChange('dataAnalytics', checked)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="appearance">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Palette className="h-5 w-5" />
-                <span>Appearance</span>
-              </CardTitle>
-              <CardDescription>
-                Customize how the application looks and feels
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Dark Mode</Label>
-                  <p className="text-sm text-gray-600">Use dark theme</p>
-                </div>
-                <Switch 
-                  checked={appearanceSettings.darkMode}
-                  onCheckedChange={(checked) => handleAppearanceChange('darkMode', checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Compact View</Label>
-                  <p className="text-sm text-gray-600">Show more content in less space</p>
-                </div>
-                <Switch 
-                  checked={appearanceSettings.compactView}
-                  onCheckedChange={(checked) => handleAppearanceChange('compactView', checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>High Contrast</Label>
-                  <p className="text-sm text-gray-600">Increase contrast for better visibility</p>
-                </div>
-                <Switch 
-                  checked={appearanceSettings.highContrast}
-                  onCheckedChange={(checked) => handleAppearanceChange('highContrast', checked)}
                 />
               </div>
             </CardContent>
