@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingFallback } from './LoadingFallback';
-import { AuthPage } from './AuthPage';
+import { RealAuthPage } from './RealAuthPage';
 import { Layout } from './Layout';
 import { Dashboard } from './Dashboard';
 import { MeetingsModule } from './MeetingsModule';
@@ -84,7 +84,7 @@ export const AppContent = () => {
   }
 
   if (!user) {
-    return <AuthPage />;
+    return <RealAuthPage />;
   }
 
   const renderCurrentModule = () => {
