@@ -8,7 +8,17 @@ console.log('Application starting...');
 console.log('Environment:', {
   mode: import.meta.env.MODE,
   dev: import.meta.env.DEV,
-  prod: import.meta.env.PROD
+  prod: import.meta.env.PROD,
+  url: window.location.href
+});
+
+// Handle navigation errors
+window.addEventListener('error', (event) => {
+  console.error('Global error caught:', event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
 });
 
 const rootElement = document.getElementById("root");
@@ -44,6 +54,9 @@ try {
       <button onclick="window.location.reload()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
         Refresh Page
       </button>
+      <div style="margin-top: 20px; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
+        <p style="margin: 0; font-size: 14px; color: #6c757d;">Error: ${error}</p>
+      </div>
     </div>
   `;
   document.body.appendChild(errorDiv);

@@ -1,184 +1,112 @@
 
-import React from 'react';
-import { Dashboard } from '@/components/Dashboard';
-import { MeetingsModule } from '@/components/MeetingsModule';
-import { DocumentsModule } from '@/components/DocumentsModule';
-import { VotingModule } from '@/components/VotingModule';
-import { AttendanceModule } from '@/components/AttendanceModule';
-import { EmailModule } from '@/components/EmailModule';
-import { MembersModule } from '@/components/MembersModule';
-import { ReportsModule } from '@/components/ReportsModule';
-import { SettingsModule } from '@/components/SettingsModule';
-import { RealAuthPage } from '@/components/RealAuthPage';
-import { MobileResponsiveLayout } from '@/components/MobileResponsiveLayout';
-import { MicrosoftAuthPrompt } from '@/components/MicrosoftAuthPrompt';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { LoadingFallback } from './LoadingFallback';
+import { AuthPage } from './AuthPage';
+import { Layout } from './Layout';
+import { Dashboard } from './Dashboard';
+import { MeetingsModule } from './MeetingsModule';
+import { DocumentsModule } from './DocumentsModule';
+import { AttendanceModule } from './AttendanceModule';
+import { VotingModule } from './VotingModule';
+import { MembersModule } from './MembersModule';
+import { ReportsModule } from './ReportsModule';
+import { SettingsModule } from './SettingsModule';
+import { MicrosoftAuthPrompt } from './MicrosoftAuthPrompt';
 import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
+import { MobileSplashScreen } from './MobileSplashScreen';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 
 export const AppContent = () => {
-  const { user, loading } = useAuth();
-  const { isConnected, loading: msLoading } = useMicrosoftAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { isConnected, isExpired } = useMicrosoftAuth();
   const deviceInfo = useDeviceInfo();
-  const [currentModule, setCurrentModule] = React.useState('dashboard');
-  const [avatarRefreshTrigger, setAvatarRefreshTrigger] = React.useState(0);
-  const [showMicrosoftPrompt, setShowMicrosoftPrompt] = React.useState(false);
+  const [currentModule, setCurrentModule] = useState('dashboard');
+  const [showMicrosoftPrompt, setShowMicrosoftPrompt] = useState(false);
+  const [showSplash, setShowSplash] = useState(deviceInfo.isNative);
 
-  console.log('AppContent rendering:', { user: !!user, loading, currentModule });
-
-  // Add mobile-specific error handling
-  React.useEffect(() => {
+  // Handle splash screen for mobile
+  useEffect(() => {
     if (deviceInfo.isNative) {
-      const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-        console.error('Unhandled promise rejection on mobile:', event.reason);
-        event.preventDefault();
-      };
-
-      window.addEventListener('unhandledrejection', handleUnhandledRejection);
-      return () => window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      const timer = setTimeout(() => {
+        setShowSplash(false);
+      }, 2000);
+      return () => clearTimeout(timer);
     }
   }, [deviceInfo.isNative]);
 
-  // Improved Microsoft prompt logic
-  React.useEffect(() => {
-    if (user && !loading && !msLoading) {
-      const hasShownPrompt = localStorage.getItem('microsoft_prompt_shown');
-      const lastUserId = localStorage.getItem('last_user_id');
-      
-      const shouldShowPrompt = !isConnected && 
-                              (!hasShownPrompt || lastUserId !== user.id) &&
-                              !showMicrosoftPrompt;
-      
-      if (shouldShowPrompt) {
-        setTimeout(() => {
-          setShowMicrosoftPrompt(true);
-        }, 1000);
-      }
-      
-      localStorage.setItem('last_user_id', user.id);
-    }
-  }, [user, loading, msLoading, isConnected, showMicrosoftPrompt]);
-
-  // Hide prompt when Microsoft gets connected
-  React.useEffect(() => {
-    if (isConnected && showMicrosoftPrompt) {
-      setShowMicrosoftPrompt(false);
-      localStorage.setItem('microsoft_prompt_shown', 'true');
-    }
-  }, [isConnected, showMicrosoftPrompt]);
-
-  const handleMicrosoftPromptClose = () => {
-    setShowMicrosoftPrompt(false);
-    localStorage.setItem('microsoft_prompt_shown', 'true');
-  };
-
-  const handleMicrosoftPromptSkip = () => {
-    setShowMicrosoftPrompt(false);
-    localStorage.setItem('microsoft_prompt_shown', 'true');
-  };
-
-  // Listen for navigation events from dashboard
-  React.useEffect(() => {
-    const handleNavigateToModule = (event: any) => {
+  // Listen for module navigation events
+  useEffect(() => {
+    const handleNavigateToModule = (event: CustomEvent) => {
       console.log('Navigating to module:', event.detail.module);
       setCurrentModule(event.detail.module);
     };
 
-    const handleNavigateToPoll = (event: any) => {
-      console.log('Navigating to poll');
-      setCurrentModule('voting');
-    };
-
-    const handleProfileUpdate = () => {
-      setAvatarRefreshTrigger(prev => prev + 1);
-    };
-
-    window.addEventListener('navigate-to-module', handleNavigateToModule);
-    window.addEventListener('navigate-to-poll', handleNavigateToPoll);
-    window.addEventListener('profileUpdated', handleProfileUpdate);
+    window.addEventListener('navigate-to-module', handleNavigateToModule as EventListener);
 
     return () => {
-      window.removeEventListener('navigate-to-module', handleNavigateToModule);
-      window.removeEventListener('navigate-to-poll', handleNavigateToPoll);
-      window.removeEventListener('profileUpdated', handleProfileUpdate);
+      window.removeEventListener('navigate-to-module', handleNavigateToModule as EventListener);
     };
   }, []);
 
-  if (loading) {
-    console.log('Showing loading screen');
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading ISKCON Portal...</p>
-          {deviceInfo.isNative && (
-            <p className="text-sm text-gray-500 mt-2">Mobile App Loading</p>
-          )}
-        </div>
-      </div>
-    );
+  // Show Microsoft prompt if user is authenticated but Microsoft is not connected
+  useEffect(() => {
+    if (user && !isConnected && !isExpired) {
+      const timer = setTimeout(() => {
+        setShowMicrosoftPrompt(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [user, isConnected, isExpired]);
+
+  // Show splash screen on mobile
+  if (showSplash) {
+    return <MobileSplashScreen />;
+  }
+
+  if (authLoading) {
+    return <LoadingFallback />;
   }
 
   if (!user) {
-    console.log('No user, showing auth page');
-    return <RealAuthPage />;
+    return <AuthPage />;
   }
 
-  console.log('User authenticated, rendering module:', currentModule);
-
-  const renderModule = () => {
-    try {
-      console.log('Rendering module:', currentModule);
-      switch (currentModule) {
-        case 'dashboard':
-          return <Dashboard />;
-        case 'meetings':
-          return <MeetingsModule />;
-        case 'documents':
-          return <DocumentsModule />;
-        case 'voting':
-          return <VotingModule />;
-        case 'attendance':
-          return <AttendanceModule />;
-        case 'email':
-          return <EmailModule />;
-        case 'members':
-          return <MembersModule />;
-        case 'reports':
-          return <ReportsModule />;
-        case 'settings':
-          return <SettingsModule onAvatarUpdate={() => setAvatarRefreshTrigger(prev => prev + 1)} />;
-        default:
-          console.log('Unknown module, defaulting to dashboard:', currentModule);
-          return <Dashboard />;
-      }
-    } catch (error) {
-      console.error('Error rendering module:', error);
-      return (
-        <div className="p-6 text-center">
-          <h2 className="text-xl font-semibold text-red-600 mb-2">Module Error</h2>
-          <p className="text-gray-600 mb-4">There was an error loading this module.</p>
-          <button 
-            onClick={() => setCurrentModule('dashboard')}
-            className="bg-primary text-white px-4 py-2 rounded hover:bg-primary/90"
-          >
-            Return to Dashboard
-          </button>
-        </div>
-      );
+  const renderCurrentModule = () => {
+    switch (currentModule) {
+      case 'dashboard':
+        return <Dashboard />;
+      case 'meetings':
+        return <MeetingsModule />;
+      case 'documents':
+        return <DocumentsModule />;
+      case 'attendance':
+        return <AttendanceModule />;
+      case 'voting':
+        return <VotingModule />;
+      case 'members':
+        return <MembersModule />;
+      case 'reports':
+        return <ReportsModule />;
+      case 'settings':
+      case 'profile':
+        return <SettingsModule />;
+      default:
+        console.warn('Unknown module:', currentModule);
+        return <Dashboard />;
     }
   };
 
   return (
     <>
-      <MobileResponsiveLayout>
-        {renderModule()}
-      </MobileResponsiveLayout>
+      <Layout>
+        {renderCurrentModule()}
+      </Layout>
       
       <MicrosoftAuthPrompt
         isOpen={showMicrosoftPrompt}
-        onClose={handleMicrosoftPromptClose}
-        onSkip={handleMicrosoftPromptSkip}
+        onClose={() => setShowMicrosoftPrompt(false)}
+        onSkip={() => setShowMicrosoftPrompt(false)}
       />
     </>
   );
