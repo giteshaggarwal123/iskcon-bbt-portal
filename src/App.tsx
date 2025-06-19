@@ -11,20 +11,42 @@ import { RealAuthPage } from "@/components/RealAuthPage";
 import { MicrosoftCallback } from "@/pages/MicrosoftCallback";
 import { NotFound } from "@/pages/NotFound";
 import { AuthProvider } from "@/hooks/useAuth";
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,
     },
   },
 });
 
 const App = () => {
   console.log('App component rendering...');
+  
+  // iOS 18.5 compatibility - ensure proper initialization
+  useEffect(() => {
+    console.log('App initialized successfully');
+    console.log('Environment:', {
+      mode: import.meta.env.MODE,
+      dev: import.meta.env.DEV,
+      prod: import.meta.env.PROD,
+      url: window.location.href,
+      isNative: window.Capacitor?.isNative || false
+    });
+    
+    // Handle iOS app launch
+    if (window.Capacitor?.isNative) {
+      console.log('Native app detected - iOS compatibility mode');
+      // Ensure proper routing for native apps
+      if (window.location.hash && !window.location.pathname.includes(window.location.hash.substring(1))) {
+        const hashRoute = window.location.hash.substring(1);
+        console.log('Handling hash route:', hashRoute);
+      }
+    }
+  }, []);
   
   return (
     <ErrorBoundary>

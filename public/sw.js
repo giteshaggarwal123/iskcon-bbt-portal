@@ -1,40 +1,45 @@
 
-// Simplified service worker for iOS compatibility
+// iOS-compatible service worker - minimal functionality
 const CACHE_NAME = 'iskcon-bureau-v1';
 
+// Check if we're running in a native app context
+const isNativeApp = () => {
+  return self.location.protocol === 'capacitor:' || 
+         (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNative);
+};
+
 self.addEventListener('install', function(event) {
-  console.log('Service Worker installing.');
+  console.log('Service Worker installing...');
+  // Skip waiting immediately in native apps
+  if (isNativeApp()) {
+    console.log('Native app detected - skipping service worker features');
+    return;
+  }
   self.skipWaiting();
 });
 
 self.addEventListener('activate', function(event) {
-  console.log('Service Worker activating.');
+  console.log('Service Worker activating...');
+  if (isNativeApp()) {
+    console.log('Native app detected - minimal activation');
+    return;
+  }
   event.waitUntil(self.clients.claim());
 });
 
-// Handle push notifications (web only)
+// Disable push notifications in native context - they're handled by Capacitor
 self.addEventListener('push', function(event) {
-  console.log('Push message received:', event);
-  
-  // Skip if running in native app context
-  if (self.location.protocol === 'capacitor:') {
-    console.log('Skipping push in native context');
+  if (isNativeApp()) {
+    console.log('Push notification skipped in native app');
     return;
   }
   
+  // Web-only push notification handling
   let notificationData = {
     title: 'ISKCON Bureau Portal',
     body: 'You have a new notification',
     icon: '/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png',
-    badge: '/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png',
-    tag: 'iskcon-notification',
-    requireInteraction: false,
-    actions: [
-      {
-        action: 'view',
-        title: 'View'
-      }
-    ]
+    tag: 'iskcon-notification'
   };
 
   if (event.data) {
@@ -43,99 +48,23 @@ self.addEventListener('push', function(event) {
       notificationData = { ...notificationData, ...data };
     } catch (e) {
       console.log('Error parsing push data:', e);
-      notificationData.body = event.data.text() || notificationData.body;
     }
   }
 
   const promiseChain = self.registration.showNotification(
     notificationData.title,
-    {
-      body: notificationData.body,
-      icon: notificationData.icon,
-      badge: notificationData.badge,
-      tag: notificationData.tag,
-      requireInteraction: notificationData.requireInteraction,
-      actions: notificationData.actions,
-      data: notificationData.data || {}
-    }
+    notificationData
   );
 
   event.waitUntil(promiseChain);
 });
 
-self.addEventListener('notificationclick', function(event) {
-  console.log('Notification clicked:', event);
-  
-  event.notification.close();
-  
-  // Handle notification click
-  const data = event.notification.data;
-  let url = '/';
-  
-  if (data && data.module) {
-    url = `/${data.module}${data.id ? `/${data.id}` : ''}`;
-  }
-
-  // Handle action clicks
-  if (event.action === 'view' && data && data.module) {
-    url = `/${data.module}${data.id ? `/${data.id}` : ''}`;
-  }
-
-  event.waitUntil(
-    self.clients.matchAll({ 
-      type: 'window',
-      includeUncontrolled: true 
-    }).then(function(clientList) {
-      // Check if there's already a window open
-      for (let i = 0; i < clientList.length; i++) {
-        const client = clientList[i];
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          // Navigate to the desired URL
-          client.postMessage({
-            type: 'NAVIGATE',
-            url: url
-          });
-          return client.focus();
-        }
-      }
-      
-      // If no window is open, open a new one
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(self.location.origin + url);
-      }
-    })
-  );
-});
-
-// Handle messages from the main thread
-self.addEventListener('message', function(event) {
-  console.log('Service Worker received message:', event.data);
-  
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});
-
-// Minimal caching for offline functionality
+// Minimal fetch handling - avoid caching in native apps
 self.addEventListener('fetch', function(event) {
-  // Skip caching in native apps
-  if (self.location.protocol === 'capacitor:') {
-    return;
+  if (isNativeApp()) {
+    return; // Let native app handle all requests
   }
   
-  // Only cache GET requests
-  if (event.request.method !== 'GET') {
-    return;
-  }
-  
-  // Skip caching for API calls and external resources
-  if (event.request.url.includes('/api/') || 
-      event.request.url.includes('supabase') ||
-      event.request.url.includes('chrome-extension:') ||
-      event.request.url.includes('capacitor:')) {
-    return;
-  }
-  
-  // Simple pass-through for now to avoid iOS conflicts
+  // Simple pass-through for web version
   return;
 });
