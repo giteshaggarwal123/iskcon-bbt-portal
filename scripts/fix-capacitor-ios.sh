@@ -1,7 +1,7 @@
 
 #!/bin/bash
 
-echo "🔧 Fixing Capacitor iOS integration..."
+echo "🔧 Fixing Capacitor iOS setup..."
 
 # Ensure we're in the project root
 if [ ! -f "package.json" ]; then
@@ -20,49 +20,46 @@ rm -rf package-lock.json
 echo "📦 Installing dependencies..."
 npm install
 
-# Step 3: Install Capacitor iOS specifically
-echo "📱 Installing Capacitor iOS..."
-npm install @capacitor/ios@latest
+# Step 3: Install Capacitor packages
+echo "⚡ Installing Capacitor..."
+npm install @capacitor/core @capacitor/cli @capacitor/ios
 
 # Step 4: Build web app
 echo "🏗️ Building web app..."
 npm run build
 
-# Step 5: Initialize Capacitor (in case it's not initialized)
+# Step 5: Initialize Capacitor if needed
 echo "⚡ Initializing Capacitor..."
-npx cap init "ISKCON Management Portal" "com.iskcon.bbtportal" --web-dir=dist
+if [ ! -f "capacitor.config.ts" ]; then
+    npx cap init "ISKCON Management Portal" "com.iskcon.bbtportal" --web-dir=dist
+fi
 
 # Step 6: Add iOS platform
 echo "📱 Adding iOS platform..."
 npx cap add ios
 
-# Step 7: Sync with enhanced iOS support
+# Step 7: Sync with iOS
 echo "🔄 Syncing Capacitor..."
 npx cap sync ios
 
-# Step 8: Update iOS dependencies
-echo "📱 Updating iOS dependencies..."
-npx cap update ios
-
-# Step 9: Install CocoaPods with proper setup
+# Step 8: Install CocoaPods
 echo "🍎 Setting up CocoaPods..."
-cd ios/App
-pod deintegrate 2>/dev/null || true
-pod cache clean --all 2>/dev/null || true
-pod install --repo-update --clean-install
-cd ../..
+if command -v pod >/dev/null 2>&1; then
+    cd ios/App
+    pod install --repo-update
+    cd ../..
+else
+    echo "⚠️  CocoaPods not installed. Please install it first:"
+    echo "   sudo gem install cocoapods"
+fi
 
-echo "✅ Capacitor iOS integration complete!"
+echo "✅ Capacitor iOS setup complete!"
 echo ""
 echo "📋 Next steps:"
-echo "1. Run: npx cap open ios"
-echo "2. In Xcode:"
+echo "1. If CocoaPods wasn't installed, install it and run: cd ios/App && pod install"
+echo "2. Run: npx cap open ios"
+echo "3. In Xcode:"
 echo "   - Clean Build Folder (Cmd+Shift+K)"
 echo "   - Set Development Team in Signing & Capabilities"
-echo "   - Set Deployment Target to iOS 14.0 or higher" 
+echo "   - Set Deployment Target to iOS 13.0 or higher"
 echo "   - Build and run the project"
-echo ""
-echo "🔍 If you still see 'No such module Capacitor' error:"
-echo "   - Check that ios/App/Podfile contains Capacitor pods"
-echo "   - Verify ios/App/App/AppDelegate.swift imports Capacitor correctly"
-echo "   - Make sure your Xcode version is up to date"

@@ -6,11 +6,12 @@ const config: CapacitorConfig = {
   appName: 'ISKCON Management Portal',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    cleartext: true
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 3000,
+      launchShowDuration: 2000,
       backgroundColor: '#ffffff',
       showSpinner: false,
       androidSplashResourceName: 'splash',
@@ -48,7 +49,6 @@ const config: CapacitorConfig = {
     preferredContentMode: 'mobile',
     allowsInlineMediaPlayback: true,
     suppressesIncrementalRendering: false,
-    // Add scheme for proper iOS integration
     scheme: 'App'
   }
 };
