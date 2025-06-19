@@ -19,17 +19,29 @@ export const AppContent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
+  console.log('AppContent rendered', {
+    user: !!user,
+    currentPath: location.pathname,
+    timestamp: new Date().toISOString()
+  });
+  
   // Initialize notification integration
   useNotificationIntegration();
 
   if (!user) {
+    console.log('No user found, redirecting to auth');
     return <Navigate to="/auth" replace />;
   }
 
   const handleNavigate = (module: string, id?: string) => {
     console.log('AppContent navigating to:', module, id);
-    const path = module === 'dashboard' ? '/' : `/${module}`;
-    navigate(path);
+    try {
+      const path = module === 'dashboard' ? '/' : `/${module}`;
+      navigate(path);
+      console.log('Navigation successful to:', path);
+    } catch (error) {
+      console.error('Navigation error in AppContent:', error);
+    }
   };
 
   return (

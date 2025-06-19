@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,10 +34,19 @@ export const Dashboard: React.FC = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  console.log('Dashboard component rendered', {
+    user: !!user,
+    meetings: meetings.length,
+    documents: documents.length,
+    emails: emails.length,
+    polls: polls.length
+  });
+
   // Fetch active polls
   useEffect(() => {
     const fetchActivePolls = async () => {
       try {
+        console.log('Fetching active polls...');
         const { data, error } = await supabase
           .from('polls')
           .select('*')
@@ -46,15 +54,27 @@ export const Dashboard: React.FC = () => {
           .order('created_at', { ascending: false })
           .limit(3);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching polls:', error);
+          throw error;
+        }
+        
+        console.log('Fetched polls:', data);
         setPolls(data || []);
       } catch (error) {
         console.error('Error fetching polls:', error);
+        toast({
+          title: "Error Loading Polls",
+          description: "Failed to load voting polls. Please refresh the page.",
+          variant: "destructive"
+        });
       }
     };
 
-    fetchActivePolls();
-  }, []);
+    if (user) {
+      fetchActivePolls();
+    }
+  }, [user, toast]);
 
   // Filter and sort meetings - only upcoming meetings, sorted by nearest first
   const upcomingMeetings = meetings
@@ -85,8 +105,13 @@ export const Dashboard: React.FC = () => {
       : user?.email?.split('@')[0] || 'User';
 
   const handleJoinMeeting = (meeting: any) => {
+    console.log('Joining meeting:', meeting);
     if (meeting.teams_join_url) {
       window.open(meeting.teams_join_url, '_blank');
+      toast({
+        title: "Opening Teams",
+        description: "Teams meeting is opening in a new window"
+      });
     } else {
       toast({
         title: "No Teams Link",
@@ -103,43 +128,109 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleCloseDocumentViewer = () => {
+    console.log('Closing document viewer');
     setIsDocumentViewerOpen(false);
     setSelectedDocument(null);
   };
 
   const handleOpenEmail = (email: any) => {
-    // Open Outlook web with the specific email
+    console.log('Opening email:', email);
     const outlookUrl = `https://outlook.office.com/mail/inbox/id/${email.id}`;
     window.open(outlookUrl, '_blank');
+    toast({
+      title: "Opening Email",
+      description: "Email is opening in Outlook web"
+    });
   };
 
   const handleVoteNow = (poll: Poll) => {
     console.log('Navigating to voting with poll:', poll.id);
-    navigate('/voting');
+    try {
+      navigate('/voting');
+      toast({
+        title: "Navigation",
+        description: "Opening voting module"
+      });
+    } catch (error) {
+      console.error('Navigation error:', error);
+      toast({
+        title: "Navigation Error",
+        description: "Failed to open voting module",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleViewMore = (module: string) => {
     console.log('View More clicked for module:', module);
-    switch (module) {
-      case 'email':
-        navigate('/email');
-        break;
-      case 'meetings':
-        navigate('/meetings');
-        break;
-      case 'documents':
-        navigate('/documents');
-        break;
-      case 'voting':
-        navigate('/voting');
-        break;
-      default:
-        console.log('Unknown module:', module);
-        break;
+    try {
+      switch (module) {
+        case 'email':
+          navigate('/email');
+          break;
+        case 'meetings':
+          navigate('/meetings');
+          break;
+        case 'documents':
+          navigate('/documents');
+          break;
+        case 'voting':
+          navigate('/voting');
+          break;
+        default:
+          console.log('Unknown module:', module);
+          toast({
+            title: "Navigation Error",
+            description: `Unknown module: ${module}`,
+            variant: "destructive"
+          });
+          return;
+      }
+      
+      toast({
+        title: "Navigation",
+        description: `Opening ${module} module`
+      });
+    } catch (error) {
+      console.error('Navigation error:', error);
+      toast({
+        title: "Navigation Error",
+        description: `Failed to navigate to ${module}`,
+        variant: "destructive"
+      });
     }
   };
 
   const isPastDeadline = (deadline: string) => new Date(deadline) < new Date();
+
+  // Show loading state if still loading essential data
+  if (meetingsLoading || documentsLoading || emailsLoading) {
+    return (
+      <div className="dashboard-container w-full max-w-7xl mx-auto px-4 lg:px-6">
+        <div className="space-y-6">
+          <div className="dashboard-header space-y-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Bureau Dashboard</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Loading your data...</p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="border border-border bg-card">
+                <CardHeader className="pb-4">
+                  <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-3">
+                    <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
