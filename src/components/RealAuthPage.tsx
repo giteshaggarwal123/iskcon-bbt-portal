@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,9 +7,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Mail, Shield, Lock, Phone, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { useNavigate } from 'react-router-dom';
 
 export const RealAuthPage: React.FC = () => {
-  const { signIn, sendOTP, resetPasswordWithOTP, loading } = useAuth();
+  const { signIn, sendOTP, resetPasswordWithOTP, loading, user } = useAuth();
+  const navigate = useNavigate();
   const [step, setStep] = useState<'login' | 'forgot-phone' | 'forgot-otp' | 'forgot-newPassword'>('login');
   const [formData, setFormData] = useState({
     email: '',
@@ -28,6 +29,14 @@ export const RealAuthPage: React.FC = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Add redirect logic when user is authenticated
+  useEffect(() => {
+    if (user) {
+      console.log('User authenticated, redirecting to dashboard...');
+      navigate('/', { replace: true });
+    }
+  }, [user, navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (forgotPassword) {
@@ -36,7 +45,8 @@ export const RealAuthPage: React.FC = () => {
       setStep('forgot-phone');
     } else {
       // Direct login without OTP verification
-      await signIn(formData.email, formData.password, formData.rememberMe);
+      const result = await signIn(formData.email, formData.password, formData.rememberMe);
+      // Don't manually navigate - let the useEffect handle it when user state updates
     }
   };
 

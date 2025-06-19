@@ -37,8 +37,8 @@ const App = () => {
               <Suspense fallback={<LoadingFallback />}>
                 <Routes>
                   <Route path="/auth" element={<RealAuthPage />} />
-                  <Route path="/*" element={<AppContent />} />
                   <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
+                  <Route path="/*" element={<AppContent />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
