@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,11 +7,12 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { User, Settings, Bell, Shield, Palette, Globe } from 'lucide-react';
+import { User, Settings, Bell, Shield, Palette, Globe, Plug } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { NotificationSettings } from './NotificationSettings';
 import { ProfileImageUpload } from './ProfileImageUpload';
+import { MicrosoftOAuthButton } from './MicrosoftOAuthButton';
 
 export const SettingsModule: React.FC = () => {
   const { user } = useAuth();
@@ -51,10 +51,14 @@ export const SettingsModule: React.FC = () => {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="profile" className="flex items-center space-x-2">
             <User className="h-4 w-4" />
             <span>Profile</span>
+          </TabsTrigger>
+          <TabsTrigger value="integrations" className="flex items-center space-x-2">
+            <Plug className="h-4 w-4" />
+            <span>Integrations</span>
           </TabsTrigger>
           <TabsTrigger value="notifications" className="flex items-center space-x-2">
             <Bell className="h-4 w-4" />
@@ -159,6 +163,23 @@ export const SettingsModule: React.FC = () => {
                   </>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="integrations">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Plug className="h-5 w-5" />
+                <span>Microsoft 365 Integration</span>
+              </CardTitle>
+              <CardDescription>
+                Connect your Microsoft 365 account to access Outlook, Teams, and SharePoint features
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MicrosoftOAuthButton />
             </CardContent>
           </Card>
         </TabsContent>
