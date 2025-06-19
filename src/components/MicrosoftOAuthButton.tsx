@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -48,8 +49,9 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         console.warn('Storage cleanup warning:', e);
       }
 
-      // Enhanced configuration
+      // Enhanced configuration with tenant-specific endpoint
       const clientId = '44391516-babe-4072-8422-a4fc8a79fbde';
+      const tenantId = 'b2333ef6-3378-4d02-b9b9-d8e66d9dfa3d'; // Your specific tenant ID
       const baseUrl = window.location.origin;
       const redirectUri = `${baseUrl}/microsoft/callback`;
       const state = user.id;
@@ -57,6 +59,7 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       
       console.log('Microsoft OAuth Configuration:', {
         clientId,
+        tenantId,
         baseUrl,
         redirectUri,
         userId: state,
@@ -91,7 +94,7 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         'https://graph.microsoft.com/Files.ReadWrite.All'
       ].join(' ');
 
-      // Construct OAuth URL with enhanced parameters
+      // Construct OAuth URL with tenant-specific endpoint
       const authParams = new URLSearchParams({
         client_id: clientId,
         response_type: 'code',
@@ -104,10 +107,10 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         access_type: 'offline'
       });
 
-      // Use Microsoft common endpoint for better compatibility
-      const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${authParams.toString()}`;
+      // Use tenant-specific endpoint instead of common endpoint
+      const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?${authParams.toString()}`;
       
-      console.log('Opening Microsoft OAuth in new window...');
+      console.log('Opening Microsoft OAuth in new window with tenant-specific endpoint...');
       
       // Open in a new window instead of redirecting current window
       const popup = window.open(
