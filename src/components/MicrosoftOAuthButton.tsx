@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -47,17 +46,6 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         sessionStorage.removeItem('microsoft_auth_timestamp');
       } catch (e) {
         console.warn('Storage cleanup warning:', e);
-      }
-
-      // Check if we're in an iframe (which causes the connection refused error)
-      if (window !== window.top) {
-        toast({
-          title: "Browser Restriction",
-          description: "Microsoft login cannot work in embedded frames. Please open this page in a new tab.",
-          variant: "destructive"
-        });
-        setLoading(false);
-        return;
       }
 
       // Enhanced configuration
