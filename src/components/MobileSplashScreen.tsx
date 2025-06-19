@@ -4,25 +4,40 @@ import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 
 export const MobileSplashScreen: React.FC = () => {
   const [isVisible, setIsVisible] = useState(true);
+  const [fadeOut, setFadeOut] = useState(false);
   const deviceInfo = useDeviceInfo();
 
   useEffect(() => {
-    // Hide splash screen after 2 seconds
-    const timer = setTimeout(() => {
-      setIsVisible(false);
-    }, 2000);
+    // Start fade out animation earlier
+    const fadeTimer = setTimeout(() => {
+      setFadeOut(true);
+    }, 800);
 
-    return () => clearTimeout(timer);
+    // Hide splash screen after fade animation
+    const hideTimer = setTimeout(() => {
+      setIsVisible(false);
+    }, 1200);
+
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(hideTimer);
+    };
   }, []);
 
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+    <div className={`fixed inset-0 bg-white z-50 flex flex-col items-center justify-center transition-opacity duration-300 ${
+      fadeOut ? 'opacity-0' : 'opacity-100'
+    }`}>
       <div className="flex flex-col items-center space-y-6">
         {/* App Logo */}
-        <div className="w-24 h-24 bg-red-600 rounded-full flex items-center justify-center">
-          <span className="text-white text-2xl font-bold">IB</span>
+        <div className="w-24 h-24 bg-primary rounded-full flex items-center justify-center shadow-lg">
+          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+              <div className="w-6 h-6 bg-white rounded-full"></div>
+            </div>
+          </div>
         </div>
         
         {/* App Name */}
@@ -36,9 +51,9 @@ export const MobileSplashScreen: React.FC = () => {
         
         {/* Loading Animation */}
         <div className="flex space-x-2">
-          <div className="w-2 h-2 bg-red-600 rounded-full animate-bounce"></div>
-          <div className="w-2 h-2 bg-red-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-          <div className="w-2 h-2 bg-red-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
         </div>
       </div>
       

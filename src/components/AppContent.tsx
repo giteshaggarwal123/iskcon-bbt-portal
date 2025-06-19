@@ -24,14 +24,19 @@ export const AppContent = () => {
   const [currentModule, setCurrentModule] = useState('dashboard');
   const [showMicrosoftPrompt, setShowMicrosoftPrompt] = useState(false);
   const [showSplash, setShowSplash] = useState(deviceInfo.isNative);
+  const [appReady, setAppReady] = useState(false);
 
-  // Handle splash screen for mobile
+  // Handle splash screen for mobile with shorter duration
   useEffect(() => {
     if (deviceInfo.isNative) {
       const timer = setTimeout(() => {
         setShowSplash(false);
-      }, 2000);
+        setAppReady(true);
+      }, 1200); // Reduced from 2000ms to 1200ms
       return () => clearTimeout(timer);
+    } else {
+      // For web, set ready immediately
+      setAppReady(true);
     }
   }, [deviceInfo.isNative]);
 
@@ -51,21 +56,31 @@ export const AppContent = () => {
 
   // Show Microsoft prompt if user is authenticated but Microsoft is not connected
   useEffect(() => {
-    if (user && !isConnected && !isExpired) {
+    if (user && !isConnected && !isExpired && appReady) {
       const timer = setTimeout(() => {
         setShowMicrosoftPrompt(true);
-      }, 2000);
+      }, 1500); // Reduced delay
       return () => clearTimeout(timer);
     }
-  }, [user, isConnected, isExpired]);
+  }, [user, isConnected, isExpired, appReady]);
 
   // Show splash screen on mobile
-  if (showSplash) {
+  if (showSplash && deviceInfo.isNative) {
     return <MobileSplashScreen />;
   }
 
-  if (authLoading) {
+  // Show loading only if auth is still loading and app is ready
+  if (authLoading && appReady) {
     return <LoadingFallback />;
+  }
+
+  // If app is not ready yet (for web), show minimal loading
+  if (!appReady) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   if (!user) {

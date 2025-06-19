@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 
 interface DeviceInfo {
@@ -20,7 +19,10 @@ export const useDeviceInfo = () => {
 
   useEffect(() => {
     const getDeviceInfo = async () => {
-      // Check if we're running in a Capacitor app
+      // First set web device info immediately to avoid delays
+      setWebDeviceInfo();
+
+      // Then check if we're running in a Capacitor app
       if (window.Capacitor?.isNative) {
         try {
           // Dynamic import with error handling
@@ -34,13 +36,9 @@ export const useDeviceInfo = () => {
             osVersion: info.osVersion
           });
         } catch (error) {
-          console.log('Capacitor Device plugin not available, falling back to web detection:', error);
-          // Fall back to web detection
-          setWebDeviceInfo();
+          console.log('Capacitor Device plugin not available, using web detection:', error);
+          // Keep web detection already set
         }
-      } else {
-        // Web browser detection
-        setWebDeviceInfo();
       }
     };
 
