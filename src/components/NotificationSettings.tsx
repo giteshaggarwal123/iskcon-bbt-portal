@@ -4,12 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Bell, Smartphone, Globe, AlertCircle } from 'lucide-react';
+import { Bell, Smartphone, Globe, AlertCircle, Monitor, Wifi } from 'lucide-react';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { Badge } from '@/components/ui/badge';
 
 export const NotificationSettings: React.FC = () => {
-  const { isSupported, permissionStatus, requestPermission } = usePushNotifications();
+  const { isSupported, permissionStatus, requestPermission, isNative } = usePushNotifications();
 
   const getPermissionIcon = () => {
     switch (permissionStatus) {
@@ -37,6 +37,18 @@ export const NotificationSettings: React.FC = () => {
     }
   };
 
+  const getPlatformIcon = () => {
+    return isNative ? <Smartphone className="h-4 w-4" /> : <Monitor className="h-4 w-4" />;
+  };
+
+  const getPlatformBadge = () => {
+    return (
+      <Badge variant="outline" className="ml-2">
+        {isNative ? 'Mobile App' : 'Web Browser'}
+      </Badge>
+    );
+  };
+
   const isPermissionGranted = permissionStatus === 'granted';
   const canRequestPermission = permissionStatus !== 'granted' && isSupported;
 
@@ -52,12 +64,18 @@ export const NotificationSettings: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <Smartphone className="h-5 w-5" />
+            {getPlatformIcon()}
             <span>Push Notifications</span>
             {getPermissionBadge()}
+            {getPlatformBadge()}
           </CardTitle>
           <CardDescription>
             Receive instant notifications for meetings, voting, documents, and other important updates
+            {!isSupported && (
+              <span className="block mt-2 text-red-600 font-medium">
+                Push notifications are not supported on this platform
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -65,6 +83,11 @@ export const NotificationSettings: React.FC = () => {
             <div className="flex items-center space-x-2">
               {getPermissionIcon()}
               <Label>Push Notifications</Label>
+              {isSupported && (
+                <Badge variant="outline" className="text-xs">
+                  {isNative ? 'Native' : 'Web Push'}
+                </Badge>
+              )}
             </div>
             <div className="flex items-center space-x-2">
               {canRequestPermission && (
@@ -73,14 +96,35 @@ export const NotificationSettings: React.FC = () => {
                   size="sm"
                   className="bg-primary hover:bg-primary/90"
                 >
-                  Enable
+                  Enable Notifications
                 </Button>
               )}
               {!isSupported && (
-                <Badge variant="outline">Not Supported</Badge>
+                <Badge variant="outline" className="text-red-600">
+                  Not Supported
+                </Badge>
               )}
             </div>
           </div>
+
+          {!isSupported && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <Wifi className="h-5 w-5 text-yellow-500 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800">
+                    Platform Not Supported
+                  </p>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    {isNative 
+                      ? 'Native push notifications require additional setup for this device.'
+                      : 'Your browser does not support web push notifications. Try using Chrome, Firefox, or Edge.'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {isPermissionGranted && (
             <div className="space-y-3 pl-6 border-l-2 border-green-200">
@@ -103,7 +147,7 @@ export const NotificationSettings: React.FC = () => {
             </div>
           )}
 
-          {(permissionStatus === 'denied' || permissionStatus === 'prompt-with-rationale') && (
+          {(permissionStatus === 'denied' || permissionStatus === 'prompt-with-rationale') && isSupported && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-start space-x-2">
                 <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
@@ -113,7 +157,7 @@ export const NotificationSettings: React.FC = () => {
                   </p>
                   <p className="text-sm text-red-600 mt-1">
                     {permissionStatus === 'denied' 
-                      ? 'Please enable notifications in your device settings to receive important updates.'
+                      ? `Please enable notifications in your ${isNative ? 'device' : 'browser'} settings to receive important updates.`
                       : 'This app needs permission to send you important notifications about meetings, votes, and documents.'
                     }
                   </p>

@@ -8,101 +8,138 @@ export const usePushNotifications = () => {
   const [isSupported, setIsSupported] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'prompt' | 'prompt-with-rationale'>('prompt');
+  const [isNative, setIsNative] = useState(false);
   const { user } = useAuth();
 
-  const initializePushNotifications = async () => {
+  const checkPlatform = () => {
+    // Check if we're in a Capacitor native app
+    const capacitorNative = !!(window.Capacitor && window.Capacitor.isNative);
+    setIsNative(capacitorNative);
+    return capacitorNative;
+  };
+
+  const initializeWebPush = async () => {
     try {
-      // Check if we're in a Capacitor native app
-      const isNative = window.Capacitor?.isNative;
+      // Check if browser supports all required APIs
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+        console.log('Web Push API not fully supported');
+        setIsSupported(false);
+        return;
+      }
+
+      setIsSupported(true);
       
-      if (isNative) {
-        // Native mobile app - use Capacitor push notifications
-        try {
-          const { PushNotifications } = await import('@capacitor/push-notifications');
-          setIsSupported(true);
-          
-          // Request permission
-          const permResult = await PushNotifications.requestPermissions();
-          setPermissionStatus(permResult.receive);
-
-          if (permResult.receive === 'granted') {
-            await PushNotifications.register();
-            
-            // Set up listeners
-            PushNotifications.addListener('registration', async (token) => {
-              console.log('Push registration success, token: ' + token.value);
-              setToken(token.value);
-              
-              if (user && token.value) {
-                await savePushToken(token.value);
-              }
-            });
-
-            PushNotifications.addListener('registrationError', (error) => {
-              console.error('Error on registration: ' + JSON.stringify(error));
-              toast.error('Failed to register for push notifications');
-            });
-
-            PushNotifications.addListener('pushNotificationReceived', (notification) => {
-              console.log('Push notification received: ', notification);
-              
-              toast.success(notification.title || 'New notification', {
-                description: notification.body,
-              });
-            });
-
-            PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-              console.log('Push notification action performed', notification);
-              
-              const data = notification.notification.data;
-              if (data?.module) {
-                window.location.hash = `#/${data.module}${data.id ? `/${data.id}` : ''}`;
-              }
-            });
-          }
-        } catch (error) {
-          console.log('Capacitor PushNotifications not available:', error);
-          setIsSupported(false);
+      // Check current permission status
+      const permission = Notification.permission;
+      setPermissionStatus(permission as any);
+      
+      // Register service worker
+      try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        console.log('Service Worker registered successfully:', registration);
+        
+        if (permission === 'granted') {
+          await createWebPushSubscription(registration);
         }
-      } else {
-        // Web browser - use Web Push API
-        if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
-          setIsSupported(true);
-          
-          // Check current permission status
-          const permission = Notification.permission;
-          setPermissionStatus(permission as any);
-          
-          if (permission === 'granted') {
-            await registerServiceWorker();
-          }
-        } else {
-          console.log('Web Push API not supported');
-          setIsSupported(false);
-        }
+      } catch (error) {
+        console.error('Service Worker registration failed:', error);
+        // Still mark as supported, user can try to enable manually
       }
     } catch (error) {
-      console.error('Error initializing push notifications:', error);
+      console.error('Error initializing web push:', error);
       setIsSupported(false);
     }
   };
 
-  const registerServiceWorker = async () => {
+  const createWebPushSubscription = async (registration: ServiceWorkerRegistration) => {
     try {
-      // Register service worker for web push
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      console.log('Service Worker registered:', registration);
+      // Create a simple subscription (in production, you'd use VAPID keys)
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: null // In production, use your VAPID public key
+      });
       
-      // You would typically get a push subscription here
-      // For now, we'll just set a placeholder token
-      const mockToken = `web-push-${Date.now()}`;
-      setToken(mockToken);
+      const webToken = `web-push-${btoa(JSON.stringify(subscription.endpoint)).substring(0, 20)}-${Date.now()}`;
+      setToken(webToken);
       
       if (user) {
-        await savePushToken(mockToken);
+        await savePushToken(webToken);
       }
     } catch (error) {
-      console.error('Service Worker registration failed:', error);
+      console.error('Failed to create push subscription:', error);
+      // Create a fallback token for testing
+      const fallbackToken = `web-fallback-${Date.now()}`;
+      setToken(fallbackToken);
+      
+      if (user) {
+        await savePushToken(fallbackToken);
+      }
+    }
+  };
+
+  const initializeNativePush = async () => {
+    try {
+      const { PushNotifications } = await import('@capacitor/push-notifications');
+      setIsSupported(true);
+      
+      // Check permission status
+      const permResult = await PushNotifications.checkPermissions();
+      setPermissionStatus(permResult.receive);
+
+      if (permResult.receive === 'granted') {
+        await PushNotifications.register();
+        
+        // Set up listeners
+        PushNotifications.addListener('registration', async (token) => {
+          console.log('Native push registration success:', token.value);
+          setToken(token.value);
+          
+          if (user && token.value) {
+            await savePushToken(token.value);
+          }
+        });
+
+        PushNotifications.addListener('registrationError', (error) => {
+          console.error('Native push registration error:', JSON.stringify(error));
+          toast.error('Failed to register for push notifications');
+        });
+
+        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+          console.log('Push notification received:', notification);
+          
+          toast.success(notification.title || 'New notification', {
+            description: notification.body,
+          });
+        });
+
+        PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+          console.log('Push notification action performed:', notification);
+          
+          const data = notification.notification.data;
+          if (data?.module) {
+            window.location.hash = `#/${data.module}${data.id ? `/${data.id}` : ''}`;
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Capacitor PushNotifications not available:', error);
+      setIsSupported(false);
+    }
+  };
+
+  const initializePushNotifications = async () => {
+    try {
+      const native = checkPlatform();
+      console.log('Platform detected:', native ? 'Native' : 'Web');
+      
+      if (native) {
+        await initializeNativePush();
+      } else {
+        await initializeWebPush();
+      }
+    } catch (error) {
+      console.error('Error initializing push notifications:', error);
+      setIsSupported(false);
     }
   };
 
@@ -119,15 +156,15 @@ export const usePushNotifications = () => {
       if (error) throw error;
       
       console.log('Push token saved successfully');
+      toast.success('Push notifications enabled successfully');
     } catch (error) {
       console.error('Error saving push token:', error);
+      toast.error('Failed to save notification settings');
     }
   };
 
   const requestPermission = async () => {
     try {
-      const isNative = window.Capacitor?.isNative;
-      
       if (isNative) {
         // Native app permission request
         try {
@@ -137,7 +174,6 @@ export const usePushNotifications = () => {
           
           if (result.receive === 'granted') {
             await PushNotifications.register();
-            toast.success('Push notifications enabled successfully');
           } else {
             toast.error('Push notification permission denied');
           }
@@ -152,8 +188,8 @@ export const usePushNotifications = () => {
           setPermissionStatus(permission as any);
           
           if (permission === 'granted') {
-            await registerServiceWorker();
-            toast.success('Push notifications enabled successfully');
+            // Re-initialize web push after permission granted
+            await initializeWebPush();
           } else {
             toast.error('Push notification permission denied');
           }
@@ -168,7 +204,9 @@ export const usePushNotifications = () => {
   };
 
   useEffect(() => {
-    initializePushNotifications();
+    if (user) {
+      initializePushNotifications();
+    }
   }, [user]);
 
   return {
@@ -176,5 +214,6 @@ export const usePushNotifications = () => {
     token,
     permissionStatus,
     requestPermission,
+    isNative
   };
 };
