@@ -45,10 +45,11 @@ const config: CapacitorConfig = {
     backgroundColor: '#ffffff',
     allowsLinkPreview: false,
     handleApplicationNotifications: false,
-    // iOS 18.5 specific configurations
     preferredContentMode: 'mobile',
     allowsInlineMediaPlayback: true,
-    suppressesIncrementalRendering: false
+    suppressesIncrementalRendering: false,
+    // Add scheme for proper iOS integration
+    scheme: 'App'
   }
 };
 

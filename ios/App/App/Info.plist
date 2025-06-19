@@ -68,5 +68,16 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.iskcon.bbtportal</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.iskcon.bbtportal</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
