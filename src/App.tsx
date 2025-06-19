@@ -38,8 +38,7 @@ const App = () => {
                 <Routes>
                   <Route path="/auth" element={<RealAuthPage />} />
                   <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
-                  <Route path="/*" element={<AppContent />} />
-                  <Route path="*" element={<NotFound />} />
+                  <Route path="*" element={<AppContent />} />
                 </Routes>
               </Suspense>
             </BrowserRouter>

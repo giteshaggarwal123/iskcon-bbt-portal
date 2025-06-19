@@ -4,16 +4,27 @@ import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCh
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useLocation } from 'react-router-dom';
 
 interface LayoutProps {
   children: React.ReactNode;
+  onNavigate?: (module: string, id?: string) => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, onNavigate }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentModule, setCurrentModule] = useState('dashboard');
   const isMobile = useIsMobile();
+  const location = useLocation();
+
+  // Update current module based on location
+  useEffect(() => {
+    const path = location.pathname;
+    const module = path === '/' ? 'dashboard' : path.substring(1);
+    console.log('Location changed to:', path, 'Module:', module);
+    setCurrentModule(module);
+  }, [location]);
 
   useEffect(() => {
     if (isMobile) {
@@ -23,30 +34,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   }, [isMobile]);
 
-  // Listen for navigation events from other components
-  useEffect(() => {
-    const handleNavigateToModule = (event: CustomEvent) => {
-      console.log('Layout received navigation event:', event.detail.module);
-      setCurrentModule(event.detail.module);
-    };
-
-    window.addEventListener('navigate-to-module', handleNavigateToModule as EventListener);
-
-    return () => {
-      window.removeEventListener('navigate-to-module', handleNavigateToModule as EventListener);
-    };
-  }, []);
-
   const handleModuleChange = (module: string) => {
     console.log('Module changed to:', module);
     setCurrentModule(module);
     if (isMobile) setSidebarOpen(false);
     
-    // Dispatch custom event for module navigation
-    const event = new CustomEvent('navigate-to-module', {
-      detail: { module }
-    });
-    window.dispatchEvent(event);
+    // Use the navigation function passed from AppContent
+    if (onNavigate) {
+      onNavigate(module);
+    }
   };
 
   // Enhanced mobile navigation items with better touch targets

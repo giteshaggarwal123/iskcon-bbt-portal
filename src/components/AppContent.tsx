@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Layout } from './Layout';
 import { Dashboard } from './Dashboard';
 import { MeetingsModule } from './MeetingsModule';
@@ -16,6 +16,8 @@ import { useNotificationIntegration } from '@/hooks/useNotificationIntegration';
 
 export const AppContent: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   
   // Initialize notification integration
   useNotificationIntegration();
@@ -24,8 +26,14 @@ export const AppContent: React.FC = () => {
     return <Navigate to="/auth" replace />;
   }
 
+  const handleNavigate = (module: string, id?: string) => {
+    console.log('AppContent navigating to:', module, id);
+    const path = module === 'dashboard' ? '/' : `/${module}`;
+    navigate(path);
+  };
+
   return (
-    <Layout>
+    <Layout onNavigate={handleNavigate}>
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/meetings" element={<MeetingsModule />} />
