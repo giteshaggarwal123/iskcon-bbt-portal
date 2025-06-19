@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { PushNotifications } from '@capacitor/push-notifications';
+import { PushNotifications, PermissionStatus } from '@capacitor/push-notifications';
 import { Device } from '@capacitor/device';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 export const usePushNotifications = () => {
   const [isSupported, setIsSupported] = useState(false);
   const [token, setToken] = useState<string | null>(null);
-  const [permissionStatus, setPermissionStatus] = useState<'prompt' | 'granted' | 'denied'>('prompt');
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus['receive']>('prompt');
   const { user } = useAuth();
 
   const initializePushNotifications = async () => {

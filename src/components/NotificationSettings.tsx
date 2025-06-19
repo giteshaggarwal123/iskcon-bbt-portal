@@ -17,6 +17,8 @@ export const NotificationSettings: React.FC = () => {
         return <Bell className="h-4 w-4 text-green-500" />;
       case 'denied':
         return <AlertCircle className="h-4 w-4 text-red-500" />;
+      case 'prompt-with-rationale':
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
       default:
         return <Bell className="h-4 w-4 text-gray-400" />;
     }
@@ -28,10 +30,15 @@ export const NotificationSettings: React.FC = () => {
         return <Badge className="bg-green-100 text-green-800">Enabled</Badge>;
       case 'denied':
         return <Badge variant="destructive">Disabled</Badge>;
+      case 'prompt-with-rationale':
+        return <Badge variant="secondary">Needs Explanation</Badge>;
       default:
         return <Badge variant="secondary">Not Set</Badge>;
     }
   };
+
+  const isPermissionGranted = permissionStatus === 'granted';
+  const canRequestPermission = permissionStatus !== 'granted' && isSupported;
 
   return (
     <div className="space-y-6">
@@ -60,7 +67,7 @@ export const NotificationSettings: React.FC = () => {
               <Label>Push Notifications</Label>
             </div>
             <div className="flex items-center space-x-2">
-              {permissionStatus !== 'granted' && isSupported && (
+              {canRequestPermission && (
                 <Button 
                   onClick={requestPermission}
                   size="sm"
@@ -75,7 +82,7 @@ export const NotificationSettings: React.FC = () => {
             </div>
           </div>
 
-          {permissionStatus === 'granted' && (
+          {isPermissionGranted && (
             <div className="space-y-3 pl-6 border-l-2 border-green-200">
               <div className="flex items-center justify-between">
                 <Label htmlFor="meeting-notifications">Meeting Notifications</Label>
@@ -96,14 +103,19 @@ export const NotificationSettings: React.FC = () => {
             </div>
           )}
 
-          {permissionStatus === 'denied' && (
+          {(permissionStatus === 'denied' || permissionStatus === 'prompt-with-rationale') && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-start space-x-2">
                 <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-red-800">Notifications Blocked</p>
+                  <p className="text-sm font-medium text-red-800">
+                    {permissionStatus === 'denied' ? 'Notifications Blocked' : 'Permission Required'}
+                  </p>
                   <p className="text-sm text-red-600 mt-1">
-                    Please enable notifications in your device settings to receive important updates.
+                    {permissionStatus === 'denied' 
+                      ? 'Please enable notifications in your device settings to receive important updates.'
+                      : 'This app needs permission to send you important notifications about meetings, votes, and documents.'
+                    }
                   </p>
                   <Button 
                     onClick={requestPermission}
@@ -111,7 +123,7 @@ export const NotificationSettings: React.FC = () => {
                     variant="outline"
                     className="mt-2 border-red-300 text-red-700 hover:bg-red-50"
                   >
-                    Try Again
+                    {permissionStatus === 'denied' ? 'Try Again' : 'Grant Permission'}
                   </Button>
                 </div>
               </div>
