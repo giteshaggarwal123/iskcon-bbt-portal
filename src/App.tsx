@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LoadingFallback } from "@/components/LoadingFallback";
 import { AppContent } from "@/components/AppContent";
+import { RealAuthPage } from "@/components/RealAuthPage";
 import { MicrosoftCallback } from "@/pages/MicrosoftCallback";
 import { NotFound } from "@/pages/NotFound";
 import { AuthProvider } from "@/hooks/useAuth";
@@ -35,15 +36,8 @@ const App = () => {
             <BrowserRouter>
               <Suspense fallback={<LoadingFallback />}>
                 <Routes>
-                  <Route path="/" element={<AppContent />} />
-                  <Route path="/dashboard" element={<Navigate to="/" replace />} />
-                  <Route path="/meetings" element={<Navigate to="/" replace />} />
-                  <Route path="/documents" element={<Navigate to="/" replace />} />
-                  <Route path="/attendance" element={<Navigate to="/" replace />} />
-                  <Route path="/voting" element={<Navigate to="/" replace />} />
-                  <Route path="/members" element={<Navigate to="/" replace />} />
-                  <Route path="/reports" element={<Navigate to="/" replace />} />
-                  <Route path="/settings" element={<Navigate to="/" replace />} />
+                  <Route path="/auth" element={<RealAuthPage />} />
+                  <Route path="/*" element={<AppContent />} />
                   <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
