@@ -1,5 +1,5 @@
 
-// Enhanced service worker for push notifications
+// Simplified service worker for iOS compatibility
 const CACHE_NAME = 'iskcon-bureau-v1';
 
 self.addEventListener('install', function(event) {
@@ -12,8 +12,15 @@ self.addEventListener('activate', function(event) {
   event.waitUntil(self.clients.claim());
 });
 
+// Handle push notifications (web only)
 self.addEventListener('push', function(event) {
   console.log('Push message received:', event);
+  
+  // Skip if running in native app context
+  if (self.location.protocol === 'capacitor:') {
+    console.log('Skipping push in native context');
+    return;
+  }
   
   let notificationData = {
     title: 'ISKCON Bureau Portal',
@@ -21,12 +28,11 @@ self.addEventListener('push', function(event) {
     icon: '/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png',
     badge: '/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png',
     tag: 'iskcon-notification',
-    requireInteraction: true,
+    requireInteraction: false,
     actions: [
       {
         action: 'view',
-        title: 'View',
-        icon: '/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png'
+        title: 'View'
       }
     ]
   };
@@ -37,7 +43,6 @@ self.addEventListener('push', function(event) {
       notificationData = { ...notificationData, ...data };
     } catch (e) {
       console.log('Error parsing push data:', e);
-      // Use text data if JSON parsing fails
       notificationData.body = event.data.text() || notificationData.body;
     }
   }
@@ -111,31 +116,26 @@ self.addEventListener('message', function(event) {
   }
 });
 
-// Basic caching for offline functionality
+// Minimal caching for offline functionality
 self.addEventListener('fetch', function(event) {
+  // Skip caching in native apps
+  if (self.location.protocol === 'capacitor:') {
+    return;
+  }
+  
   // Only cache GET requests
   if (event.request.method !== 'GET') {
     return;
   }
   
-  // Skip caching for API calls
+  // Skip caching for API calls and external resources
   if (event.request.url.includes('/api/') || 
       event.request.url.includes('supabase') ||
-      event.request.url.includes('chrome-extension:')) {
+      event.request.url.includes('chrome-extension:') ||
+      event.request.url.includes('capacitor:')) {
     return;
   }
   
-  event.respondWith(
-    caches.match(event.request)
-      .then(function(response) {
-        // Return cached version or fetch from network
-        return response || fetch(event.request);
-      })
-      .catch(function() {
-        // Return a fallback for navigation requests
-        if (event.request.mode === 'navigate') {
-          return caches.match('/');
-        }
-      })
-  );
+  // Simple pass-through for now to avoid iOS conflicts
+  return;
 });

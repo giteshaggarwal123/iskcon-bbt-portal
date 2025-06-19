@@ -12,14 +12,23 @@ export const usePushNotifications = () => {
   const { user } = useAuth();
 
   const checkPlatform = () => {
-    // Check if we're in a Capacitor native app
-    const capacitorNative = !!(window.Capacitor && window.Capacitor.isNative);
+    // Safe check for Capacitor
+    const capacitorNative = typeof window !== 'undefined' && 
+                           window.Capacitor && 
+                           window.Capacitor.isNative === true;
     setIsNative(capacitorNative);
     return capacitorNative;
   };
 
   const initializeWebPush = async () => {
     try {
+      // Only initialize web push in browser environment
+      if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+        console.log('Not in browser environment');
+        setIsSupported(false);
+        return;
+      }
+
       // Check if browser supports all required APIs
       if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
         console.log('Web Push API not fully supported');
@@ -33,17 +42,25 @@ export const usePushNotifications = () => {
       const permission = Notification.permission;
       setPermissionStatus(permission as any);
       
-      // Register service worker
-      try {
-        const registration = await navigator.serviceWorker.register('/sw.js');
-        console.log('Service Worker registered successfully:', registration);
-        
-        if (permission === 'granted') {
-          await createWebPushSubscription(registration);
+      // Only register service worker if not in native app
+      if (!isNative) {
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js');
+          console.log('Service Worker registered successfully:', registration);
+          
+          if (permission === 'granted') {
+            await createWebPushSubscription(registration);
+          }
+        } catch (error) {
+          console.log('Service Worker registration failed (this is normal in native apps):', error);
+          // Create fallback token for native apps
+          const fallbackToken = `native-fallback-${Date.now()}`;
+          setToken(fallbackToken);
+          
+          if (user) {
+            await savePushToken(fallbackToken);
+          }
         }
-      } catch (error) {
-        console.error('Service Worker registration failed:', error);
-        // Still mark as supported, user can try to enable manually
       }
     } catch (error) {
       console.error('Error initializing web push:', error);
@@ -79,6 +96,12 @@ export const usePushNotifications = () => {
 
   const initializeNativePush = async () => {
     try {
+      // Only proceed if we're actually in a native environment
+      if (!isNative) {
+        console.log('Not in native environment, skipping native push init');
+        return;
+      }
+
       const { PushNotifications } = await import('@capacitor/push-notifications');
       setIsSupported(true);
       
@@ -90,7 +113,7 @@ export const usePushNotifications = () => {
         await PushNotifications.register();
         
         // Set up listeners
-        PushNotifications.addListener('registration', async (token) => {
+        await PushNotifications.addListener('registration', async (token) => {
           console.log('Native push registration success:', token.value);
           setToken(token.value);
           
@@ -99,12 +122,12 @@ export const usePushNotifications = () => {
           }
         });
 
-        PushNotifications.addListener('registrationError', (error) => {
+        await PushNotifications.addListener('registrationError', (error) => {
           console.error('Native push registration error:', JSON.stringify(error));
           toast.error('Failed to register for push notifications');
         });
 
-        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        await PushNotifications.addListener('pushNotificationReceived', (notification) => {
           console.log('Push notification received:', notification);
           
           toast.success(notification.title || 'New notification', {
@@ -112,18 +135,22 @@ export const usePushNotifications = () => {
           });
         });
 
-        PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+        await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
           console.log('Push notification action performed:', notification);
           
           const data = notification.notification.data;
           if (data?.module) {
+            // Use hash-based navigation for native apps
             window.location.hash = `#/${data.module}${data.id ? `/${data.id}` : ''}`;
           }
         });
       }
     } catch (error) {
       console.error('Capacitor PushNotifications not available:', error);
-      setIsSupported(false);
+      // Don't set as unsupported immediately - might be web environment
+      if (isNative) {
+        setIsSupported(false);
+      }
     }
   };
 
@@ -139,7 +166,8 @@ export const usePushNotifications = () => {
       }
     } catch (error) {
       console.error('Error initializing push notifications:', error);
-      setIsSupported(false);
+      // Don't set as unsupported for minor errors
+      console.log('Continuing with limited functionality...');
     }
   };
 
@@ -183,7 +211,7 @@ export const usePushNotifications = () => {
         }
       } else {
         // Web browser permission request
-        if ('Notification' in window) {
+        if (typeof window !== 'undefined' && 'Notification' in window) {
           const permission = await Notification.requestPermission();
           setPermissionStatus(permission as any);
           
@@ -205,7 +233,12 @@ export const usePushNotifications = () => {
 
   useEffect(() => {
     if (user) {
-      initializePushNotifications();
+      // Add a small delay to ensure the environment is fully initialized
+      const timer = setTimeout(() => {
+        initializePushNotifications();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
     }
   }, [user]);
 

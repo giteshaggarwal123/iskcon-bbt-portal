@@ -5,16 +5,9 @@ const config: CapacitorConfig = {
   appId: 'com.iskcon.bbtportal',
   appName: 'ISKCON Management Portal',
   webDir: 'dist',
-  // Comment out server config for native builds (both iOS and Android)
-  // server: {
-  //   // For development, keep the server URL for hot reload
-  //   // For production builds, comment out these server settings
-  //   url: 'https://6a0fd4ef-a029-4c9d-95ed-74a4fa947c60.lovableproject.com?forceHideBadge=true',
-  //   cleartext: true
-  // },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 3000,
+      launchShowDuration: 2000,
       backgroundColor: '#ffffff',
       showSpinner: false,
       androidSplashResourceName: 'splash',
@@ -33,6 +26,9 @@ const config: CapacitorConfig = {
     },
     App: {
       launchUrl: ''
+    },
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"]
     }
   },
   android: {
@@ -43,7 +39,9 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'automatic',
     scrollEnabled: true,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#ffffff',
+    allowsLinkPreview: false,
+    handleApplicationNotifications: false
   }
 };
 
