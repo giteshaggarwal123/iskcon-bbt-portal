@@ -97,7 +97,7 @@ export const AuthPage: React.FC = () => {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">ISKCON Bureau</h1>
-          <p className="text-gray-600">Management Platform</p>
+          <p className="text-gray-600">Portal</p>
         </div>
 
         <Card className="shadow-xl border-0">
@@ -194,7 +194,7 @@ export const AuthPage: React.FC = () => {
                 <Clock className="h-4 w-4 text-gray-500 mt-0.5" />
                 <div className="text-xs text-gray-600">
                   <p className="font-medium mb-1">Security Notice</p>
-                  <p>OTP expires in 5 minutes. For security reasons, only authorized bureau members can access this platform.</p>
+                  <p>OTP expires in 5 minutes. For security reasons, only authorized bureau members can access this portal.</p>
                 </div>
               </div>
             </div>
@@ -202,7 +202,7 @@ export const AuthPage: React.FC = () => {
         </Card>
         
         <div className="text-center mt-6 text-xs text-gray-500">
-          <p>© 2024 ISKCON Bureau Management Platform</p>
+          <p>© 2024 ISKCON Bureau Portal</p>
           <p>Secure • Reliable • Confidential</p>
         </div>
       </div>
