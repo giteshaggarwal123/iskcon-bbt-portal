@@ -3,7 +3,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { CheckCircle, XCircle, AlertCircle, RefreshCw, Unlink } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, RefreshCw, Unlink, ExternalLink } from 'lucide-react';
 import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -35,7 +35,7 @@ export const MicrosoftConnectionStatus: React.FC = () => {
         icon: AlertCircle,
         color: 'bg-red-100 text-red-800 border-red-200',
         text: 'Authentication Expired',
-        description: 'Microsoft account authentication has expired and needs to be reconnected. This usually happens after a password change or security policy update.'
+        description: 'Microsoft account authentication has expired. This usually happens after a password change, security policy update, or when tokens are revoked. Please disconnect and reconnect your account.'
       };
     }
 
@@ -64,8 +64,26 @@ export const MicrosoftConnectionStatus: React.FC = () => {
     });
   };
 
-  const handleDisconnect = () => {
-    disconnectMicrosoft();
+  const handleDisconnect = async () => {
+    await disconnectMicrosoft();
+    toast({
+      title: "Microsoft Account Disconnected",
+      description: "You can now reconnect with fresh authentication credentials.",
+      variant: "default"
+    });
+  };
+
+  const handleReconnect = () => {
+    // Navigate to settings
+    const event = new CustomEvent('navigate-to-module', {
+      detail: { module: 'settings' }
+    });
+    window.dispatchEvent(event);
+    
+    toast({
+      title: "Go to Settings",
+      description: "Navigate to Settings → Integrations to reconnect your Microsoft account.",
+    });
   };
 
   const config = getStatusConfig();
@@ -88,49 +106,87 @@ export const MicrosoftConnectionStatus: React.FC = () => {
             </Badge>
             {!loading && (
               <div className="flex items-center space-x-1">
-                {!needsReconnection && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRefresh}
-                    className="h-6 w-6 p-0"
-                  >
-                    <RefreshCw className="h-3 w-3" />
-                  </Button>
-                )}
-                {(isConnected || lastError) && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleDisconnect}
-                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
-                  >
-                    <Unlink className="h-3 w-3" />
-                  </Button>
+                {needsReconnection ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDisconnect}
+                      className="h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Unlink className="h-3 w-3 mr-1" />
+                      <span className="text-xs">Disconnect</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleReconnect}
+                      className="h-6 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    >
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      <span className="text-xs">Reconnect</span>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    {!needsReconnection && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRefresh}
+                        className="h-6 w-6 p-0"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {(isConnected || lastError) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleDisconnect}
+                        className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                      >
+                        <Unlink className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             )}
           </div>
         </TooltipTrigger>
         <TooltipContent>
-          <p className="text-sm max-w-xs">{config.description}</p>
-          {!isConnected && !needsReconnection && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Go to Settings → Integrations to connect
-            </p>
-          )}
-          {needsReconnection && (
-            <div className="mt-2 space-y-1">
-              <p className="text-xs text-red-600 font-medium">
-                Action Required: Disconnect and reconnect your account
-              </p>
+          <div className="max-w-xs">
+            <p className="text-sm mb-2">{config.description}</p>
+            {!isConnected && !needsReconnection && (
               <p className="text-xs text-muted-foreground">
-                1. Click the disconnect button above<br/>
-                2. Go to Settings → Integrations<br/>
-                3. Click "Connect Microsoft 365" again
+                Go to Settings → Integrations to connect
               </p>
-            </div>
-          )}
+            )}
+            {needsReconnection && (
+              <div className="space-y-2">
+                <div className="p-2 bg-red-50 rounded border border-red-200">
+                  <p className="text-xs text-red-800 font-medium mb-1">
+                    🚨 Action Required: Reconnect Microsoft Account
+                  </p>
+                  <div className="space-y-1">
+                    <p className="text-xs text-red-700">
+                      <strong>Quick Fix:</strong>
+                    </p>
+                    <p className="text-xs text-red-600">
+                      1. Click "Disconnect" button above<br/>
+                      2. Click "Reconnect" to go to Settings<br/>
+                      3. Click "Connect Microsoft 365" again<br/>
+                      4. Sign in with admin@iskconbureau.in
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  This happens when passwords change or tokens are revoked by Microsoft security policies.
+                </p>
+              </div>
+            )}
+          </div>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
