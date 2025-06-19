@@ -42,6 +42,14 @@ export const useNotifications = () => {
         .order('created_at', { ascending: false })
         .limit(3);
 
+      // Fetch recent polls (last 7 days)
+      const { data: polls } = await supabase
+        .from('polls')
+        .select('*')
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(3);
+
       const notificationList: Notification[] = [];
 
       // Add meeting notifications
@@ -92,6 +100,20 @@ export const useNotifications = () => {
         });
       });
 
+      // Add poll notifications
+      polls?.forEach(poll => {
+        notificationList.push({
+          id: `poll-${poll.id}`,
+          title: 'New Poll Available',
+          message: `Vote on "${poll.title}" - Deadline: ${new Date(poll.deadline).toLocaleDateString()}`,
+          type: 'voting',
+          read: false,
+          created_at: poll.created_at,
+          related_id: poll.id,
+          related_type: 'voting'
+        });
+      });
+
       // Sort by creation date and limit to 6 most recent
       const sortedNotifications = notificationList
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -104,6 +126,24 @@ export const useNotifications = () => {
       console.error('Error fetching notifications:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const sendPushNotification = async (title: string, message: string, data?: any, userIds?: string[]) => {
+    try {
+      const { error } = await supabase.functions.invoke('send-push-notification', {
+        body: {
+          title,
+          body: message,
+          data,
+          userIds: userIds || [user?.id]
+        }
+      });
+
+      if (error) throw error;
+      console.log('Push notification sent successfully');
+    } catch (error) {
+      console.error('Error sending push notification:', error);
     }
   };
 
@@ -169,6 +209,7 @@ export const useNotifications = () => {
     handleNotificationClick,
     getUnreadCount,
     getTimeAgo,
-    fetchNotifications
+    fetchNotifications,
+    sendPushNotification
   };
 };

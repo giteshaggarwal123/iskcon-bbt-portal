@@ -1,0 +1,151 @@
+
+import React from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Bell, Smartphone, Globe, AlertCircle } from 'lucide-react';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { Badge } from '@/components/ui/badge';
+
+export const NotificationSettings: React.FC = () => {
+  const { isSupported, permissionStatus, requestPermission } = usePushNotifications();
+
+  const getPermissionIcon = () => {
+    switch (permissionStatus) {
+      case 'granted':
+        return <Bell className="h-4 w-4 text-green-500" />;
+      case 'denied':
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return <Bell className="h-4 w-4 text-gray-400" />;
+    }
+  };
+
+  const getPermissionBadge = () => {
+    switch (permissionStatus) {
+      case 'granted':
+        return <Badge className="bg-green-100 text-green-800">Enabled</Badge>;
+      case 'denied':
+        return <Badge variant="destructive">Disabled</Badge>;
+      default:
+        return <Badge variant="secondary">Not Set</Badge>;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold mb-2">Notification Settings</h3>
+        <p className="text-sm text-gray-600">
+          Configure how you want to receive notifications from the ISKCON Bureau Management Portal
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Smartphone className="h-5 w-5" />
+            <span>Push Notifications</span>
+            {getPermissionBadge()}
+          </CardTitle>
+          <CardDescription>
+            Receive instant notifications for meetings, voting, documents, and other important updates
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              {getPermissionIcon()}
+              <Label>Push Notifications</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              {permissionStatus !== 'granted' && isSupported && (
+                <Button 
+                  onClick={requestPermission}
+                  size="sm"
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  Enable
+                </Button>
+              )}
+              {!isSupported && (
+                <Badge variant="outline">Not Supported</Badge>
+              )}
+            </div>
+          </div>
+
+          {permissionStatus === 'granted' && (
+            <div className="space-y-3 pl-6 border-l-2 border-green-200">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="meeting-notifications">Meeting Notifications</Label>
+                <Switch id="meeting-notifications" defaultChecked />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="voting-notifications">Voting & Poll Notifications</Label>
+                <Switch id="voting-notifications" defaultChecked />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="document-notifications">Document Notifications</Label>
+                <Switch id="document-notifications" defaultChecked />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="email-notifications">Email Notifications</Label>
+                <Switch id="email-notifications" defaultChecked />
+              </div>
+            </div>
+          )}
+
+          {permissionStatus === 'denied' && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">Notifications Blocked</p>
+                  <p className="text-sm text-red-600 mt-1">
+                    Please enable notifications in your device settings to receive important updates.
+                  </p>
+                  <Button 
+                    onClick={requestPermission}
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 border-red-300 text-red-700 hover:bg-red-50"
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Globe className="h-5 w-5" />
+            <span>In-App Notifications</span>
+            <Badge className="bg-blue-100 text-blue-800">Always On</Badge>
+          </CardTitle>
+          <CardDescription>
+            Notifications that appear within the application interface
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label>Toast Notifications</Label>
+            <Switch defaultChecked disabled />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Notification Bell</Label>
+            <Switch defaultChecked disabled />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Sound Alerts</Label>
+            <Switch defaultChecked />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
