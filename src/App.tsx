@@ -9,7 +9,6 @@ import { LoadingFallback } from "@/components/LoadingFallback";
 import { AppContent } from "@/components/AppContent";
 import { RealAuthPage } from "@/components/RealAuthPage";
 import { MicrosoftCallback } from "@/pages/MicrosoftCallback";
-import { NotFound } from "@/pages/NotFound";
 import { AuthProvider } from "@/hooks/useAuth";
 import React, { Suspense, useEffect } from "react";
 
@@ -63,7 +62,7 @@ const App = () => {
                   <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
                   
                   {/* Main app routes - these will be handled by AppContent */}
-                  <Route path="/*" element={<AppContent />} />
+                  <Route path="*" element={<AppContent />} />
                 </Routes>
               </Suspense>
             </BrowserRouter>
