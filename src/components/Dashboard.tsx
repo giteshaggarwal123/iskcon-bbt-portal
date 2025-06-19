@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { MicrosoftConnectionStatus } from './MicrosoftConnectionStatus';
 import { DocumentViewer } from './DocumentViewer';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface Poll {
   id: string;
@@ -31,6 +33,7 @@ export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Fetch active polls
   useEffect(() => {
@@ -111,14 +114,29 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleVoteNow = (poll: Poll) => {
-    // Navigate to voting module with specific poll
-    const event = new CustomEvent('navigate-to-poll', { detail: { pollId: poll.id } });
-    window.dispatchEvent(event);
+    console.log('Navigating to voting with poll:', poll.id);
+    navigate('/voting');
   };
 
   const handleViewMore = (module: string) => {
-    const event = new CustomEvent('navigate-to-module', { detail: { module } });
-    window.dispatchEvent(event);
+    console.log('View More clicked for module:', module);
+    switch (module) {
+      case 'email':
+        navigate('/email');
+        break;
+      case 'meetings':
+        navigate('/meetings');
+        break;
+      case 'documents':
+        navigate('/documents');
+        break;
+      case 'voting':
+        navigate('/voting');
+        break;
+      default:
+        console.log('Unknown module:', module);
+        break;
+    }
   };
 
   const isPastDeadline = (deadline: string) => new Date(deadline) < new Date();
