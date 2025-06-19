@@ -9,6 +9,7 @@ export const usePushNotifications = () => {
   const [token, setToken] = useState<string | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'prompt' | 'prompt-with-rationale'>('prompt');
   const [isNative, setIsNative] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
 
   const checkPlatform = () => {
@@ -19,6 +20,43 @@ export const usePushNotifications = () => {
     setIsNative(capacitorNative);
     console.log('Platform detected:', capacitorNative ? 'Native' : 'Web');
     return capacitorNative;
+  };
+
+  const checkWebPushSupport = () => {
+    console.log('Checking web push support...');
+    
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      console.log('Window or navigator not available');
+      return false;
+    }
+
+    if (!('serviceWorker' in navigator)) {
+      console.log('Service Worker not supported');
+      return false;
+    }
+
+    if (!('PushManager' in window)) {
+      console.log('Push Manager not supported');
+      return false;
+    }
+
+    if (!('Notification' in window)) {
+      console.log('Notification API not supported');
+      return false;
+    }
+
+    console.log('Web push is supported');
+    return true;
+  };
+
+  const getCurrentPermissionStatus = () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      return 'denied';
+    }
+    
+    const permission = Notification.permission;
+    console.log('Current notification permission:', permission);
+    return permission as 'granted' | 'denied' | 'prompt';
   };
 
   const initializeNativePush = async () => {
@@ -50,7 +88,6 @@ export const usePushNotifications = () => {
 
         PushNotifications.addListener('registrationError', (error) => {
           console.error('Native push registration error:', error);
-          // Don't show error toast for iOS 18.5 compatibility issues
           console.log('Push notifications may not be available on this device');
         });
 
@@ -71,27 +108,23 @@ export const usePushNotifications = () => {
       }
     } catch (error) {
       console.log('Push notifications not available:', error);
-      // Fail silently for iOS 18.5 compatibility
       setIsSupported(false);
     }
   };
 
   const initializeWebPush = async () => {
     try {
-      if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-        setIsSupported(false);
+      console.log('Initializing web push notifications...');
+      
+      const isWebSupported = checkWebPushSupport();
+      setIsSupported(isWebSupported);
+      
+      if (!isWebSupported) {
         return;
       }
 
-      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-        console.log('Web Push not supported');
-        setIsSupported(false);
-        return;
-      }
-
-      setIsSupported(true);
-      const permission = Notification.permission;
-      setPermissionStatus(permission as any);
+      const permission = getCurrentPermissionStatus();
+      setPermissionStatus(permission);
       
       // Register service worker only for web
       if (!isNative) {
@@ -132,27 +165,44 @@ export const usePushNotifications = () => {
   };
 
   const requestPermission = async () => {
+    setIsLoading(true);
+    
     try {
+      console.log('Requesting notification permission...');
+      
       if (isNative) {
         const { PushNotifications } = await import('@capacitor/push-notifications');
         const result = await PushNotifications.requestPermissions();
+        console.log('Native permission result:', result);
         setPermissionStatus(result.receive);
         
         if (result.receive === 'granted') {
           await PushNotifications.register();
+          toast.success('Push notifications enabled!');
+        } else {
+          toast.error('Push notifications permission denied');
         }
       } else {
         if ('Notification' in window) {
           const permission = await Notification.requestPermission();
+          console.log('Web permission result:', permission);
           setPermissionStatus(permission as any);
           
           if (permission === 'granted') {
+            toast.success('Push notifications enabled!');
             await initializeWebPush();
+          } else {
+            toast.error('Push notifications permission denied');
           }
+        } else {
+          toast.error('Notifications not supported in this browser');
         }
       }
     } catch (error) {
       console.error('Permission request error:', error);
+      toast.error('Failed to request notification permission');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -165,7 +215,7 @@ export const usePushNotifications = () => {
         } else {
           initializeWebPush();
         }
-      }, 2000); // Increased delay for iOS 18.5 stability
+      }, 1000); // Reduced delay for better UX
       
       return () => clearTimeout(timer);
     }
@@ -176,6 +226,7 @@ export const usePushNotifications = () => {
     token,
     permissionStatus,
     requestPermission,
-    isNative
+    isNative,
+    isLoading
   };
 };

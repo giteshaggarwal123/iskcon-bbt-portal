@@ -4,14 +4,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Bell, Smartphone, Globe, AlertCircle, Monitor, Wifi } from 'lucide-react';
+import { Bell, Smartphone, Globe, AlertCircle, Monitor, Wifi, Loader } from 'lucide-react';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { Badge } from '@/components/ui/badge';
 
 export const NotificationSettings: React.FC = () => {
-  const { isSupported, permissionStatus, requestPermission, isNative } = usePushNotifications();
+  const { isSupported, permissionStatus, requestPermission, isNative, isLoading } = usePushNotifications();
 
   const getPermissionIcon = () => {
+    if (isLoading) {
+      return <Loader className="h-4 w-4 animate-spin text-gray-400" />;
+    }
+    
     switch (permissionStatus) {
       case 'granted':
         return <Bell className="h-4 w-4 text-green-500" />;
@@ -25,6 +29,10 @@ export const NotificationSettings: React.FC = () => {
   };
 
   const getPermissionBadge = () => {
+    if (isLoading) {
+      return <Badge variant="secondary">Checking...</Badge>;
+    }
+    
     switch (permissionStatus) {
       case 'granted':
         return <Badge className="bg-green-100 text-green-800">Enabled</Badge>;
@@ -50,7 +58,25 @@ export const NotificationSettings: React.FC = () => {
   };
 
   const isPermissionGranted = permissionStatus === 'granted';
-  const canRequestPermission = permissionStatus !== 'granted' && isSupported;
+  const canRequestPermission = permissionStatus !== 'granted' && isSupported && !isLoading;
+
+  const getStatusMessage = () => {
+    if (!isSupported) {
+      return isNative 
+        ? 'Native push notifications require additional setup for this device.'
+        : 'Your browser does not support web push notifications. Try using Chrome, Firefox, or Edge.';
+    }
+    
+    if (permissionStatus === 'denied') {
+      return `Please enable notifications in your ${isNative ? 'device' : 'browser'} settings to receive important updates.`;
+    }
+    
+    if (permissionStatus === 'prompt-with-rationale') {
+      return 'This app needs permission to send you important notifications about meetings, votes, and documents.';
+    }
+    
+    return null;
+  };
 
   return (
     <div className="space-y-6">
@@ -95,8 +121,16 @@ export const NotificationSettings: React.FC = () => {
                   onClick={requestPermission}
                   size="sm"
                   className="bg-primary hover:bg-primary/90"
+                  disabled={isLoading}
                 >
-                  Enable Notifications
+                  {isLoading ? (
+                    <>
+                      <Loader className="h-4 w-4 mr-2 animate-spin" />
+                      Requesting...
+                    </>
+                  ) : (
+                    'Enable Notifications'
+                  )}
                 </Button>
               )}
               {!isSupported && (
@@ -116,10 +150,7 @@ export const NotificationSettings: React.FC = () => {
                     Platform Not Supported
                   </p>
                   <p className="text-sm text-yellow-700 mt-1">
-                    {isNative 
-                      ? 'Native push notifications require additional setup for this device.'
-                      : 'Your browser does not support web push notifications. Try using Chrome, Firefox, or Edge.'
-                    }
+                    {getStatusMessage()}
                   </p>
                 </div>
               </div>
@@ -156,18 +187,23 @@ export const NotificationSettings: React.FC = () => {
                     {permissionStatus === 'denied' ? 'Notifications Blocked' : 'Permission Required'}
                   </p>
                   <p className="text-sm text-red-600 mt-1">
-                    {permissionStatus === 'denied' 
-                      ? `Please enable notifications in your ${isNative ? 'device' : 'browser'} settings to receive important updates.`
-                      : 'This app needs permission to send you important notifications about meetings, votes, and documents.'
-                    }
+                    {getStatusMessage()}
                   </p>
                   <Button 
                     onClick={requestPermission}
                     size="sm"
                     variant="outline"
                     className="mt-2 border-red-300 text-red-700 hover:bg-red-50"
+                    disabled={isLoading}
                   >
-                    {permissionStatus === 'denied' ? 'Try Again' : 'Grant Permission'}
+                    {isLoading ? (
+                      <>
+                        <Loader className="h-4 w-4 mr-2 animate-spin" />
+                        Trying...
+                      </>
+                    ) : (
+                      permissionStatus === 'denied' ? 'Try Again' : 'Grant Permission'
+                    )}
                   </Button>
                 </div>
               </div>
