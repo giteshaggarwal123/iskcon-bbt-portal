@@ -38,9 +38,10 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
     setLoading(true);
     
     try {
-      // Clear any existing errors first
+      // Clear any existing errors and session data first
       try {
         localStorage.removeItem('microsoft_auth_error');
+        localStorage.removeItem('microsoft_auth_last_error');
         sessionStorage.removeItem('microsoft_auth_user_id');
         sessionStorage.removeItem('microsoft_auth_nonce');
         sessionStorage.removeItem('microsoft_auth_timestamp');
@@ -63,7 +64,7 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         timestamp: new Date().toISOString()
       });
 
-      // Store session data
+      // Store session data with error handling
       try {
         sessionStorage.setItem('microsoft_auth_user_id', state);
         sessionStorage.setItem('microsoft_auth_nonce', nonce);
@@ -109,6 +110,23 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       
       console.log('Redirecting to Microsoft OAuth URL');
       
+      // Set a timeout to reset loading state if redirect fails
+      const redirectTimeout = setTimeout(() => {
+        console.warn('Redirect appears to have failed');
+        setLoading(false);
+        toast({
+          title: "Connection Issue",
+          description: "The connection process may have failed. Please try again.",
+          variant: "destructive"
+        });
+      }, 10000); // 10 second timeout
+      
+      // Clear timeout if page unloads (successful redirect)
+      const handleBeforeUnload = () => {
+        clearTimeout(redirectTimeout);
+      };
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      
       // Use a more reliable redirect method
       setTimeout(() => {
         try {
@@ -116,23 +134,13 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
           window.location.href = authUrl;
         } catch (navigationError) {
           console.error('Navigation failed, trying alternative method:', navigationError);
-          // Fallback: try window.open and focus
-          try {
-            const authWindow = window.open(authUrl, '_self');
-            if (authWindow) {
-              authWindow.focus();
-            } else {
-              throw new Error('Popup blocked');
-            }
-          } catch (popupError) {
-            console.error('All navigation methods failed:', popupError);
-            toast({
-              title: "Navigation Failed",
-              description: "Unable to redirect to Microsoft login. Please check popup blockers and try again.",
-              variant: "destructive"
-            });
-            setLoading(false);
-          }
+          clearTimeout(redirectTimeout);
+          setLoading(false);
+          toast({
+            title: "Navigation Failed",
+            description: "Unable to redirect to Microsoft login. Please check popup blockers and try again.",
+            variant: "destructive"
+          });
         }
       }, 100);
       
@@ -154,6 +162,13 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       onSuccess();
     }
   }, [isConnected, onSuccess]);
+
+  // Reset loading state when connection is established or fails
+  useEffect(() => {
+    if (isConnected || !canAttemptConnection) {
+      setLoading(false);
+    }
+  }, [isConnected, canAttemptConnection]);
 
   if (isConnected) {
     return (

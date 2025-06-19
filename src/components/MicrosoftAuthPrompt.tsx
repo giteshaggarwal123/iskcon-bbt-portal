@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { MicrosoftOAuthButton } from './MicrosoftOAuthButton';
 import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 import { useAuth } from '@/hooks/useAuth';
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 
 interface MicrosoftAuthPromptProps {
   isOpen: boolean;
@@ -21,14 +20,45 @@ export const MicrosoftAuthPrompt: React.FC<MicrosoftAuthPromptProps> = ({
   const { isConnected, isExpired, loading, lastError } = useMicrosoftAuth();
   const { user } = useAuth();
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Close dialog immediately when Microsoft account gets connected
   useEffect(() => {
     if (isConnected && !loading && !isExpired) {
       console.log('Microsoft connected successfully, closing prompt');
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout);
+        setConnectionTimeout(null);
+      }
+      setIsConnecting(false);
       onClose();
     }
-  }, [isConnected, loading, isExpired, onClose]);
+  }, [isConnected, loading, isExpired, onClose, connectionTimeout]);
+
+  // Handle connection timeout
+  useEffect(() => {
+    if (isConnecting) {
+      const timeout = setTimeout(() => {
+        console.log('Connection timed out, resetting state');
+        setIsConnecting(false);
+        // Clear any lingering session data
+        try {
+          sessionStorage.removeItem('microsoft_auth_user_id');
+          sessionStorage.removeItem('microsoft_auth_nonce');
+          sessionStorage.removeItem('microsoft_auth_timestamp');
+        } catch (e) {
+          console.warn('Session cleanup warning:', e);
+        }
+      }, 30000); // 30 second timeout
+      
+      setConnectionTimeout(timeout);
+      
+      return () => {
+        clearTimeout(timeout);
+        setConnectionTimeout(null);
+      };
+    }
+  }, [isConnecting]);
 
   // Don't show the dialog if user is not authenticated
   if (!user) {
@@ -42,16 +72,47 @@ export const MicrosoftAuthPrompt: React.FC<MicrosoftAuthPromptProps> = ({
 
   const handleConnect = () => {
     setIsConnecting(true);
+    // Clear any previous connection state
+    try {
+      sessionStorage.removeItem('microsoft_auth_user_id');
+      sessionStorage.removeItem('microsoft_auth_nonce');
+      sessionStorage.removeItem('microsoft_auth_timestamp');
+      localStorage.removeItem('microsoft_auth_error');
+    } catch (e) {
+      console.warn('Storage cleanup warning:', e);
+    }
   };
 
   const handleSkip = () => {
     console.log('User skipped Microsoft connection');
+    if (connectionTimeout) {
+      clearTimeout(connectionTimeout);
+      setConnectionTimeout(null);
+    }
+    setIsConnecting(false);
     onSkip();
   };
 
   const handleClose = () => {
     console.log('User closed Microsoft prompt');
+    if (connectionTimeout) {
+      clearTimeout(connectionTimeout);
+      setConnectionTimeout(null);
+    }
+    setIsConnecting(false);
     onClose();
+  };
+
+  const handleRetry = () => {
+    setIsConnecting(false);
+    if (connectionTimeout) {
+      clearTimeout(connectionTimeout);
+      setConnectionTimeout(null);
+    }
+    // Reset connection state
+    setTimeout(() => {
+      handleConnect();
+    }, 500);
   };
 
   const needsReconnection = isExpired || (lastError && (lastError.includes('invalid_grant') || lastError.includes('AADSTS50173') || lastError.includes('expired')));
@@ -61,7 +122,11 @@ export const MicrosoftAuthPrompt: React.FC<MicrosoftAuthPromptProps> = ({
       <DialogContent className="sm:max-w-md [&>button]:hidden">
         <DialogHeader>
           <div className="flex items-center justify-center mb-4">
-            {needsReconnection ? (
+            {isConnecting ? (
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+              </div>
+            ) : needsReconnection ? (
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
                 <AlertCircle className="w-8 h-8 text-red-600" />
               </div>
@@ -74,10 +139,19 @@ export const MicrosoftAuthPrompt: React.FC<MicrosoftAuthPromptProps> = ({
             )}
           </div>
           <DialogTitle className="text-center">
-            {needsReconnection ? 'Reconnect Microsoft 365' : 'Connect Microsoft 365'}
+            {isConnecting ? 'Connecting...' : needsReconnection ? 'Reconnect Microsoft 365' : 'Connect Microsoft 365'}
           </DialogTitle>
           <DialogDescription className="text-center">
-            {needsReconnection ? (
+            {isConnecting ? (
+              <div className="space-y-2">
+                <p className="text-blue-600 font-medium">
+                  Please wait while we connect to Microsoft 365...
+                </p>
+                <p className="text-sm text-gray-600">
+                  This may take a few moments. You'll be redirected to Microsoft's login page.
+                </p>
+              </div>
+            ) : needsReconnection ? (
               <div className="space-y-2">
                 <p className="text-red-600 font-medium">
                   Your Microsoft authentication has expired and needs to be reconnected.
@@ -92,7 +166,39 @@ export const MicrosoftAuthPrompt: React.FC<MicrosoftAuthPromptProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        {needsReconnection ? (
+        {isConnecting ? (
+          <div className="space-y-4 mb-6">
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center space-x-3">
+                <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
+                <div>
+                  <h4 className="font-medium text-blue-800">Connecting to Microsoft 365</h4>
+                  <p className="text-sm text-blue-700">
+                    If you're not redirected automatically, the connection may have failed.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline" 
+                onClick={handleRetry}
+                className="flex-1"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Retry Connection
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleClose}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : needsReconnection ? (
           <div className="space-y-4 mb-6">
             <div className="p-4 bg-red-50 rounded-lg border border-red-200">
               <h4 className="font-medium text-red-800 mb-2 flex items-center">
@@ -132,18 +238,13 @@ export const MicrosoftAuthPrompt: React.FC<MicrosoftAuthPromptProps> = ({
           </div>
         )}
 
-        <div className="space-y-3">
-          <Button 
-            onClick={handleConnect}
-            disabled={loading || isConnecting}
-            className={`w-full ${needsReconnection ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
-          >
-            {loading || isConnecting ? (
-              <div className="flex items-center space-x-2">
-                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                <span>{needsReconnection ? 'Reconnecting...' : 'Connecting...'}</span>
-              </div>
-            ) : (
+        {!isConnecting && (
+          <div className="space-y-3">
+            <Button 
+              onClick={handleConnect}
+              disabled={loading}
+              className={`w-full ${needsReconnection ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
+            >
               <div className="flex items-center space-x-2">
                 {needsReconnection ? (
                   <AlertCircle className="w-5 h-5" />
@@ -154,22 +255,22 @@ export const MicrosoftAuthPrompt: React.FC<MicrosoftAuthPromptProps> = ({
                 )}
                 <span>{needsReconnection ? 'Reconnect Microsoft 365' : 'Connect Microsoft 365'}</span>
               </div>
+            </Button>
+            
+            {!needsReconnection && (
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleSkip}
+                  className="flex-1"
+                  disabled={loading}
+                >
+                  Skip for now
+                </Button>
+              </div>
             )}
-          </Button>
-          
-          {!needsReconnection && (
-            <div className="flex space-x-2">
-              <Button 
-                variant="outline" 
-                onClick={handleSkip}
-                className="flex-1"
-                disabled={loading || isConnecting}
-              >
-                Skip for now
-              </Button>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
         
         <p className="text-xs text-gray-500 text-center mt-4">
           {needsReconnection ? 
