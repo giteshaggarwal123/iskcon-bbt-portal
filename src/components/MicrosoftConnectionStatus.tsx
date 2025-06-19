@@ -30,12 +30,12 @@ export const MicrosoftConnectionStatus: React.FC = () => {
       };
     }
 
-    if (isConnected && isExpired) {
+    if (isExpired || (lastError && (lastError.includes('invalid_grant') || lastError.includes('AADSTS50173') || lastError.includes('expired')))) {
       return {
         icon: AlertCircle,
-        color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        text: 'Token Expired',
-        description: lastError || 'Microsoft tokens have expired. Please reconnect your account.'
+        color: 'bg-red-100 text-red-800 border-red-200',
+        text: 'Authentication Expired',
+        description: 'Microsoft account authentication has expired and needs to be reconnected. This usually happens after a password change or security policy update.'
       };
     }
 
@@ -50,7 +50,7 @@ export const MicrosoftConnectionStatus: React.FC = () => {
 
     return {
       icon: XCircle,
-      color: 'bg-red-100 text-red-800 border-red-200',
+      color: 'bg-gray-100 text-gray-800 border-gray-200',
       text: 'Not Connected',
       description: 'Connect your Microsoft account in Settings to access Outlook, Teams, and SharePoint'
     };
@@ -66,14 +66,11 @@ export const MicrosoftConnectionStatus: React.FC = () => {
 
   const handleDisconnect = () => {
     disconnectMicrosoft();
-    toast({
-      title: "Disconnecting...",
-      description: "Removing Microsoft 365 connection..."
-    });
   };
 
   const config = getStatusConfig();
   const IconComponent = config.icon;
+  const needsReconnection = isExpired || (lastError && (lastError.includes('invalid_grant') || lastError.includes('AADSTS50173') || lastError.includes('expired')));
 
   return (
     <TooltipProvider>
@@ -91,14 +88,16 @@ export const MicrosoftConnectionStatus: React.FC = () => {
             </Badge>
             {!loading && (
               <div className="flex items-center space-x-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRefresh}
-                  className="h-6 w-6 p-0"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                </Button>
+                {!needsReconnection && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRefresh}
+                    className="h-6 w-6 p-0"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </Button>
+                )}
                 {(isConnected || lastError) && (
                   <Button
                     variant="ghost"
@@ -115,15 +114,22 @@ export const MicrosoftConnectionStatus: React.FC = () => {
         </TooltipTrigger>
         <TooltipContent>
           <p className="text-sm max-w-xs">{config.description}</p>
-          {!isConnected && (
+          {!isConnected && !needsReconnection && (
             <p className="text-xs text-muted-foreground mt-1">
               Go to Settings → Integrations to connect
             </p>
           )}
-          {isExpired && (
-            <p className="text-xs text-yellow-600 mt-1">
-              Click disconnect and reconnect to fix authentication issues
-            </p>
+          {needsReconnection && (
+            <div className="mt-2 space-y-1">
+              <p className="text-xs text-red-600 font-medium">
+                Action Required: Disconnect and reconnect your account
+              </p>
+              <p className="text-xs text-muted-foreground">
+                1. Click the disconnect button above<br/>
+                2. Go to Settings → Integrations<br/>
+                3. Click "Connect Microsoft 365" again
+              </p>
+            </div>
           )}
         </TooltipContent>
       </Tooltip>
