@@ -11,6 +11,7 @@ import { EmailModule } from './EmailModule';
 import { AttendanceModule } from './AttendanceModule';
 import { ReportsModule } from './ReportsModule';
 import { SettingsModule } from './SettingsModule';
+import { NotFound } from '@/pages/NotFound';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotificationIntegration } from '@/hooks/useNotificationIntegration';
 
@@ -56,6 +57,8 @@ export const AppContent: React.FC = () => {
         <Route path="/attendance" element={<AttendanceModule />} />
         <Route path="/reports" element={<ReportsModule />} />
         <Route path="/settings" element={<SettingsModule />} />
+        {/* 404 fallback for unknown routes */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
   );

@@ -58,9 +58,12 @@ const App = () => {
             <BrowserRouter>
               <Suspense fallback={<LoadingFallback />}>
                 <Routes>
+                  {/* Authentication routes */}
                   <Route path="/auth" element={<RealAuthPage />} />
                   <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
-                  <Route path="*" element={<AppContent />} />
+                  
+                  {/* Main app routes - these will be handled by AppContent */}
+                  <Route path="/*" element={<AppContent />} />
                 </Routes>
               </Suspense>
             </BrowserRouter>
