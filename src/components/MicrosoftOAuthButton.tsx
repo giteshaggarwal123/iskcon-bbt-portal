@@ -49,6 +49,17 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         console.warn('Storage cleanup warning:', e);
       }
 
+      // Check if we're in an iframe (which causes the connection refused error)
+      if (window !== window.top) {
+        toast({
+          title: "Browser Restriction",
+          description: "Microsoft login cannot work in embedded frames. Please open this page in a new tab.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
       // Enhanced configuration
       const clientId = '44391516-babe-4072-8422-a4fc8a79fbde';
       const baseUrl = window.location.origin;
@@ -108,41 +119,50 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
       // Use Microsoft common endpoint for better compatibility
       const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${authParams.toString()}`;
       
-      console.log('Redirecting to Microsoft OAuth URL');
+      console.log('Opening Microsoft OAuth in new window...');
       
-      // Set a timeout to reset loading state if redirect fails
-      const redirectTimeout = setTimeout(() => {
-        console.warn('Redirect appears to have failed');
-        setLoading(false);
+      // Open in a new window instead of redirecting current window
+      const popup = window.open(
+        authUrl,
+        'microsoft-auth',
+        'width=500,height=600,scrollbars=yes,resizable=yes'
+      );
+
+      if (!popup) {
         toast({
-          title: "Connection Issue",
-          description: "The connection process may have failed. Please try again.",
+          title: "Popup Blocked",
+          description: "Please allow popups for this site and try again. Or try opening in a new tab.",
           variant: "destructive"
         });
-      }, 10000); // 10 second timeout
-      
-      // Clear timeout if page unloads (successful redirect)
-      const handleBeforeUnload = () => {
-        clearTimeout(redirectTimeout);
-      };
-      window.addEventListener('beforeunload', handleBeforeUnload);
-      
-      // Use a more reliable redirect method
+        setLoading(false);
+        return;
+      }
+
+      // Monitor popup for completion
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          setLoading(false);
+          // Check if authentication was successful by checking for tokens
+          setTimeout(() => {
+            window.location.reload(); // Refresh to check auth state
+          }, 1000);
+        }
+      }, 1000);
+
+      // Timeout after 5 minutes
       setTimeout(() => {
-        try {
-          // First try window.location.href
-          window.location.href = authUrl;
-        } catch (navigationError) {
-          console.error('Navigation failed, trying alternative method:', navigationError);
-          clearTimeout(redirectTimeout);
+        if (!popup.closed) {
+          popup.close();
+          clearInterval(checkClosed);
           setLoading(false);
           toast({
-            title: "Navigation Failed",
-            description: "Unable to redirect to Microsoft login. Please check popup blockers and try again.",
+            title: "Authentication Timeout",
+            description: "Microsoft authentication took too long. Please try again.",
             variant: "destructive"
           });
         }
-      }, 100);
+      }, 5 * 60 * 1000);
       
     } catch (error: any) {
       console.error('Microsoft OAuth initialization error:', error);
@@ -202,6 +222,16 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
           </p>
         </div>
       )}
+
+      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+        <h4 className="font-medium text-blue-800 mb-2">Connection Tips:</h4>
+        <ul className="text-sm text-blue-700 space-y-1">
+          <li>• Make sure popups are allowed for this site</li>
+          <li>• Use admin@iskconbureau.in when prompted</li>
+          <li>• If popup fails, try disabling ad blockers</li>
+          <li>• Clear browser cache if issues persist</li>
+        </ul>
+      </div>
       
       <Button 
         onClick={handleMicrosoftLogin}
@@ -211,7 +241,7 @@ export const MicrosoftOAuthButton: React.FC<MicrosoftOAuthButtonProps> = ({ onSu
         {loading ? (
           <div className="flex items-center space-x-2">
             <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-            <span>Connecting...</span>
+            <span>Opening Microsoft Login...</span>
           </div>
         ) : (
           <div className="flex items-center space-x-2">
