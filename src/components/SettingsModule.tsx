@@ -21,7 +21,6 @@ export const SettingsModule: React.FC = () => {
   const [formData, setFormData] = useState({
     first_name: profile?.first_name || '',
     last_name: profile?.last_name || '',
-    position: profile?.position || '',
     phone: profile?.phone || '',
   });
 
@@ -34,10 +33,14 @@ export const SettingsModule: React.FC = () => {
     setFormData({
       first_name: profile?.first_name || '',
       last_name: profile?.last_name || '',
-      position: profile?.position || '',
       phone: profile?.phone || '',
     });
     setIsEditing(false);
+  };
+
+  const handleImageUpdate = () => {
+    // Trigger a refresh of the profile data
+    window.location.reload();
   };
 
   return (
@@ -92,12 +95,12 @@ export const SettingsModule: React.FC = () => {
                   <h3 className="text-lg font-semibold">
                     {profile?.first_name} {profile?.last_name}
                   </h3>
-                  <p className="text-gray-600">{profile?.position || 'Member'}</p>
+                  <p className="text-gray-600">Member</p>
                   <Badge variant="secondary" className="mt-1">
-                    {profile?.role || 'Member'}
+                    Member
                   </Badge>
                 </div>
-                <ProfileImageUpload />
+                <ProfileImageUpload onImageUpdate={handleImageUpdate} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -116,15 +119,6 @@ export const SettingsModule: React.FC = () => {
                     id="last_name"
                     value={formData.last_name}
                     onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
-                    disabled={!isEditing}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="position">Position</Label>
-                  <Input
-                    id="position"
-                    value={formData.position}
-                    onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
                     disabled={!isEditing}
                   />
                 </div>
