@@ -5,33 +5,83 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Phone, Shield, Clock } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
-interface AuthPageProps {
-  onLogin: () => void;
-}
-
-export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
+export const AuthPage: React.FC = () => {
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const { signIn } = useAuth();
+  const { toast } = useToast();
 
   const handleSendOTP = async () => {
+    if (!phoneNumber.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid phone number",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      // Simulate API call for sending OTP
+      await new Promise(resolve => setTimeout(resolve, 1500));
       setStep('otp');
-    }, 1500);
+      toast({
+        title: "OTP Sent",
+        description: `Verification code sent to ${phoneNumber}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send OTP. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerifyOTP = async () => {
+    if (otp.length !== 6) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid 6-digit OTP",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Simulate API call for OTP verification
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Use dummy credentials for demo
+      const { error } = await signIn('demo@iskconbureau.in', 'demo-password');
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      toast({
+        title: "Success",
+        description: "Login successful! Welcome to ISKCON Bureau.",
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      toast({
+        title: "Error",
+        description: "Invalid OTP. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
       setLoading(false);
-      onLogin();
-    }, 1500);
+    }
   };
 
   return (
@@ -78,6 +128,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
                       className="pl-10"
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -99,9 +150,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                     type="text"
                     placeholder="123456"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     maxLength={6}
                     className="text-center text-lg tracking-widest"
+                    disabled={loading}
                   />
                 </div>
                 
@@ -110,6 +162,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                   <button 
                     onClick={() => setStep('phone')}
                     className="text-primary hover:underline"
+                    disabled={loading}
                   >
                     Change number
                   </button>
@@ -124,7 +177,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                 </Button>
                 
                 <div className="text-center">
-                  <button className="text-sm text-gray-600 hover:text-primary">
+                  <button 
+                    className="text-sm text-gray-600 hover:text-primary disabled:opacity-50"
+                    disabled={loading}
+                    onClick={handleSendOTP}
+                  >
                     Resend OTP in <span className="font-medium">30s</span>
                   </button>
                 </div>
