@@ -13,13 +13,19 @@ export const usePushNotifications = () => {
   const { user } = useAuth();
 
   const checkPlatform = () => {
-    // Safe check for Capacitor with iOS 18.5 compatibility
+    // Enhanced native app detection
     const capacitorNative = typeof window !== 'undefined' && 
                            window.Capacitor && 
                            window.Capacitor.isNative === true;
-    setIsNative(capacitorNative);
-    console.log('Platform detected:', capacitorNative ? 'Native' : 'Web');
-    return capacitorNative;
+    
+    // Additional check for mobile user agent
+    const isMobile = typeof navigator !== 'undefined' && 
+                    /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    const isNativeApp = capacitorNative || isMobile;
+    setIsNative(isNativeApp);
+    console.log('Platform detected:', isNativeApp ? 'Native/Mobile' : 'Web');
+    return isNativeApp;
   };
 
   const checkWebPushSupport = () => {
@@ -49,34 +55,45 @@ export const usePushNotifications = () => {
     return true;
   };
 
-  const getCurrentPermissionStatus = () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      return 'denied';
+  const getCurrentPermissionStatus = async () => {
+    if (isNative) {
+      try {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        const permResult = await PushNotifications.checkPermissions();
+        console.log('Native permission status:', permResult.receive);
+        return permResult.receive;
+      } catch (error) {
+        console.log('Error checking native permissions:', error);
+        return 'prompt';
+      }
+    } else {
+      if (typeof window === 'undefined' || !('Notification' in window)) {
+        return 'denied';
+      }
+      
+      const permission = Notification.permission;
+      console.log('Web notification permission:', permission);
+      return permission as 'granted' | 'denied' | 'prompt';
     }
-    
-    const permission = Notification.permission;
-    console.log('Current notification permission:', permission);
-    return permission as 'granted' | 'denied' | 'prompt';
   };
 
   const initializeNativePush = async () => {
     try {
       console.log('Initializing native push notifications...');
       
-      // Import Capacitor plugins dynamically to avoid iOS crashes
+      // Import Capacitor plugins dynamically
       const { PushNotifications } = await import('@capacitor/push-notifications');
       setIsSupported(true);
       
-      // Check permission status first
-      const permResult = await PushNotifications.checkPermissions();
-      console.log('Push permission status:', permResult.receive);
-      setPermissionStatus(permResult.receive);
+      // Check and update permission status
+      const permission = await getCurrentPermissionStatus();
+      setPermissionStatus(permission);
 
-      if (permResult.receive === 'granted') {
+      if (permission === 'granted') {
         // Register for push notifications
         await PushNotifications.register();
         
-        // Set up listeners with error handling
+        // Set up listeners
         PushNotifications.addListener('registration', async (token) => {
           console.log('Native push registration success:', token.value);
           setToken(token.value);
@@ -88,7 +105,7 @@ export const usePushNotifications = () => {
 
         PushNotifications.addListener('registrationError', (error) => {
           console.error('Native push registration error:', error);
-          console.log('Push notifications may not be available on this device');
+          setIsSupported(false);
         });
 
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
@@ -107,8 +124,13 @@ export const usePushNotifications = () => {
         });
       }
     } catch (error) {
-      console.log('Push notifications not available:', error);
-      setIsSupported(false);
+      console.log('Native push notifications not available:', error);
+      // For mobile web, still try to use web notifications
+      if (checkWebPushSupport()) {
+        await initializeWebPush();
+      } else {
+        setIsSupported(false);
+      }
     }
   };
 
@@ -123,10 +145,10 @@ export const usePushNotifications = () => {
         return;
       }
 
-      const permission = getCurrentPermissionStatus();
+      const permission = await getCurrentPermissionStatus();
       setPermissionStatus(permission);
       
-      // Register service worker only for web
+      // Register service worker for web
       if (!isNative) {
         try {
           const registration = await navigator.serviceWorker.register('/sw.js');
@@ -158,7 +180,7 @@ export const usePushNotifications = () => {
         .eq('id', user?.id);
 
       if (error) throw error;
-      console.log('Push token saved');
+      console.log('Push token saved successfully');
     } catch (error) {
       console.error('Error saving push token:', error);
     }
@@ -179,6 +201,9 @@ export const usePushNotifications = () => {
         if (result.receive === 'granted') {
           await PushNotifications.register();
           toast.success('Push notifications enabled!');
+          
+          // Re-initialize to set up listeners
+          await initializeNativePush();
         } else {
           toast.error('Push notifications permission denied');
         }
@@ -208,14 +233,17 @@ export const usePushNotifications = () => {
 
   useEffect(() => {
     if (user) {
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
         const native = checkPlatform();
+        const currentPermission = await getCurrentPermissionStatus();
+        setPermissionStatus(currentPermission);
+        
         if (native) {
-          initializeNativePush();
+          await initializeNativePush();
         } else {
-          initializeWebPush();
+          await initializeWebPush();
         }
-      }, 1000); // Reduced delay for better UX
+      }, 1000);
       
       return () => clearTimeout(timer);
     }

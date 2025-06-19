@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Bell, Smartphone, Globe, AlertCircle, Monitor, Wifi, Loader } from 'lucide-react';
+import { Bell, Smartphone, Globe, AlertCircle, Monitor, Wifi, Loader, Settings } from 'lucide-react';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { Badge } from '@/components/ui/badge';
 
@@ -39,7 +39,7 @@ export const NotificationSettings: React.FC = () => {
       case 'denied':
         return <Badge variant="destructive">Disabled</Badge>;
       case 'prompt-with-rationale':
-        return <Badge variant="secondary">Needs Explanation</Badge>;
+        return <Badge variant="secondary">Needs Permission</Badge>;
       default:
         return <Badge variant="secondary">Not Set</Badge>;
     }
@@ -63,12 +63,14 @@ export const NotificationSettings: React.FC = () => {
   const getStatusMessage = () => {
     if (!isSupported) {
       return isNative 
-        ? 'Native push notifications require additional setup for this device.'
+        ? 'Push notifications are not available on this device. Please check your device settings.'
         : 'Your browser does not support web push notifications. Try using Chrome, Firefox, or Edge.';
     }
     
     if (permissionStatus === 'denied') {
-      return `Please enable notifications in your ${isNative ? 'device' : 'browser'} settings to receive important updates.`;
+      return isNative
+        ? 'Notifications are blocked. Please enable them in your device Settings > Apps > ISKCON Management Portal > Notifications.'
+        : 'Please enable notifications in your browser settings to receive important updates.';
     }
     
     if (permissionStatus === 'prompt-with-rationale') {
@@ -76,6 +78,16 @@ export const NotificationSettings: React.FC = () => {
     }
     
     return null;
+  };
+
+  const openDeviceSettings = () => {
+    if (isNative) {
+      // For mobile apps, we can't directly open settings but we can guide the user
+      alert('Please go to your device Settings > Apps > ISKCON Management Portal > Notifications and enable them manually.');
+    } else {
+      // For web, we can provide guidance
+      alert('Please click on the lock icon in your browser address bar and enable notifications.');
+    }
   };
 
   return (
@@ -159,6 +171,9 @@ export const NotificationSettings: React.FC = () => {
 
           {isPermissionGranted && (
             <div className="space-y-3 pl-6 border-l-2 border-green-200">
+              <p className="text-sm text-green-600 font-medium">
+                ✅ Notifications are enabled and working!
+              </p>
               <div className="flex items-center justify-between">
                 <Label htmlFor="meeting-notifications">Meeting Notifications</Label>
                 <Switch id="meeting-notifications" defaultChecked />
@@ -189,22 +204,35 @@ export const NotificationSettings: React.FC = () => {
                   <p className="text-sm text-red-600 mt-1">
                     {getStatusMessage()}
                   </p>
-                  <Button 
-                    onClick={requestPermission}
-                    size="sm"
-                    variant="outline"
-                    className="mt-2 border-red-300 text-red-700 hover:bg-red-50"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader className="h-4 w-4 mr-2 animate-spin" />
-                        Trying...
-                      </>
-                    ) : (
-                      permissionStatus === 'denied' ? 'Try Again' : 'Grant Permission'
+                  <div className="flex gap-2 mt-2">
+                    <Button 
+                      onClick={requestPermission}
+                      size="sm"
+                      variant="outline"
+                      className="border-red-300 text-red-700 hover:bg-red-50"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader className="h-4 w-4 mr-2 animate-spin" />
+                          Trying...
+                        </>
+                      ) : (
+                        permissionStatus === 'denied' ? 'Try Again' : 'Grant Permission'
+                      )}
+                    </Button>
+                    {permissionStatus === 'denied' && isNative && (
+                      <Button 
+                        onClick={openDeviceSettings}
+                        size="sm"
+                        variant="outline"
+                        className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Device Settings
+                      </Button>
                     )}
-                  </Button>
+                  </div>
                 </div>
               </div>
             </div>
