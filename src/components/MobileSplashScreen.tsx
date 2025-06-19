@@ -43,7 +43,7 @@ export const MobileSplashScreen: React.FC = () => {
         {/* App Name */}
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900">ISKCON Bureau</h1>
-          <p className="text-gray-600 mt-1">Portal</p>
+          <p className="text-gray-600 mt-1">Management Portal</p>
           <p className="text-sm text-gray-500 mt-1">
             {deviceInfo.isNative ? 'Mobile App' : 'Web Portal'}
           </p>
@@ -69,7 +69,7 @@ export const MobileSplashScreen: React.FC = () => {
       {/* Footer */}
       <div className="absolute bottom-4 text-center">
         <p className="text-xs text-gray-400">
-          © 2025 ISKCON Bureau Portal
+          © 2025 ISKCON Bureau Management Portal
         </p>
       </div>
     </div>
