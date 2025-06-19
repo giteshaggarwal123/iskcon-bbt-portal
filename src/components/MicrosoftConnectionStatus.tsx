@@ -8,7 +8,7 @@ import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
 import { useToast } from '@/hooks/use-toast';
 
 export const MicrosoftConnectionStatus: React.FC = () => {
-  const { isConnected, isExpired, loading, disconnectMicrosoft, forceRefresh } = useMicrosoftAuth();
+  const { isConnected, isExpired, loading, disconnectMicrosoft, forceRefresh, lastError } = useMicrosoftAuth();
   const { toast } = useToast();
 
   const getStatusConfig = () => {
@@ -34,8 +34,17 @@ export const MicrosoftConnectionStatus: React.FC = () => {
       return {
         icon: AlertCircle,
         color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        text: 'Token Refresh Failed',
-        description: 'Please reconnect your Microsoft account'
+        text: 'Token Expired',
+        description: lastError || 'Microsoft tokens have expired. Please reconnect your account.'
+      };
+    }
+
+    if (lastError) {
+      return {
+        icon: XCircle,
+        color: 'bg-red-100 text-red-800 border-red-200',
+        text: 'Connection Error',
+        description: lastError
       };
     }
 
@@ -57,6 +66,10 @@ export const MicrosoftConnectionStatus: React.FC = () => {
 
   const handleDisconnect = () => {
     disconnectMicrosoft();
+    toast({
+      title: "Disconnecting...",
+      description: "Removing Microsoft 365 connection..."
+    });
   };
 
   const config = getStatusConfig();
@@ -86,7 +99,7 @@ export const MicrosoftConnectionStatus: React.FC = () => {
                 >
                   <RefreshCw className="h-3 w-3" />
                 </Button>
-                {isConnected && (
+                {(isConnected || lastError) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -101,15 +114,15 @@ export const MicrosoftConnectionStatus: React.FC = () => {
           </div>
         </TooltipTrigger>
         <TooltipContent>
-          <p className="text-sm">{config.description}</p>
+          <p className="text-sm max-w-xs">{config.description}</p>
           {!isConnected && (
             <p className="text-xs text-muted-foreground mt-1">
               Go to Settings → Integrations to connect
             </p>
           )}
-          {isConnected && !isExpired && (
-            <p className="text-xs text-green-600 mt-1">
-              Tokens auto-refresh every 30 minutes
+          {isExpired && (
+            <p className="text-xs text-yellow-600 mt-1">
+              Click disconnect and reconnect to fix authentication issues
             </p>
           )}
         </TooltipContent>

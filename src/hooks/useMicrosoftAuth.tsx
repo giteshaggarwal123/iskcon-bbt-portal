@@ -83,9 +83,9 @@ export const useMicrosoftAuth = () => {
       const now = new Date();
       const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
 
-      // If token expires within 10 minutes, refresh it
+      // If token expires within 10 minutes, try to refresh it
       if (expiresAt <= tenMinutesFromNow) {
-        console.log('Token expires soon, refreshing...');
+        console.log('Token expires soon, attempting refresh...');
         
         try {
           const { data, error: refreshError } = await supabase.functions.invoke('refresh-microsoft-token', {
@@ -94,13 +94,56 @@ export const useMicrosoftAuth = () => {
 
           if (refreshError) {
             console.error('Token refresh error:', refreshError);
+            // If refresh fails due to invalid grant, clear the tokens and mark as disconnected
+            if (refreshError.message?.includes('invalid_grant') || refreshError.message?.includes('AADSTS50173')) {
+              await disconnectMicrosoft();
+              setAuthState(prev => ({ 
+                ...prev, 
+                isConnected: false, 
+                isExpired: true, 
+                accessToken: null, 
+                expiresAt: null,
+                lastError: 'Microsoft account needs to be reconnected. Please sign in again.'
+              }));
+              
+              toast({
+                title: "Microsoft Account Disconnected",
+                description: "Your Microsoft tokens have expired. Please reconnect your account in Settings.",
+                variant: "destructive"
+              });
+              
+              setLoading(false);
+              return false;
+            }
             throw new Error(`Token refresh failed: ${refreshError.message}`);
           }
 
-          if (data.error) {
+          if (data?.error) {
             console.error('Token refresh API error:', data.error);
             
-            // If refresh fails, mark as expired but still connected
+            // Handle specific Microsoft errors
+            if (data.error.includes('invalid_grant') || data.error.includes('AADSTS50173')) {
+              await disconnectMicrosoft();
+              setAuthState(prev => ({ 
+                ...prev, 
+                isConnected: false, 
+                isExpired: true, 
+                accessToken: null, 
+                expiresAt: null,
+                lastError: 'Microsoft account needs to be reconnected due to security policy or password change.'
+              }));
+              
+              toast({
+                title: "Microsoft Account Needs Reconnection",
+                description: "Please reconnect your Microsoft account. This usually happens after a password change or security policy update.",
+                variant: "destructive"
+              });
+              
+              setLoading(false);
+              return false;
+            }
+            
+            // For other errors, mark as expired but still connected
             setAuthState(prev => ({ 
               ...prev, 
               isConnected: true, 
@@ -126,14 +169,28 @@ export const useMicrosoftAuth = () => {
           return true;
         } catch (refreshError: any) {
           console.error('Token refresh exception:', refreshError);
-          setAuthState(prev => ({ 
-            ...prev, 
-            isConnected: true, 
-            isExpired: true, 
-            accessToken: profile.microsoft_access_token, 
-            expiresAt: profile.token_expires_at,
-            lastError: refreshError.message
-          }));
+          
+          // Handle token refresh failures more gracefully
+          if (refreshError.message?.includes('invalid_grant') || refreshError.message?.includes('AADSTS50173')) {
+            await disconnectMicrosoft();
+            setAuthState(prev => ({ 
+              ...prev, 
+              isConnected: false, 
+              isExpired: true, 
+              accessToken: null, 
+              expiresAt: null,
+              lastError: 'Microsoft account disconnected due to expired credentials'
+            }));
+          } else {
+            setAuthState(prev => ({ 
+              ...prev, 
+              isConnected: true, 
+              isExpired: true, 
+              accessToken: profile.microsoft_access_token, 
+              expiresAt: profile.token_expires_at,
+              lastError: refreshError.message
+            }));
+          }
           setLoading(false);
           return false;
         }
@@ -164,7 +221,7 @@ export const useMicrosoftAuth = () => {
       setLoading(false);
       return false;
     }
-  }, [user]);
+  }, [user, toast]);
 
   useEffect(() => {
     if (user) {
@@ -206,10 +263,7 @@ export const useMicrosoftAuth = () => {
       // Clear connection attempts history
       setConnectionAttempts([]);
       
-      toast({
-        title: "Microsoft Account Disconnected",
-        description: "Your Microsoft account has been disconnected successfully."
-      });
+      console.log('Microsoft account disconnected successfully');
     } catch (error: any) {
       console.error('Error disconnecting Microsoft:', error);
       toast({
