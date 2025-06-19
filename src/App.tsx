@@ -61,8 +61,8 @@ const App = () => {
                   <Route path="/auth" element={<RealAuthPage />} />
                   <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
                   
-                  {/* Main app routes - these will be handled by AppContent */}
-                  <Route path="*" element={<AppContent />} />
+                  {/* All other routes go to AppContent which handles auth checks */}
+                  <Route path="/*" element={<AppContent />} />
                 </Routes>
               </Suspense>
             </BrowserRouter>
