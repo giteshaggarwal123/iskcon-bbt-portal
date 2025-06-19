@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,15 +14,31 @@ import { useProfile } from '@/hooks/useProfile';
 import { NotificationSettings } from './NotificationSettings';
 import { ProfileImageUpload } from './ProfileImageUpload';
 import { MicrosoftOAuthButton } from './MicrosoftOAuthButton';
+import { useToast } from '@/hooks/use-toast';
 
 export const SettingsModule: React.FC = () => {
   const { user } = useAuth();
   const { profile, updateProfile } = useProfile();
+  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     first_name: profile?.first_name || '',
     last_name: profile?.last_name || '',
     phone: profile?.phone || '',
+  });
+
+  // Appearance settings state
+  const [appearanceSettings, setAppearanceSettings] = useState({
+    darkMode: localStorage.getItem('darkMode') === 'true',
+    compactView: localStorage.getItem('compactView') === 'true',
+    highContrast: localStorage.getItem('highContrast') === 'true',
+  });
+
+  // Privacy settings state
+  const [privacySettings, setPrivacySettings] = useState({
+    profileVisibility: localStorage.getItem('profileVisibility') !== 'false',
+    activityStatus: localStorage.getItem('activityStatus') !== 'false',
+    dataAnalytics: localStorage.getItem('dataAnalytics') !== 'false',
   });
 
   const handleSave = async () => {
@@ -41,6 +58,53 @@ export const SettingsModule: React.FC = () => {
   const handleImageUpdate = () => {
     // Trigger a refresh of the profile data
     window.location.reload();
+  };
+
+  const handleAppearanceChange = (setting: string, value: boolean) => {
+    const newSettings = { ...appearanceSettings, [setting]: value };
+    setAppearanceSettings(newSettings);
+    localStorage.setItem(setting, value.toString());
+    
+    // Apply the changes immediately
+    if (setting === 'darkMode') {
+      if (value) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+    
+    if (setting === 'compactView') {
+      if (value) {
+        document.body.classList.add('compact-view');
+      } else {
+        document.body.classList.remove('compact-view');
+      }
+    }
+    
+    if (setting === 'highContrast') {
+      if (value) {
+        document.body.classList.add('high-contrast');
+      } else {
+        document.body.classList.remove('high-contrast');
+      }
+    }
+    
+    toast({
+      title: "Appearance Updated",
+      description: `${setting.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} ${value ? 'enabled' : 'disabled'}.`,
+    });
+  };
+
+  const handlePrivacyChange = (setting: string, value: boolean) => {
+    const newSettings = { ...privacySettings, [setting]: value };
+    setPrivacySettings(newSettings);
+    localStorage.setItem(setting, value.toString());
+    
+    toast({
+      title: "Privacy Setting Updated",
+      description: `${setting.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} ${value ? 'enabled' : 'disabled'}.`,
+    });
   };
 
   return (
@@ -205,21 +269,30 @@ export const SettingsModule: React.FC = () => {
                   <Label>Profile Visibility</Label>
                   <p className="text-sm text-gray-600">Make your profile visible to other members</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch 
+                  checked={privacySettings.profileVisibility}
+                  onCheckedChange={(checked) => handlePrivacyChange('profileVisibility', checked)}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Activity Status</Label>
                   <p className="text-sm text-gray-600">Show when you're online</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch 
+                  checked={privacySettings.activityStatus}
+                  onCheckedChange={(checked) => handlePrivacyChange('activityStatus', checked)}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Data Analytics</Label>
                   <p className="text-sm text-gray-600">Help improve the platform with usage data</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch 
+                  checked={privacySettings.dataAnalytics}
+                  onCheckedChange={(checked) => handlePrivacyChange('dataAnalytics', checked)}
+                />
               </div>
             </CardContent>
           </Card>
@@ -242,21 +315,30 @@ export const SettingsModule: React.FC = () => {
                   <Label>Dark Mode</Label>
                   <p className="text-sm text-gray-600">Use dark theme</p>
                 </div>
-                <Switch />
+                <Switch 
+                  checked={appearanceSettings.darkMode}
+                  onCheckedChange={(checked) => handleAppearanceChange('darkMode', checked)}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Compact View</Label>
                   <p className="text-sm text-gray-600">Show more content in less space</p>
                 </div>
-                <Switch />
+                <Switch 
+                  checked={appearanceSettings.compactView}
+                  onCheckedChange={(checked) => handleAppearanceChange('compactView', checked)}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label>High Contrast</Label>
                   <p className="text-sm text-gray-600">Increase contrast for better visibility</p>
                 </div>
-                <Switch />
+                <Switch 
+                  checked={appearanceSettings.highContrast}
+                  onCheckedChange={(checked) => handleAppearanceChange('highContrast', checked)}
+                />
               </div>
             </CardContent>
           </Card>
