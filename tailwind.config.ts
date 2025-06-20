@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -24,14 +23,14 @@ export default {
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
 				background: '#FDF8F3',
-				foreground: 'hsl(var(--foreground))',
+				foreground: '#2B2B2B',
 				primary: {
 					DEFAULT: '#A53F2B',
 					foreground: '#FFFFFF'
 				},
 				secondary: {
 					DEFAULT: '#F3E9DC',
-					foreground: '#2C2C2C'
+					foreground: '#2B2B2B'
 				},
 				destructive: {
 					DEFAULT: '#EF4444',
@@ -39,27 +38,28 @@ export default {
 				},
 				muted: {
 					DEFAULT: '#F3E9DC',
-					foreground: '#2C2C2C'
+					foreground: '#2B2B2B'
 				},
 				accent: {
 					DEFAULT: '#C68B59',
-					foreground: '#2C2C2C'
+					foreground: '#2B2B2B'
 				},
 				popover: {
 					DEFAULT: '#FFFFFF',
-					foreground: '#2C2C2C'
+					foreground: '#2B2B2B'
 				},
 				card: {
 					DEFAULT: '#FFFFFF',
-					foreground: '#2C2C2C'
+					foreground: '#2B2B2B'
 				},
 				success: '#22C55E',
 				warning: '#F59E0B',
 				error: '#EF4444',
+				highlight: '#8C6B55',
 				iskcon: {
 					maroon: '#A53F2B',
 					cream: '#F3E9DC',
-					dark: '#2C2C2C',
+					dark: '#2B2B2B',
 					gold: '#C68B59',
 					folder: '#5A3F2B',
 					'folder-alt': '#926C4B'
