@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -13,7 +14,7 @@
     --popover: 255 255 255;
     --popover-foreground: 43 43 43;
 
-    --primary: 165 63 43;
+    --primary: 123 44 44;
     --primary-foreground: 255 255 255;
 
     --secondary: 243 233 220;
@@ -36,7 +37,7 @@
 
     --sidebar-background: 255 255 255;
     --sidebar-foreground: 43 43 43;
-    --sidebar-primary: 165 63 43;
+    --sidebar-primary: 123 44 44;
     --sidebar-primary-foreground: 255 255 255;
     --sidebar-accent: 198 139 89;
     --sidebar-accent-foreground: 43 43 43;

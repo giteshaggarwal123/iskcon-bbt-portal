@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -25,7 +26,7 @@ export default {
 				background: '#FDF8F3',
 				foreground: '#2B2B2B',
 				primary: {
-					DEFAULT: '#A53F2B',
+					DEFAULT: '#7B2C2C',
 					foreground: '#FFFFFF'
 				},
 				secondary: {
@@ -57,7 +58,7 @@ export default {
 				error: '#EF4444',
 				highlight: '#8C6B55',
 				iskcon: {
-					maroon: '#A53F2B',
+					maroon: '#7B2C2C',
 					cream: '#F3E9DC',
 					dark: '#2B2B2B',
 					gold: '#C68B59',
