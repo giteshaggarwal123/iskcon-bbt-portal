@@ -91,7 +91,7 @@ export const useTranscripts = () => {
 
       // Call edge function to fetch Teams data with enhanced retry logic
       let lastError = null;
-      for (let attempt = 1; attempt <= 5; attempt++) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           console.log(`Attempt ${attempt} to fetch Teams transcript`);
           
@@ -120,26 +120,33 @@ export const useTranscripts = () => {
               }
             }
             
-            if (attempt === 5) throw error;
+            if (attempt === 3) throw error;
             
             // Exponential backoff
             await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
             continue;
           }
 
-          console.log('Teams transcript data received:', {
+          console.log('Teams transcript response received:', {
             hasTranscript: !!data?.transcript,
             transcriptCount: data?.transcript?.value?.length || 0,
             hasContent: data?.hasContent,
             contentLength: data?.transcriptContent?.length || 0,
             hasAttendees: !!data?.attendees,
-            attendeesCount: data?.attendees?.value?.[0]?.attendanceRecords?.length || 0
+            attendeesCount: data?.attendees?.value?.[0]?.attendanceRecords?.length || 0,
+            hasError: !!data?.error
           });
+
+          // The edge function now returns 200 status even for errors, so check the data
+          if (data?.error) {
+            // This is an expected error (like PreconditionFailed), not a system error
+            throw new Error(data.error);
+          }
 
           // Validate that we got meaningful data
           if (!data || (!data.transcript && !data.transcriptContent)) {
             console.warn('No transcript data received from Teams API');
-            if (attempt < 5) {
+            if (attempt < 3) {
               await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
               continue;
             }
@@ -150,7 +157,7 @@ export const useTranscripts = () => {
           console.error(`Attempt ${attempt} error:`, err);
           lastError = err;
           
-          if (attempt === 5) throw err;
+          if (attempt === 3) throw err;
           
           // Wait before retry with exponential backoff
           await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
@@ -168,6 +175,8 @@ export const useTranscripts = () => {
         errorMessage = 'Meeting transcript not found in Teams. Ensure the meeting was recorded and transcription was enabled.';
       } else if (error.message?.includes('403')) {
         errorMessage = 'Access denied. Please ensure you have permission to access this meeting\'s transcript.';
+      } else if (error.message?.includes('Transcript not supported')) {
+        errorMessage = 'This meeting type does not support automatic transcript extraction. It was likely created as an instant meeting rather than a scheduled calendar event.';
       } else if (error.message) {
         errorMessage = error.message;
       }

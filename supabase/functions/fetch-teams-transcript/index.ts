@@ -47,7 +47,7 @@ serve(async (req) => {
       // Search through recent meetings
       {
         name: 'Recent Online Meetings Search',
-        url: `https://graph.microsoft.com/v1.0/me/onlineMeetings?$top=50&$orderby=creationDateTime desc`,
+        url: `https://graph.microsoft.com/v1.0/me/onlineMeetings?$orderby=creationDateTime desc`,
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
@@ -56,7 +56,7 @@ serve(async (req) => {
       // Search through calendar events
       {
         name: 'Calendar Events Search',
-        url: `https://graph.microsoft.com/v1.0/me/calendar/events?$top=50&$orderby=createdDateTime desc&$filter=onlineMeeting ne null`,
+        url: `https://graph.microsoft.com/v1.0/me/calendar/events?$orderby=createdDateTime desc`,
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
@@ -138,7 +138,7 @@ serve(async (req) => {
             'Try refreshing your Microsoft token'
           ]
         }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -168,6 +168,7 @@ serve(async (req) => {
     let transcriptData = null
     let transcriptError = null
     let successfulTranscriptMethod = null
+    let isPreconditionFailed = false
 
     for (const method of transcriptMethods) {
       try {
@@ -191,6 +192,11 @@ serve(async (req) => {
           const errorText = await transcriptResponse.text()
           transcriptError = errorText
           console.warn(`${method.name} failed:`, transcriptResponse.status, transcriptResponse.statusText, errorText)
+          
+          // Check for PreconditionFailed error
+          if (transcriptResponse.status === 412 || errorText.includes('PreconditionFailed')) {
+            isPreconditionFailed = true
+          }
           
           // If it's a precondition failed error, continue to next method
           if (transcriptResponse.status === 412) {
@@ -338,7 +344,7 @@ serve(async (req) => {
     const hasContent = !!transcriptContent && transcriptContent.trim().length > 0
     
     if (!transcriptData?.value?.length && !hasContent) {
-      // Provide detailed error information
+      // Provide detailed error information based on the specific error type
       let errorMessage = 'No transcript available for this meeting'
       let troubleshooting = [
         'Ensure the meeting was recorded in Teams',
@@ -347,7 +353,7 @@ serve(async (req) => {
         'Verify you have access to the meeting transcript'
       ]
 
-      if (transcriptError?.includes('PreconditionFailed')) {
+      if (isPreconditionFailed) {
         errorMessage = 'Transcript not supported for this meeting type'
         troubleshooting = [
           'This meeting was likely created as an instant meeting rather than a scheduled calendar event',
@@ -365,7 +371,7 @@ serve(async (req) => {
           foundWith: successfulApproach,
           troubleshooting: troubleshooting
         }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -411,7 +417,7 @@ serve(async (req) => {
         ]
       }),
       { 
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
