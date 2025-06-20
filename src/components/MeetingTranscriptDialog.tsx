@@ -46,7 +46,7 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
     setDetailedInfo(null);
     
     try {
-      console.log(`Loading transcript for meeting: ${meeting.title} (ID: ${meeting.id})`);
+      console.log(`Enhanced transcript loading for meeting: ${meeting.title} (ID: ${meeting.id})`);
       console.log('Teams meeting ID:', meeting.teams_meeting_id);
       
       // First check if we have a saved transcript (skip if force refresh)
@@ -60,9 +60,9 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
         }
       }
 
-      // If no saved transcript or force refresh, and we have a Teams meeting ID
+      // Enhanced transcript extraction for any meeting type
       if (meeting.teams_meeting_id) {
-        console.log(`Fetching Teams transcript for meeting ID: ${meeting.teams_meeting_id}`);
+        console.log(`Starting enhanced Teams transcript extraction for: ${meeting.teams_meeting_id}`);
         
         // Check Microsoft auth status first
         if (!isConnected || isExpired) {
@@ -81,25 +81,25 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
         
         try {
           const teamsData = await fetchTeamsTranscript(meeting.id, meeting.teams_meeting_id);
-          console.log('Teams data received:', teamsData);
+          console.log('Enhanced Teams data received:', teamsData);
 
           setDetailedInfo(teamsData); // Store for detailed display
           
           if (teamsData) {
             if (teamsData.success && teamsData.hasContent && teamsData.transcriptContent) {
-              console.log('Processing transcript content...');
+              console.log('Enhanced processing successful, transcript content found...');
               
               // Auto-track attendance from Teams data if available
               if (teamsData.attendees?.value?.[0]?.attendanceRecords) {
                 try {
                   await autoTrackOnlineAttendance(meeting.id, teamsData);
-                  console.log('Attendance tracked successfully');
+                  console.log('Attendance tracked successfully from enhanced data');
                 } catch (attendanceError) {
-                  console.warn('Failed to track attendance:', attendanceError);
+                  console.warn('Failed to track attendance from enhanced data:', attendanceError);
                 }
               }
 
-              // Process and save the transcript
+              // Process and save the enhanced transcript
               const processedTranscript = {
                 content: teamsData.transcriptContent,
                 summary: 'AI-generated summary will be available soon',
@@ -112,38 +112,39 @@ export const MeetingTranscriptDialog: React.FC<MeetingTranscriptDialogProps> = (
               if (saved) {
                 setTranscript(saved);
                 toast({
-                  title: "Transcript Found!",
-                  description: "Meeting transcript has been successfully extracted and saved."
+                  title: "Enhanced Transcript Extracted!",
+                  description: "Teams transcript has been successfully extracted using enhanced methods and saved."
                 });
               }
-            } else if (teamsData.hasRecordings) {
-              // Special case: recordings available but transcript extraction failed
-              setError('Recording found but automatic transcript extraction is not available for this meeting type. This typically occurs with instant meetings that weren\'t scheduled through Outlook calendar.');
-            } else if (teamsData.transcript?.value?.length > 0) {
+            } else if (teamsData.hasRecordings && !teamsData.hasContent) {
+              // Special case: recordings found but transcript still processing
+              setError('Meeting recording found but transcript is still being processed. This can take up to 24 hours after the meeting ends. The enhanced extraction will continue to monitor for availability.');
+            } else if (teamsData.transcript?.value?.length > 0 && !teamsData.hasContent) {
               // Transcript exists but content not ready
-              setError('Transcript is available in Teams but content is still being processed. This can take up to 24 hours after the meeting ends.');
+              setError('Transcript is available in Teams but content could not be extracted with enhanced methods. This may be due to processing delays or access restrictions.');
             } else if (teamsData.success === false) {
               // Handled error from the enhanced extraction
-              setError(teamsData.error || 'Unable to extract transcript from this meeting.');
+              setError(teamsData.error || 'Enhanced extraction methods were unable to retrieve transcript from this meeting.');
             } else {
               // No transcript found at all
-              setError(`No transcript found for this meeting in Teams${teamsData.foundWith ? ` (searched using: ${teamsData.foundWith})` : ''}. Make sure the meeting was recorded with transcription enabled.`);
+              const searchInfo = teamsData.foundWith ? ` (Found via: ${teamsData.foundWith})` : '';
+              setError(`No transcript found for this meeting in Teams${searchInfo}. Enhanced extraction attempted multiple strategies but found no accessible transcript data.`);
             }
           } else {
-            setError('Failed to connect to Teams or extract transcript data.');
+            setError('Enhanced extraction failed to connect to Teams or retrieve meeting data.');
           }
         } catch (teamsError: any) {
-          console.error('Error fetching from Teams:', teamsError);
-          setError(teamsError.message || 'Failed to connect to Teams or extract transcript.');
+          console.error('Enhanced Teams extraction error:', teamsError);
+          setError(teamsError.message || 'Enhanced extraction methods failed to retrieve transcript from Teams.');
         }
         
         setAutoProcessing(false);
       } else {
-        setError('This meeting was not created through Teams integration, so no transcript is available.');
+        setError('This meeting was not created through Teams integration, so enhanced transcript extraction is not available.');
       }
     } catch (error: any) {
-      console.error('Error loading transcript:', error);
-      setError('An unexpected error occurred while loading the transcript. Please try again.');
+      console.error('Enhanced transcript loading error:', error);
+      setError('An unexpected error occurred during enhanced transcript extraction. Please try again.');
       setAutoProcessing(false);
     } finally {
       setLoading(false);
@@ -237,7 +238,7 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <FileText className="h-5 w-5" />
-            <span>Meeting Transcript & Notes</span>
+            <span>Enhanced Meeting Transcript & Notes</span>
           </DialogTitle>
           <DialogDescription>{meeting.title}</DialogDescription>
         </DialogHeader>
@@ -258,7 +259,7 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
               {hasTeamsIntegration ? (
                 <Badge variant="outline" className="flex items-center space-x-1">
                   <CheckCircle className="h-3 w-3" />
-                  <span>Teams Integration</span>
+                  <span>Enhanced Teams Integration</span>
                 </Badge>
               ) : (
                 <Badge variant="secondary" className="flex items-center space-x-1">
@@ -295,7 +296,7 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                   disabled={loading || autoProcessing}
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${(loading || autoProcessing) ? 'animate-spin' : ''}`} />
-                  Force Extract
+                  Enhanced Extract
                 </Button>
               )}
               {transcript && (
@@ -381,12 +382,16 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
               <p className="text-gray-600">
-                {autoProcessing ? 'Extracting transcript using enhanced detection methods...' : 'Loading transcript...'}
+                {autoProcessing ? 'Running enhanced transcript extraction with multiple strategies...' : 'Loading transcript...'}
               </p>
               {autoProcessing && (
-                <p className="text-sm text-gray-500 mt-2">
-                  Trying multiple extraction methods including call records and recordings
-                </p>
+                <div className="text-sm text-gray-500 mt-2 space-y-1">
+                  <p>• Searching through online meetings and calendar events</p>
+                  <p>• Checking call records and meeting recordings</p>
+                  <p>• Attempting multiple transcript extraction methods</p>
+                  <p>• Processing various content formats (VTT, plain text, JSON)</p>
+                  <p>• Progressive retry with intelligent backoff</p>
+                </div>
               )}
             </div>
           )}
@@ -396,15 +401,18 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
               <div className="flex items-start space-x-2">
                 <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-semibold text-yellow-800">Transcript Extraction Result</h3>
+                  <h3 className="font-semibold text-yellow-800">Enhanced Transcript Extraction Result</h3>
                   <p className="text-yellow-700 text-sm mt-1">{error}</p>
                   
                   {detailedInfo && (
                     <div className="mt-3 text-xs text-yellow-600 bg-yellow-100 p-2 rounded">
-                      <p><strong>Technical Details:</strong></p>
-                      {detailedInfo.foundWith && <p>Meeting found via: {detailedInfo.foundWith}</p>}
-                      {detailedInfo.transcriptMethod && <p>Transcript method: {detailedInfo.transcriptMethod}</p>}
-                      {detailedInfo.hasRecordings && <p>Recordings available: Yes</p>}
+                      <p><strong>Enhanced Extraction Details:</strong></p>
+                      {detailedInfo.foundWith && <p>Meeting discovered via: {detailedInfo.foundWith}</p>}
+                      {detailedInfo.transcriptMethod && <p>Transcript method used: {detailedInfo.transcriptMethod}</p>}
+                      {detailedInfo.hasRecordings && <p>Recordings found: Yes</p>}
+                      {detailedInfo.extractionDetails?.strategiesAttempted && (
+                        <p>Strategies attempted: {detailedInfo.extractionDetails.strategiesAttempted.join(', ')}</p>
+                      )}
                       {detailedInfo.suggestion && (
                         <div className="mt-2">
                           <p><strong>Suggestion:</strong></p>
@@ -415,12 +423,13 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
                   )}
                   
                   <div className="mt-3 text-sm text-yellow-700">
-                    <p><strong>Enhanced extraction attempted:</strong></p>
+                    <p><strong>Enhanced extraction capabilities:</strong></p>
                     <ul className="list-disc list-inside mt-1 space-y-1">
-                      <li>Multiple transcript API endpoints</li>
-                      <li>Call records analysis</li>
-                      <li>Recording metadata extraction</li>
-                      <li>Alternative meeting discovery methods</li>
+                      <li>Multiple transcript API endpoints (v1.0 and beta)</li>
+                      <li>Advanced meeting discovery across calendar and calls</li>
+                      <li>Call records and recording metadata analysis</li>
+                      <li>Multiple content format processing (VTT, text, JSON)</li>
+                      <li>Progressive retry with intelligent backoff</li>
                     </ul>
                   </div>
                 </div>
@@ -435,7 +444,7 @@ ${transcript.action_items?.map((item: any, index: number) => `${index + 1}. ${it
               {hasTeamsIntegration ? (
                 <div className="text-sm mt-2 space-y-1">
                   <p>This meeting has Teams integration but no transcript was found.</p>
-                  <p>Try the "Force Extract" button to attempt enhanced extraction.</p>
+                  <p>Try the "Enhanced Extract" button to attempt comprehensive extraction.</p>
                 </div>
               ) : (
                 <p className="text-sm mt-2">

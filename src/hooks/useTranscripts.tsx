@@ -82,17 +82,17 @@ export const useTranscripts = () => {
     }
 
     try {
-      console.log(`Fetching Teams transcript for meeting: ${teamsId}`);
+      console.log(`Enhanced Teams transcript extraction for meeting: ${teamsId}`);
       console.log('Using access token:', accessToken ? 'Present' : 'Missing');
 
       // Ensure we have a fresh token
       await checkAndRefreshToken();
 
-      // Call edge function to fetch Teams data with enhanced extraction
+      // Enhanced extraction with multiple retry attempts
       let lastError = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
+      for (let attempt = 1; attempt <= 5; attempt++) {
         try {
-          console.log(`Attempt ${attempt} to fetch Teams transcript with enhanced extraction`);
+          console.log(`Enhanced extraction attempt ${attempt} for Teams meeting`);
           
           const { data, error } = await supabase.functions.invoke('fetch-teams-transcript', {
             body: {
@@ -102,82 +102,93 @@ export const useTranscripts = () => {
           });
 
           if (error) {
-            console.error(`Attempt ${attempt} failed:`, error);
+            console.error(`Enhanced attempt ${attempt} failed:`, error);
             lastError = error;
             
-            // If it's an auth error, try to refresh the token
-            if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-              console.log('Token may be expired, attempting refresh...');
+            // Enhanced auth error handling
+            if (error.message?.includes('401') || error.message?.includes('Unauthorized') || error.message?.includes('expired')) {
+              console.log('Token issue detected, refreshing...');
               try {
                 await checkAndRefreshToken();
-                console.log('Token refreshed, retrying...');
+                console.log('Token refreshed for enhanced extraction, retrying...');
                 continue;
               } catch (refreshErr) {
-                console.error('Token refresh failed:', refreshErr);
+                console.error('Token refresh failed during enhanced extraction:', refreshErr);
                 throw new Error('Microsoft authentication expired. Please reconnect your Microsoft account in Settings.');
               }
             }
             
-            if (attempt === 3) throw error;
+            if (attempt === 5) throw error;
             
-            // Exponential backoff
-            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+            // Progressive backoff with longer waits for enhanced extraction
+            await new Promise(resolve => setTimeout(resolve, 2000 * Math.pow(1.5, attempt - 1)));
             continue;
           }
 
-          console.log('Teams transcript response received:', {
+          console.log('Enhanced Teams transcript response:', {
             success: data?.success,
-            hasTranscript: !!data?.transcript,
-            transcriptCount: data?.transcript?.value?.length || 0,
+            hasTranscripts: !!data?.transcript?.value?.length,
+            hasRecordings: data?.hasRecordings,
             hasContent: data?.hasContent,
             contentLength: data?.transcriptContent?.length || 0,
-            hasAttendees: !!data?.attendees,
-            attendeesCount: data?.attendees?.value?.[0]?.attendanceRecords?.length || 0,
-            extractionDetails: data?.extractionDetails
+            strategiesAttempted: data?.extractionDetails?.strategiesAttempted?.length || 0,
+            foundWith: data?.foundWith,
+            transcriptMethod: data?.transcriptMethod
           });
 
-          // Handle response - both success and handled errors
+          // Enhanced response handling
           if (data?.success === false) {
-            // This is a handled error case from the edge function
-            throw new Error(data.error || 'Failed to fetch transcript');
+            throw new Error(data.error || 'Enhanced extraction failed');
           }
 
-          // Check if we got actual content
+          // Success case - transcript content found
           if (data?.success && data?.hasContent && data?.transcriptContent) {
-            console.log('Successfully extracted transcript content:', data.transcriptContent.length, 'characters');
+            console.log('Enhanced extraction successful! Content length:', data.transcriptContent.length);
             return data;
-          } else if (data?.success && data?.transcript?.value?.length > 0 && !data?.hasContent) {
-            // Transcript found but no content extracted
-            throw new Error('Transcript found in Teams but content could not be extracted. This may be due to processing delays or access restrictions.');
-          } else if (data?.success === false || !data?.transcript?.value?.length) {
-            // No transcript found
-            throw new Error(data?.error || 'No transcript found for this meeting. Ensure the meeting was recorded with transcription enabled.');
+          } 
+          // Recordings found but no transcript content yet
+          else if (data?.success && data?.hasRecordings && !data?.hasContent) {
+            throw new Error('Meeting recording found but transcript is still being processed. Transcripts can take up to 24 hours to become available after a meeting ends. Please try again later.');
+          }
+          // Transcript metadata found but no content
+          else if (data?.success && data?.transcript?.value?.length > 0 && !data?.hasContent) {
+            throw new Error('Transcript metadata found but content extraction failed. This may be due to transcript processing delays or access restrictions. Please try again in a few minutes.');
+          }
+          // No transcript or recording found
+          else if (data?.success === false || (!data?.transcript?.value?.length && !data?.hasRecordings)) {
+            const searchDetails = data?.foundWith ? ` (Meeting found via: ${data.foundWith})` : '';
+            throw new Error(`No transcript or recording found for this meeting${searchDetails}. Ensure the meeting was recorded with transcription enabled in Teams.`);
+          }
+          // Fallback - return whatever data we have
+          else {
+            console.log('Enhanced extraction returning partial data');
+            return data;
           }
 
-          // Return the data for further processing
-          return data;
         } catch (err: any) {
-          console.error(`Attempt ${attempt} error:`, err);
+          console.error(`Enhanced extraction attempt ${attempt} error:`, err);
           lastError = err;
           
-          if (attempt === 3) throw err;
+          if (attempt === 5) throw err;
           
-          // Wait before retry with exponential backoff
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+          // Enhanced retry logic with longer waits
+          await new Promise(resolve => setTimeout(resolve, 2000 * Math.pow(1.5, attempt - 1)));
         }
       }
 
       throw lastError;
     } catch (error: any) {
-      console.error('Error fetching Teams transcript:', error);
+      console.error('Enhanced Teams transcript extraction error:', error);
       
-      let errorMessage = 'Failed to fetch Teams transcript';
+      let errorMessage = 'Failed to extract Teams transcript using enhanced methods';
       if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
         errorMessage = 'Microsoft authentication expired. Please reconnect your Microsoft account in Settings.';
       } else if (error.message?.includes('404') || error.message?.includes('Not Found')) {
-        errorMessage = 'Meeting transcript not found in Teams. The meeting may not have been recorded with transcription enabled.';
+        errorMessage = 'Meeting not found in Teams. The meeting may not exist or you may not have access to it.';
       } else if (error.message?.includes('403')) {
-        errorMessage = 'Access denied. Please ensure you have permission to access this meeting\'s transcript.';
+        errorMessage = 'Access denied. Please ensure you have permission to access this meeting\'s transcript and recordings.';
+      } else if (error.message?.includes('processing') || error.message?.includes('24 hours')) {
+        errorMessage = error.message; // Pass through processing-related messages
       } else if (error.message) {
         errorMessage = error.message;
       }
