@@ -57,7 +57,7 @@ export const AppContent: React.FC = () => {
         <Route path="/attendance" element={<AttendanceModule />} />
         <Route path="/reports" element={<ReportsModule />} />
         <Route path="/settings" element={<SettingsModule />} />
-        {/* 404 fallback for unknown routes within the app */}
+        {/* Catch-all for unknown routes within the app */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
