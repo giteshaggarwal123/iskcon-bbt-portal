@@ -145,60 +145,22 @@ export const Dashboard: React.FC = () => {
 
   const handleVoteNow = (poll: Poll) => {
     console.log('Navigating to voting with poll:', poll.id);
-    try {
-      navigate('/voting');
-      toast({
-        title: "Navigation",
-        description: "Opening voting module"
-      });
-    } catch (error) {
-      console.error('Navigation error:', error);
-      toast({
-        title: "Navigation Error",
-        description: "Failed to open voting module",
-        variant: "destructive"
-      });
-    }
+    navigate('/voting');
+    toast({
+      title: "Navigation",
+      description: "Opening voting module"
+    });
   };
 
   const handleViewMore = (module: string) => {
     console.log('View More clicked for module:', module);
-    try {
-      switch (module) {
-        case 'email':
-          navigate('/email');
-          break;
-        case 'meetings':
-          navigate('/meetings');
-          break;
-        case 'documents':
-          navigate('/documents');
-          break;
-        case 'voting':
-          navigate('/voting');
-          break;
-        default:
-          console.log('Unknown module:', module);
-          toast({
-            title: "Navigation Error",
-            description: `Unknown module: ${module}`,
-            variant: "destructive"
-          });
-          return;
-      }
-      
-      toast({
-        title: "Navigation",
-        description: `Opening ${module} module`
-      });
-    } catch (error) {
-      console.error('Navigation error:', error);
-      toast({
-        title: "Navigation Error",
-        description: `Failed to navigate to ${module}`,
-        variant: "destructive"
-      });
-    }
+    const routePath = `/${module}`;
+    console.log('Navigating to:', routePath);
+    navigate(routePath);
+    toast({
+      title: "Navigation",
+      description: `Opening ${module} module`
+    });
   };
 
   const isPastDeadline = (deadline: string) => new Date(deadline) < new Date();

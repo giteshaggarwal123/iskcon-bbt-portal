@@ -4,7 +4,7 @@ import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCh
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,6 +17,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, onNavigate }) => {
   const [currentModule, setCurrentModule] = useState('dashboard');
   const isMobile = useIsMobile();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Update current module based on location
   useEffect(() => {
@@ -39,7 +40,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, onNavigate }) => {
     setCurrentModule(module);
     if (isMobile) setSidebarOpen(false);
     
-    // Use the navigation function passed from AppContent
+    // Use React Router navigation
+    const routePath = module === 'dashboard' ? '/' : `/${module}`;
+    console.log('Navigating to:', routePath);
+    navigate(routePath);
+    
+    // Also call the optional onNavigate callback for logging
     if (onNavigate) {
       onNavigate(module);
     }
@@ -73,7 +79,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, onNavigate }) => {
             setSidebarCollapsed(!sidebarCollapsed);
           }
         }}
-        onProfileClick={() => handleModuleChange('profile')}
+        onProfileClick={() => handleModuleChange('settings')}
         onSettingsClick={() => handleModuleChange('settings')}
         onNavigate={handleModuleChange}
         showMenuButton={true}
