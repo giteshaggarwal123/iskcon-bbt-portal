@@ -1,5 +1,3 @@
-
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -32,7 +30,7 @@
 
     --border: 165 63 43;
     --input: 229 231 235;
-    --ring: 165 63 43;
+    --ring: 198 139 89;
 
     --radius: 0.5rem;
 
@@ -40,10 +38,10 @@
     --sidebar-foreground: 44 44 44;
     --sidebar-primary: 165 63 43;
     --sidebar-primary-foreground: 255 255 255;
-    --sidebar-accent: 243 233 220;
+    --sidebar-accent: 198 139 89;
     --sidebar-accent-foreground: 44 44 44;
     --sidebar-border: 165 63 43;
-    --sidebar-ring: 165 63 43;
+    --sidebar-ring: 198 139 89;
   }
 
   .dark {
@@ -78,7 +76,7 @@
     --sidebar-foreground: 44 44 44;
     --sidebar-primary: 198 139 89;
     --sidebar-primary-foreground: 51 51 51;
-    --sidebar-accent: 68 68 68;
+    --sidebar-accent: 198 139 89;
     --sidebar-accent-foreground: 44 44 44;
     --sidebar-border: 68 68 68;
     --sidebar-ring: 198 139 89;
