@@ -26,40 +26,41 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: '#B8555A',
+					DEFAULT: '#6B1E1E',
 					foreground: '#FFFFFF'
 				},
 				secondary: {
-					DEFAULT: '#F5F3F0',
-					foreground: '#1F2937'
+					DEFAULT: '#F5EFE6',
+					foreground: '#2C2C2C'
 				},
 				destructive: {
 					DEFAULT: '#EF4444',
 					foreground: '#FFFFFF'
 				},
 				muted: {
-					DEFAULT: '#F5F3F0',
+					DEFAULT: '#F5EFE6',
 					foreground: '#6B7280'
 				},
 				accent: {
-					DEFAULT: '#F5F3F0',
-					foreground: '#1F2937'
+					DEFAULT: '#C68B59',
+					foreground: '#2C2C2C'
 				},
 				popover: {
 					DEFAULT: '#FFFFFF',
-					foreground: '#1F2937'
+					foreground: '#2C2C2C'
 				},
 				card: {
 					DEFAULT: '#FFFFFF',
-					foreground: '#1F2937'
+					foreground: '#2C2C2C'
 				},
 				success: '#22C55E',
 				warning: '#F59E0B',
 				error: '#EF4444',
 				iskcon: {
-					maroon: '#B8555A',
-					cream: '#F5F3F0',
-					dark: '#1F2937'
+					maroon: '#6B1E1E',
+					cream: '#F5EFE6',
+					dark: '#2C2C2C',
+					gold: '#C68B59'
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
