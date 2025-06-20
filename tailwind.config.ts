@@ -31,7 +31,7 @@ export default {
 				},
 				secondary: {
 					DEFAULT: '#F3E9DC',
-					foreground: '#333333'
+					foreground: '#2C2C2C'
 				},
 				destructive: {
 					DEFAULT: '#EF4444',
@@ -39,19 +39,19 @@ export default {
 				},
 				muted: {
 					DEFAULT: '#F3E9DC',
-					foreground: '#6B7280'
+					foreground: '#2C2C2C'
 				},
 				accent: {
 					DEFAULT: '#C68B59',
-					foreground: '#333333'
+					foreground: '#2C2C2C'
 				},
 				popover: {
 					DEFAULT: '#FFFFFF',
-					foreground: '#333333'
+					foreground: '#2C2C2C'
 				},
 				card: {
 					DEFAULT: '#FFFFFF',
-					foreground: '#333333'
+					foreground: '#2C2C2C'
 				},
 				success: '#22C55E',
 				warning: '#F59E0B',
@@ -59,7 +59,7 @@ export default {
 				iskcon: {
 					maroon: '#A53F2B',
 					cream: '#F3E9DC',
-					dark: '#333333',
+					dark: '#2C2C2C',
 					gold: '#C68B59',
 					folder: '#5A3F2B',
 					'folder-alt': '#926C4B'
