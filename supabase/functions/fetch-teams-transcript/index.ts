@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -141,34 +140,31 @@ serve(async (req) => {
     let actualMeetingId = meetingData.id
     console.log('Using meeting ID for transcript lookup:', actualMeetingId)
 
-    // Try comprehensive transcript retrieval methods - including fallbacks for instant meetings
+    // Enhanced transcript retrieval with improved content fetching
     const transcriptMethods = [
-      // Method 1: Standard transcript API
+      // Method 1: Standard transcript API with multiple content formats
       {
         name: 'Standard Transcript API',
-        url: `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/transcripts`
+        url: `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/transcripts`,
+        contentFormats: ['text/vtt', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
       },
-      // Method 2: Beta API endpoint
+      // Method 2: Beta API endpoint with content formats
       {
         name: 'Beta Transcript API',
-        url: `https://graph.microsoft.com/beta/me/onlineMeetings/${actualMeetingId}/transcripts`
+        url: `https://graph.microsoft.com/beta/me/onlineMeetings/${actualMeetingId}/transcripts`,
+        contentFormats: ['text/vtt', 'text/plain']
       },
-      // Method 3: Communications endpoint
+      // Method 3: Try with different meeting ID formats
       {
-        name: 'Communications API',
-        url: `https://graph.microsoft.com/v1.0/communications/onlineMeetings/${actualMeetingId}/transcripts`
-      },
-      // Method 4: Direct call recording API (fallback for instant meetings)
-      {
-        name: 'Call Records API',
-        url: `https://graph.microsoft.com/v1.0/communications/callRecords?$filter=contains(subject,'${encodeURIComponent(meetingData.subject || '')}')`
+        name: 'Encoded Meeting ID Transcript',
+        url: `https://graph.microsoft.com/v1.0/me/onlineMeetings/${encodeURIComponent(actualMeetingId)}/transcripts`,
+        contentFormats: ['text/vtt', 'text/plain']
       }
     ]
 
     let transcriptData = null
-    let transcriptError = null
+    let transcriptContent = null
     let successfulTranscriptMethod = null
-    let callRecordData = null
 
     for (const method of transcriptMethods) {
       try {
@@ -183,133 +179,133 @@ serve(async (req) => {
 
         if (transcriptResponse.ok) {
           const data = await transcriptResponse.json()
+          console.log(`${method.name} response:`, {
+            transcriptCount: data.value?.length || 0,
+            hasTranscripts: !!data.value?.length
+          })
           
-          if (method.name === 'Call Records API') {
-            callRecordData = data
-            console.log(`Call records found:`, data.value?.length || 0)
-            // Try to extract transcript from call records
-            if (data.value?.length > 0) {
-              // Find the most recent call record that might have transcripts
-              for (const callRecord of data.value) {
+          if (data.value?.length > 0) {
+            transcriptData = data
+            successfulTranscriptMethod = method.name
+            
+            // Try to get content for each transcript with multiple formats
+            const sortedTranscripts = data.value.sort((a: any, b: any) => 
+              new Date(b.createdDateTime || Date.now()).getTime() - new Date(a.createdDateTime || Date.now()).getTime()
+            )
+            
+            for (const transcript of sortedTranscripts) {
+              const transcriptId = transcript.id
+              console.log(`Attempting to fetch content for transcript: ${transcriptId}`)
+              
+              // Try multiple content formats for this transcript
+              for (const format of method.contentFormats) {
                 try {
-                  const sessionsResponse = await fetch(
-                    `https://graph.microsoft.com/v1.0/communications/callRecords/${callRecord.id}/sessions`,
+                  console.log(`Trying content format: ${format}`)
+                  
+                  // Build content URL with proper meeting ID format
+                  let contentUrl = method.url.replace('/transcripts', `/transcripts/${transcriptId}/content`)
+                  
+                  const contentResponse = await fetch(
+                    `${contentUrl}?$format=${format}`,
                     {
                       headers: {
                         'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json'
+                        'Accept': format === 'text/vtt' ? 'text/plain' : 
+                                format === 'text/plain' ? 'text/plain' : 'application/octet-stream'
                       }
                     }
                   )
-                  
-                  if (sessionsResponse.ok) {
-                    const sessionsData = await sessionsResponse.json()
-                    console.log(`Sessions found for call record ${callRecord.id}:`, sessionsData.value?.length || 0)
+
+                  if (contentResponse.ok) {
+                    const content = await contentResponse.text()
+                    console.log(`Content fetched successfully:`, {
+                      format: format,
+                      contentLength: content.length,
+                      contentPreview: content.substring(0, 200)
+                    })
                     
-                    // Check if any session has transcript data
-                    for (const session of sessionsData.value || []) {
-                      if (session.segments && session.segments.some((seg: any) => seg.transcript)) {
-                        transcriptData = {
-                          value: [{
-                            id: `callrecord_${callRecord.id}`,
-                            transcriptContent: session.segments
-                              .filter((seg: any) => seg.transcript)
-                              .map((seg: any) => seg.transcript)
-                              .join('\n')
-                          }]
-                        }
-                        successfulTranscriptMethod = method.name
-                        console.log('Found transcript data in call record sessions')
-                        break
+                    if (content && content.trim().length > 0) {
+                      // Clean up VTT format if needed
+                      if (format === 'text/vtt') {
+                        // Remove VTT headers and timestamps, keep only text
+                        const lines = content.split('\n')
+                        const textLines = lines.filter(line => 
+                          !line.startsWith('WEBVTT') && 
+                          !line.match(/^\d{2}:\d{2}:\d{2}/) &&
+                          !line.includes('-->') &&
+                          line.trim().length > 0
+                        )
+                        transcriptContent = textLines.join('\n').trim()
+                      } else {
+                        transcriptContent = content
                       }
+                      
+                      console.log(`Processed transcript content length: ${transcriptContent.length}`)
+                      break // Found content, break out of format loop
                     }
+                  } else {
+                    const errorText = await contentResponse.text()
+                    console.warn(`Content fetch failed for ${format}:`, contentResponse.status, errorText)
                   }
-                } catch (sessionError) {
-                  console.warn(`Error fetching sessions for call record ${callRecord.id}:`, sessionError)
+                } catch (error) {
+                  console.warn(`Error fetching content with ${format}:`, error)
                 }
-                
-                if (transcriptData) break
+              }
+              
+              if (transcriptContent) {
+                break // Found content, break out of transcript loop
               }
             }
-          } else {
-            transcriptData = data
-            successfulTranscriptMethod = method.name
-            console.log(`Transcript data retrieved using ${method.name}:`, {
-              transcriptCount: transcriptData.value?.length || 0
-            })
+            
+            if (transcriptContent) {
+              break // Found content, break out of method loop
+            }
           }
-          
-          if (transcriptData?.value?.length > 0) break
         } else {
           const errorText = await transcriptResponse.text()
-          transcriptError = errorText
           console.warn(`${method.name} failed:`, transcriptResponse.status, transcriptResponse.statusText, errorText)
         }
       } catch (error) {
         console.warn(`Error with ${method.name}:`, error)
-        transcriptError = error.message
       }
     }
 
-    // If still no transcript, try alternative recording-based extraction
-    if (!transcriptData || !transcriptData.value?.length) {
-      console.log('Standard transcript methods failed, trying recording-based extraction...')
+    // If no content found through standard methods, try alternative approaches
+    if (!transcriptContent && transcriptData?.value?.length > 0) {
+      console.log('Trying alternative content extraction methods...')
       
-      try {
-        // Try to get recordings which might have embedded transcript data
-        const recordingsResponse = await fetch(
-          `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/recordings`,
-          {
+      // Try direct content URLs with different approaches
+      const alternativeContentMethods = [
+        // Method 1: Try without format specification
+        `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/transcripts/${transcriptData.value[0].id}/content`,
+        // Method 2: Try beta endpoint
+        `https://graph.microsoft.com/beta/me/onlineMeetings/${actualMeetingId}/transcripts/${transcriptData.value[0].id}/content`,
+        // Method 3: Try with encoded meeting ID
+        `https://graph.microsoft.com/v1.0/me/onlineMeetings/${encodeURIComponent(actualMeetingId)}/transcripts/${transcriptData.value[0].id}/content`
+      ]
+      
+      for (const contentUrl of alternativeContentMethods) {
+        try {
+          console.log(`Trying alternative content URL: ${contentUrl}`)
+          
+          const contentResponse = await fetch(contentUrl, {
             headers: {
               'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
+              'Accept': 'text/plain'
             }
-          }
-        )
+          })
 
-        if (recordingsResponse.ok) {
-          const recordingsData = await recordingsResponse.json()
-          console.log('Recordings found:', recordingsData.value?.length || 0)
-          
-          // Try to extract any available metadata that might contain transcript info
-          if (recordingsData.value?.length > 0) {
-            for (const recording of recordingsData.value) {
-              // Check if recording has any transcript metadata
-              if (recording.recordingContentUrl) {
-                try {
-                  // Try to fetch recording metadata that might contain transcript
-                  const metadataResponse = await fetch(recording.recordingContentUrl, {
-                    method: 'HEAD',
-                    headers: {
-                      'Authorization': `Bearer ${accessToken}`
-                    }
-                  })
-                  
-                  if (metadataResponse.ok) {
-                    // If we can access the recording, suggest manual extraction
-                    return new Response(
-                      JSON.stringify({
-                        success: false,
-                        hasRecordings: true,
-                        recordings: recordingsData.value,
-                        meeting: meetingData,
-                        foundWith: successfulApproach,
-                        error: 'Automatic transcript extraction not available for instant meetings',
-                        details: 'This meeting has recordings available but requires manual transcript extraction. Try downloading the recording and extracting the transcript manually.',
-                        suggestion: 'For future meetings, schedule through Outlook calendar to enable automatic transcript support.'
-                      }),
-                      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-                    )
-                  }
-                } catch (recordingAccessError) {
-                  console.warn(`Could not access recording ${recording.id}:`, recordingAccessError)
-                }
-              }
+          if (contentResponse.ok) {
+            const content = await contentResponse.text()
+            if (content && content.trim().length > 0) {
+              transcriptContent = content
+              console.log(`Alternative method successful, content length: ${content.length}`)
+              break
             }
           }
+        } catch (error) {
+          console.warn(`Alternative content method failed:`, error)
         }
-      } catch (recordingError) {
-        console.warn('Error checking recordings:', recordingError)
       }
     }
 
@@ -336,86 +332,19 @@ serve(async (req) => {
       console.warn('Error fetching attendees:', error)
     }
 
-    // If we have transcript data, try to fetch the actual content
-    let transcriptContent = null
-    let transcriptId = null
-    
-    if (transcriptData?.value?.length > 0) {
-      const sortedTranscripts = transcriptData.value.sort((a: any, b: any) => 
-        new Date(b.createdDateTime || Date.now()).getTime() - new Date(a.createdDateTime || Date.now()).getTime()
-      )
-      const firstTranscript = sortedTranscripts[0]
-      transcriptId = firstTranscript.id
-      
-      // If transcript content is already available (from call records)
-      if (firstTranscript.transcriptContent) {
-        transcriptContent = firstTranscript.transcriptContent
-        console.log('Using transcript content from call records, length:', transcriptContent.length)
-      } else {
-        console.log('Fetching transcript content for:', transcriptId)
-        
-        // Enhanced content retrieval with multiple formats and endpoints
-        const contentApproaches = [
-          {
-            format: 'text/vtt',
-            accept: 'text/plain',
-            endpoint: `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/transcripts/${transcriptId}/content`
-          },
-          {
-            format: 'text/plain',
-            accept: 'text/plain',
-            endpoint: `https://graph.microsoft.com/beta/me/onlineMeetings/${actualMeetingId}/transcripts/${transcriptId}/content`
-          },
-          {
-            format: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            accept: 'application/octet-stream',
-            endpoint: `https://graph.microsoft.com/v1.0/me/onlineMeetings/${actualMeetingId}/transcripts/${transcriptId}/content`
-          }
-        ]
-        
-        for (const approach of contentApproaches) {
-          try {
-            console.log(`Trying content format: ${approach.format}`)
-            const contentResponse = await fetch(
-              `${approach.endpoint}?$format=${approach.format}`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${accessToken}`,
-                  'Accept': approach.accept
-                }
-              }
-            )
-
-            if (contentResponse.ok) {
-              const content = await contentResponse.text()
-              if (content && content.trim().length > 0) {
-                transcriptContent = content
-                console.log(`Transcript content fetched successfully with format ${approach.format}, length:`, content.length)
-                break
-              }
-            } else {
-              const errorText = await contentResponse.text()
-              console.warn(`Content fetch failed for ${approach.format}:`, contentResponse.status, errorText)
-            }
-          } catch (error) {
-            console.warn(`Error fetching content with ${approach.format}:`, error)
-          }
-        }
-      }
-    }
-
     // Prepare final response
     const hasContent = !!transcriptContent && transcriptContent.trim().length > 0
+    const hasTranscripts = !!transcriptData?.value?.length
     
-    if (!transcriptData?.value?.length && !hasContent) {
+    if (!hasTranscripts && !hasContent) {
       return new Response(
         JSON.stringify({ 
           success: false,
-          error: 'No transcript available for this meeting',
-          details: 'Unable to extract transcript using any available method. The meeting may not have been recorded with transcription enabled.',
+          error: 'No transcript found for this meeting',
+          details: 'No transcript data was found using any available method. The meeting may not have been recorded with transcription enabled.',
           meeting: meetingData,
           foundWith: successfulApproach,
-          suggestion: 'Ensure future meetings are recorded with transcription enabled, or consider scheduling through Outlook calendar for better transcript support.'
+          suggestion: 'Ensure the meeting was recorded with transcription enabled in Teams settings.'
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -428,15 +357,20 @@ serve(async (req) => {
       attendees: attendeesData,
       hasContent: hasContent,
       meeting: meetingData,
-      transcriptId: transcriptId,
+      transcriptId: transcriptData?.value?.[0]?.id,
       foundWith: successfulApproach,
       transcriptMethod: successfulTranscriptMethod,
-      actualMeetingId: actualMeetingId
+      actualMeetingId: actualMeetingId,
+      extractionDetails: {
+        transcriptsFound: transcriptData?.value?.length || 0,
+        contentExtracted: hasContent,
+        contentLength: transcriptContent?.length || 0
+      }
     }
 
     console.log('Final response summary:', {
       success: true,
-      hasTranscript: !!transcriptData?.value?.length,
+      hasTranscripts: hasTranscripts,
       hasContent: hasContent,
       contentLength: transcriptContent?.length || 0,
       foundWith: successfulApproach,

@@ -133,17 +133,28 @@ export const useTranscripts = () => {
             contentLength: data?.transcriptContent?.length || 0,
             hasAttendees: !!data?.attendees,
             attendeesCount: data?.attendees?.value?.[0]?.attendanceRecords?.length || 0,
-            hasRecordings: data?.hasRecordings,
-            error: data?.error
+            extractionDetails: data?.extractionDetails
           });
 
-          // Handle both success and error responses from the enhanced edge function
+          // Handle response - both success and handled errors
           if (data?.success === false) {
-            // This is a handled error case, not a system error
+            // This is a handled error case from the edge function
             throw new Error(data.error || 'Failed to fetch transcript');
           }
 
-          // Return the data even if it contains partial results or suggestions
+          // Check if we got actual content
+          if (data?.success && data?.hasContent && data?.transcriptContent) {
+            console.log('Successfully extracted transcript content:', data.transcriptContent.length, 'characters');
+            return data;
+          } else if (data?.success && data?.transcript?.value?.length > 0 && !data?.hasContent) {
+            // Transcript found but no content extracted
+            throw new Error('Transcript found in Teams but content could not be extracted. This may be due to processing delays or access restrictions.');
+          } else if (data?.success === false || !data?.transcript?.value?.length) {
+            // No transcript found
+            throw new Error(data?.error || 'No transcript found for this meeting. Ensure the meeting was recorded with transcription enabled.');
+          }
+
+          // Return the data for further processing
           return data;
         } catch (err: any) {
           console.error(`Attempt ${attempt} error:`, err);
