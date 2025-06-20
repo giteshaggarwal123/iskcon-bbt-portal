@@ -26,41 +26,43 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: '#6B1E1E',
+					DEFAULT: '#A53F2B',
 					foreground: '#FFFFFF'
 				},
 				secondary: {
-					DEFAULT: '#F5EFE6',
-					foreground: '#2C2C2C'
+					DEFAULT: '#F3E9DC',
+					foreground: '#333333'
 				},
 				destructive: {
 					DEFAULT: '#EF4444',
 					foreground: '#FFFFFF'
 				},
 				muted: {
-					DEFAULT: '#F5EFE6',
+					DEFAULT: '#F3E9DC',
 					foreground: '#6B7280'
 				},
 				accent: {
 					DEFAULT: '#C68B59',
-					foreground: '#2C2C2C'
+					foreground: '#333333'
 				},
 				popover: {
 					DEFAULT: '#FFFFFF',
-					foreground: '#2C2C2C'
+					foreground: '#333333'
 				},
 				card: {
 					DEFAULT: '#FFFFFF',
-					foreground: '#2C2C2C'
+					foreground: '#333333'
 				},
 				success: '#22C55E',
 				warning: '#F59E0B',
 				error: '#EF4444',
 				iskcon: {
-					maroon: '#6B1E1E',
-					cream: '#F5EFE6',
-					dark: '#2C2C2C',
-					gold: '#C68B59'
+					maroon: '#A53F2B',
+					cream: '#F3E9DC',
+					dark: '#333333',
+					gold: '#C68B59',
+					folder: '#5A3F2B',
+					'folder-alt': '#926C4B'
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
