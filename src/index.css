@@ -1,11 +1,10 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 245 239 230;
+    --background: 253 248 243;
     --foreground: 44 44 44;
 
     --card: 255 255 255;
@@ -46,7 +45,7 @@
   }
 
   .dark {
-    --background: 245 239 230;
+    --background: 253 248 243;
     --foreground: 44 44 44;
 
     --card: 55 55 55;
