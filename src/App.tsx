@@ -41,14 +41,17 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   console.log('ProtectedRoute check:', {
     user: !!user,
+    userEmail: user?.email,
+    currentPath: window.location.pathname,
     timestamp: new Date().toISOString()
   });
 
   if (!user) {
-    console.log('No user found, redirecting to auth');
+    console.log('No user found, redirecting to auth from:', window.location.pathname);
     return <Navigate to="/auth" replace />;
   }
 
+  console.log('User authenticated, rendering protected content');
   return (
     <Layout>
       {children}
@@ -58,6 +61,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   console.log('App component rendering...');
+  console.log('Current URL:', window.location.href);
+  console.log('Current pathname:', window.location.pathname);
   
   useEffect(() => {
     console.log('App initialized successfully');
@@ -93,7 +98,11 @@ const App = () => {
                   <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
                   
                   {/* Protected routes - All use the same ProtectedRoute wrapper */}
-                  <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/" element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/meetings" element={<ProtectedRoute><MeetingsModule /></ProtectedRoute>} />
                   <Route path="/voting" element={<ProtectedRoute><VotingModule /></ProtectedRoute>} />
                   <Route path="/members" element={<ProtectedRoute><MembersModule /></ProtectedRoute>} />
