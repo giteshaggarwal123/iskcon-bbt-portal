@@ -1,5 +1,4 @@
-
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -33,24 +32,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const initRef = useRef(false);
 
   useEffect(() => {
-    // Check if session should be persisted based on remember me setting
-    const shouldPersist = localStorage.getItem('rememberMe') === 'true';
-    const rememberMeExpiry = localStorage.getItem('rememberMeExpiry');
-    
-    // If remember me was not checked or has expired, clear session storage
-    if (!shouldPersist || (rememberMeExpiry && Date.now() > parseInt(rememberMeExpiry))) {
-      localStorage.removeItem('rememberMe');
-      localStorage.removeItem('rememberMeExpiry');
-      // Clear any stored session
-      localStorage.removeItem('sb-daiimiznlkffbbadhodw-auth-token');
-      sessionStorage.removeItem('sb-daiimiznlkffbbadhodw-auth-token');
-    }
+    // Prevent multiple auth initializations
+    if (initRef.current) return;
+    initRef.current = true;
 
-    // Get initial session
-    const getInitialSession = async () => {
+    const initializeAuth = async () => {
       try {
+        // Check if session should be persisted based on remember me setting
+        const shouldPersist = localStorage.getItem('rememberMe') === 'true';
+        const rememberMeExpiry = localStorage.getItem('rememberMeExpiry');
+        
+        // If remember me was not checked or has expired, clear session storage
+        if (!shouldPersist || (rememberMeExpiry && Date.now() > parseInt(rememberMeExpiry))) {
+          localStorage.removeItem('rememberMe');
+          localStorage.removeItem('rememberMeExpiry');
+          // Clear any stored session
+          localStorage.removeItem('sb-daiimiznlkffbbadhodw-auth-token');
+          sessionStorage.removeItem('sb-daiimiznlkffbbadhodw-auth-token');
+        }
+
+        // Get initial session
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Error getting session:', error);
@@ -69,13 +73,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(null);
         }
       } catch (error) {
-        console.error('Error in getInitialSession:', error);
+        console.error('Error in auth initialization:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    getInitialSession();
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -100,7 +104,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      initRef.current = false;
+    };
   }, []);
 
   // Helper function to check if session is fresh (less than 1 hour old)

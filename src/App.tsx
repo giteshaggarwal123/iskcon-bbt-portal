@@ -21,7 +21,7 @@ import { MicrosoftCallback } from "@/pages/MicrosoftCallback";
 import { NotFound } from "@/pages/NotFound";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useNotificationIntegration } from "@/hooks/useNotificationIntegration";
-import React, { Suspense, useEffect } from "react";
+import React, { Suspense, useEffect, useRef } from "react";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,19 +35,26 @@ const queryClient = new QueryClient({
 
 // Protected Route Wrapper Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const redirectRef = useRef(false);
   
   useNotificationIntegration();
 
-  console.log('ProtectedRoute check:', {
-    user: !!user,
-    userEmail: user?.email,
-    currentPath: window.location.pathname,
-    timestamp: new Date().toISOString()
-  });
+  // Prevent multiple redirects
+  useEffect(() => {
+    if (!loading && !user && !redirectRef.current) {
+      redirectRef.current = true;
+      console.log('No user found, redirecting to auth from:', window.location.pathname);
+    }
+  }, [user, loading]);
 
+  // Show loading while auth is being determined
+  if (loading) {
+    return <LoadingFallback />;
+  }
+
+  // Redirect to auth if no user
   if (!user) {
-    console.log('No user found, redirecting to auth from:', window.location.pathname);
     return <Navigate to="/auth" replace />;
   }
 
@@ -60,11 +67,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => {
-  console.log('App component rendering...');
-  console.log('Current URL:', window.location.href);
-  console.log('Current pathname:', window.location.pathname);
+  const initRef = useRef(false);
   
   useEffect(() => {
+    // Prevent multiple initializations
+    if (initRef.current) return;
+    initRef.current = true;
+    
     console.log('App initialized successfully');
     console.log('Environment:', {
       mode: import.meta.env.MODE,
