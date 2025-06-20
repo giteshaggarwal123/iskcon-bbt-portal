@@ -6,10 +6,21 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LoadingFallback } from "@/components/LoadingFallback";
-import { AppContent } from "@/components/AppContent";
+import { Layout } from "@/components/Layout";
+import { Dashboard } from "@/components/Dashboard";
+import { MeetingsModule } from "@/components/MeetingsModule";
+import { VotingModule } from "@/components/VotingModule";
+import { MembersModule } from "@/components/MembersModule";
+import { DocumentsModule } from "@/components/DocumentsModule";
+import { EmailModule } from "@/components/EmailModule";
+import { AttendanceModule } from "@/components/AttendanceModule";
+import { ReportsModule } from "@/components/ReportsModule";
+import { SettingsModule } from "@/components/SettingsModule";
 import { RealAuthPage } from "@/components/RealAuthPage";
 import { MicrosoftCallback } from "@/pages/MicrosoftCallback";
-import { AuthProvider } from "@/hooks/useAuth";
+import { NotFound } from "@/pages/NotFound";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { useNotificationIntegration } from "@/hooks/useNotificationIntegration";
 import React, { Suspense, useEffect } from "react";
 
 const queryClient = new QueryClient({
@@ -21,6 +32,46 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Protected Routes Component
+const ProtectedRoutes = () => {
+  const { user } = useAuth();
+  
+  // Initialize notification integration
+  useNotificationIntegration();
+
+  console.log('ProtectedRoutes rendered', {
+    user: !!user,
+    timestamp: new Date().toISOString()
+  });
+
+  if (!user) {
+    console.log('No user found, redirecting to auth');
+    return <Navigate to="/auth" replace />;
+  }
+
+  const handleNavigate = (module: string, id?: string) => {
+    console.log('Navigation request:', module, id);
+    // Navigation is handled by React Router, so this is mainly for logging
+  };
+
+  return (
+    <Layout onNavigate={handleNavigate}>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/meetings" element={<MeetingsModule />} />
+        <Route path="/voting" element={<VotingModule />} />
+        <Route path="/members" element={<MembersModule />} />
+        <Route path="/documents" element={<DocumentsModule />} />
+        <Route path="/email" element={<EmailModule />} />
+        <Route path="/attendance" element={<AttendanceModule />} />
+        <Route path="/reports" element={<ReportsModule />} />
+        <Route path="/settings" element={<SettingsModule />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Layout>
+  );
+};
 
 const App = () => {
   console.log('App component rendering...');
@@ -57,12 +108,12 @@ const App = () => {
             <BrowserRouter>
               <Suspense fallback={<LoadingFallback />}>
                 <Routes>
-                  {/* Authentication routes - must be first */}
+                  {/* Public routes */}
                   <Route path="/auth" element={<RealAuthPage />} />
                   <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
                   
-                  {/* All other routes handled by AppContent */}
-                  <Route path="*" element={<AppContent />} />
+                  {/* Protected routes */}
+                  <Route path="/*" element={<ProtectedRoutes />} />
                 </Routes>
               </Suspense>
             </BrowserRouter>
