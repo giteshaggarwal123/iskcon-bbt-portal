@@ -33,14 +33,14 @@ const queryClient = new QueryClient({
   },
 });
 
-// Protected Routes Component
-const ProtectedRoutes = () => {
+// Auth Guard Component - NO nested Routes
+const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   
   // Initialize notification integration
   useNotificationIntegration();
 
-  console.log('ProtectedRoutes rendered', {
+  console.log('AuthGuard rendered', {
     user: !!user,
     timestamp: new Date().toISOString()
   });
@@ -50,26 +50,22 @@ const ProtectedRoutes = () => {
     return <Navigate to="/auth" replace />;
   }
 
+  return <>{children}</>;
+};
+
+// Layout Wrapper for Protected Pages
+const ProtectedLayout = ({ children }: { children: React.ReactNode }) => {
   const handleNavigate = (module: string, id?: string) => {
     console.log('Navigation request:', module, id);
     // Navigation is handled by React Router, so this is mainly for logging
   };
 
   return (
-    <Layout onNavigate={handleNavigate}>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/meetings" element={<MeetingsModule />} />
-        <Route path="/voting" element={<VotingModule />} />
-        <Route path="/members" element={<MembersModule />} />
-        <Route path="/documents" element={<DocumentsModule />} />
-        <Route path="/email" element={<EmailModule />} />
-        <Route path="/attendance" element={<AttendanceModule />} />
-        <Route path="/reports" element={<ReportsModule />} />
-        <Route path="/settings" element={<SettingsModule />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Layout>
+    <AuthGuard>
+      <Layout onNavigate={handleNavigate}>
+        {children}
+      </Layout>
+    </AuthGuard>
   );
 };
 
@@ -108,12 +104,23 @@ const App = () => {
             <BrowserRouter>
               <Suspense fallback={<LoadingFallback />}>
                 <Routes>
-                  {/* Public routes */}
+                  {/* Public routes - NO auth guard */}
                   <Route path="/auth" element={<RealAuthPage />} />
                   <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
                   
-                  {/* Protected routes */}
-                  <Route path="/*" element={<ProtectedRoutes />} />
+                  {/* Protected routes - All wrapped with ProtectedLayout */}
+                  <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
+                  <Route path="/meetings" element={<ProtectedLayout><MeetingsModule /></ProtectedLayout>} />
+                  <Route path="/voting" element={<ProtectedLayout><VotingModule /></ProtectedLayout>} />
+                  <Route path="/members" element={<ProtectedLayout><MembersModule /></ProtectedLayout>} />
+                  <Route path="/documents" element={<ProtectedLayout><DocumentsModule /></ProtectedLayout>} />
+                  <Route path="/email" element={<ProtectedLayout><EmailModule /></ProtectedLayout>} />
+                  <Route path="/attendance" element={<ProtectedLayout><AttendanceModule /></ProtectedLayout>} />
+                  <Route path="/reports" element={<ProtectedLayout><ReportsModule /></ProtectedLayout>} />
+                  <Route path="/settings" element={<ProtectedLayout><SettingsModule /></ProtectedLayout>} />
+                  
+                  {/* 404 route */}
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
             </BrowserRouter>
