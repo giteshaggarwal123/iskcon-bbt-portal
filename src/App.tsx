@@ -33,14 +33,13 @@ const queryClient = new QueryClient({
   },
 });
 
-// Auth Guard Component - NO nested Routes
-const AuthGuard = ({ children }: { children: React.ReactNode }) => {
+// Protected Route Wrapper Component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   
-  // Initialize notification integration
   useNotificationIntegration();
 
-  console.log('AuthGuard rendered', {
+  console.log('ProtectedRoute check:', {
     user: !!user,
     timestamp: new Date().toISOString()
   });
@@ -50,29 +49,16 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/auth" replace />;
   }
 
-  return <>{children}</>;
-};
-
-// Layout Wrapper for Protected Pages
-const ProtectedLayout = ({ children }: { children: React.ReactNode }) => {
-  const handleNavigate = (module: string, id?: string) => {
-    console.log('Navigation request:', module, id);
-    // Navigation is handled by React Router, so this is mainly for logging
-  };
-
   return (
-    <AuthGuard>
-      <Layout onNavigate={handleNavigate}>
-        {children}
-      </Layout>
-    </AuthGuard>
+    <Layout>
+      {children}
+    </Layout>
   );
 };
 
 const App = () => {
   console.log('App component rendering...');
   
-  // iOS 18.5 compatibility - ensure proper initialization
   useEffect(() => {
     console.log('App initialized successfully');
     console.log('Environment:', {
@@ -83,10 +69,8 @@ const App = () => {
       isNative: window.Capacitor?.isNative || false
     });
     
-    // Handle iOS app launch
     if (window.Capacitor?.isNative) {
       console.log('Native app detected - iOS compatibility mode');
-      // Ensure proper routing for native apps
       if (window.location.hash && !window.location.pathname.includes(window.location.hash.substring(1))) {
         const hashRoute = window.location.hash.substring(1);
         console.log('Handling hash route:', hashRoute);
@@ -104,22 +88,22 @@ const App = () => {
             <BrowserRouter>
               <Suspense fallback={<LoadingFallback />}>
                 <Routes>
-                  {/* Public routes - NO auth guard */}
+                  {/* Public routes */}
                   <Route path="/auth" element={<RealAuthPage />} />
                   <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
                   
-                  {/* Protected routes - All wrapped with ProtectedLayout */}
-                  <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
-                  <Route path="/meetings" element={<ProtectedLayout><MeetingsModule /></ProtectedLayout>} />
-                  <Route path="/voting" element={<ProtectedLayout><VotingModule /></ProtectedLayout>} />
-                  <Route path="/members" element={<ProtectedLayout><MembersModule /></ProtectedLayout>} />
-                  <Route path="/documents" element={<ProtectedLayout><DocumentsModule /></ProtectedLayout>} />
-                  <Route path="/email" element={<ProtectedLayout><EmailModule /></ProtectedLayout>} />
-                  <Route path="/attendance" element={<ProtectedLayout><AttendanceModule /></ProtectedLayout>} />
-                  <Route path="/reports" element={<ProtectedLayout><ReportsModule /></ProtectedLayout>} />
-                  <Route path="/settings" element={<ProtectedLayout><SettingsModule /></ProtectedLayout>} />
+                  {/* Protected routes - All use the same ProtectedRoute wrapper */}
+                  <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/meetings" element={<ProtectedRoute><MeetingsModule /></ProtectedRoute>} />
+                  <Route path="/voting" element={<ProtectedRoute><VotingModule /></ProtectedRoute>} />
+                  <Route path="/members" element={<ProtectedRoute><MembersModule /></ProtectedRoute>} />
+                  <Route path="/documents" element={<ProtectedRoute><DocumentsModule /></ProtectedRoute>} />
+                  <Route path="/email" element={<ProtectedRoute><EmailModule /></ProtectedRoute>} />
+                  <Route path="/attendance" element={<ProtectedRoute><AttendanceModule /></ProtectedRoute>} />
+                  <Route path="/reports" element={<ProtectedRoute><ReportsModule /></ProtectedRoute>} />
+                  <Route path="/settings" element={<ProtectedRoute><SettingsModule /></ProtectedRoute>} />
                   
-                  {/* 404 route */}
+                  {/* 404 fallback */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>

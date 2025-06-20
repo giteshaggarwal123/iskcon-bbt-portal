@@ -8,10 +8,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 interface LayoutProps {
   children: React.ReactNode;
-  onNavigate?: (module: string, id?: string) => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, onNavigate }) => {
+export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentModule, setCurrentModule] = useState('dashboard');
@@ -44,11 +43,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, onNavigate }) => {
     const routePath = module === 'dashboard' ? '/' : `/${module}`;
     console.log('Navigating to:', routePath);
     navigate(routePath);
-    
-    // Also call the optional onNavigate callback for logging
-    if (onNavigate) {
-      onNavigate(module);
-    }
   };
 
   // Enhanced mobile navigation items with better touch targets
