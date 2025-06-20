@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -89,11 +88,11 @@ export const useTranscripts = () => {
       // Ensure we have a fresh token
       await checkAndRefreshToken();
 
-      // Call edge function to fetch Teams data with enhanced retry logic
+      // Call edge function to fetch Teams data with enhanced extraction
       let lastError = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          console.log(`Attempt ${attempt} to fetch Teams transcript`);
+          console.log(`Attempt ${attempt} to fetch Teams transcript with enhanced extraction`);
           
           const { data, error } = await supabase.functions.invoke('fetch-teams-transcript', {
             body: {
@@ -112,7 +111,6 @@ export const useTranscripts = () => {
               try {
                 await checkAndRefreshToken();
                 console.log('Token refreshed, retrying...');
-                // Continue to next attempt with refreshed token
                 continue;
               } catch (refreshErr) {
                 console.error('Token refresh failed:', refreshErr);
@@ -128,30 +126,24 @@ export const useTranscripts = () => {
           }
 
           console.log('Teams transcript response received:', {
+            success: data?.success,
             hasTranscript: !!data?.transcript,
             transcriptCount: data?.transcript?.value?.length || 0,
             hasContent: data?.hasContent,
             contentLength: data?.transcriptContent?.length || 0,
             hasAttendees: !!data?.attendees,
             attendeesCount: data?.attendees?.value?.[0]?.attendanceRecords?.length || 0,
-            hasError: !!data?.error
+            hasRecordings: data?.hasRecordings,
+            error: data?.error
           });
 
-          // The edge function now returns 200 status even for errors, so check the data
-          if (data?.error) {
-            // This is an expected error (like PreconditionFailed), not a system error
-            throw new Error(data.error);
+          // Handle both success and error responses from the enhanced edge function
+          if (data?.success === false) {
+            // This is a handled error case, not a system error
+            throw new Error(data.error || 'Failed to fetch transcript');
           }
 
-          // Validate that we got meaningful data
-          if (!data || (!data.transcript && !data.transcriptContent)) {
-            console.warn('No transcript data received from Teams API');
-            if (attempt < 3) {
-              await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
-              continue;
-            }
-          }
-
+          // Return the data even if it contains partial results or suggestions
           return data;
         } catch (err: any) {
           console.error(`Attempt ${attempt} error:`, err);
@@ -172,11 +164,9 @@ export const useTranscripts = () => {
       if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
         errorMessage = 'Microsoft authentication expired. Please reconnect your Microsoft account in Settings.';
       } else if (error.message?.includes('404') || error.message?.includes('Not Found')) {
-        errorMessage = 'Meeting transcript not found in Teams. Ensure the meeting was recorded and transcription was enabled.';
+        errorMessage = 'Meeting transcript not found in Teams. The meeting may not have been recorded with transcription enabled.';
       } else if (error.message?.includes('403')) {
         errorMessage = 'Access denied. Please ensure you have permission to access this meeting\'s transcript.';
-      } else if (error.message?.includes('Transcript not supported')) {
-        errorMessage = 'This meeting type does not support automatic transcript extraction. It was likely created as an instant meeting rather than a scheduled calendar event.';
       } else if (error.message) {
         errorMessage = error.message;
       }
