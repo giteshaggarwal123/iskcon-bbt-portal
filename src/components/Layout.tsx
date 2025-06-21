@@ -59,7 +59,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Mobile sidebar overlay with blur effect - Covers entire screen */}
       {isMobile && sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -79,7 +79,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         showMenuButton={true}
       />
       
-      {/* Sidebar - Fixed positioning */}
+      {/* Sidebar - Fixed positioning with higher z-index */}
       <Sidebar 
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)}
@@ -102,9 +102,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </main>
         
-        {/* Mobile Bottom Navigation Bar */}
+        {/* Mobile Bottom Navigation Bar - Lower z-index */}
         {isMobile && (
-          <div className="bg-white border-t border-gray-200 px-2 py-2 fixed bottom-2 left-0 right-0 z-50 h-20 mx-2 rounded-lg shadow-lg">
+          <div className="bg-white border-t border-gray-200 px-2 py-2 fixed bottom-2 left-0 right-0 z-30 h-20 mx-2 rounded-lg shadow-lg">
             <div className="flex items-center justify-around h-full max-w-full">
               {mobileNavItems.map((item) => (
                 <button
