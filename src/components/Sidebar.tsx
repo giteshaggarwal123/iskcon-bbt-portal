@@ -126,13 +126,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       !isMobile && isCollapsed ? 'w-20' : 'w-64'
     } left-0`}>
       <div className="flex flex-col h-full">
-        {/* Logo Section - Now Clickable, logo only */}
+        {/* Logo Section - Now Clickable, larger logo */}
         <div className="p-6 border-b border-gray-200">
           <button 
             onClick={handleLogoClick}
             className={`flex items-center justify-center w-full hover:bg-gray-50 rounded-lg p-2 transition-colors`}
           >
-            <div className="w-12 h-12 flex items-center justify-center">
+            <div className="w-16 h-16 flex items-center justify-center">
               <img 
                 src="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" 
                 alt="ISKCON Logo" 

@@ -73,15 +73,8 @@ export const Header: React.FC<HeaderProps> = ({
                 <Menu className="h-4 w-4" />
               </Button>
             )}
-            {/* Logo and Title */}
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 flex items-center justify-center">
-                <img 
-                  src="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" 
-                  alt="ISKCON Logo" 
-                  className="w-full h-full object-contain"
-                />
-              </div>
+            {/* Title only - no logo */}
+            <div className="flex items-center">
               {!isMobile && (
                 <div className="text-left">
                   <h1 className="text-xl font-bold text-gray-900">
