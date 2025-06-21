@@ -79,7 +79,7 @@ export const Header: React.FC<HeaderProps> = ({
                   ISKCON BUREAU
                 </h1>
                 <p className="text-sm text-gray-600 -mt-1">
-                  MANAGEMENT PORTAL
+                  Management Portal
                 </p>
               </div>
             )}
@@ -89,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
                   ISKCON BUREAU
                 </h1>
                 <p className="text-xs text-gray-600 -mt-1">
-                  MANAGEMENT PORTAL
+                  Management Portal
                 </p>
               </div>
             )}

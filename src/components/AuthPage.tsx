@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -96,7 +97,7 @@ export const AuthPage: React.FC = () => {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">ISKCON BUREAU</h1>
-          <p className="text-gray-600">MANAGEMENT PORTAL</p>
+          <p className="text-gray-600">Management Portal</p>
         </div>
 
         <Card className="shadow-xl border-0">
@@ -201,7 +202,7 @@ export const AuthPage: React.FC = () => {
         </Card>
         
         <div className="text-center mt-6 text-xs text-gray-500">
-          <p>© 2024 ISKCON BUREAU MANAGEMENT PORTAL</p>
+          <p>© 2024 ISKCON BUREAU Management Portal</p>
           <p>Secure • Reliable • Confidential</p>
         </div>
       </div>
