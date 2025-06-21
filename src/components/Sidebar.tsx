@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
@@ -142,8 +143,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             {(!isCollapsed || isMobile) && (
               <div className="text-left">
-                <h1 className="text-lg font-bold text-gray-900">ISKCON Bureau</h1>
-                <p className="text-sm text-gray-500">Management Portal</p>
+                <h1 className="text-lg font-bold text-gray-900">ISKCON BUREAU</h1>
+                <p className="text-sm text-gray-500">MANAGEMENT PORTAL</p>
               </div>
             )}
           </button>

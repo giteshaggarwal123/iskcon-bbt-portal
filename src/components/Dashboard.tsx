@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -171,7 +172,7 @@ export const Dashboard: React.FC = () => {
       <div className="dashboard-container w-full max-w-7xl mx-auto px-4 lg:px-6">
         <div className="space-y-6">
           <div className="dashboard-header space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Bureau Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">BUREAU DASHBOARD</h1>
             <p className="text-sm sm:text-base text-muted-foreground">Loading your data...</p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -200,7 +201,7 @@ export const Dashboard: React.FC = () => {
         <div className="space-y-6">
           {/* Header Section - Clean and aligned */}
           <div className="dashboard-header space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Bureau Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">BUREAU DASHBOARD</h1>
             <p className="text-sm sm:text-base text-muted-foreground">
               Hare Krishna! {userName} - Here's what's happening today.
             </p>

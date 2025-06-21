@@ -76,20 +76,20 @@ export const Header: React.FC<HeaderProps> = ({
             {!isMobile && (
               <div className="text-left">
                 <h1 className="text-xl font-bold text-gray-900">
-                  ISKCON Bureau
+                  ISKCON BUREAU
                 </h1>
                 <p className="text-sm text-gray-600 -mt-1">
-                  Management Portal
+                  MANAGEMENT PORTAL
                 </p>
               </div>
             )}
             {isMobile && (
               <div className="text-left">
                 <h1 className="text-lg font-bold text-gray-900">
-                  ISKCON Bureau
+                  ISKCON BUREAU
                 </h1>
                 <p className="text-xs text-gray-600 -mt-1">
-                  Management Portal
+                  MANAGEMENT PORTAL
                 </p>
               </div>
             )}
