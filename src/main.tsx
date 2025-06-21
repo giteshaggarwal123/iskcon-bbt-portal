@@ -4,68 +4,74 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-console.log('Application starting...');
-console.log('Environment:', {
+console.log('Main - Application starting...');
+console.log('Main - Environment:', {
   mode: import.meta.env.MODE,
   dev: import.meta.env.DEV,
   prod: import.meta.env.PROD,
   url: window.location.href,
+  pathname: window.location.pathname,
+  hash: window.location.hash,
   userAgent: navigator.userAgent,
-  timestamp: new Date().toISOString()
+  timestamp: new Date().toISOString(),
+  isCapacitor: !!window.Capacitor,
+  isNative: window.Capacitor?.isNative || false
 });
 
 // Enhanced error handling
 window.addEventListener('error', (event) => {
-  console.error('Global error caught:', {
+  console.error('Main - Global error caught:', {
     message: event.message,
     filename: event.filename,
     lineno: event.lineno,
     colno: event.colno,
     error: event.error,
+    stack: event.error?.stack,
     timestamp: new Date().toISOString()
   });
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled promise rejection:', {
+  console.error('Main - Unhandled promise rejection:', {
     reason: event.reason,
     promise: event.promise,
+    stack: event.reason?.stack,
     timestamp: new Date().toISOString()
   });
 });
 
 // Check for required elements
 const rootElement = document.getElementById("root");
-console.log('Root element check:', {
+console.log('Main - Root element check:', {
   found: !!rootElement,
   id: rootElement?.id,
   tagName: rootElement?.tagName
 });
 
 if (!rootElement) {
-  console.error('Root element not found! Creating fallback...');
+  console.error('Main - Root element not found! Creating fallback...');
   const fallbackRoot = document.createElement('div');
   fallbackRoot.id = 'root';
   fallbackRoot.style.width = '100%';
   fallbackRoot.style.height = '100vh';
   document.body.appendChild(fallbackRoot);
-  console.log('Created fallback root element');
+  console.log('Main - Created fallback root element');
 }
 
-console.log('Creating React root...');
+console.log('Main - Creating React root...');
 
 const root = createRoot(rootElement || document.getElementById('root')!);
 
 try {
-  console.log('Rendering React application...');
+  console.log('Main - Rendering React application...');
   root.render(
     <StrictMode>
       <App />
     </StrictMode>
   );
-  console.log('React application rendered successfully');
+  console.log('Main - React application rendered successfully');
 } catch (error) {
-  console.error('Critical error rendering React application:', error);
+  console.error('Main - Critical error rendering React application:', error);
   
   // Enhanced fallback error display
   const errorDiv = document.createElement('div');
@@ -90,7 +96,7 @@ try {
       ">
         <h1 style="color: #dc3545; margin-bottom: 20px;">Application Error</h1>
         <p style="margin-bottom: 20px; color: #6c757d;">
-          The ISKCON Bureau Management Portal encountered an error and cannot load properly.
+          The ISKCON BUREAU Management Portal encountered an error and cannot load properly.
         </p>
         <button 
           onclick="window.location.reload()" 

@@ -36,29 +36,28 @@ const queryClient = new QueryClient({
 // Protected Route Wrapper Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  const redirectRef = useRef(false);
   
   useNotificationIntegration();
 
-  // Prevent multiple redirects
-  useEffect(() => {
-    if (!loading && !user && !redirectRef.current) {
-      redirectRef.current = true;
-      console.log('No user found, redirecting to auth from:', window.location.pathname);
-    }
-  }, [user, loading]);
+  console.log('ProtectedRoute - Auth state:', { 
+    user: user?.email || 'none', 
+    loading, 
+    pathname: window.location.pathname 
+  });
 
   // Show loading while auth is being determined
   if (loading) {
+    console.log('ProtectedRoute - Still loading auth state');
     return <LoadingFallback />;
   }
 
   // Redirect to auth if no user
   if (!user) {
+    console.log('ProtectedRoute - No user found, redirecting to /auth from:', window.location.pathname);
     return <Navigate to="/auth" replace />;
   }
 
-  console.log('User authenticated, rendering protected content');
+  console.log('ProtectedRoute - User authenticated, rendering protected content for:', user.email);
   return (
     <Layout>
       {children}
@@ -74,20 +73,22 @@ const App = () => {
     if (initRef.current) return;
     initRef.current = true;
     
-    console.log('App initialized successfully');
-    console.log('Environment:', {
+    console.log('App - Initializing...');
+    console.log('App - Environment:', {
       mode: import.meta.env.MODE,
       dev: import.meta.env.DEV,
       prod: import.meta.env.PROD,
       url: window.location.href,
+      pathname: window.location.pathname,
+      hash: window.location.hash,
       isNative: window.Capacitor?.isNative || false
     });
     
     if (window.Capacitor?.isNative) {
-      console.log('Native app detected - iOS compatibility mode');
+      console.log('App - Native app detected - iOS/Android compatibility mode');
       if (window.location.hash && !window.location.pathname.includes(window.location.hash.substring(1))) {
         const hashRoute = window.location.hash.substring(1);
-        console.log('Handling hash route:', hashRoute);
+        console.log('App - Handling hash route:', hashRoute);
       }
     }
   }, []);
@@ -106,8 +107,13 @@ const App = () => {
                   <Route path="/auth" element={<RealAuthPage />} />
                   <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
                   
-                  {/* Protected routes - All use the same ProtectedRoute wrapper */}
+                  {/* Protected routes */}
                   <Route path="/" element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/dashboard" element={
                     <ProtectedRoute>
                       <Dashboard />
                     </ProtectedRoute>
