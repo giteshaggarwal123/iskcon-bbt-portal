@@ -28,6 +28,7 @@ import { MemberMessageDialog } from './MemberMessageDialog';
 import { MemberActivityDialog } from './MemberActivityDialog';
 import { MemberEditDialog } from './MemberEditDialog';
 import { OwnershipTransferDialog } from './OwnershipTransferDialog';
+import { ProfileAvatarLoader } from './ProfileAvatarLoader';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/hooks/useAuth';
@@ -65,9 +66,35 @@ export const MemberCard: React.FC<MemberCardProps> = ({
   const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showOwnershipTransferDialog, setShowOwnershipTransferDialog] = useState(false);
+  const [avatarRefreshTrigger, setAvatarRefreshTrigger] = useState(0);
   const userRole = useUserRole();
   const { user } = useAuth();
   const isMobile = useIsMobile();
+
+  // Listen for avatar updates to refresh member avatars
+  React.useEffect(() => {
+    const handleAvatarUpdate = (event: CustomEvent) => {
+      console.log('MemberCard received avatar update:', event.detail);
+      if (event.detail.userId === member.id) {
+        setAvatarRefreshTrigger(prev => prev + 1);
+      }
+    };
+
+    const handleProfileUpdate = (event: CustomEvent) => {
+      console.log('MemberCard received profile update:', event.detail);
+      if (event.detail.userId === member.id) {
+        setAvatarRefreshTrigger(prev => prev + 1);
+      }
+    };
+
+    window.addEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
+    window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
+      window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
+    };
+  }, [member.id]);
 
   const getRoleBadge = (role: string) => {
     const roleColors: { [key: string]: string } = {
@@ -97,6 +124,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({
 
   const actualRole = getActualRole(member.email, member.roles);
   const joinDate = new Date(member.created_at).toLocaleDateString();
+  const userName = `${member.first_name} ${member.last_name}`.trim() || member.email;
 
   // Get current user profile for ownership transfer
   const getCurrentUserProfile = (): Member => {
@@ -171,9 +199,12 @@ export const MemberCard: React.FC<MemberCardProps> = ({
           <div className={`${isMobile ? 'flex flex-col space-y-4' : 'flex items-center justify-between'}`}>
             <div className={`${isMobile ? 'flex flex-col space-y-3' : 'flex items-center space-x-4'}`}>
               <div className={`${isMobile ? 'flex items-center space-x-3' : 'flex items-center space-x-4'}`}>
-                <div className={`${isMobile ? 'w-12 h-12' : 'w-16 h-16'} bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0`}>
-                  <User className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-primary`} />
-                </div>
+                {/* Replace the generic avatar with ProfileAvatarLoader */}
+                <ProfileAvatarLoader 
+                  userName={userName}
+                  className={`${isMobile ? 'w-12 h-12' : 'w-16 h-16'} flex-shrink-0`}
+                  refreshTrigger={avatarRefreshTrigger}
+                />
                 <div className="min-w-0 flex-1">
                   <h3 className={`${isMobile ? 'text-base' : 'text-lg'} font-semibold text-gray-900 truncate`}>
                     {member.first_name} {member.last_name}
