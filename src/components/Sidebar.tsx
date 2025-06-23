@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
@@ -176,7 +175,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className={`flex items-center justify-center w-full hover:bg-gray-50 rounded-lg p-2 transition-colors`}
           >
             <div className={`flex items-center justify-center ${
-              !isMobile && isCollapsed ? 'w-5 h-5' : 'w-16 h-16'
+              !isMobile && isCollapsed ? 'w-8 h-8' : 'w-16 h-16'
             }`}>
               <img 
                 src="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" 
