@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,10 +21,21 @@ export const SettingsModule: React.FC = () => {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    first_name: profile?.first_name || '',
-    last_name: profile?.last_name || '',
-    phone: profile?.phone || '',
+    first_name: '',
+    last_name: '',
+    phone: '',
   });
+
+  // Update form data when profile changes
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        phone: profile.phone || '',
+      });
+    }
+  }, [profile]);
 
   const handleSave = async () => {
     await updateProfile(formData);
