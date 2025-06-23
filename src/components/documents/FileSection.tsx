@@ -78,6 +78,14 @@ export const FileSection: React.FC<FileSectionProps> = ({
     setDraggedDocument(null);
   };
 
+  const handleDocumentClick = (document: Document, event: React.MouseEvent) => {
+    // Don't trigger if clicking on dropdown menu or buttons
+    if ((event.target as HTMLElement).closest('button') || (event.target as HTMLElement).closest('[role="menu"]')) {
+      return;
+    }
+    onViewDocument(document);
+  };
+
   if (documents.length === 0) {
     return null;
   }
@@ -96,7 +104,8 @@ export const FileSection: React.FC<FileSectionProps> = ({
               draggable
               onDragStart={() => handleDragStart(document.id)}
               onDragEnd={handleDragEnd}
-              className={`bg-card border rounded-lg p-3 hover:bg-muted/30 transition-colors cursor-move group relative flex items-center justify-between ${
+              onClick={(e) => handleDocumentClick(document, e)}
+              className={`bg-card border rounded-lg p-3 hover:bg-muted/30 transition-colors cursor-pointer group relative flex items-center justify-between ${
                 draggedDocument === document.id ? 'opacity-50' : ''
               }`}
             >
@@ -160,15 +169,13 @@ export const FileSection: React.FC<FileSectionProps> = ({
                       Copy
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    {canDeleteDocument(document) && (
-                      <DropdownMenuItem
-                        className="text-red-600 focus:text-red-600"
-                        onClick={() => onDeleteDocument(document.id, document.name)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    )}
+                    <DropdownMenuItem
+                      className="text-red-600 focus:text-red-600"
+                      onClick={() => onDeleteDocument(document.id, document.name)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -193,7 +200,8 @@ export const FileSection: React.FC<FileSectionProps> = ({
             draggable
             onDragStart={() => handleDragStart(document.id)}
             onDragEnd={handleDragEnd}
-            className={`bg-card border rounded-lg p-3 sm:p-4 hover:bg-muted/30 transition-colors cursor-move group relative ${
+            onClick={(e) => handleDocumentClick(document, e)}
+            className={`bg-card border rounded-lg p-3 sm:p-4 hover:bg-muted/30 transition-colors cursor-pointer group relative ${
               draggedDocument === document.id ? 'opacity-50' : ''
             }`}
           >
@@ -246,15 +254,13 @@ export const FileSection: React.FC<FileSectionProps> = ({
                       Copy
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    {canDeleteDocument(document) && (
-                      <DropdownMenuItem
-                        className="text-red-600 focus:text-red-600"
-                        onClick={() => onDeleteDocument(document.id, document.name)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    )}
+                    <DropdownMenuItem
+                      className="text-red-600 focus:text-red-600"
+                      onClick={() => onDeleteDocument(document.id, document.name)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

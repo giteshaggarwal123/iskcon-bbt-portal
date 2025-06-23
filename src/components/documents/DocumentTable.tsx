@@ -108,6 +108,14 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
     return mimeType.split('/')[1] || 'unknown';
   };
 
+  const handleDocumentRowClick = (document: Document, event: React.MouseEvent) => {
+    // Don't trigger if clicking on dropdown menu or buttons
+    if ((event.target as HTMLElement).closest('button') || (event.target as HTMLElement).closest('[role="menu"]')) {
+      return;
+    }
+    onViewDocument(document);
+  };
+
   // If card view is selected, use the original card-based components
   if (viewMode === 'card') {
     return (
@@ -224,9 +232,10 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
           {documents.map((document) => (
             <TableRow 
               key={document.id}
-              className="hover:bg-muted/50"
+              className="hover:bg-muted/50 cursor-pointer"
               draggable
               onDragStart={() => handleDragStart(document.id)}
+              onClick={(e) => handleDocumentRowClick(document, e)}
             >
               <TableCell className="flex items-center gap-3">
                 <FileText className="h-5 w-5 text-gray-500" />
@@ -241,7 +250,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                 {format(new Date(document.updated_at), 'MMM d, yyyy, h:mm a')}
               </TableCell>
               <TableCell>{getUserDisplayName(document.uploaded_by)}</TableCell>
-              <TableCell className="text-right">
+              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-end gap-1">
                   <Button 
                     variant="ghost" 
@@ -298,14 +307,12 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                         Copy
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      {canDeleteDocument(document) && (
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={() => onDeleteDocument(document.id, document.name)}
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      )}
+                      <DropdownMenuItem
+                        className="text-red-600"
+                        onClick={() => onDeleteDocument(document.id, document.name)}
+                      >
+                        Delete
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
