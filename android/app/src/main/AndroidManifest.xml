@@ -18,7 +18,7 @@
         <activity
             android:exported="true"
             android:launchMode="singleTask"
-            android:name="app.lovable.6a0fd4efa0294c9d95ed74a4fa947c60.MainActivity"
+            android:name="app.lovable.iskconbbtportal.MainActivity"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:screenOrientation="portrait">
             <intent-filter>

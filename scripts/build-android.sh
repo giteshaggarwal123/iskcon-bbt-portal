@@ -1,7 +1,7 @@
 
 #!/bin/bash
 
-echo "🤖 Building ISKCON Management Portal for Android..."
+echo "🤖 Building ISKCON Bureau Portal for Android..."
 
 # Clean previous builds
 echo "🧹 Cleaning previous builds..."
@@ -15,6 +15,10 @@ npm install
 # Build for production
 echo "🏗️ Building for production..."
 npm run build
+
+# Ensure Android platform is added
+echo "📱 Adding Android platform..."
+npx cap add android 2>/dev/null || echo "Android platform already exists"
 
 # Sync with Capacitor
 echo "📱 Syncing with Capacitor..."
@@ -48,16 +52,13 @@ echo "✅ Android build complete!"
 echo ""
 echo "Next steps:"
 echo "1. Run: npx cap open android"
-echo "2. In Android Studio, clean and rebuild the project"
-echo "3. Make sure you have a connected device or emulator"
-echo "4. Click the Run button in Android Studio"
+echo "2. In Android Studio:"
+echo "   - Clean Project (Build > Clean Project)"
+echo "   - Rebuild Project (Build > Rebuild Project)"
+echo "   - Make sure you have a connected device or emulator"
+echo "   - Click the Run button"
 echo ""
-echo "If you still get 'App not found', make sure:"
-echo "- Your device/emulator is connected"
-echo "- USB debugging is enabled (for physical devices)"
-echo "- The app is properly installed on the device"
-echo ""
-echo "For Linux users:"
-echo "- Make sure Android Studio and SDK are properly installed"
-echo "- Ensure ANDROID_HOME environment variable is set"
-echo "- Check that adb is in your PATH"
+echo "If you still get 'App not found':"
+echo "- Check that your device/emulator is connected"
+echo "- Ensure USB debugging is enabled (for physical devices)"
+echo "- Try running the app from Android Studio instead of command line"
