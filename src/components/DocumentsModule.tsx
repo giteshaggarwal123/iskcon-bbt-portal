@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -198,109 +197,55 @@ export const DocumentsModule = () => {
     setViewDocument(document);
   };
 
-  // Enhanced download function with multiple strategies
+  // Simplified and more reliable download function
   const handleDownloadDocument = async (document: any) => {
+    console.log('Starting download for document:', document);
+    
+    // Show loading toast
+    toast({
+      title: "Downloading...",
+      description: `Preparing "${document.name}" for download...`
+    });
+
     try {
-      console.log('Starting download for:', document.name, document.file_path);
+      // Check if this is a valid Supabase storage URL
+      const isSupabaseUrl = document.file_path?.includes('supabase.co/storage') || 
+                           document.file_path?.includes('/storage/v1/object/public/');
       
-      // Show loading toast
-      const loadingToastId = toast({
-        title: "Starting Download",
-        description: `Preparing "${document.name}" for download...`
-      });
-
-      // Strategy 1: Direct download with fetch and blob
-      try {
-        const response = await fetch(document.file_path, {
-          method: 'GET',
-          headers: {
-            'Accept': '*/*',
-          },
-        });
-
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = document.name || 'download';
-          link.style.display = 'none';
-          
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          // Clean up the blob URL
-          setTimeout(() => window.URL.revokeObjectURL(url), 100);
-          
-          toast({
-            title: "Download Complete",
-            description: `"${document.name}" downloaded successfully`
-          });
-          return;
-        }
-      } catch (fetchError) {
-        console.warn('Fetch download failed, trying alternative method:', fetchError);
-      }
-
-      // Strategy 2: Direct link download
-      try {
-        const link = document.createElement('a');
-        link.href = document.file_path;
-        link.download = document.name || 'download';
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.style.display = 'none';
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
+      if (!isSupabaseUrl) {
+        // Handle demo files
         toast({
-          title: "Download Started",
-          description: `"${document.name}" download initiated`
+          title: "Demo File",
+          description: "This is a demo file. Download functionality would work with real files.",
+          variant: "default"
         });
         return;
-      } catch (linkError) {
-        console.warn('Link download failed, trying window.open:', linkError);
       }
 
-      // Strategy 3: Open in new window as fallback
-      try {
-        const newWindow = window.open(document.file_path, '_blank', 'noopener,noreferrer');
-        if (newWindow) {
-          toast({
-            title: "File Opened",
-            description: "File opened in new tab. Use your browser's download option."
-          });
-          return;
-        }
-      } catch (windowError) {
-        console.warn('Window.open failed:', windowError);
-      }
-
-      // If all strategies fail
-      throw new Error('All download methods failed');
+      // For real Supabase files, use direct download
+      const link = document.createElement('a');
+      link.href = document.file_path;
+      link.download = document.name;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      
+      // Add the link to DOM, click it, then remove it
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Download Started",
+        description: `"${document.name}" download initiated successfully`
+      });
       
     } catch (error) {
       console.error('Download error:', error);
-      
-      // Check if it's a demo/legacy file
-      if (!document.file_path || 
-          (!document.file_path.includes('supabase.co/storage') && 
-           !document.file_path.includes('/storage/v1/object/public/'))) {
-        toast({
-          title: "Demo File",
-          description: "This is a demo file. In production, files would be stored in Supabase Storage.",
-          variant: "default"
-        });
-      } else {
-        toast({
-          title: "Download Failed",
-          description: "Unable to download the file. Please check your internet connection and try again.",
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "Download Error",
+        description: "Unable to download the file. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 

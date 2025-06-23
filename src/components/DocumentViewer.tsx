@@ -50,121 +50,53 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const handleDownload = async () => {
     if (!documentProp) return;
     
+    console.log('DocumentViewer download for:', documentProp.name, documentProp.file_path);
+    
+    // Show loading toast
+    toast({
+      title: "Downloading...",
+      description: `Preparing "${documentProp.name}" for download...`
+    });
+
     try {
-      console.log('Starting download for:', documentProp.name, documentProp.file_path);
+      // Check if this is a valid Supabase storage URL
+      const isSupabaseUrl = documentProp.file_path?.includes('supabase.co/storage') || 
+                           documentProp.file_path?.includes('/storage/v1/object/public/');
       
-      // Show loading toast
+      if (!isSupabaseUrl) {
+        // Handle demo files
+        toast({
+          title: "Demo File",
+          description: "This is a demo file. Download functionality would work with real files.",
+          variant: "default"
+        });
+        return;
+      }
+
+      // For real Supabase files, use direct download
+      const link = document.createElement('a');
+      link.href = documentProp.file_path;
+      link.download = documentProp.name;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      
+      // Add the link to DOM, click it, then remove it
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
       toast({
-        title: "Starting Download",
-        description: `Preparing "${documentProp.name}" for download...`
+        title: "Download Started",
+        description: `"${documentProp.name}" download initiated successfully`
       });
-
-      // Strategy 1: Fetch with proper headers and create blob
-      try {
-        const response = await fetch(documentProp.file_path, {
-          method: 'GET',
-          headers: {
-            'Accept': '*/*',
-            'Cache-Control': 'no-cache',
-          },
-          mode: 'cors'
-        });
-
-        if (response.ok) {
-          const blob = await response.blob();
-          
-          // Create download link
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = documentProp.name || 'download';
-          link.style.display = 'none';
-          
-          // Trigger download
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          // Clean up
-          setTimeout(() => window.URL.revokeObjectURL(url), 100);
-          
-          toast({
-            title: "Download Complete",
-            description: `"${documentProp.name}" downloaded successfully`
-          });
-          return;
-        } else {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-      } catch (fetchError) {
-        console.warn('Fetch download failed:', fetchError);
-      }
-
-      // Strategy 2: Direct link approach with proper attributes
-      try {
-        const link = document.createElement('a');
-        link.href = documentProp.file_path;
-        link.download = documentProp.name || 'download';
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.style.display = 'none';
-        
-        // Add click handler to track success
-        let downloadStarted = false;
-        link.addEventListener('click', () => {
-          downloadStarted = true;
-        });
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        if (downloadStarted) {
-          toast({
-            title: "Download Started",
-            description: `"${documentProp.name}" download initiated`
-          });
-          return;
-        }
-      } catch (linkError) {
-        console.warn('Link download failed:', linkError);
-      }
-
-      // Strategy 3: Open in new window as last resort
-      try {
-        const newWindow = window.open(documentProp.file_path, '_blank', 'noopener,noreferrer');
-        if (newWindow) {
-          toast({
-            title: "File Opened",
-            description: "File opened in new tab. Use your browser's download option.",
-          });
-          return;
-        }
-      } catch (windowError) {
-        console.warn('Window.open failed:', windowError);
-      }
-
-      // If all methods fail
-      throw new Error('All download methods failed');
       
     } catch (error) {
       console.error('Download error:', error);
-      
-      // Check if it's a demo file or invalid URL
-      if (!documentProp.file_path || 
-          (!documentProp.file_path.includes('http') && !documentProp.file_path.startsWith('/'))) {
-        toast({
-          title: "Demo File",
-          description: "This is a demo file. In production, files would be stored in cloud storage.",
-          variant: "default"
-        });
-      } else {
-        toast({
-          title: "Download Error",
-          description: "Unable to download the file. Please check your connection and try again.",
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "Download Error",
+        description: "Unable to download the file. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
