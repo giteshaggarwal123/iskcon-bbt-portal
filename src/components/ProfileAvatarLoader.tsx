@@ -7,17 +7,17 @@ interface ProfileAvatarLoaderProps {
   userName: string;
   className?: string;
   refreshTrigger?: number;
-  userId?: string; // Add userId prop to fetch specific user's avatar
+  userId?: string;
 }
 
 export const ProfileAvatarLoader: React.FC<ProfileAvatarLoaderProps> = ({ 
   userName, 
   className = "h-10 w-10",
   refreshTrigger = 0,
-  userId // Use this to fetch the specific user's avatar
+  userId
 }) => {
   const [avatarUrl, setAvatarUrl] = useState<string>('');
-  const [imageKey, setImageKey] = useState(0); // Force re-render of images
+  const [imageKey, setImageKey] = useState(0);
 
   const fetchUserAvatar = async () => {
     if (!userId) return;
@@ -39,7 +39,7 @@ export const ProfileAvatarLoader: React.FC<ProfileAvatarLoaderProps> = ({
       if (data?.avatar_url) {
         console.log('Avatar URL fetched:', data.avatar_url);
         setAvatarUrl(data.avatar_url);
-        setImageKey(prev => prev + 1); // Force image refresh
+        setImageKey(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error loading avatar:', error);
@@ -77,11 +77,19 @@ export const ProfileAvatarLoader: React.FC<ProfileAvatarLoaderProps> = ({
     };
   }, [userId]);
 
+  // Create a cache-busted URL
+  const getCacheBustedUrl = (url: string) => {
+    if (!url) return '';
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}v=${imageKey}&t=${Date.now()}`;
+  };
+
   return (
     <Avatar className={`${className} flex-shrink-0`}>
       <AvatarImage 
-        src={avatarUrl ? `${avatarUrl}?v=${imageKey}` : ''} 
-        alt={userName} 
+        src={getCacheBustedUrl(avatarUrl)} 
+        alt={userName}
+        key={`${imageKey}-${Date.now()}`}
       />
       <AvatarFallback className="bg-primary text-white">
         {userName.charAt(0).toUpperCase()}

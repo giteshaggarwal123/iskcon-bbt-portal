@@ -86,31 +86,34 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
         .from('profile-images')
         .getPublicUrl(fileName);
 
+      // Add timestamp to force cache bust
+      const timestampedUrl = `${publicUrl}?t=${Date.now()}`;
+
       const { error: updateError } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
-          avatar_url: publicUrl,
+          avatar_url: timestampedUrl,
           updated_at: new Date().toISOString()
         });
 
       if (updateError) throw updateError;
 
-      // Force immediate refresh
+      // Force immediate refresh with new timestamped URL
       setImageKey(prev => prev + 1);
-      onImageUpdate(publicUrl);
+      onImageUpdate(timestampedUrl);
       
-      // Dispatch events with a small delay to ensure state updates
+      // Dispatch events with timestamped URL
       setTimeout(() => {
         const eventDetail = { 
-          profile: { avatar_url: publicUrl }, 
+          profile: { avatar_url: timestampedUrl }, 
           userId: user.id 
         };
         
         console.log('Dispatching profile update event:', eventDetail);
         window.dispatchEvent(new CustomEvent('profileUpdated', { detail: eventDetail }));
         window.dispatchEvent(new CustomEvent('avatarUpdated', { 
-          detail: { avatarUrl: publicUrl, userId: user.id } 
+          detail: { avatarUrl: timestampedUrl, userId: user.id } 
         }));
       }, 100);
       
@@ -136,9 +139,10 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
         <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden">
           {displayImageUrl ? (
             <img 
-              src={`${displayImageUrl}?v=${imageKey}`}
+              src={`${displayImageUrl}${displayImageUrl.includes('?') ? '&' : '?'}v=${imageKey}`}
               alt="Profile" 
               className="w-full h-full object-cover"
+              key={imageKey}
             />
           ) : (
             <User className="h-12 w-12 text-gray-400" />

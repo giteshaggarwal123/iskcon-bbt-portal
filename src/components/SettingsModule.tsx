@@ -21,6 +21,7 @@ export const SettingsModule: React.FC = () => {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState('');
+  const [avatarRefreshKey, setAvatarRefreshKey] = useState(0);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -56,8 +57,17 @@ export const SettingsModule: React.FC = () => {
   const handleImageUpdate = (imageUrl: string) => {
     console.log('Image updated in settings:', imageUrl);
     setCurrentAvatarUrl(imageUrl);
-    // Force profile refresh to update the avatar in sidebar and other components
+    setAvatarRefreshKey(prev => prev + 1);
+    
+    // Force profile refresh and sidebar update
     refreshProfile();
+    
+    // Dispatch additional events to ensure all components update
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('forceAvatarRefresh', { 
+        detail: { userId: user?.id, avatarUrl: imageUrl, timestamp: Date.now() } 
+      }));
+    }, 200);
   };
 
   return (
@@ -98,7 +108,8 @@ export const SettingsModule: React.FC = () => {
               {/* Profile Image Upload Section */}
               <ProfileImageUpload 
                 currentImageUrl={currentAvatarUrl}
-                onImageUpdate={handleImageUpdate} 
+                onImageUpdate={handleImageUpdate}
+                key={avatarRefreshKey}
               />
 
               {/* User Info Display */}

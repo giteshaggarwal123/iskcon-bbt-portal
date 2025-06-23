@@ -71,7 +71,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       console.log('Sidebar received profile update:', event.detail);
       if (event.detail.userId === user?.id) {
         setProfileRefreshTrigger(prev => prev + 1);
-        // Force profile refresh from the hook as well
         refreshProfile();
       }
     };
@@ -80,17 +79,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
       console.log('Sidebar received avatar update:', event.detail);
       if (event.detail.userId === user?.id) {
         setProfileRefreshTrigger(prev => prev + 1);
-        // Force profile refresh from the hook as well
+        refreshProfile();
+      }
+    };
+
+    const handleForceAvatarRefresh = (event: CustomEvent) => {
+      console.log('Sidebar received force avatar refresh:', event.detail);
+      if (event.detail.userId === user?.id) {
+        setProfileRefreshTrigger(prev => prev + 1);
         refreshProfile();
       }
     };
 
     window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
     window.addEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
+    window.addEventListener('forceAvatarRefresh', handleForceAvatarRefresh as EventListener);
     
     return () => {
       window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
       window.removeEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
+      window.removeEventListener('forceAvatarRefresh', handleForceAvatarRefresh as EventListener);
     };
   }, [user?.id, refreshProfile]);
 
@@ -238,7 +246,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <ProfileAvatarLoader 
                 userName={userName} 
                 userId={user?.id}
-                refreshTrigger={avatarRefreshTrigger + profileRefreshTrigger}
+                refreshTrigger={avatarRefreshTrigger + profileRefreshTrigger + Date.now()}
               />
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-sm font-medium text-gray-900 truncate">
@@ -263,7 +271,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <ProfileAvatarLoader 
                 userName={userName} 
                 userId={user?.id}
-                refreshTrigger={avatarRefreshTrigger + profileRefreshTrigger}
+                refreshTrigger={avatarRefreshTrigger + profileRefreshTrigger + Date.now()}
               />
             </button>
           </div>
