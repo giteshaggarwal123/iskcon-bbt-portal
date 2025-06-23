@@ -338,14 +338,21 @@ export const useMembers = () => {
 
       console.log('Updating member role:', { memberId, newRole });
 
-      // Optimistic update
+      // Optimistic update with proper role change
       updateMemberOptimistically(memberId, { roles: [newRole] });
 
-      // Remove existing roles for this user first
-      await supabase
+      // Start a transaction-like operation
+      const { error: deleteError } = await supabase
         .from('user_roles')
         .delete()
         .eq('user_id', memberId);
+
+      if (deleteError) {
+        console.error('Error deleting existing roles:', deleteError);
+        // Revert optimistic update
+        await fetchMembers();
+        throw deleteError;
+      }
 
       // Add new role
       const { error: insertError } = await supabase
@@ -362,21 +369,21 @@ export const useMembers = () => {
         throw insertError;
       }
 
-      await logActivity('Updated member role', `Changed role to ${newRole}`);
+      await logActivity('Updated member role', `Changed role to ${newRole.replace('_', ' ')}`);
 
       toast({
-        title: "Role Updated",
-        description: "Member role has been updated successfully"
+        title: "Role Updated Successfully",
+        description: `Member role has been changed to ${newRole.replace('_', ' ')}`,
       });
 
-      // Force refresh to ensure consistency
+      // Force refresh to ensure consistency after a delay
       setTimeout(async () => {
         await fetchMembers();
       }, 1000);
     } catch (error: any) {
       console.error('Error updating role:', error);
       toast({
-        title: "Update Failed",
+        title: "Role Update Failed",
         description: error.message || "Failed to update member role",
         variant: "destructive"
       });

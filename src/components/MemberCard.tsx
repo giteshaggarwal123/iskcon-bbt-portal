@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Mail, Phone, Settings, MessageCircle, Trash2, Lock, UserX, RotateCcw, Activity, Edit3 } from 'lucide-react';
+import { User, Mail, Phone, Settings, MessageCircle, Trash2, Lock, UserX, RotateCcw, Activity, Edit3, Crown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -27,8 +27,10 @@ import { MemberSettingsDialog } from './MemberSettingsDialog';
 import { MemberMessageDialog } from './MemberMessageDialog';
 import { MemberActivityDialog } from './MemberActivityDialog';
 import { MemberEditDialog } from './MemberEditDialog';
+import { OwnershipTransferDialog } from './OwnershipTransferDialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Member {
   id: string;
@@ -62,7 +64,9 @@ export const MemberCard: React.FC<MemberCardProps> = ({
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showOwnershipTransferDialog, setShowOwnershipTransferDialog] = useState(false);
   const userRole = useUserRole();
+  const { user } = useAuth();
   const isMobile = useIsMobile();
 
   const getRoleBadge = (role: string) => {
@@ -94,6 +98,18 @@ export const MemberCard: React.FC<MemberCardProps> = ({
   const actualRole = getActualRole(member.email, member.roles);
   const joinDate = new Date(member.created_at).toLocaleDateString();
 
+  // Get current user profile for ownership transfer
+  const getCurrentUserProfile = (): Member => {
+    return {
+      id: user?.id || '',
+      email: user?.email || '',
+      first_name: user?.user_metadata?.first_name || '',
+      last_name: user?.user_metadata?.last_name || '',
+      created_at: new Date().toISOString(),
+      roles: ['super_admin']
+    };
+  };
+
   const handleDeleteMember = () => {
     onDeleteMember(member.id);
   };
@@ -116,6 +132,23 @@ export const MemberCard: React.FC<MemberCardProps> = ({
     }
   };
 
+  const handleRoleChange = async (newRole: string) => {
+    console.log('Role change requested:', { memberId: member.id, newRole, currentRole: actualRole });
+    
+    // Handle super admin transfer
+    if (newRole === 'super_admin' && actualRole !== 'super_admin') {
+      setShowOwnershipTransferDialog(true);
+      return;
+    }
+    
+    // Regular role change
+    await onRoleChange(member.id, newRole);
+  };
+
+  const handleOwnershipTransferComplete = () => {
+    handleMemberUpdated();
+  };
+
   // Enhanced permission logic with proper super admin protection
   const canChangeRole = userRole.isSuperAdmin && member.email !== 'cs@iskconbureau.in';
   const canDeleteMember = userRole.isSuperAdmin && member.email !== 'cs@iskconbureau.in';
@@ -125,6 +158,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({
   const canResetPassword = userRole.isSuperAdmin && member.email !== 'cs@iskconbureau.in';
   const canViewActivity = true;
   const canEditMember = userRole.isSuperAdmin;
+  const canTransferOwnership = userRole.isSuperAdmin && actualRole !== 'super_admin' && member.email !== 'cs@iskconbureau.in';
   
   // Super admin protection
   const isSuperAdminMember = member.email === 'cs@iskconbureau.in';
@@ -187,7 +221,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({
                 <label className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-500 block mb-1`}>Role</label>
                 <Select 
                   value={actualRole} 
-                  onValueChange={(value) => onRoleChange(member.id, value)}
+                  onValueChange={handleRoleChange}
                   disabled={!canChangeRole || isProtectedMember}
                 >
                   <SelectTrigger className={`${isMobile ? 'w-full h-8' : 'w-32'}`}>
@@ -209,6 +243,18 @@ export const MemberCard: React.FC<MemberCardProps> = ({
               </div>
               
               <div className={`${isMobile ? 'flex justify-center space-x-2 pt-2 border-t border-gray-100' : 'flex space-x-2'}`}>
+                {canTransferOwnership && (
+                  <Button 
+                    variant="outline" 
+                    size={isMobile ? "sm" : "sm"}
+                    onClick={() => setShowOwnershipTransferDialog(true)}
+                    className={`text-purple-600 hover:text-purple-700 ${isMobile ? 'h-8 w-8 p-0' : ''}`}
+                    title="Transfer Ownership"
+                  >
+                    <Crown className="h-4 w-4" />
+                  </Button>
+                )}
+
                 {canEditMember && (
                   <Button 
                     variant="outline" 
@@ -310,6 +356,16 @@ export const MemberCard: React.FC<MemberCardProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {canTransferOwnership && (
+        <OwnershipTransferDialog 
+          open={showOwnershipTransferDialog}
+          onOpenChange={setShowOwnershipTransferDialog}
+          targetMember={member}
+          currentSuperAdmin={getCurrentUserProfile()}
+          onTransferComplete={handleOwnershipTransferComplete}
+        />
+      )}
 
       {canEditMember && (
         <MemberEditDialog 
