@@ -199,11 +199,12 @@ export const MemberCard: React.FC<MemberCardProps> = ({
           <div className={`${isMobile ? 'flex flex-col space-y-4' : 'flex items-center justify-between'}`}>
             <div className={`${isMobile ? 'flex flex-col space-y-3' : 'flex items-center space-x-4'}`}>
               <div className={`${isMobile ? 'flex items-center space-x-3' : 'flex items-center space-x-4'}`}>
-                {/* Replace the generic avatar with ProfileAvatarLoader */}
+                {/* Pass the member's ID to ProfileAvatarLoader */}
                 <ProfileAvatarLoader 
                   userName={userName}
                   className={`${isMobile ? 'w-12 h-12' : 'w-16 h-16'} flex-shrink-0`}
                   refreshTrigger={avatarRefreshTrigger}
+                  userId={member.id}
                 />
                 <div className="min-w-0 flex-1">
                   <h3 className={`${isMobile ? 'text-base' : 'text-lg'} font-semibold text-gray-900 truncate`}>

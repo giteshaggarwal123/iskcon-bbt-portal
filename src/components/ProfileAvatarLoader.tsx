@@ -1,34 +1,34 @@
 
 import React, { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ProfileAvatarLoaderProps {
   userName: string;
   className?: string;
   refreshTrigger?: number;
+  userId?: string; // Add userId prop to fetch specific user's avatar
 }
 
 export const ProfileAvatarLoader: React.FC<ProfileAvatarLoaderProps> = ({ 
   userName, 
   className = "h-10 w-10",
-  refreshTrigger = 0
+  refreshTrigger = 0,
+  userId // Use this to fetch the specific user's avatar
 }) => {
-  const { user } = useAuth();
   const [avatarUrl, setAvatarUrl] = useState<string>('');
   const [imageKey, setImageKey] = useState(0); // Force re-render of images
 
   const fetchUserAvatar = async () => {
-    if (!user) return;
+    if (!userId) return;
 
     try {
-      console.log('Fetching avatar for user:', user.id);
+      console.log('Fetching avatar for user:', userId);
       
       const { data, error } = await supabase
         .from('profiles')
         .select('avatar_url')
-        .eq('id', user.id)
+        .eq('id', userId)
         .single();
 
       if (error) {
@@ -48,13 +48,13 @@ export const ProfileAvatarLoader: React.FC<ProfileAvatarLoaderProps> = ({
 
   useEffect(() => {
     fetchUserAvatar();
-  }, [user, refreshTrigger]);
+  }, [userId, refreshTrigger]);
 
-  // Listen for avatar updates
+  // Listen for avatar updates for the specific user
   useEffect(() => {
     const handleAvatarUpdate = (event: CustomEvent) => {
       console.log('Avatar update event received:', event.detail);
-      if (event.detail.userId === user?.id) {
+      if (event.detail.userId === userId) {
         setAvatarUrl(event.detail.avatarUrl);
         setImageKey(prev => prev + 1);
       }
@@ -62,7 +62,7 @@ export const ProfileAvatarLoader: React.FC<ProfileAvatarLoaderProps> = ({
 
     const handleProfileUpdate = (event: CustomEvent) => {
       console.log('Profile update event received:', event.detail);
-      if (event.detail.userId === user?.id && event.detail.profile?.avatar_url) {
+      if (event.detail.userId === userId && event.detail.profile?.avatar_url) {
         setAvatarUrl(event.detail.profile.avatar_url);
         setImageKey(prev => prev + 1);
       }
@@ -75,7 +75,7 @@ export const ProfileAvatarLoader: React.FC<ProfileAvatarLoaderProps> = ({
       window.removeEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
       window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
     };
-  }, [user?.id]);
+  }, [userId]);
 
   return (
     <Avatar className={`${className} flex-shrink-0`}>
