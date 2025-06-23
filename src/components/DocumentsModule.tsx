@@ -51,24 +51,29 @@ export const DocumentsModule = () => {
   } = useDocuments(selectedFolder);
 
   const handleFolderClick = (folderId: string) => {
+    console.log('Folder clicked:', folderId);
     setSelectedFolder(folderId);
   };
 
-  // Generate breadcrumb path
+  // Generate breadcrumb path with error handling
   const getBreadcrumbPath = () => {
-    if (!selectedFolder) return [];
+    if (!selectedFolder || !folders || folders.length === 0) return [];
     
     const path = [];
     let currentFolderId = selectedFolder;
+    let depth = 0;
+    const maxDepth = 10; // Prevent infinite loops
     
-    while (currentFolderId) {
+    while (currentFolderId && depth < maxDepth) {
       const folder = folders.find(f => f.id === currentFolderId);
       if (folder) {
         path.unshift(folder);
         currentFolderId = folder.parent_folder_id;
       } else {
+        console.warn('Folder not found:', currentFolderId);
         break;
       }
+      depth++;
     }
     
     return path;
@@ -194,97 +199,115 @@ export const DocumentsModule = () => {
   };
 
   const handleDownloadDocument = (document: any) => {
-    const link = document.createElement('a');
-    link.href = document.file_path;
-    link.download = document.name;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast({
-      title: "Download Started",
-      description: `Downloading "${document.name}"`
-    });
+    try {
+      const link = window.document.createElement('a');
+      link.href = document.file_path;
+      link.download = document.name;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      
+      toast({
+        title: "Download Started",
+        description: `Downloading "${document.name}"`
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to download the document",
+        variant: "destructive"
+      });
+    }
   };
 
-  // Get unique uploaders for people filter
-  const uniqueUploaders = [...new Set(documents.map(doc => doc.uploaded_by))];
+  // Get unique uploaders for people filter with safety checks
+  const uniqueUploaders = React.useMemo(() => {
+    if (!documents || documents.length === 0) return [];
+    return [...new Set(documents.map(doc => doc.uploaded_by).filter(Boolean))];
+  }, [documents]);
 
-  // Filter documents based on all filters
-  const filteredDocuments = documents.filter(doc => {
-    console.log('Filtering document:', doc.name);
-    console.log('Search term:', searchTerm);
-    console.log('Type filter:', typeFilter);
-    console.log('People filter:', peopleFilter);
-    console.log('Date filter:', dateFilter);
+  // Filter documents based on all filters with improved error handling
+  const filteredDocuments = React.useMemo(() => {
+    if (!documents || documents.length === 0) return [];
     
-    // Search filter
-    const matchesSearch = !searchTerm || doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-    console.log('Matches search:', matchesSearch);
-    
-    // Type filter
-    let matchesType = typeFilter === 'all';
-    if (!matchesType && doc.mime_type) {
-      const mimeType = doc.mime_type.toLowerCase();
-      switch (typeFilter) {
-        case 'pdf':
-          matchesType = mimeType.includes('pdf');
-          break;
-        case 'word':
-          matchesType = mimeType.includes('word') || mimeType.includes('document') || mimeType.includes('msword');
-          break;
-        case 'excel':
-          matchesType = mimeType.includes('excel') || mimeType.includes('spreadsheet') || mimeType.includes('sheet');
-          break;
-        case 'image':
-          matchesType = mimeType.includes('image');
-          break;
-        default:
-          matchesType = true;
+    return documents.filter(doc => {
+      try {
+        // Search filter with null checks
+        const matchesSearch = !searchTerm || 
+          (doc.name && doc.name.toLowerCase().includes(searchTerm.toLowerCase()));
+        
+        // Type filter with null checks
+        let matchesType = typeFilter === 'all';
+        if (!matchesType && doc.mime_type) {
+          const mimeType = doc.mime_type.toLowerCase();
+          switch (typeFilter) {
+            case 'pdf':
+              matchesType = mimeType.includes('pdf');
+              break;
+            case 'word':
+              matchesType = mimeType.includes('word') || 
+                           mimeType.includes('document') || 
+                           mimeType.includes('msword');
+              break;
+            case 'excel':
+              matchesType = mimeType.includes('excel') || 
+                           mimeType.includes('spreadsheet') || 
+                           mimeType.includes('sheet');
+              break;
+            case 'image':
+              matchesType = mimeType.includes('image');
+              break;
+            default:
+              matchesType = true;
+          }
+        }
+        
+        // People filter with null checks
+        const matchesPeople = peopleFilter === 'all' || doc.uploaded_by === peopleFilter;
+        
+        // Date filter with proper date parsing
+        let matchesDate = dateFilter === 'all';
+        if (!matchesDate && doc.created_at) {
+          try {
+            const docDate = new Date(doc.created_at);
+            if (!isNaN(docDate.getTime())) {
+              const now = new Date();
+              const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+              
+              switch (dateFilter) {
+                case 'today':
+                  matchesDate = docDate >= today;
+                  break;
+                case 'week':
+                  const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                  matchesDate = docDate >= weekAgo;
+                  break;
+                case 'month':
+                  const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+                  matchesDate = docDate >= monthAgo;
+                  break;
+                default:
+                  matchesDate = true;
+              }
+            }
+          } catch (dateError) {
+            console.warn('Date parsing error:', dateError);
+            matchesDate = true; // Don't filter out if date is invalid
+          }
+        }
+        
+        return matchesSearch && matchesType && matchesPeople && matchesDate;
+      } catch (error) {
+        console.error('Filter error for document:', doc, error);
+        return true; // Include document if filtering fails
       }
-    }
-    console.log('Matches type:', matchesType);
-    
-    // People filter
-    const matchesPeople = peopleFilter === 'all' || doc.uploaded_by === peopleFilter;
-    console.log('Matches people:', matchesPeople);
-    
-    // Date filter
-    let matchesDate = dateFilter === 'all';
-    if (!matchesDate) {
-      const docDate = new Date(doc.created_at);
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-      
-      switch (dateFilter) {
-        case 'today':
-          matchesDate = docDate >= today;
-          break;
-        case 'week':
-          matchesDate = docDate >= weekAgo;
-          break;
-        case 'month':
-          matchesDate = docDate >= monthAgo;
-          break;
-        default:
-          matchesDate = true;
-      }
-    }
-    console.log('Matches date:', matchesDate);
-    
-    const finalMatch = matchesSearch && matchesType && matchesPeople && matchesDate;
-    console.log('Final match:', finalMatch);
-    return finalMatch;
-  });
+    });
+  }, [documents, searchTerm, typeFilter, peopleFilter, dateFilter]);
 
-  console.log('Total documents:', documents.length);
-  console.log('Filtered documents:', filteredDocuments.length);
-
-  const currentFolder = folders.find(f => f.id === selectedFolder);
+  const currentFolder = folders?.find(f => f.id === selectedFolder);
 
   if (loading) {
     return (
@@ -301,7 +324,7 @@ export const DocumentsModule = () => {
         <div>
           <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-foreground`}>Document Repository</h1>
           <p className={`text-muted-foreground ${isMobile ? 'text-sm' : 'mt-1'}`}>
-            Manage and organize your documents • {filteredDocuments.length} documents
+            Manage and organize your documents • {filteredDocuments?.length || 0} documents
           </p>
         </div>
         
@@ -320,7 +343,7 @@ export const DocumentsModule = () => {
             
             <div className={isMobile ? 'w-full' : ''}>
               <FolderManager 
-                folders={folders}
+                folders={folders || []}
                 onCreateFolder={createFolder}
                 onDeleteFolder={handleDeleteFolder}
                 currentFolderId={selectedFolder}
@@ -383,24 +406,12 @@ export const DocumentsModule = () => {
           peopleFilter={peopleFilter}
           dateFilter={dateFilter}
           uniqueUploaders={uniqueUploaders}
-          userProfiles={userProfiles}
+          userProfiles={userProfiles || {}}
           currentUserId={user?.id}
-          onSearchChange={(value) => {
-            console.log('Search changed to:', value);
-            setSearchTerm(value);
-          }}
-          onTypeFilterChange={(value) => {
-            console.log('Type filter changed to:', value);
-            setTypeFilter(value);
-          }}
-          onPeopleFilterChange={(value) => {
-            console.log('People filter changed to:', value);
-            setPeopleFilter(value);
-          }}
-          onDateFilterChange={(value) => {
-            console.log('Date filter changed to:', value);
-            setDateFilter(value);
-          }}
+          onSearchChange={setSearchTerm}
+          onTypeFilterChange={setTypeFilter}
+          onPeopleFilterChange={setPeopleFilter}
+          onDateFilterChange={setDateFilter}
         />
 
         {/* View Mode Toggle */}
@@ -409,10 +420,7 @@ export const DocumentsModule = () => {
             <Button
               variant={viewMode === 'card' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => {
-                console.log('Switching to card view');
-                setViewMode('card');
-              }}
+              onClick={() => setViewMode('card')}
               className="rounded-none border-none h-9 px-3"
             >
               <Grid className="h-4 w-4" />
@@ -420,10 +428,7 @@ export const DocumentsModule = () => {
             <Button
               variant={viewMode === 'list' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => {
-                console.log('Switching to list view');
-                setViewMode('list');
-              }}
+              onClick={() => setViewMode('list')}
               className="rounded-none border-none h-9 px-3"
             >
               <List className="h-4 w-4" />
@@ -434,9 +439,9 @@ export const DocumentsModule = () => {
 
       {/* Main Document Table/Grid */}
       <DocumentTable
-        documents={filteredDocuments}
-        folders={folders.filter(f => f.parent_folder_id === selectedFolder)}
-        userProfiles={userProfiles}
+        documents={filteredDocuments || []}
+        folders={(folders || []).filter(f => f.parent_folder_id === selectedFolder)}
+        userProfiles={userProfiles || {}}
         currentUserId={user?.id}
         canDeleteDocument={canDeleteDocument}
         onViewDocument={handleViewDocument}
@@ -466,9 +471,10 @@ export const DocumentsModule = () => {
               description: `Document "${file.name}" uploaded successfully`
             });
           } catch (error: any) {
+            console.error('Upload error:', error);
             toast({
               title: "Error",
-              description: "Failed to upload document",
+              description: error.message || "Failed to upload document",
               variant: "destructive"
             });
           }
@@ -489,6 +495,7 @@ export const DocumentsModule = () => {
               description: "Document renamed successfully"
             });
           } catch (error: any) {
+            console.error('Rename error:', error);
             toast({
               title: "Error",
               description: "Failed to rename document",
