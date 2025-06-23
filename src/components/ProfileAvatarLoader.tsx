@@ -90,8 +90,9 @@ export const ProfileAvatarLoader: React.FC<ProfileAvatarLoaderProps> = ({
         src={getCacheBustedUrl(avatarUrl)} 
         alt={userName}
         key={`${imageKey}-${Date.now()}`}
+        className="object-cover object-center"
       />
-      <AvatarFallback className="bg-primary text-white">
+      <AvatarFallback className="bg-primary text-white flex items-center justify-center">
         {userName.charAt(0).toUpperCase()}
       </AvatarFallback>
     </Avatar>
