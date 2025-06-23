@@ -16,16 +16,25 @@ import { format, parseISO } from 'date-fns';
 import { RSVPSelector } from './RSVPSelector';
 
 export const AttendanceModule: React.FC = () => {
+  console.log('AttendanceModule - Component rendering');
+  
   const [showMarkDialog, setShowMarkDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showReportsDialog, setShowReportsDialog] = useState(false);
   const [showRSVPDialog, setShowRSVPDialog] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
 
-  const { meetings, loading: meetingsLoading } = useMeetings();
-  const { attendanceRecords, loading: attendanceLoading, markAttendance } = useAttendance();
+  const { meetings = [], loading: meetingsLoading } = useMeetings();
+  const { attendanceRecords = [], loading: attendanceLoading } = useAttendance();
   const userRole = useUserRole();
   const { toast } = useToast();
+
+  console.log('AttendanceModule - Data state:', {
+    meetingsCount: meetings.length,
+    meetingsLoading,
+    attendanceLoading,
+    userRole
+  });
 
   // Filter meetings for attendance tracking
   const now = new Date();
@@ -80,12 +89,15 @@ export const AttendanceModule: React.FC = () => {
   };
 
   if (meetingsLoading || attendanceLoading) {
+    console.log('AttendanceModule - Still loading data');
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
+
+  console.log('AttendanceModule - Rendering main content');
 
   return (
     <>
@@ -206,8 +218,8 @@ export const AttendanceModule: React.FC = () => {
           {/* Header */}
           <div className="flex justify-between items-center attendance-header">
             <div className="attendance-header-text">
-              <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
-              <p className="text-gray-600 mt-2">Track and manage meeting attendance with detailed analytics</p>
+              <h1 className="text-3xl font-bold text-black">Attendance Management</h1>
+              <p className="text-black mt-2">Track and manage meeting attendance with detailed analytics</p>
             </div>
             <Button 
               onClick={() => setShowReportsDialog(true)}
@@ -222,31 +234,31 @@ export const AttendanceModule: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 attendance-stats-grid">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="stat-card-title text-gray-600">This Month</CardTitle>
+                <CardTitle className="stat-card-title text-black">This Month</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="stat-card-value text-green-600">0</div>
-                <p className="stat-card-description text-gray-500">Meetings Attended</p>
+                <p className="stat-card-description text-black">Meetings Attended</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="stat-card-title text-gray-600">Attendance Rate</CardTitle>
+                <CardTitle className="stat-card-title text-black">Attendance Rate</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="stat-card-value text-blue-600">0%</div>
-                <p className="stat-card-description text-gray-500">Overall Rate</p>
+                <p className="stat-card-description text-black">Overall Rate</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="stat-card-title text-gray-600">Pending</CardTitle>
+                <CardTitle className="stat-card-title text-black">Pending</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="stat-card-value text-yellow-600">0</div>
-                <p className="stat-card-description text-gray-500">Check-ins Required</p>
+                <p className="stat-card-description text-black">Check-ins Required</p>
               </CardContent>
             </Card>
           </div>
@@ -265,10 +277,10 @@ export const AttendanceModule: React.FC = () => {
                   <Card key={meeting.id} className="meeting-card">
                     <CardContent className="meeting-card-content">
                       <div className="meeting-info">
-                        <h3 className="text-lg font-semibold text-gray-900">
+                        <h3 className="text-lg font-semibold text-black">
                           {meeting.title}
                         </h3>
-                        <div className="space-y-1 text-sm text-gray-600 meeting-meta">
+                        <div className="space-y-1 text-sm text-black meeting-meta">
                           <div className="flex items-center">
                             <Calendar className="h-4 w-4 mr-2" />
                             {format(parseISO(meeting.start_time), 'MMM dd, yyyy')} at{' '}
@@ -312,7 +324,7 @@ export const AttendanceModule: React.FC = () => {
                 <Card className="empty-state-card">
                   <CardContent className="p-8 text-center">
                     <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <p className="text-gray-600">No upcoming meetings</p>
+                    <p className="text-black">No upcoming meetings</p>
                   </CardContent>
                 </Card>
               )}
@@ -327,10 +339,10 @@ export const AttendanceModule: React.FC = () => {
                     <Card key={meeting.id} className="meeting-card">
                       <CardContent className="meeting-card-content">
                         <div className="meeting-info">
-                          <h3 className="text-lg font-semibold text-gray-900">
+                          <h3 className="text-lg font-semibold text-black">
                             {meeting.title}
                           </h3>
-                          <div className="space-y-1 text-sm text-gray-600 meeting-meta">
+                          <div className="space-y-1 text-sm text-black meeting-meta">
                             <div className="flex items-center">
                               <Calendar className="h-4 w-4 mr-2" />
                               {format(parseISO(meeting.start_time), 'MMM dd, yyyy')} at{' '}
@@ -389,7 +401,7 @@ export const AttendanceModule: React.FC = () => {
                 <Card className="empty-state-card">
                   <CardContent className="p-8 text-center">
                     <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <p className="text-gray-600">No meeting history available</p>
+                    <p className="text-black">No meeting history available</p>
                   </CardContent>
                 </Card>
               )}

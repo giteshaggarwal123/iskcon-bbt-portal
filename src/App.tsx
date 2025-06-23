@@ -107,7 +107,7 @@ const App = () => {
                   <Route path="/auth" element={<RealAuthPage />} />
                   <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
                   
-                  {/* Protected routes */}
+                  {/* Protected routes with explicit path matching */}
                   <Route path="/" element={
                     <ProtectedRoute>
                       <Dashboard />
@@ -118,16 +118,48 @@ const App = () => {
                       <Dashboard />
                     </ProtectedRoute>
                   } />
-                  <Route path="/meetings" element={<ProtectedRoute><MeetingsModule /></ProtectedRoute>} />
-                  <Route path="/voting" element={<ProtectedRoute><VotingModule /></ProtectedRoute>} />
-                  <Route path="/members" element={<ProtectedRoute><MembersModule /></ProtectedRoute>} />
-                  <Route path="/documents" element={<ProtectedRoute><DocumentsModule /></ProtectedRoute>} />
-                  <Route path="/email" element={<ProtectedRoute><EmailModule /></ProtectedRoute>} />
-                  <Route path="/attendance" element={<ProtectedRoute><AttendanceModule /></ProtectedRoute>} />
-                  <Route path="/reports" element={<ProtectedRoute><ReportsModule /></ProtectedRoute>} />
-                  <Route path="/settings" element={<ProtectedRoute><SettingsModule /></ProtectedRoute>} />
+                  <Route path="/meetings" element={
+                    <ProtectedRoute>
+                      <MeetingsModule />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/voting" element={
+                    <ProtectedRoute>
+                      <VotingModule />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/members" element={
+                    <ProtectedRoute>
+                      <MembersModule />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/documents" element={
+                    <ProtectedRoute>
+                      <DocumentsModule />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/email" element={
+                    <ProtectedRoute>
+                      <EmailModule />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/attendance" element={
+                    <ProtectedRoute>
+                      <AttendanceModule />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/reports" element={
+                    <ProtectedRoute>
+                      <ReportsModule />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/settings" element={
+                    <ProtectedRoute>
+                      <SettingsModule />
+                    </ProtectedRoute>
+                  } />
                   
-                  {/* 404 fallback */}
+                  {/* 404 fallback - this should be the last route */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>

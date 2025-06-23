@@ -18,11 +18,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  console.log('Layout - Current location:', location.pathname);
+
   // Update current module based on location
   useEffect(() => {
     const path = location.pathname;
     const module = path === '/' ? 'dashboard' : path.substring(1);
-    console.log('Location changed to:', path, 'Module:', module);
+    console.log('Layout - Location changed to:', path, 'Module:', module);
     setCurrentModule(module);
   }, [location]);
 
@@ -35,14 +37,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, [isMobile]);
 
   const handleModuleChange = (module: string) => {
-    console.log('Module changed to:', module);
+    console.log('Layout - Module changed to:', module);
     setCurrentModule(module);
     if (isMobile) setSidebarOpen(false);
     
     // Use React Router navigation
     const routePath = module === 'dashboard' ? '/' : `/${module}`;
-    console.log('Navigating to:', routePath);
-    navigate(routePath);
+    console.log('Layout - Navigating to:', routePath);
+    
+    try {
+      navigate(routePath);
+    } catch (error) {
+      console.error('Layout - Navigation error:', error);
+      // Fallback navigation
+      window.location.href = routePath;
+    }
   };
 
   // Enhanced mobile navigation items with better touch targets
