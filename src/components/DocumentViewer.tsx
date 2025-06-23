@@ -47,23 +47,69 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     }
   }, [documentProp?.id]);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!documentProp) return;
     
-    // Create a download link
-    const link = document.createElement('a');
-    link.href = documentProp.file_path;
-    link.download = documentProp.name;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast({
-      title: "Download Started",
-      description: `Downloading "${documentProp.name}"`
-    });
+    try {
+      console.log('Starting download for:', documentProp.name, documentProp.file_path);
+      
+      // Check if it's a Supabase storage URL
+      const isSupabaseUrl = documentProp.file_path && (
+        documentProp.file_path.includes('supabase.co/storage') || 
+        documentProp.file_path.includes('/storage/v1/object/public/')
+      );
+      
+      if (!isSupabaseUrl) {
+        toast({
+          title: "Download Not Available",
+          description: "This document was created before storage was configured",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Create a temporary anchor element for download
+      const downloadLink = document.createElement('a');
+      downloadLink.style.display = 'none';
+      
+      // Set download attributes
+      downloadLink.href = documentProp.file_path;
+      downloadLink.download = documentProp.name || 'document';
+      downloadLink.target = '_blank';
+      downloadLink.rel = 'noopener noreferrer';
+      
+      // Add to DOM, trigger click, then remove
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      
+      toast({
+        title: "Download Started",
+        description: `Downloading "${documentProp.name}"`
+      });
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      
+      // Fallback: try to open in new tab
+      try {
+        const newWindow = window.open(documentProp.file_path, '_blank', 'noopener,noreferrer');
+        if (newWindow) {
+          toast({
+            title: "Download Alternative",
+            description: "Document opened in new tab. Use browser's download option.",
+          });
+        } else {
+          throw new Error('Popup blocked');
+        }
+      } catch (fallbackError) {
+        toast({
+          title: "Download Failed",
+          description: "Unable to download the document. Please try again or contact support.",
+          variant: "destructive"
+        });
+      }
+    }
   };
 
   const handleExternalView = () => {
