@@ -24,6 +24,26 @@ npx cap sync android
 echo "🔄 Updating Android dependencies..."
 npx cap update android
 
+# Fix gradlew permissions on Linux/macOS
+echo "🔧 Setting gradlew permissions..."
+if [ -f "android/gradlew" ]; then
+    chmod +x android/gradlew
+    echo "✅ gradlew permissions set"
+else
+    echo "⚠️ gradlew not found, this is normal for some Capacitor versions"
+fi
+
+# Fix line endings if on Linux
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    echo "🐧 Fixing line endings for Linux..."
+    if command -v dos2unix &> /dev/null; then
+        find android/ -name "gradlew" -exec dos2unix {} \;
+        echo "✅ Line endings fixed"
+    else
+        echo "ℹ️ Install dos2unix for better compatibility: sudo apt install dos2unix"
+    fi
+fi
+
 echo "✅ Android build complete!"
 echo ""
 echo "Next steps:"
@@ -36,3 +56,8 @@ echo "If you still get 'App not found', make sure:"
 echo "- Your device/emulator is connected"
 echo "- USB debugging is enabled (for physical devices)"
 echo "- The app is properly installed on the device"
+echo ""
+echo "For Linux users:"
+echo "- Make sure Android Studio and SDK are properly installed"
+echo "- Ensure ANDROID_HOME environment variable is set"
+echo "- Check that adb is in your PATH"
