@@ -20,6 +20,7 @@ export const SettingsModule: React.FC = () => {
   const { profile, updateProfile, refreshProfile } = useProfile();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState('');
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -34,6 +35,7 @@ export const SettingsModule: React.FC = () => {
         last_name: profile.last_name || '',
         phone: profile.phone || '',
       });
+      setCurrentAvatarUrl(profile.avatar_url || '');
     }
   }, [profile]);
 
@@ -52,7 +54,8 @@ export const SettingsModule: React.FC = () => {
   };
 
   const handleImageUpdate = (imageUrl: string) => {
-    console.log('Image updated:', imageUrl);
+    console.log('Image updated in settings:', imageUrl);
+    setCurrentAvatarUrl(imageUrl);
     // Force profile refresh to update the avatar in sidebar and other components
     refreshProfile();
   };
@@ -94,7 +97,7 @@ export const SettingsModule: React.FC = () => {
             <CardContent className="space-y-6">
               {/* Profile Image Upload Section */}
               <ProfileImageUpload 
-                currentImageUrl={profile?.avatar_url}
+                currentImageUrl={currentAvatarUrl}
                 onImageUpdate={handleImageUpdate} 
               />
 

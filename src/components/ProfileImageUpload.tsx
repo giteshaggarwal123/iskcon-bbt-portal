@@ -18,11 +18,39 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [imageUrl, setImageUrl] = useState(currentImageUrl || '');
+  const [imageKey, setImageKey] = useState(0); // Force re-render of images
 
+  // Always use the currentImageUrl from props instead of local state
+  const displayImageUrl = currentImageUrl;
+
+  // Listen for avatar updates to force image refresh
   useEffect(() => {
-    setImageUrl(currentImageUrl || '');
-  }, [currentImageUrl]);
+    const handleAvatarUpdate = (event: CustomEvent) => {
+      console.log('ProfileImageUpload received avatar update:', event.detail);
+      if (event.detail.userId === user?.id) {
+        setImageKey(prev => prev + 1);
+        // Call onImageUpdate to sync parent component
+        onImageUpdate(event.detail.avatarUrl);
+      }
+    };
+
+    const handleProfileUpdate = (event: CustomEvent) => {
+      console.log('ProfileImageUpload received profile update:', event.detail);
+      if (event.detail.userId === user?.id && event.detail.profile?.avatar_url) {
+        setImageKey(prev => prev + 1);
+        // Call onImageUpdate to sync parent component
+        onImageUpdate(event.detail.profile.avatar_url);
+      }
+    };
+
+    window.addEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
+    window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
+      window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
+    };
+  }, [user?.id, onImageUpdate]);
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -77,7 +105,8 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
 
       if (updateError) throw updateError;
 
-      setImageUrl(publicUrl);
+      // Force image refresh
+      setImageKey(prev => prev + 1);
       onImageUpdate(publicUrl);
       
       // Dispatch custom events to trigger UI updates across components
@@ -116,9 +145,9 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
     <div className="space-y-4">
       <div className="flex items-center space-x-6">
         <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden">
-          {imageUrl ? (
+          {displayImageUrl ? (
             <img 
-              src={imageUrl} 
+              src={`${displayImageUrl}?v=${imageKey}`}
               alt="Profile" 
               className="w-full h-full object-cover"
             />
