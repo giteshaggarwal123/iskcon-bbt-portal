@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,32 +21,6 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
   const [imageKey, setImageKey] = useState(0);
 
   const displayImageUrl = currentImageUrl;
-
-  useEffect(() => {
-    const handleAvatarUpdate = (event: CustomEvent) => {
-      console.log('ProfileImageUpload received avatar update:', event.detail);
-      if (event.detail.userId === user?.id) {
-        setImageKey(prev => prev + 1);
-        onImageUpdate(event.detail.avatarUrl);
-      }
-    };
-
-    const handleProfileUpdate = (event: CustomEvent) => {
-      console.log('ProfileImageUpload received profile update:', event.detail);
-      if (event.detail.userId === user?.id && event.detail.profile?.avatar_url) {
-        setImageKey(prev => prev + 1);
-        onImageUpdate(event.detail.profile.avatar_url);
-      }
-    };
-
-    window.addEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
-    window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
-
-    return () => {
-      window.removeEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
-      window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
-    };
-  }, [user?.id, onImageUpdate]);
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -103,7 +77,7 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
       setImageKey(prev => prev + 1);
       onImageUpdate(timestampedUrl);
       
-      // Dispatch events with timestamped URL
+      // Dispatch events with timestamped URL - single dispatch with delay
       setTimeout(() => {
         const eventDetail = { 
           profile: { avatar_url: timestampedUrl }, 
@@ -115,7 +89,7 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
         window.dispatchEvent(new CustomEvent('avatarUpdated', { 
           detail: { avatarUrl: timestampedUrl, userId: user.id } 
         }));
-      }, 100);
+      }, 200);
       
       toast({
         title: "Profile Image Updated",

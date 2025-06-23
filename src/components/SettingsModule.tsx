@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,15 +21,14 @@ export const SettingsModule: React.FC = () => {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState('');
-  const [avatarRefreshKey, setAvatarRefreshKey] = useState(0);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
     phone: '',
   });
 
-  // Update form data when profile changes
-  useEffect(() => {
+  // Update form data when profile changes - use useCallback to prevent excessive updates
+  const updateFormData = useCallback(() => {
     if (profile) {
       setFormData({
         first_name: profile.first_name || '',
@@ -40,35 +39,35 @@ export const SettingsModule: React.FC = () => {
     }
   }, [profile]);
 
+  useEffect(() => {
+    updateFormData();
+  }, [updateFormData]);
+
   const handleSave = async () => {
-    await updateProfile(formData);
-    setIsEditing(false);
+    try {
+      await updateProfile(formData);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+    }
   };
 
   const handleCancel = () => {
-    setFormData({
-      first_name: profile?.first_name || '',
-      last_name: profile?.last_name || '',
-      phone: profile?.phone || '',
-    });
+    updateFormData(); // Reset to current profile data
     setIsEditing(false);
   };
 
-  const handleImageUpdate = (imageUrl: string) => {
+  const handleImageUpdate = useCallback((imageUrl: string) => {
     console.log('Image updated in settings:', imageUrl);
     setCurrentAvatarUrl(imageUrl);
-    setAvatarRefreshKey(prev => prev + 1);
     
-    // Force profile refresh and sidebar update
-    refreshProfile();
-    
-    // Dispatch additional events to ensure all components update
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('forceAvatarRefresh', { 
-        detail: { userId: user?.id, avatarUrl: imageUrl, timestamp: Date.now() } 
-      }));
-    }, 200);
-  };
+    // Debounce the refresh to prevent excessive calls
+    const timeoutId = setTimeout(() => {
+      refreshProfile();
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [refreshProfile]);
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -109,7 +108,6 @@ export const SettingsModule: React.FC = () => {
               <ProfileImageUpload 
                 currentImageUrl={currentAvatarUrl}
                 onImageUpdate={handleImageUpdate}
-                key={avatarRefreshKey}
               />
 
               {/* User Info Display */}

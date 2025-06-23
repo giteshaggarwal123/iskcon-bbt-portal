@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -20,14 +20,24 @@ export const useProfile = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const fetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef(0);
 
-  const fetchProfile = async () => {
-    if (!user) {
+  const fetchProfile = useCallback(async () => {
+    if (!user || fetchingRef.current) {
       setLoading(false);
       return;
     }
 
+    // Throttle requests - don't fetch more than once every 2 seconds
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < 2000) {
+      return;
+    }
+
     try {
+      fetchingRef.current = true;
+      lastFetchTimeRef.current = now;
       setLoading(true);
       console.log('Fetching profile for user:', user.id);
       
@@ -65,11 +75,12 @@ export const useProfile = () => {
       });
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
-  };
+  }, [user, toast]);
 
   const createProfileIfNeeded = async () => {
-    if (!user) return;
+    if (!user || fetchingRef.current) return;
 
     try {
       const newProfile = {
@@ -95,7 +106,7 @@ export const useProfile = () => {
         
         if (createError.message.includes('row-level security')) {
           console.log('RLS prevented profile creation, profile might already exist');
-          setTimeout(() => fetchProfile(), 1000);
+          setTimeout(() => fetchProfile(), 2000);
           return;
         }
         
@@ -145,15 +156,12 @@ export const useProfile = () => {
       console.log('Profile updated successfully:', data);
       setProfile(data);
       
-      // Force immediate refresh
-      setRefreshTrigger(prev => prev + 1);
-      
       // Dispatch events with slight delay to ensure all components are ready
       setTimeout(() => {
         const eventDetail = { profile: data, userId: user.id };
         console.log('Dispatching profile update from useProfile:', eventDetail);
         window.dispatchEvent(new CustomEvent('profileUpdated', { detail: eventDetail }));
-      }, 50);
+      }, 100);
 
       toast({
         title: "Profile Updated",
@@ -172,27 +180,38 @@ export const useProfile = () => {
     }
   };
 
-  const refreshProfile = () => {
+  const refreshProfile = useCallback(() => {
     console.log('Forcing profile refresh');
     setRefreshTrigger(prev => prev + 1);
-  };
+  }, []);
 
   useEffect(() => {
-    fetchProfile();
-  }, [user, refreshTrigger]);
+    if (user?.id) {
+      fetchProfile();
+    }
+  }, [user?.id, refreshTrigger, fetchProfile]);
 
-  // Listen for profile updates from other components
+  // Listen for profile updates from other components - but throttle the responses
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     const handleProfileUpdate = (event: CustomEvent) => {
       console.log('useProfile received profile update event:', event.detail);
       if (event.detail.userId === user?.id) {
-        fetchProfile();
+        // Debounce the fetch to prevent rapid consecutive calls
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          fetchProfile();
+        }, 1000);
       }
     };
 
     window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
-    return () => window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
-  }, [user?.id]);
+    return () => {
+      window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
+      clearTimeout(timeoutId);
+    };
+  }, [user?.id, fetchProfile]);
 
   return {
     profile,
