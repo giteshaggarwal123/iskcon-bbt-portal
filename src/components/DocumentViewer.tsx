@@ -53,59 +53,115 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     try {
       console.log('Starting download for:', documentProp.name, documentProp.file_path);
       
-      // Check if it's a Supabase storage URL
-      const isSupabaseUrl = documentProp.file_path && (
-        documentProp.file_path.includes('supabase.co/storage') || 
-        documentProp.file_path.includes('/storage/v1/object/public/')
-      );
-      
-      if (!isSupabaseUrl) {
-        toast({
-          title: "Download Not Available",
-          description: "This document was created before storage was configured",
-          variant: "destructive"
+      // Show loading toast
+      toast({
+        title: "Starting Download",
+        description: `Preparing "${documentProp.name}" for download...`
+      });
+
+      // Strategy 1: Fetch with proper headers and create blob
+      try {
+        const response = await fetch(documentProp.file_path, {
+          method: 'GET',
+          headers: {
+            'Accept': '*/*',
+            'Cache-Control': 'no-cache',
+          },
+          mode: 'cors'
         });
-        return;
+
+        if (response.ok) {
+          const blob = await response.blob();
+          
+          // Create download link
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = documentProp.name || 'download';
+          link.style.display = 'none';
+          
+          // Trigger download
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Clean up
+          setTimeout(() => window.URL.revokeObjectURL(url), 100);
+          
+          toast({
+            title: "Download Complete",
+            description: `"${documentProp.name}" downloaded successfully`
+          });
+          return;
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      } catch (fetchError) {
+        console.warn('Fetch download failed:', fetchError);
       }
 
-      // Create a temporary anchor element for download
-      const downloadLink = document.createElement('a');
-      downloadLink.style.display = 'none';
-      
-      // Set download attributes
-      downloadLink.href = documentProp.file_path;
-      downloadLink.download = documentProp.name || 'document';
-      downloadLink.target = '_blank';
-      downloadLink.rel = 'noopener noreferrer';
-      
-      // Add to DOM, trigger click, then remove
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-      
-      toast({
-        title: "Download Started",
-        description: `Downloading "${documentProp.name}"`
-      });
-      
-    } catch (error) {
-      console.error('Download error:', error);
-      
-      // Fallback: try to open in new tab
+      // Strategy 2: Direct link approach with proper attributes
+      try {
+        const link = document.createElement('a');
+        link.href = documentProp.file_path;
+        link.download = documentProp.name || 'download';
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.style.display = 'none';
+        
+        // Add click handler to track success
+        let downloadStarted = false;
+        link.addEventListener('click', () => {
+          downloadStarted = true;
+        });
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        if (downloadStarted) {
+          toast({
+            title: "Download Started",
+            description: `"${documentProp.name}" download initiated`
+          });
+          return;
+        }
+      } catch (linkError) {
+        console.warn('Link download failed:', linkError);
+      }
+
+      // Strategy 3: Open in new window as last resort
       try {
         const newWindow = window.open(documentProp.file_path, '_blank', 'noopener,noreferrer');
         if (newWindow) {
           toast({
-            title: "Download Alternative",
-            description: "Document opened in new tab. Use browser's download option.",
+            title: "File Opened",
+            description: "File opened in new tab. Use your browser's download option.",
           });
-        } else {
-          throw new Error('Popup blocked');
+          return;
         }
-      } catch (fallbackError) {
+      } catch (windowError) {
+        console.warn('Window.open failed:', windowError);
+      }
+
+      // If all methods fail
+      throw new Error('All download methods failed');
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      
+      // Check if it's a demo file or invalid URL
+      if (!documentProp.file_path || 
+          (!documentProp.file_path.includes('http') && !documentProp.file_path.startsWith('/'))) {
         toast({
-          title: "Download Failed",
-          description: "Unable to download the document. Please try again or contact support.",
+          title: "Demo File",
+          description: "This is a demo file. In production, files would be stored in cloud storage.",
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Download Error",
+          description: "Unable to download the file. Please check your connection and try again.",
           variant: "destructive"
         });
       }
@@ -115,13 +171,30 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const handleExternalView = () => {
     if (!documentProp) return;
     
-    // Open in new tab
-    window.open(documentProp.file_path, '_blank', 'noopener,noreferrer');
-    
-    toast({
-      title: "External View",
-      description: `Opening "${documentProp.name}" in new tab`
-    });
+    try {
+      // Open in new tab
+      const newWindow = window.open(documentProp.file_path, '_blank', 'noopener,noreferrer');
+      
+      if (newWindow) {
+        toast({
+          title: "External View",
+          description: `Opening "${documentProp.name}" in new tab`
+        });
+      } else {
+        toast({
+          title: "Popup Blocked",
+          description: "Please allow popups to open files in external tabs",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('External view error:', error);
+      toast({
+        title: "Error",
+        description: "Unable to open file in external tab",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleZoomIn = () => {

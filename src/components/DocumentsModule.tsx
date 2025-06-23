@@ -198,64 +198,106 @@ export const DocumentsModule = () => {
     setViewDocument(document);
   };
 
-  // Improved download function with better error handling and cross-browser support
+  // Enhanced download function with multiple strategies
   const handleDownloadDocument = async (document: any) => {
     try {
       console.log('Starting download for:', document.name, document.file_path);
       
-      // Check if it's a Supabase storage URL
-      const isSupabaseUrl = document.file_path && (
-        document.file_path.includes('supabase.co/storage') || 
-        document.file_path.includes('/storage/v1/object/public/')
-      );
-      
-      if (!isSupabaseUrl) {
-        toast({
-          title: "Download Not Available",
-          description: "This document was created before storage was configured",
-          variant: "destructive"
+      // Show loading toast
+      const loadingToastId = toast({
+        title: "Starting Download",
+        description: `Preparing "${document.name}" for download...`
+      });
+
+      // Strategy 1: Direct download with fetch and blob
+      try {
+        const response = await fetch(document.file_path, {
+          method: 'GET',
+          headers: {
+            'Accept': '*/*',
+          },
         });
-        return;
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = document.name || 'download';
+          link.style.display = 'none';
+          
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Clean up the blob URL
+          setTimeout(() => window.URL.revokeObjectURL(url), 100);
+          
+          toast({
+            title: "Download Complete",
+            description: `"${document.name}" downloaded successfully`
+          });
+          return;
+        }
+      } catch (fetchError) {
+        console.warn('Fetch download failed, trying alternative method:', fetchError);
       }
 
-      // Create a temporary anchor element for download
-      const downloadLink = document.createElement('a');
-      downloadLink.style.display = 'none';
-      
-      // Set download attributes
-      downloadLink.href = document.file_path;
-      downloadLink.download = document.name || 'document';
-      downloadLink.target = '_blank';
-      downloadLink.rel = 'noopener noreferrer';
-      
-      // Add to DOM, trigger click, then remove
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-      
-      toast({
-        title: "Download Started",
-        description: `Downloading "${document.name}"`
-      });
-      
-    } catch (error) {
-      console.error('Download error:', error);
-      
-      // Fallback: try to open in new tab
+      // Strategy 2: Direct link download
+      try {
+        const link = document.createElement('a');
+        link.href = document.file_path;
+        link.download = document.name || 'download';
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast({
+          title: "Download Started",
+          description: `"${document.name}" download initiated`
+        });
+        return;
+      } catch (linkError) {
+        console.warn('Link download failed, trying window.open:', linkError);
+      }
+
+      // Strategy 3: Open in new window as fallback
       try {
         const newWindow = window.open(document.file_path, '_blank', 'noopener,noreferrer');
         if (newWindow) {
           toast({
-            title: "Download Alternative",
-            description: "Document opened in new tab. Use browser's download option.",
+            title: "File Opened",
+            description: "File opened in new tab. Use your browser's download option."
           });
-        } else {
-          throw new Error('Popup blocked');
+          return;
         }
-      } catch (fallbackError) {
+      } catch (windowError) {
+        console.warn('Window.open failed:', windowError);
+      }
+
+      // If all strategies fail
+      throw new Error('All download methods failed');
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      
+      // Check if it's a demo/legacy file
+      if (!document.file_path || 
+          (!document.file_path.includes('supabase.co/storage') && 
+           !document.file_path.includes('/storage/v1/object/public/'))) {
+        toast({
+          title: "Demo File",
+          description: "This is a demo file. In production, files would be stored in Supabase Storage.",
+          variant: "default"
+        });
+      } else {
         toast({
           title: "Download Failed",
-          description: "Unable to download the document. Please try again or contact support.",
+          description: "Unable to download the file. Please check your internet connection and try again.",
           variant: "destructive"
         });
       }
