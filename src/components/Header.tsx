@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const handleProfileClick = () =>       {
+  const handleProfileClick = () => {
     if (onProfileClick) {
       onProfileClick();
     }
@@ -53,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
     <>
       {/* Theme-colored status bar indicator - Only on mobile */}
       {isMobile && (
-        <div className="fixed top-0 left-0 right-0 h-12 bg-primary z-[60]" />
+        <div className="fixed top-0 left-0 right-0 h-12 bg-[#8E1616] z-[60]" />
       )}
       
       <header className={`bg-white border-b border-gray-200 px-4 py-3 fixed left-0 right-0 z-50 h-16 ${
@@ -77,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center">
               {!isMobile && (
                 <div className="text-left">
-                  <h1 className="text-xl font-bold text-foreground">
+                  <h1 className="text-xl font-bold text-[#8E1616]">
                     ISKCON BUREAU
                   </h1>
                   <p className="text-sm text-muted-foreground -mt-1">
@@ -87,7 +87,7 @@ export const Header: React.FC<HeaderProps> = ({
               )}
               {isMobile && (
                 <div className="text-left">
-                  <h1 className="text-lg font-bold text-foreground">
+                  <h1 className="text-lg font-bold text-[#8E1616]">
                     ISKCON BUREAU
                   </h1>
                   <p className="text-xs text-muted-foreground -mt-1">
@@ -108,7 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Bell className="h-4 w-4 text-foreground" />
               {unreadNotifications > 0 && (
-                <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+                <span className="absolute -top-1 -right-1 h-3 w-3 bg-[#8E1616] rounded-full"></span>
               )}
             </Button>
 

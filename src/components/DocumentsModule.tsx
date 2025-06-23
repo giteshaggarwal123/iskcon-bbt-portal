@@ -333,7 +333,7 @@ export const DocumentsModule = () => {
           <Button
             onClick={() => setIsUploadDialogOpen(true)}
             size="sm"
-            className={`${isMobile ? 'w-full' : ''} bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-2`}
+            className={`${isMobile ? 'w-full' : ''} bg-[#8E1616] hover:bg-[#7A1414] text-white flex items-center justify-center gap-2`}
           >
             <Plus className="h-4 w-4" />
             Upload Document

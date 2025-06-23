@@ -34,7 +34,7 @@ export default {
 					foreground: 'hsl(var(--secondary-foreground))'
 				},
 				destructive: {
-					DEFAULT: '#EF4444',
+					DEFAULT: '#8E1616',
 					foreground: '#FFFFFF'
 				},
 				muted: {
@@ -55,7 +55,7 @@ export default {
 				},
 				success: '#22C55E',
 				warning: '#F59E0B',
-				error: '#EF4444',
+				error: '#8E1616',
 				highlight: '#8E1616',
 				iskcon: {
 					maroon: '#8E1616',
