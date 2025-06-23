@@ -18,18 +18,15 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [imageKey, setImageKey] = useState(0); // Force re-render of images
+  const [imageKey, setImageKey] = useState(0);
 
-  // Always use the currentImageUrl from props instead of local state
   const displayImageUrl = currentImageUrl;
 
-  // Listen for avatar updates to force image refresh
   useEffect(() => {
     const handleAvatarUpdate = (event: CustomEvent) => {
       console.log('ProfileImageUpload received avatar update:', event.detail);
       if (event.detail.userId === user?.id) {
         setImageKey(prev => prev + 1);
-        // Call onImageUpdate to sync parent component
         onImageUpdate(event.detail.avatarUrl);
       }
     };
@@ -38,7 +35,6 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
       console.log('ProfileImageUpload received profile update:', event.detail);
       if (event.detail.userId === user?.id && event.detail.profile?.avatar_url) {
         setImageKey(prev => prev + 1);
-        // Call onImageUpdate to sync parent component
         onImageUpdate(event.detail.profile.avatar_url);
       }
     };
@@ -56,7 +52,6 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
-    // Validate file type
     const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
     if (!allowedTypes.includes(file.type)) {
       toast({
@@ -67,7 +62,6 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "File Too Large",
@@ -82,19 +76,16 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/profile.${fileExt}`;
 
-      // Upload image to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('profile-images')
         .upload(fileName, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('profile-images')
         .getPublicUrl(fileName);
 
-      // Update profile with image URL
       const { error: updateError } = await supabase
         .from('profiles')
         .upsert({
@@ -105,25 +96,23 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
 
       if (updateError) throw updateError;
 
-      // Force image refresh
+      // Force immediate refresh
       setImageKey(prev => prev + 1);
       onImageUpdate(publicUrl);
       
-      // Dispatch custom events to trigger UI updates across components
-      window.dispatchEvent(new CustomEvent('profileUpdated', { 
-        detail: { 
+      // Dispatch events with a small delay to ensure state updates
+      setTimeout(() => {
+        const eventDetail = { 
           profile: { avatar_url: publicUrl }, 
           userId: user.id 
-        } 
-      }));
-      
-      // Additional event specifically for avatar updates
-      window.dispatchEvent(new CustomEvent('avatarUpdated', { 
-        detail: { 
-          avatarUrl: publicUrl, 
-          userId: user.id 
-        } 
-      }));
+        };
+        
+        console.log('Dispatching profile update event:', eventDetail);
+        window.dispatchEvent(new CustomEvent('profileUpdated', { detail: eventDetail }));
+        window.dispatchEvent(new CustomEvent('avatarUpdated', { 
+          detail: { avatarUrl: publicUrl, userId: user.id } 
+        }));
+      }, 100);
       
       toast({
         title: "Profile Image Updated",

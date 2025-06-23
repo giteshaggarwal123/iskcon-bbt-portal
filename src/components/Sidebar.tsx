@@ -60,21 +60,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { user, signOut } = useAuth();
   const userRole = useUserRole();
-  const { profile } = useProfile();
+  const { profile, refreshProfile } = useProfile();
   const isMobile = useIsMobile();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [profileRefreshTrigger, setProfileRefreshTrigger] = useState(0);
 
-  // Listen for profile updates with enhanced event handling
+  // Enhanced profile update handling
   useEffect(() => {
     const handleProfileUpdate = (event: CustomEvent) => {
       console.log('Sidebar received profile update:', event.detail);
-      setProfileRefreshTrigger(prev => prev + 1);
+      if (event.detail.userId === user?.id) {
+        setProfileRefreshTrigger(prev => prev + 1);
+        // Force profile refresh from the hook as well
+        refreshProfile();
+      }
     };
 
     const handleAvatarUpdate = (event: CustomEvent) => {
       console.log('Sidebar received avatar update:', event.detail);
-      setProfileRefreshTrigger(prev => prev + 1);
+      if (event.detail.userId === user?.id) {
+        setProfileRefreshTrigger(prev => prev + 1);
+        // Force profile refresh from the hook as well
+        refreshProfile();
+      }
     };
 
     window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
@@ -84,20 +92,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
       window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
       window.removeEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
     };
-  }, []);
+  }, [user?.id, refreshProfile]);
 
-  // Filter menu items based on user permissions
+  // Re-fetch profile when user changes
+  useEffect(() => {
+    if (user?.id) {
+      refreshProfile();
+    }
+  }, [user?.id, refreshProfile]);
+
   const menuItems = allMenuItems.filter(item => {
     if (!item.requiredPermission) return true;
     return userRole[item.requiredPermission as keyof typeof userRole];
   });
 
-  // Extract user info with priority: profile > user metadata > email
-  const userName = profile 
-    ? `${profile.first_name} ${profile.last_name}`.trim() || profile.email?.split('@')[0] || 'User'
-    : user?.user_metadata?.first_name 
-      ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim()
-      : user?.email?.split('@')[0] || 'User';
+  // Enhanced user name extraction with better fallbacks
+  const userName = React.useMemo(() => {
+    if (profile?.first_name || profile?.last_name) {
+      return `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+    }
+    if (profile?.email) {
+      return profile.email.split('@')[0];
+    }
+    if (user?.user_metadata?.first_name || user?.user_metadata?.last_name) {
+      return `${user.user_metadata.first_name || ''} ${user.user_metadata.last_name || ''}`.trim();
+    }
+    if (user?.email) {
+      return user.email.split('@')[0];
+    }
+    return 'User';
+  }, [profile, user]);
   
   const userEmail = profile?.email || user?.email || 'user@iskcon.org';
 
@@ -137,7 +161,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       !isMobile && isCollapsed ? 'w-20' : 'w-64'
     } left-0`}>
       <div className="flex flex-col h-full">
-        {/* Logo Section - Now Clickable, larger logo */}
+        {/* Logo Section */}
         <div className="p-6 border-b border-gray-200">
           <button 
             onClick={handleLogoClick}
@@ -173,7 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           ))}
           
-          {/* Logout Button with Confirmation Dialog */}
+          {/* Logout Button */}
           <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
             <AlertDialogTrigger asChild>
               <Button
@@ -204,7 +228,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </AlertDialog>
         </nav>
 
-        {/* User Profile Section - Enhanced with better refresh handling */}
+        {/* User Profile Section - Enhanced */}
         {(!isCollapsed || isMobile) && (
           <div className="border-t border-gray-200 p-4">
             <button 
@@ -213,6 +237,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <ProfileAvatarLoader 
                 userName={userName} 
+                userId={user?.id}
                 refreshTrigger={avatarRefreshTrigger + profileRefreshTrigger}
               />
               <div className="flex-1 min-w-0 text-left">
@@ -227,7 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
         
-        {/* Collapsed user profile - just avatar */}
+        {/* Collapsed user profile */}
         {!isMobile && isCollapsed && (
           <div className="border-t border-gray-200 p-4 flex justify-center">
             <button 
@@ -237,6 +262,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <ProfileAvatarLoader 
                 userName={userName} 
+                userId={user?.id}
                 refreshTrigger={avatarRefreshTrigger + profileRefreshTrigger}
               />
             </button>

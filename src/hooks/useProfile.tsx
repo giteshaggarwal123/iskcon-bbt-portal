@@ -40,7 +40,6 @@ export const useProfile = () => {
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching profile:', error);
         
-        // Handle RLS policy errors gracefully
         if (error.message.includes('row-level security')) {
           console.log('User may not have access to their profile yet, creating...');
           await createProfileIfNeeded();
@@ -94,10 +93,8 @@ export const useProfile = () => {
       if (createError) {
         console.error('Error creating profile:', createError);
         
-        // If it's an RLS error, the user might not have permission to create
         if (createError.message.includes('row-level security')) {
           console.log('RLS prevented profile creation, profile might already exist');
-          // Try to fetch again in case it was created by trigger
           setTimeout(() => fetchProfile(), 1000);
           return;
         }
@@ -133,7 +130,6 @@ export const useProfile = () => {
       if (error) {
         console.error('Error updating profile:', error);
         
-        // Handle RLS policy errors
         if (error.message.includes('row-level security')) {
           toast({
             title: "Permission Denied",
@@ -149,13 +145,15 @@ export const useProfile = () => {
       console.log('Profile updated successfully:', data);
       setProfile(data);
       
-      // Trigger refresh across components
+      // Force immediate refresh
       setRefreshTrigger(prev => prev + 1);
       
-      // Dispatch custom event for global profile updates
-      window.dispatchEvent(new CustomEvent('profileUpdated', { 
-        detail: { profile: data, userId: user.id } 
-      }));
+      // Dispatch events with slight delay to ensure all components are ready
+      setTimeout(() => {
+        const eventDetail = { profile: data, userId: user.id };
+        console.log('Dispatching profile update from useProfile:', eventDetail);
+        window.dispatchEvent(new CustomEvent('profileUpdated', { detail: eventDetail }));
+      }, 50);
 
       toast({
         title: "Profile Updated",
@@ -175,6 +173,7 @@ export const useProfile = () => {
   };
 
   const refreshProfile = () => {
+    console.log('Forcing profile refresh');
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -184,13 +183,16 @@ export const useProfile = () => {
 
   // Listen for profile updates from other components
   useEffect(() => {
-    const handleProfileUpdate = () => {
-      fetchProfile();
+    const handleProfileUpdate = (event: CustomEvent) => {
+      console.log('useProfile received profile update event:', event.detail);
+      if (event.detail.userId === user?.id) {
+        fetchProfile();
+      }
     };
 
-    window.addEventListener('profileUpdated', handleProfileUpdate);
-    return () => window.removeEventListener('profileUpdated', handleProfileUpdate);
-  }, []);
+    window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
+    return () => window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
+  }, [user?.id]);
 
   return {
     profile,
