@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,13 +27,6 @@ export const SettingsModule: React.FC = () => {
     phone: profile?.phone || '',
   });
 
-  // Privacy settings state
-  const [privacySettings, setPrivacySettings] = useState({
-    profileVisibility: localStorage.getItem('profileVisibility') !== 'false',
-    activityStatus: localStorage.getItem('activityStatus') !== 'false',
-    dataAnalytics: localStorage.getItem('dataAnalytics') !== 'false',
-  });
-
   const handleSave = async () => {
     await updateProfile(formData);
     setIsEditing(false);
@@ -52,17 +46,6 @@ export const SettingsModule: React.FC = () => {
     window.location.reload();
   };
 
-  const handlePrivacyChange = (setting: string, value: boolean) => {
-    const newSettings = { ...privacySettings, [setting]: value };
-    setPrivacySettings(newSettings);
-    localStorage.setItem(setting, value.toString());
-    
-    toast({
-      title: "Privacy Setting Updated",
-      description: `${setting.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} ${value ? 'enabled' : 'disabled'}.`,
-    });
-  };
-
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-6">
@@ -71,7 +54,7 @@ export const SettingsModule: React.FC = () => {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profile" className="flex items-center space-x-2">
             <User className="h-4 w-4" />
             <span>Profile</span>
@@ -83,10 +66,6 @@ export const SettingsModule: React.FC = () => {
           <TabsTrigger value="notifications" className="flex items-center space-x-2">
             <Bell className="h-4 w-4" />
             <span>Notifications</span>
-          </TabsTrigger>
-          <TabsTrigger value="privacy" className="flex items-center space-x-2">
-            <Shield className="h-4 w-4" />
-            <span>Privacy</span>
           </TabsTrigger>
         </TabsList>
 
@@ -202,52 +181,6 @@ export const SettingsModule: React.FC = () => {
 
         <TabsContent value="notifications">
           <NotificationSettings />
-        </TabsContent>
-
-        <TabsContent value="privacy">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Shield className="h-5 w-5" />
-                <span>Privacy & Security</span>
-              </CardTitle>
-              <CardDescription>
-                Control your privacy settings and account security
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Profile Visibility</Label>
-                  <p className="text-sm text-gray-600">Make your profile visible to other members</p>
-                </div>
-                <Switch 
-                  checked={privacySettings.profileVisibility}
-                  onCheckedChange={(checked) => handlePrivacyChange('profileVisibility', checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Activity Status</Label>
-                  <p className="text-sm text-gray-600">Show when you're online</p>
-                </div>
-                <Switch 
-                  checked={privacySettings.activityStatus}
-                  onCheckedChange={(checked) => handlePrivacyChange('activityStatus', checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Data Analytics</Label>
-                  <p className="text-sm text-gray-600">Help improve the platform with usage data</p>
-                </div>
-                <Switch 
-                  checked={privacySettings.dataAnalytics}
-                  onCheckedChange={(checked) => handlePrivacyChange('dataAnalytics', checked)}
-                />
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>
