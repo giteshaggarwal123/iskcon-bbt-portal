@@ -19,10 +19,6 @@ export default {
 			}
 		},
 		extend: {
-			fontFamily: {
-				'sans': ['Poppins', 'system-ui', 'sans-serif'],
-				'poppins': ['Poppins', 'system-ui', 'sans-serif'],
-			},
 			colors: {
 				border: '#E5E5E5',
 				input: 'hsl(var(--input))',
