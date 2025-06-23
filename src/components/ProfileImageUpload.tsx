@@ -80,6 +80,22 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
       setImageUrl(publicUrl);
       onImageUpdate(publicUrl);
       
+      // Dispatch custom events to trigger UI updates across components
+      window.dispatchEvent(new CustomEvent('profileUpdated', { 
+        detail: { 
+          profile: { avatar_url: publicUrl }, 
+          userId: user.id 
+        } 
+      }));
+      
+      // Additional event specifically for avatar updates
+      window.dispatchEvent(new CustomEvent('avatarUpdated', { 
+        detail: { 
+          avatarUrl: publicUrl, 
+          userId: user.id 
+        } 
+      }));
+      
       toast({
         title: "Profile Image Updated",
         description: "Your profile image has been updated successfully."

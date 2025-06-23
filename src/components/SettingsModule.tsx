@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export const SettingsModule: React.FC = () => {
   const { user } = useAuth();
-  const { profile, updateProfile } = useProfile();
+  const { profile, updateProfile, refreshProfile } = useProfile();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -51,9 +51,10 @@ export const SettingsModule: React.FC = () => {
     setIsEditing(false);
   };
 
-  const handleImageUpdate = () => {
-    // Trigger a refresh of the profile data
-    window.location.reload();
+  const handleImageUpdate = (imageUrl: string) => {
+    console.log('Image updated:', imageUrl);
+    // Force profile refresh to update the avatar in sidebar and other components
+    refreshProfile();
   };
 
   return (
@@ -92,7 +93,10 @@ export const SettingsModule: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Profile Image Upload Section */}
-              <ProfileImageUpload onImageUpdate={handleImageUpdate} />
+              <ProfileImageUpload 
+                currentImageUrl={profile?.avatar_url}
+                onImageUpdate={handleImageUpdate} 
+              />
 
               {/* User Info Display */}
               <div className="flex items-center space-x-4">

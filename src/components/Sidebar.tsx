@@ -65,14 +65,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [profileRefreshTrigger, setProfileRefreshTrigger] = useState(0);
 
-  // Listen for profile updates
+  // Listen for profile updates with enhanced event handling
   useEffect(() => {
-    const handleProfileUpdate = () => {
+    const handleProfileUpdate = (event: CustomEvent) => {
+      console.log('Sidebar received profile update:', event.detail);
       setProfileRefreshTrigger(prev => prev + 1);
     };
 
-    window.addEventListener('profileUpdated', handleProfileUpdate);
-    return () => window.removeEventListener('profileUpdated', handleProfileUpdate);
+    const handleAvatarUpdate = (event: CustomEvent) => {
+      console.log('Sidebar received avatar update:', event.detail);
+      setProfileRefreshTrigger(prev => prev + 1);
+    };
+
+    window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
+    window.addEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
+      window.removeEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
+    };
   }, []);
 
   // Filter menu items based on user permissions
@@ -193,7 +204,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </AlertDialog>
         </nav>
 
-        {/* User Profile Section - Removed role badge */}
+        {/* User Profile Section - Enhanced with better refresh handling */}
         {(!isCollapsed || isMobile) && (
           <div className="border-t border-gray-200 p-4">
             <button 
