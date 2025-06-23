@@ -70,27 +70,27 @@ export const Header: React.FC<HeaderProps> = ({
                 className="hover:bg-gray-100 transition-colors"
                 title={isMobile ? "Open navigation menu" : "Toggle sidebar"}
               >
-                <Menu className="h-4 w-4" />
+                <Menu className="h-4 w-4 text-black" />
               </Button>
             )}
             {/* Title only - no logo */}
             <div className="flex items-center">
               {!isMobile && (
                 <div className="text-left">
-                  <h1 className="text-xl font-bold text-gray-900">
+                  <h1 className="text-xl font-bold text-black">
                     ISKCON BUREAU
                   </h1>
-                  <p className="text-sm text-gray-600 -mt-1">
+                  <p className="text-sm text-black -mt-1">
                     Management Portal
                   </p>
                 </div>
               )}
               {isMobile && (
                 <div className="text-left">
-                  <h1 className="text-lg font-bold text-gray-900">
+                  <h1 className="text-lg font-bold text-black">
                     ISKCON BUREAU
                   </h1>
-                  <p className="text-xs text-gray-600 -mt-1">
+                  <p className="text-xs text-black -mt-1">
                     Management Portal
                   </p>
                 </div>
@@ -106,7 +106,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => setShowNotifications(true)}
               className="relative"
             >
-              <Bell className="h-4 w-4" />
+              <Bell className="h-4 w-4 text-black" />
               {unreadNotifications > 0 && (
                 <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
               )}
@@ -118,7 +118,7 @@ export const Header: React.FC<HeaderProps> = ({
               size="icon"
               onClick={onSettingsClick}
             >
-              <Settings className="h-4 w-4" />
+              <Settings className="h-4 w-4 text-black" />
             </Button>
           </div>
         </div>

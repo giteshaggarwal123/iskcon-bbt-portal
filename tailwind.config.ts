@@ -19,51 +19,55 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				'sans': ['Poppins', 'system-ui', 'sans-serif'],
+				'poppins': ['Poppins', 'system-ui', 'sans-serif'],
+			},
 			colors: {
-				border: '#DEE5DC',
+				border: '#E5E5E5',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
-				background: '#FDF8F3',
-				foreground: '#2B2B2B',
+				background: '#FFF2F2',
+				foreground: '#000000',
 				primary: {
-					DEFAULT: '#7B2C2C',
+					DEFAULT: '#8E1616',
 					foreground: '#FFFFFF'
 				},
 				secondary: {
-					DEFAULT: '#F3E9DC',
-					foreground: '#2B2B2B'
+					DEFAULT: '#FFF2F2',
+					foreground: '#000000'
 				},
 				destructive: {
 					DEFAULT: '#EF4444',
 					foreground: '#FFFFFF'
 				},
 				muted: {
-					DEFAULT: '#F3E9DC',
-					foreground: '#2B2B2B'
+					DEFAULT: '#FFF2F2',
+					foreground: '#000000'
 				},
 				accent: {
-					DEFAULT: '#C68B59',
-					foreground: '#2B2B2B'
+					DEFAULT: '#8E1616',
+					foreground: '#FFFFFF'
 				},
 				popover: {
 					DEFAULT: '#FFFFFF',
-					foreground: '#2B2B2B'
+					foreground: '#000000'
 				},
 				card: {
 					DEFAULT: '#FFFFFF',
-					foreground: '#2B2B2B'
+					foreground: '#000000'
 				},
 				success: '#22C55E',
 				warning: '#F59E0B',
 				error: '#EF4444',
-				highlight: '#8C6B55',
+				highlight: '#8E1616',
 				iskcon: {
-					maroon: '#7B2C2C',
-					cream: '#F3E9DC',
-					dark: '#2B2B2B',
-					gold: '#C68B59',
-					folder: '#5A3F2B',
-					'folder-alt': '#926C4B'
+					maroon: '#8E1616',
+					cream: '#FFF2F2',
+					dark: '#000000',
+					gold: '#8E1616',
+					folder: '#8E1616',
+					'folder-alt': '#A61E1E'
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',

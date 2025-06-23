@@ -55,7 +55,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex w-full overflow-hidden">
+    <div className="min-h-screen bg-background flex w-full overflow-hidden">
       {/* Mobile sidebar overlay with blur effect - Covers entire screen */}
       {isMobile && sidebarOpen && (
         <div 
@@ -113,7 +113,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   className={`flex flex-col items-center justify-center flex-1 py-2 px-1 transition-colors duration-200 h-full ${
                     currentModule === item.id
                       ? 'text-primary'
-                      : 'text-gray-500 hover:text-gray-700'
+                      : 'text-black hover:text-gray-700'
                   }`}
                   style={{
                     WebkitTapHighlightColor: 'transparent',
@@ -121,10 +121,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   }}
                 >
                   <item.icon className={`h-8 w-8 mb-1 ${
-                    currentModule === item.id ? 'text-primary' : 'text-gray-500'
+                    currentModule === item.id ? 'text-primary' : 'text-black'
                   }`} />
                   <span className={`text-xs font-medium leading-tight ${
-                    currentModule === item.id ? 'text-primary' : 'text-gray-500'
+                    currentModule === item.id ? 'text-primary' : 'text-black'
                   }`}>
                     {item.label}
                   </span>
