@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, UserCheck, Calendar, Download, Eye, CheckCircle, XCircle, Clock, CheckSquare, BarChart3 } from 'lucide-react';
 import { MarkAttendanceDialog } from './MarkAttendanceDialog';
-import { AttendanceReportDialog } from './AttendanceReportDialog';
+import { AttendanceReportDialog } from './AttendanceReportDialog';  
 import { AttendanceReportsDialog } from './AttendanceReportsDialog';
 import { RSVPResponseDialog } from './RSVPResponseDialog';
 import { useMeetings } from '@/hooks/useMeetings';
@@ -218,8 +219,8 @@ export const AttendanceModule: React.FC = () => {
           {/* Header */}
           <div className="flex justify-between items-center attendance-header">
             <div className="attendance-header-text">
-              <h1 className="text-3xl font-bold text-black">Attendance Management</h1>
-              <p className="text-black mt-2">Track and manage meeting attendance with detailed analytics</p>
+              <h1 className="text-3xl font-bold text-foreground">Attendance Management</h1>
+              <p className="text-muted-foreground mt-2">Track and manage meeting attendance with detailed analytics</p>
             </div>
             <Button 
               onClick={() => setShowReportsDialog(true)}
@@ -234,31 +235,31 @@ export const AttendanceModule: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 attendance-stats-grid">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="stat-card-title text-black">This Month</CardTitle>
+                <CardTitle className="stat-card-title text-foreground">This Month</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="stat-card-value text-green-600">0</div>
-                <p className="stat-card-description text-black">Meetings Attended</p>
+                <p className="stat-card-description text-muted-foreground">Meetings Attended</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="stat-card-title text-black">Attendance Rate</CardTitle>
+                <CardTitle className="stat-card-title text-foreground">Attendance Rate</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="stat-card-value text-blue-600">0%</div>
-                <p className="stat-card-description text-black">Overall Rate</p>
+                <p className="stat-card-description text-muted-foreground">Overall Rate</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="stat-card-title text-black">Pending</CardTitle>
+                <CardTitle className="stat-card-title text-foreground">Pending</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="stat-card-value text-yellow-600">0</div>
-                <p className="stat-card-description text-black">Check-ins Required</p>
+                <p className="stat-card-description text-muted-foreground">Check-ins Required</p>
               </CardContent>
             </Card>
           </div>
@@ -277,10 +278,10 @@ export const AttendanceModule: React.FC = () => {
                   <Card key={meeting.id} className="meeting-card">
                     <CardContent className="meeting-card-content">
                       <div className="meeting-info">
-                        <h3 className="text-lg font-semibold text-black">
+                        <h3 className="text-lg font-semibold text-foreground">
                           {meeting.title}
                         </h3>
-                        <div className="space-y-1 text-sm text-black meeting-meta">
+                        <div className="space-y-1 text-sm text-muted-foreground meeting-meta">
                           <div className="flex items-center">
                             <Calendar className="h-4 w-4 mr-2" />
                             {format(parseISO(meeting.start_time), 'MMM dd, yyyy')} at{' '}
@@ -324,7 +325,7 @@ export const AttendanceModule: React.FC = () => {
                 <Card className="empty-state-card">
                   <CardContent className="p-8 text-center">
                     <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <p className="text-black">No upcoming meetings</p>
+                    <p className="text-muted-foreground">No upcoming meetings</p>
                   </CardContent>
                 </Card>
               )}
@@ -339,10 +340,10 @@ export const AttendanceModule: React.FC = () => {
                     <Card key={meeting.id} className="meeting-card">
                       <CardContent className="meeting-card-content">
                         <div className="meeting-info">
-                          <h3 className="text-lg font-semibold text-black">
+                          <h3 className="text-lg font-semibold text-foreground">
                             {meeting.title}
                           </h3>
-                          <div className="space-y-1 text-sm text-black meeting-meta">
+                          <div className="space-y-1 text-sm text-muted-foreground meeting-meta">
                             <div className="flex items-center">
                               <Calendar className="h-4 w-4 mr-2" />
                               {format(parseISO(meeting.start_time), 'MMM dd, yyyy')} at{' '}
@@ -401,7 +402,7 @@ export const AttendanceModule: React.FC = () => {
                 <Card className="empty-state-card">
                   <CardContent className="p-8 text-center">
                     <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <p className="text-black">No meeting history available</p>
+                    <p className="text-muted-foreground">No meeting history available</p>
                   </CardContent>
                 </Card>
               )}
