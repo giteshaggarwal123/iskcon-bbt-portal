@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { User, Settings, Bell, Shield, Plug } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -81,15 +80,11 @@ export const SettingsModule: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center space-x-6">
-                <div className="relative">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage src={profile?.avatar_url} />
-                    <AvatarFallback className="text-lg">
-                      {profile?.first_name?.[0]}{profile?.last_name?.[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
+              {/* Profile Image Upload Section */}
+              <ProfileImageUpload onImageUpdate={handleImageUpdate} />
+
+              {/* User Info Display */}
+              <div className="flex items-center space-x-4">
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold">
                     {profile?.first_name} {profile?.last_name}
@@ -99,7 +94,6 @@ export const SettingsModule: React.FC = () => {
                     Member
                   </Badge>
                 </div>
-                <ProfileImageUpload onImageUpdate={handleImageUpdate} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
