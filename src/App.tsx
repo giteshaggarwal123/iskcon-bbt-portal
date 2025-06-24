@@ -107,17 +107,13 @@ const App = () => {
                   <Route path="/auth" element={<RealAuthPage />} />
                   <Route path="/microsoft/callback" element={<MicrosoftCallback />} />
                   
-                  {/* Protected routes with explicit path matching */}
+                  {/* Protected routes */}
                   <Route path="/" element={
                     <ProtectedRoute>
                       <Dashboard />
                     </ProtectedRoute>
                   } />
-                  <Route path="/dashboard" element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  } />
+                  <Route path="/dashboard" element={<Navigate to="/" replace />} />
                   <Route path="/meetings" element={
                     <ProtectedRoute>
                       <MeetingsModule />
@@ -159,7 +155,7 @@ const App = () => {
                     </ProtectedRoute>
                   } />
                   
-                  {/* 404 fallback - this should be the last route */}
+                  {/* Catch-all route for 404 */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>

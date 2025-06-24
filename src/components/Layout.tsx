@@ -23,7 +23,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Update current module based on location
   useEffect(() => {
     const path = location.pathname;
-    const module = path === '/' ? 'dashboard' : path.substring(1);
+    let module = 'dashboard';
+    
+    if (path === '/') {
+      module = 'dashboard';
+    } else if (path.startsWith('/')) {
+      module = path.substring(1);
+    }
+    
     console.log('Layout - Location changed to:', path, 'Module:', module);
     setCurrentModule(module);
   }, [location]);
@@ -41,7 +48,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     setCurrentModule(module);
     if (isMobile) setSidebarOpen(false);
     
-    // Use React Router navigation
+    // Use React Router navigation with proper error handling
     const routePath = module === 'dashboard' ? '/' : `/${module}`;
     console.log('Layout - Navigating to:', routePath);
     
@@ -49,7 +56,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       navigate(routePath);
     } catch (error) {
       console.error('Layout - Navigation error:', error);
-      // Fallback navigation
+      // Fallback: force page reload if navigation fails
       window.location.href = routePath;
     }
   };
