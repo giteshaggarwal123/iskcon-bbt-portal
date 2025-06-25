@@ -5,7 +5,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 34 18% 93%;
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -35,7 +35,7 @@
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 34 18% 93%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 0 70% 31%;
     --sidebar-primary-foreground: 0 0% 98%;
@@ -91,7 +91,8 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background-color: #faf0e3;
   }
 
   /* Compact View Styles */
