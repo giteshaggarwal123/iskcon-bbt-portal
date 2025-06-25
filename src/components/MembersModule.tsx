@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Users, Mail, Phone, Shield, Search, Plus, Download } from 'lucide-react';
 import { AddMemberDialog } from './AddMemberDialog';
 import { MemberCard } from './MemberCard';
+import { DebugUserInfo } from './DebugUserInfo';
 import { useMembers } from '@/hooks/useMembers';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -78,7 +79,6 @@ export const MembersModule: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  // Enhanced member update handler with immediate refresh
   const handleMemberUpdated = async () => {
     console.log('Member updated - triggering immediate data refresh');
     try {
@@ -150,6 +150,9 @@ export const MembersModule: React.FC = () => {
         }
       `}</style>
       <div className="w-full max-w-full min-h-0 flex flex-col members-container">
+        {/* Debug Information */}
+        <DebugUserInfo />
+
         {/* Header Section - Mobile Optimized */}
         <div className="w-full mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 members-header">
