@@ -33,9 +33,9 @@ export const ensureAdminExists = async () => {
       return;
     }
 
-    console.log('No admin users found, creating default admin...');
+    console.log('No admin users found, creating default admin profile...');
 
-    // Create a default admin user
+    // Create a default admin profile (invitation-based approach)
     const defaultAdmin = {
       email: 'admin@iskconbureau.in',
       first_name: 'System',
@@ -49,82 +49,10 @@ export const ensureAdminExists = async () => {
       return;
     }
 
-    // Try to create the auth user first
-    const tempPassword = crypto.randomUUID().substring(0, 16);
-    
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: defaultAdmin.email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        first_name: defaultAdmin.first_name,
-        last_name: defaultAdmin.last_name,
-      }
-    });
-
-    if (authError) {
-      console.error('Error creating default admin auth user:', authError);
-      // If auth creation fails, try the fallback method
-      return createFallbackAdmin(defaultAdmin);
-    }
-
-    if (!authData.user) {
-      console.error('No user data returned from auth creation');
-      return createFallbackAdmin(defaultAdmin);
-    }
-
-    // Step 1: Create profile with auth user ID
-    const { data: newProfile, error: createProfileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: authData.user.id,
-        email: defaultAdmin.email,
-        first_name: defaultAdmin.first_name,
-        last_name: defaultAdmin.last_name,
-      })
-      .select()
-      .single();
-
-    if (createProfileError) {
-      console.error('Error creating default admin profile:', createProfileError);
-      // Clean up auth user
-      await supabase.auth.admin.deleteUser(authData.user.id);
-      return;
-    }
-
-    // Step 2: Create user role
-    const { error: createRoleError } = await supabase
-      .from('user_roles')
-      .insert({
-        user_id: authData.user.id,
-        role: defaultAdmin.role as ValidRole,
-      });
-
-    if (createRoleError) {
-      console.error('Error creating default admin role:', createRoleError);
-      // Clean up profile and auth user
-      await supabase.from('profiles').delete().eq('id', authData.user.id);
-      await supabase.auth.admin.deleteUser(authData.user.id);
-      return;
-    }
-
-    console.log('Default admin created successfully:', newProfile);
-    console.log('Default admin temporary password:', tempPassword);
-
-  } catch (error) {
-    console.error('Error in ensureAdminExists:', error);
-  }
-};
-
-// Fallback method for when auth.admin is not available
-const createFallbackAdmin = async (defaultAdmin: any) => {
-  console.log('Using fallback admin creation method...');
-  
-  try {
-    // Generate a UUID for the new profile
+    // Generate a UUID for the profile
     const profileId = crypto.randomUUID();
 
-    // Step 1: Create profile with generated ID (fallback approach)
+    // Step 1: Create profile with generated ID
     const { data: newProfile, error: createProfileError } = await supabase
       .from('profiles')
       .insert({
@@ -137,7 +65,7 @@ const createFallbackAdmin = async (defaultAdmin: any) => {
       .single();
 
     if (createProfileError) {
-      console.error('Error creating fallback admin profile:', createProfileError);
+      console.error('Error creating default admin profile:', createProfileError);
       return;
     }
 
@@ -150,17 +78,17 @@ const createFallbackAdmin = async (defaultAdmin: any) => {
       });
 
     if (createRoleError) {
-      console.error('Error creating fallback admin role:', createRoleError);
+      console.error('Error creating default admin role:', createRoleError);
       // Clean up profile if role creation fails
       await supabase.from('profiles').delete().eq('id', profileId);
       return;
     }
 
-    console.log('Fallback admin created successfully:', newProfile);
-    console.log('Note: This admin will need to be properly authenticated through the normal login process');
+    console.log('Default admin profile created successfully:', newProfile);
+    console.log('Note: Admin can now sign up using the standard registration flow');
 
   } catch (error) {
-    console.error('Error in fallback admin creation:', error);
+    console.error('Error in ensureAdminExists:', error);
   }
 };
 
@@ -168,7 +96,7 @@ export const setupDatabase = async () => {
   console.log('Setting up database...');
   
   try {
-    // Ensure admin exists
+    // Ensure admin profile exists
     await ensureAdminExists();
     
     console.log('Database setup completed successfully');

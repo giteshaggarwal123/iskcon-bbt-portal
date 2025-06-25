@@ -46,37 +46,14 @@ export const useMemberCreation = () => {
     try {
       console.log('Creating member with data:', memberData);
 
-      // Create a temporary password for the member
-      const tempPassword = crypto.randomUUID().substring(0, 12);
+      // Generate a UUID for the new profile
+      const profileId = crypto.randomUUID();
 
-      // Step 1: First create the user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: memberData.email,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: {
-          first_name: memberData.firstName,
-          last_name: memberData.lastName,
-          phone: memberData.phone,
-        }
-      });
-
-      if (authError) {
-        console.error('Auth user creation error:', authError);
-        throw authError;
-      }
-
-      if (!authData.user) {
-        throw new Error('Failed to create user in authentication system');
-      }
-
-      console.log('Auth user created successfully:', authData.user.id);
-
-      // Step 2: Create the profile entry (this should now work with the auth user ID)
+      // Step 1: Create the profile entry first (this will allow the user to be invited later)
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .insert({
-          id: authData.user.id,
+          id: profileId,
           email: memberData.email,
           first_name: memberData.firstName,
           last_name: memberData.lastName,
@@ -87,60 +64,61 @@ export const useMemberCreation = () => {
 
       if (profileError) {
         console.error('Profile creation error:', profileError);
-        // Clean up auth user if profile creation fails
-        await supabase.auth.admin.deleteUser(authData.user.id);
+        
+        if (profileError.code === '23505') {
+          throw new Error('A member with this email already exists');
+        }
         throw profileError;
       }
 
-      // Step 3: Create user role entry
+      console.log('Profile created successfully:', profile);
+
+      // Step 2: Create user role entry
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
-          user_id: authData.user.id,
+          user_id: profileId,
           role: memberData.role as ValidRole,
         });
 
       if (roleError) {
         console.error('Role creation error:', roleError);
-        // Clean up both profile and auth user if role creation fails
-        await supabase.from('profiles').delete().eq('id', authData.user.id);
-        await supabase.auth.admin.deleteUser(authData.user.id);
+        // Clean up profile if role creation fails
+        await supabase.from('profiles').delete().eq('id', profileId);
         throw roleError;
       }
 
-      console.log('Member created successfully:', profile);
+      console.log('Member created successfully with invitation approach');
 
-      // Step 4: Send login credentials via email (using existing send-otp function)
+      // Step 3: Send invitation email via the send-otp function
       try {
         const { error: emailError } = await supabase.functions.invoke('send-otp', {
           body: {
             phoneNumber: memberData.email,
             name: `${memberData.firstName} ${memberData.lastName}`,
-            type: 'member_credentials',
-            tempPassword: tempPassword,
+            type: 'member_invitation',
             userId: user?.id
           }
         });
 
         if (emailError) {
-          console.error('Error sending credentials email:', emailError);
-          // Don't fail the entire operation for email issues
+          console.error('Error sending invitation email:', emailError);
           toast({
             title: "Member Created",
-            description: `${memberData.firstName} ${memberData.lastName} has been added, but credentials email failed to send. Please share the temporary password: ${tempPassword}`,
+            description: `${memberData.firstName} ${memberData.lastName} has been added, but invitation email failed to send. Please share the login details manually.`,
             variant: "default"
           });
         } else {
           toast({
             title: "Member Created Successfully",
-            description: `${memberData.firstName} ${memberData.lastName} has been added and login credentials have been sent via email`,
+            description: `${memberData.firstName} ${memberData.lastName} has been added and an invitation email has been sent`,
           });
         }
       } catch (emailError) {
         console.error('Email sending failed:', emailError);
         toast({
           title: "Member Created",
-          description: `${memberData.firstName} ${memberData.lastName} has been added. Temporary password: ${tempPassword}`,
+          description: `${memberData.firstName} ${memberData.lastName} has been added. Please share the login details manually.`,
         });
       }
 
@@ -155,8 +133,8 @@ export const useMemberCreation = () => {
         errorMessage = "A member with this email already exists";
       } else if (error.message?.includes('rate limit')) {
         errorMessage = "Too many requests. Please try again later.";
-      } else if (error.message?.includes('admin API')) {
-        errorMessage = "Admin privileges required. Please contact your system administrator.";
+      } else if (error.message?.includes('not allowed')) {
+        errorMessage = "Insufficient permissions. Please contact your system administrator.";
       } else if (error.message) {
         errorMessage = error.message;
       }
