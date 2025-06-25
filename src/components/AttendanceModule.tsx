@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,9 +11,10 @@ import { AttendanceReportsDialog } from './AttendanceReportsDialog';
 import { RSVPResponseDialog } from './RSVPResponseDialog';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useAttendance } from '@/hooks/useAttendance';
+import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { RSVPSelector } from './RSVPSelector';
 
 export const AttendanceModule: React.FC = () => {
@@ -26,7 +27,8 @@ export const AttendanceModule: React.FC = () => {
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
 
   const { meetings = [], loading: meetingsLoading } = useMeetings();
-  const { attendanceRecords = [], loading: attendanceLoading } = useAttendance();
+  const { attendanceRecords = [], loading: attendanceLoading, generateAttendanceReport } = useAttendance();
+  const { user } = useAuth();
   const userRole = useUserRole();
   const { toast } = useToast();
 
@@ -36,6 +38,60 @@ export const AttendanceModule: React.FC = () => {
     attendanceLoading,
     userRole
   });
+
+  // Calculate dynamic statistics
+  const statistics = useMemo(() => {
+    if (!user || meetingsLoading || attendanceLoading) {
+      return {
+        thisMonthAttended: 0,
+        attendanceRate: 0,
+        pendingCheckIns: 0
+      };
+    }
+
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+
+    // Filter meetings for this month that have ended
+    const thisMonthMeetings = meetings.filter(meeting => {
+      const meetingDate = parseISO(meeting.start_time);
+      return meetingDate >= monthStart && meetingDate <= monthEnd && meetingDate <= now;
+    });
+
+    // Get attendance records for current user this month
+    const userAttendanceThisMonth = attendanceRecords.filter(record => 
+      record.user_id === user.id && 
+      record.attendance_status === 'present' &&
+      thisMonthMeetings.some(meeting => meeting.id === record.meeting_id)
+    );
+
+    // Calculate attendance rate
+    const totalMeetingsThisMonth = thisMonthMeetings.length;
+    const attendedMeetings = userAttendanceThisMonth.length;
+    const attendanceRate = totalMeetingsThisMonth > 0 ? Math.round((attendedMeetings / totalMeetingsThisMonth) * 100) : 0;
+
+    // Calculate pending check-ins (meetings that can be checked into now)
+    const pendingCheckIns = meetings.filter(meeting => {
+      const start = parseISO(meeting.start_time);
+      const end = parseISO(meeting.end_time);
+      const hourBefore = new Date(start.getTime() - 60 * 60 * 1000);
+      
+      // Meeting is within check-in window and user hasn't marked attendance yet
+      const canCheckIn = now >= hourBefore && now <= end;
+      const hasAttendance = attendanceRecords.some(record => 
+        record.meeting_id === meeting.id && record.user_id === user.id
+      );
+      
+      return canCheckIn && !hasAttendance;
+    }).length;
+
+    return {
+      thisMonthAttended: attendedMeetings,
+      attendanceRate,
+      pendingCheckIns
+    };
+  }, [meetings, attendanceRecords, user, meetingsLoading, attendanceLoading]);
 
   // Filter meetings for attendance tracking
   const now = new Date();
@@ -79,9 +135,23 @@ export const AttendanceModule: React.FC = () => {
   };
 
   const getMeetingAttendanceStatus = (meeting: any) => {
-    // This would normally check against actual attendance data
-    // For now, returning mock status
-    return 'not_marked'; // 'present', 'absent', 'not_marked'
+    if (!user) return 'not_marked';
+    
+    const userAttendance = attendanceRecords.find(record => 
+      record.meeting_id === meeting.id && record.user_id === user.id
+    );
+    
+    if (!userAttendance) return 'not_marked';
+    
+    switch (userAttendance.attendance_status) {
+      case 'present':
+      case 'late':
+        return 'present';
+      case 'absent':
+        return 'absent';
+      default:
+        return 'not_marked';
+    }
   };
 
   const handleRSVPUpdate = () => {
@@ -125,7 +195,7 @@ export const AttendanceModule: React.FC = () => {
               <CardTitle className="text-sm font-medium text-foreground">This Month</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">0</div>
+              <div className="text-2xl font-bold text-green-600">{statistics.thisMonthAttended}</div>
               <p className="text-xs text-muted-foreground">Meetings Attended</p>
             </CardContent>
           </Card>
@@ -135,7 +205,7 @@ export const AttendanceModule: React.FC = () => {
               <CardTitle className="text-sm font-medium text-foreground">Attendance Rate</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">0%</div>
+              <div className="text-2xl font-bold text-blue-600">{statistics.attendanceRate}%</div>
               <p className="text-xs text-muted-foreground">Overall Rate</p>
             </CardContent>
           </Card>
@@ -145,7 +215,7 @@ export const AttendanceModule: React.FC = () => {
               <CardTitle className="text-sm font-medium text-foreground">Pending</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">0</div>
+              <div className="text-2xl font-bold text-yellow-600">{statistics.pendingCheckIns}</div>
               <p className="text-xs text-muted-foreground">Check-ins Required</p>
             </CardContent>
           </Card>
