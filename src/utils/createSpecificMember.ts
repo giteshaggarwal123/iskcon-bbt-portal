@@ -69,7 +69,7 @@ export const createSpecificMember = async () => {
 
     console.log('Profile created successfully:', profile);
 
-    // Step 3: Create user role entry
+    // Step 3: Create user role entry - Fix the typing issue
     const { error: roleError } = await supabase
       .from('user_roles')
       .insert({
