@@ -214,6 +214,7 @@ export const AttendanceModule: React.FC = () => {
                         onResponseUpdate={handleRSVPUpdate}
                         onViewReport={handleViewReport}
                         onViewRSVP={handleViewRSVP}
+                        hideReportButton={true}
                       />
                     </div>
                   </CardContent>
@@ -301,6 +302,7 @@ export const AttendanceModule: React.FC = () => {
                           onResponseUpdate={handleRSVPUpdate}
                           onViewReport={handleViewReport}
                           onViewRSVP={handleViewRSVP}
+                          hideReportButton={true}
                         />
                       </div>
                     </CardContent>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,13 +15,15 @@ interface RSVPSelectorProps {
   onResponseUpdate?: () => void;
   onViewReport?: (meeting: any) => void;
   onViewRSVP?: (meeting: any) => void;
+  hideReportButton?: boolean;
 }
 
 export const RSVPSelector: React.FC<RSVPSelectorProps> = ({ 
   meeting, 
   onResponseUpdate, 
   onViewReport, 
-  onViewRSVP 
+  onViewRSVP,
+  hideReportButton = false
 }) => {
   const [currentResponse, setCurrentResponse] = useState<'yes' | 'no' | 'maybe' | null>(null);
   const [loading, setLoading] = useState(false);
@@ -186,8 +187,12 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
     );
   }
 
-  // For past meetings, only show action buttons without any RSVP content
+  // For past meetings, don't show anything if report button is hidden
   if (!isUpcomingMeeting) {
+    if (hideReportButton) {
+      return null;
+    }
+    
     return (
       <div className="space-y-4">
         {/* Desktop: Only Report button */}
@@ -222,22 +227,24 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
     );
   }
 
-  // For upcoming meetings, show full RSVP form (NO TRANSCRIPT BUTTON)
+  // For upcoming meetings, show full RSVP form
   return (
     <div className="space-y-4">
-      {/* Desktop: Only Report button at top */}
-      <div className="hidden md:flex justify-end gap-2 mb-4">
-        {userRole.canViewReports && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onViewReport?.(meeting)}
-          >
-            <Eye className="h-4 w-4 mr-1" />
-            Report
-          </Button>
-        )}
-      </div>
+      {/* Desktop: Only show Report button if not hidden */}
+      {!hideReportButton && (
+        <div className="hidden md:flex justify-end gap-2 mb-4">
+          {userRole.canViewReports && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onViewReport?.(meeting)}
+            >
+              <Eye className="h-4 w-4 mr-1" />
+              Report
+            </Button>
+          )}
+        </div>
+      )}
 
       <Card className="w-full">
         <CardHeader className="pb-3">
@@ -247,30 +254,32 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
               <span>RSVP for this Meeting</span>
             </div>
             
-            {/* Mobile: Show buttons in header (NO TRANSCRIPT BUTTON) */}
-            <div className="flex md:hidden gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onViewRSVP?.(meeting)}
-                className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs px-2 py-1 h-8"
-              >
-                <CheckSquare className="h-3 w-3 mr-1" />
-                View RSVP
-              </Button>
-              
-              {userRole.canViewReports && (
+            {/* Mobile: Show buttons in header if not hidden */}
+            {!hideReportButton && (
+              <div className="flex md:hidden gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onViewReport?.(meeting)}
-                  className="text-xs px-2 py-1 h-8"
+                  onClick={() => onViewRSVP?.(meeting)}
+                  className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs px-2 py-1 h-8"
                 >
-                  <Eye className="h-3 w-3 mr-1" />
-                  Report
+                  <CheckSquare className="h-3 w-3 mr-1" />
+                  View RSVP
                 </Button>
-              )}
-            </div>
+                
+                {userRole.canViewReports && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onViewReport?.(meeting)}
+                    className="text-xs px-2 py-1 h-8"
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    Report
+                  </Button>
+                )}
+              </div>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0 space-y-4">
