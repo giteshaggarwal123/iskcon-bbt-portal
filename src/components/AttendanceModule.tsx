@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -282,7 +281,6 @@ export const AttendanceModule: React.FC = () => {
                       <RSVPSelector 
                         meeting={meeting} 
                         onResponseUpdate={handleRSVPUpdate}
-                        onViewReport={handleViewReport}
                         onViewRSVP={handleViewRSVP}
                         hideReportButton={true}
                       />
@@ -370,7 +368,6 @@ export const AttendanceModule: React.FC = () => {
                         <RSVPSelector 
                           meeting={meeting} 
                           onResponseUpdate={handleRSVPUpdate}
-                          onViewReport={handleViewReport}
                           onViewRSVP={handleViewRSVP}
                           hideReportButton={true}
                         />
