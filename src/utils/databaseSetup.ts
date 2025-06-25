@@ -108,11 +108,15 @@ export const ensureUserRole = async (userId: string, role: string) => {
 
     if (!existingRole) {
       console.log('Creating user role...');
+      
+      // Cast role to the correct type for the database
+      const validRole = role as 'super_admin' | 'admin' | 'member';
+      
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
           user_id: userId,
-          role: role
+          role: validRole
         });
 
       if (roleError) {
