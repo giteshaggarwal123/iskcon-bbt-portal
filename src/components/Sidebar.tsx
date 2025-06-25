@@ -155,13 +155,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const handleLogoClick = () => {
-    onModuleChange('dashboard');
-    if (isMobile) {
-      onClose();
-    }
-  };
-
   return (
     <div className={`fixed z-[60] bg-white shadow-xl transform transition-all duration-300 ${
       isOpen ? 'translate-x-0' : '-translate-x-full'
@@ -169,46 +162,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       !isMobile && isCollapsed ? 'w-20' : 'w-64'
     } left-0`}>
       <div className="flex flex-col h-full">
-        {/* Logo Section - Match header title format exactly */}
-        <div className="p-6 border-b border-gray-200">
-          <button 
-            onClick={handleLogoClick}
-            className={`flex items-center w-full hover:bg-gray-50 rounded-lg p-2 transition-colors ${
-              !isMobile && isCollapsed ? 'justify-center' : 'justify-start'
-            }`}
-          >
-            {!isMobile && isCollapsed ? (
-              <div className="flex items-center justify-center w-12 h-12">
-                <img 
-                  src="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" 
-                  alt="ISKCON Logo" 
-                  className="w-full h-full object-contain"
-                />
-              </div>
-            ) : (
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center justify-center w-12 h-12 flex-shrink-0">
-                  <img 
-                    src="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" 
-                    alt="ISKCON Logo" 
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <div className="text-left">
-                  <h1 className="text-xl font-bold text-[#8E1616] whitespace-nowrap">
-                    ISKCON BUREAU
-                  </h1>
-                  <p className="text-sm text-muted-foreground -mt-1 whitespace-nowrap">
-                    Management Portal
-                  </p>
-                </div>
-              </div>
-            )}
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-4 pt-0 pb-6 space-y-1 overflow-y-auto">
+        {/* Navigation - Starts directly with menu items */}
+        <nav className="flex-1 px-4 pt-6 pb-6 space-y-1 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}

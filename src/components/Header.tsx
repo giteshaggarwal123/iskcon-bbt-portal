@@ -73,28 +73,38 @@ export const Header: React.FC<HeaderProps> = ({
                 <Menu className="h-4 w-4 text-foreground" />
               </Button>
             )}
-            {/* Title only - no logo */}
-            <div className="flex items-center">
-              {!isMobile && (
-                <div className="text-left">
-                  <h1 className="text-xl font-bold text-[#8E1616]">
-                    ISKCON BUREAU
-                  </h1>
-                  <p className="text-sm text-muted-foreground -mt-1">
-                    Management Portal
-                  </p>
-                </div>
-              )}
-              {isMobile && (
-                <div className="text-left">
-                  <h1 className="text-lg font-bold text-[#8E1616]">
-                    ISKCON BUREAU
-                  </h1>
-                  <p className="text-xs text-muted-foreground -mt-1">
-                    Management Portal
-                  </p>
-                </div>
-              )}
+            
+            {/* Logo and Title */}
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center justify-center w-10 h-10 flex-shrink-0">
+                <img 
+                  src="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" 
+                  alt="ISKCON Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="text-left">
+                {!isMobile && (
+                  <>
+                    <h1 className="text-xl font-bold text-[#8E1616]">
+                      ISKCON BUREAU
+                    </h1>
+                    <p className="text-sm text-muted-foreground -mt-1">
+                      Management Portal
+                    </p>
+                  </>
+                )}
+                {isMobile && (
+                  <>
+                    <h1 className="text-lg font-bold text-[#8E1616]">
+                      ISKCON BUREAU
+                    </h1>
+                    <p className="text-xs text-muted-foreground -mt-1">
+                      Management Portal
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
