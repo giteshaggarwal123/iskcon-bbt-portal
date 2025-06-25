@@ -11,6 +11,9 @@ import { useMembers } from '@/hooks/useMembers';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';
 
+// Import the member creation utility to trigger execution
+import '@/utils/executeMemberCreation';
+
 export const MembersModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
