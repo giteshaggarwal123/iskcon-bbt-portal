@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -278,7 +279,7 @@ export const useMembers = () => {
             id: userId,
             email: memberData.email,
             first_name: memberData.firstName,
-            last_name: memberData.last_name,
+            last_name: memberData.lastName,
             phone: memberData.phone
           }, {
             onConflict: 'id'
