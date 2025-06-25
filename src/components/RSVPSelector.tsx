@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -221,7 +222,7 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
     );
   }
 
-  // For upcoming meetings, show full RSVP form
+  // For upcoming meetings, show full RSVP form (NO TRANSCRIPT BUTTON)
   return (
     <div className="space-y-4">
       {/* Desktop: Only Report button at top */}
@@ -246,7 +247,7 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
               <span>RSVP for this Meeting</span>
             </div>
             
-            {/* Mobile: Show buttons in header */}
+            {/* Mobile: Show buttons in header (NO TRANSCRIPT BUTTON) */}
             <div className="flex md:hidden gap-2">
               <Button
                 variant="outline"
