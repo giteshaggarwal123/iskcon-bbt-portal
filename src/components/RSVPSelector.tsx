@@ -244,18 +244,8 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
   // For upcoming meetings, show full RSVP form
   return (
     <div className="space-y-4">
-      {/* Desktop: Action buttons at top, RSVP form below */}
+      {/* Desktop: Only Report button at top */}
       <div className="hidden md:flex justify-end gap-2 mb-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onViewRSVP?.(meeting)}
-          className="bg-purple-50 hover:bg-purple-100 text-purple-700"
-        >
-          <CheckSquare className="h-4 w-4 mr-1" />
-          View RSVP
-        </Button>
-        
         {userRole.canViewReports && (
           <Button
             variant="outline"
