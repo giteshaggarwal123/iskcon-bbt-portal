@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { useMemberCreation } from '@/hooks/useMemberCreation';
+
+type ValidRole = 'super_admin' | 'admin' | 'member' | 'secretary' | 'treasurer';
 
 export const createSpecificMember = async () => {
   console.log('Creating specific member: HH Bhakti Rasamrita Swami');
@@ -10,7 +11,7 @@ export const createSpecificMember = async () => {
     firstName: 'HH Bhakti Rasamrita',
     lastName: 'Swami',
     phone: '', // Optional
-    role: 'admin' // Assuming this is an admin member, adjust as needed
+    role: 'admin' as ValidRole // Properly type the role
   };
 
   try {
