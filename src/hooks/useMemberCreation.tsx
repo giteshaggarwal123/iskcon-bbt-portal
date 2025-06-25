@@ -21,36 +21,62 @@ export const useMemberCreation = () => {
   const createMemberProfile = async (memberData: MemberData, userId?: string) => {
     const profileId = userId || crypto.randomUUID();
     
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: profileId,
-        email: memberData.email,
-        first_name: memberData.firstName,
-        last_name: memberData.lastName,
-        phone: memberData.phone || ''
-      });
+    try {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: profileId,
+          email: memberData.email,
+          first_name: memberData.firstName,
+          last_name: memberData.lastName,
+          phone: memberData.phone || ''
+        });
 
-    if (profileError) {
-      throw new Error(`Profile creation failed: ${profileError.message}`);
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        throw new Error(`Profile creation failed: ${profileError.message}`);
+      }
+
+      return profileId;
+    } catch (error: any) {
+      console.error('Error in createMemberProfile:', error);
+      throw error;
     }
-
-    return profileId;
   };
 
   const assignUserRole = async (userId: string, role: string) => {
-    const { error: roleError } = await supabase
-      .from('user_roles')
-      .upsert({
-        user_id: userId,
-        role: role as any
-      }, {
-        onConflict: 'user_id,role'
-      });
+    try {
+      // First check if role already exists
+      const { data: existingRole } = await supabase
+        .from('user_roles')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('role', role)
+        .single();
 
-    if (roleError) {
-      console.error('Role assignment error:', roleError);
-      // Don't throw error for role assignment failure, just log it
+      if (existingRole) {
+        console.log('Role already exists for user');
+        return;
+      }
+
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: userId,
+          role: role
+        });
+
+      if (roleError) {
+        console.error('Role assignment error:', roleError);
+        // Don't throw error for role assignment failure, just log it
+        toast({
+          title: "Role Assignment Warning",
+          description: "Member created but role assignment had issues. Please check member roles.",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('Error in assignUserRole:', error);
     }
   };
 
@@ -110,7 +136,23 @@ export const useMemberCreation = () => {
       let userId: string | null = null;
       let authSucceeded = false;
 
-      // Attempt 1: Try Supabase Auth signup
+      // Step 1: Check if user already exists in profiles
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .eq('email', memberData.email)
+        .single();
+
+      if (existingProfile) {
+        toast({
+          title: "Member Already Exists",
+          description: `A member with email ${memberData.email} already exists in the system.`,
+          variant: "destructive"
+        });
+        return null;
+      }
+
+      // Step 2: Try Supabase Auth signup first
       try {
         console.log('Attempting Supabase auth signup...');
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -131,7 +173,8 @@ export const useMemberCreation = () => {
           // Check for specific rate limit or signup disabled errors
           if (authError.message.includes('rate limit') || 
               authError.message.includes('429') ||
-              authError.message.includes('Signups not allowed')) {
+              authError.message.includes('Signups not allowed') ||
+              authError.message.includes('signup is disabled')) {
             console.log('Auth signup blocked, proceeding with manual profile creation');
           } else {
             throw authError;
@@ -145,48 +188,49 @@ export const useMemberCreation = () => {
         console.log('Auth signup failed, will create manual profile:', authError.message);
       }
 
-      // Attempt 2: Create profile (either with auth user ID or manual ID)
+      // Step 3: Create profile (either with auth user ID or manual ID)
       if (!userId) {
         console.log('Creating member with manual profile...');
         userId = await createMemberProfile(memberData);
         console.log('Manual profile created with ID:', userId);
       } else {
-        // If auth succeeded, ensure profile exists with correct data
-        console.log('Auth succeeded, ensuring profile exists...');
-        try {
+        // If auth succeeded, the trigger should have created the profile
+        // But let's verify and update if needed
+        console.log('Auth succeeded, checking if profile exists...');
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', userId)
+          .single();
+
+        if (!profile) {
+          console.log('Profile not found, creating manually...');
           await createMemberProfile(memberData, userId);
-          console.log('Profile ensured for auth user');
-        } catch (profileError: any) {
-          // If profile already exists, update it
-          if (profileError.message.includes('duplicate key')) {
-            const { error: updateError } = await supabase
-              .from('profiles')
-              .update({
-                email: memberData.email,
-                first_name: memberData.firstName,
-                last_name: memberData.lastName,
-                phone: memberData.phone || ''
-              })
-              .eq('id', userId);
-            
-            if (updateError) {
-              console.error('Profile update error:', updateError);
-            } else {
-              console.log('Existing profile updated');
-            }
-          } else {
-            throw profileError;
+        } else {
+          // Update profile with latest data
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              email: memberData.email,
+              first_name: memberData.firstName,
+              last_name: memberData.lastName,
+              phone: memberData.phone || ''
+            })
+            .eq('id', userId);
+          
+          if (updateError) {
+            console.error('Profile update error:', updateError);
           }
         }
       }
 
-      // Attempt 3: Assign role
+      // Step 4: Assign role
       if (memberData.role && userId) {
         console.log('Assigning role:', memberData.role);
         await assignUserRole(userId, memberData.role);
       }
 
-      // Attempt 4: Send invitation email
+      // Step 5: Send invitation email
       console.log('Sending invitation email...');
       const emailResult = await sendInvitationEmail(memberData, userId);
 
@@ -218,12 +262,14 @@ export const useMemberCreation = () => {
       
       let errorMessage = "An error occurred while adding the member";
       
-      if (error.message.includes('profiles_id_fkey')) {
-        errorMessage = "Database configuration error. Please check Supabase auth settings.";
-      } else if (error.message.includes('duplicate key')) {
+      if (error.message.includes('profiles_id_fkey') || error.message.includes('foreign key')) {
+        errorMessage = "Database configuration issue detected. The member management system needs proper setup.";
+      } else if (error.message.includes('duplicate key') || error.message.includes('already exists')) {
         errorMessage = "A member with this email already exists.";
       } else if (error.message.includes('rate limit')) {
         errorMessage = "Too many requests. Please try again in a few minutes.";
+      } else if (error.message.includes('permission denied') || error.message.includes('not allowed')) {
+        errorMessage = "Permission denied. Please check your admin privileges.";
       }
 
       toast({
