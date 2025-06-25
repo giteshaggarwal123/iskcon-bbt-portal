@@ -12,6 +12,12 @@ interface MemberData {
   role: string;
 }
 
+type ValidRole = 'super_admin' | 'admin' | 'member' | 'secretary' | 'treasurer';
+
+const isValidRole = (role: string): role is ValidRole => {
+  return ['super_admin', 'admin', 'member', 'secretary', 'treasurer'].includes(role);
+};
+
 export const useMemberCreation = () => {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
@@ -58,14 +64,16 @@ export const useMemberCreation = () => {
         return;
       }
 
-      // Cast role to the correct type for the database - using proper type assertion
-      const validRole = role as 'super_admin' | 'admin' | 'member' | 'secretary' | 'treasurer';
+      // Validate role before casting
+      if (!isValidRole(role)) {
+        throw new Error(`Invalid role: ${role}. Must be one of: super_admin, admin, member, secretary, treasurer`);
+      }
 
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
           user_id: userId,
-          role: validRole
+          role: role
         });
 
       if (roleError) {

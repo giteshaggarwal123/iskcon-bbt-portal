@@ -7,6 +7,12 @@ export class DatabaseSetupError extends Error {
   }
 }
 
+type ValidRole = 'super_admin' | 'admin' | 'member' | 'secretary' | 'treasurer';
+
+const isValidRole = (role: string): role is ValidRole => {
+  return ['super_admin', 'admin', 'member', 'secretary', 'treasurer'].includes(role);
+};
+
 export const checkDatabaseConfiguration = async () => {
   try {
     console.log('Checking database configuration...');
@@ -108,14 +114,16 @@ export const ensureUserRole = async (userId: string, role: string) => {
     if (!existingRole) {
       console.log('Creating user role...');
       
-      // Cast role to the correct type for the database - using proper type assertion
-      const validRole = role as 'super_admin' | 'admin' | 'member' | 'secretary' | 'treasurer';
+      // Validate role before casting
+      if (!isValidRole(role)) {
+        throw new DatabaseSetupError(`Invalid role: ${role}. Must be one of: super_admin, admin, member, secretary, treasurer`);
+      }
       
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
           user_id: userId,
-          role: validRole
+          role: role
         });
 
       if (roleError) {
