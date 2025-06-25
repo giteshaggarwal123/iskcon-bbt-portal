@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
@@ -169,7 +168,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       !isMobile && isCollapsed ? 'w-20' : 'w-64'
     } left-0`}>
       <div className="flex flex-col h-full">
-        {/* Logo Section - Updated design */}
+        {/* Logo Section - Left aligned design */}
         <div className="p-6 border-b border-gray-200">
           <button 
             onClick={handleLogoClick}
@@ -194,11 +193,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <div className="flex flex-col">
-                  <h1 className="text-lg font-bold text-[#8E1616] leading-tight">
+                <div className="flex flex-col text-left">
+                  <h1 className="text-lg font-bold text-[#8E1616] leading-tight text-left">
                     ISKCON
                   </h1>
-                  <p className="text-sm text-gray-600 leading-tight">
+                  <p className="text-sm text-gray-600 leading-tight text-left">
                     Bureau Management
                   </p>
                 </div>
