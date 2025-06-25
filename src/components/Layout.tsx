@@ -68,7 +68,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   ];
 
   return (
-    <div className="min-h-screen flex w-full overflow-hidden" style={{ backgroundColor: '#faf0e3' }}>
+    <div className="min-h-screen flex w-full overflow-hidden" style={{ backgroundColor: '#FCFAF5' }}>
       {/* Mobile sidebar overlay with blur effect - Higher z-index to cover bottom nav */}
       {isMobile && sidebarOpen && (
         <div 
