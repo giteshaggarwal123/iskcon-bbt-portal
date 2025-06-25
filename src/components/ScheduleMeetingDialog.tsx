@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Video, MapPin, Paperclip, X } from 'lucide-react';
+import { CalendarIcon, Video, MapPin, Paperclip, X, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
@@ -58,6 +59,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
   const { toast } = useToast();
   
   const watchType = watch('type');
+  const watchTime = watch('time');
 
   // Set preselected date when dialog opens
   useEffect(() => {
@@ -65,6 +67,27 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
       setSelectedDate(preselectedDate);
     }
   }, [open, preselectedDate]);
+
+  // Check if selected time is in the past for today
+  const isTimeInPast = (timeString: string, selectedDate: Date | undefined) => {
+    if (!timeString || !selectedDate) return false;
+    
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const selectedDateOnly = new Date(selectedDate);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    
+    // Only check if it's today
+    if (selectedDateOnly.getTime() !== today.getTime()) return false;
+    
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const selectedDateTime = new Date();
+    selectedDateTime.setHours(hours, minutes, 0, 0);
+    
+    return selectedDateTime <= now;
+  };
 
   // File upload constraints
   const MAX_FILES = 5;
@@ -83,6 +106,23 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
     console.log('Date selected:', date);
     setSelectedDate(date);
     setShowCalendar(false);
+    
+    // Clear time if switching to today and current time is in past
+    if (date && watchTime) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDateOnly = new Date(date);
+      selectedDateOnly.setHours(0, 0, 0, 0);
+      
+      if (selectedDateOnly.getTime() === today.getTime() && isTimeInPast(watchTime, date)) {
+        setValue('time', '');
+        toast({
+          title: "Time Reset",
+          description: "Selected time was in the past, please choose a future time",
+          variant: "destructive"
+        });
+      }
+    }
   };
 
   const handleFileAttachment = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -218,6 +258,16 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
       return;
     }
 
+    // Check if time is in the past for today
+    if (isTimeInPast(data.time, selectedDate)) {
+      toast({
+        title: "Invalid Time",
+        description: "Cannot schedule a meeting in the past. Please select a future time.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (selectedAttendees.length === 0) {
       toast({
         title: "Attendees Required",
@@ -231,6 +281,16 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
     const meetingDate = new Date(selectedDate);
     const [hours, minutes] = data.time.split(':').map(Number);
     meetingDate.setHours(hours, minutes, 0, 0);
+
+    // Final check - ensure the complete datetime is in the future
+    if (meetingDate <= new Date()) {
+      toast({
+        title: "Invalid DateTime",
+        description: "Meeting time must be in the future",
+        variant: "destructive"
+      });
+      return;
+    }
 
     console.log('Final meeting date/time:', meetingDate);
 
@@ -269,6 +329,28 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
     setAttachedFiles([]);
     setRsvpEnabled(true);
     onOpenChange(false, false); // Pass false to indicate no meeting was created
+  };
+
+  // Generate minimum time for today (current time + 15 minutes buffer)
+  const getMinTimeForToday = () => {
+    if (!selectedDate) return '';
+    
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const selectedDateOnly = new Date(selectedDate);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    
+    // Only apply minimum time if it's today
+    if (selectedDateOnly.getTime() !== today.getTime()) return '';
+    
+    // Add 15-minute buffer to current time
+    const minTime = new Date(now.getTime() + 15 * 60 * 1000);
+    const hours = minTime.getHours().toString().padStart(2, '0');
+    const minutes = minTime.getMinutes().toString().padStart(2, '0');
+    
+    return `${hours}:${minutes}`;
   };
 
   return (
@@ -344,11 +426,36 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
 
               <div>
                 <Label htmlFor="time">Time *</Label>
-                <Input 
-                  id="time" 
-                  type="time"
-                  {...register('time', { required: true })}
-                />
+                <div className="relative">
+                  <Input 
+                    id="time" 
+                    type="time"
+                    min={getMinTimeForToday()}
+                    {...register('time', { 
+                      required: true,
+                      validate: (value) => {
+                        if (isTimeInPast(value, selectedDate)) {
+                          return "Cannot schedule meeting in the past";
+                        }
+                        return true;
+                      }
+                    })}
+                    className={cn(
+                      watchTime && isTimeInPast(watchTime, selectedDate) && 
+                      "border-red-500 focus:border-red-500"
+                    )}
+                  />
+                  {watchTime && isTimeInPast(watchTime, selectedDate) && (
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                      <Clock className="h-4 w-4 text-red-500" />
+                    </div>
+                  )}
+                </div>
+                {watchTime && isTimeInPast(watchTime, selectedDate) && (
+                  <p className="text-sm text-red-500 mt-1">
+                    Selected time is in the past. Please choose a future time.
+                  </p>
+                )}
               </div>
             </div>
 
