@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Clock, Users, Eye, CheckSquare } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Users, CheckSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -13,7 +14,6 @@ import { useUserRole } from '@/hooks/useUserRole';
 interface RSVPSelectorProps {
   meeting: any;
   onResponseUpdate?: () => void;
-  onViewReport?: (meeting: any) => void;
   onViewRSVP?: (meeting: any) => void;
   hideReportButton?: boolean;
 }
@@ -21,7 +21,6 @@ interface RSVPSelectorProps {
 export const RSVPSelector: React.FC<RSVPSelectorProps> = ({ 
   meeting, 
   onResponseUpdate, 
-  onViewReport, 
   onViewRSVP,
   hideReportButton = false
 }) => {
@@ -187,65 +186,14 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
     );
   }
 
-  // For past meetings, don't show anything if report button is hidden
+  // For past meetings, don't show anything
   if (!isUpcomingMeeting) {
-    if (hideReportButton) {
-      return null;
-    }
-    
-    return (
-      <div className="space-y-4">
-        {/* Desktop: Only Report button */}
-        <div className="hidden md:flex justify-end gap-2">
-          {userRole.canViewReports && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onViewReport?.(meeting)}
-            >
-              <Eye className="h-4 w-4 mr-1" />
-              Report
-            </Button>
-          )}
-        </div>
-
-        {/* Mobile: Only Report button */}
-        <div className="flex md:hidden justify-end gap-2">
-          {userRole.canViewReports && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onViewReport?.(meeting)}
-              className="text-xs px-2 py-1 h-8"
-            >
-              <Eye className="h-3 w-3 mr-1" />
-              Report
-            </Button>
-          )}
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // For upcoming meetings, show full RSVP form
   return (
     <div className="space-y-4">
-      {/* Desktop: Only show Report button if not hidden */}
-      {!hideReportButton && (
-        <div className="hidden md:flex justify-end gap-2 mb-4">
-          {userRole.canViewReports && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onViewReport?.(meeting)}
-            >
-              <Eye className="h-4 w-4 mr-1" />
-              Report
-            </Button>
-          )}
-        </div>
-      )}
-
       <Card className="w-full">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between text-base md:text-lg">
@@ -254,32 +202,18 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
               <span>RSVP for this Meeting</span>
             </div>
             
-            {/* Mobile: Show buttons in header if not hidden */}
-            {!hideReportButton && (
-              <div className="flex md:hidden gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onViewRSVP?.(meeting)}
-                  className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs px-2 py-1 h-8"
-                >
-                  <CheckSquare className="h-3 w-3 mr-1" />
-                  View RSVP
-                </Button>
-                
-                {userRole.canViewReports && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onViewReport?.(meeting)}
-                    className="text-xs px-2 py-1 h-8"
-                  >
-                    <Eye className="h-3 w-3 mr-1" />
-                    Report
-                  </Button>
-                )}
-              </div>
-            )}
+            {/* Mobile: Show View RSVP button in header */}
+            <div className="flex md:hidden gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onViewRSVP?.(meeting)}
+                className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs px-2 py-1 h-8"
+              >
+                <CheckSquare className="h-3 w-3 mr-1" />
+                View RSVP
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0 space-y-4">
