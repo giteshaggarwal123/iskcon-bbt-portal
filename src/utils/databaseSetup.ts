@@ -35,7 +35,7 @@ export const ensureAdminExists = async () => {
 
     console.log('No admin users found, creating default admin profile...');
 
-    // Create a default admin profile (invitation-based approach)
+    // Create a default admin profile using the invitation approach
     const defaultAdmin = {
       email: 'admin@iskconbureau.in',
       first_name: 'System',
@@ -52,7 +52,7 @@ export const ensureAdminExists = async () => {
     // Generate a UUID for the profile
     const profileId = crypto.randomUUID();
 
-    // Step 1: Create profile with generated ID
+    // Step 1: Create profile entry
     const { data: newProfile, error: createProfileError } = await supabase
       .from('profiles')
       .insert({
@@ -82,6 +82,23 @@ export const ensureAdminExists = async () => {
       // Clean up profile if role creation fails
       await supabase.from('profiles').delete().eq('id', profileId);
       return;
+    }
+
+    // Step 3: Create invitation record for tracking
+    const { error: invitationError } = await supabase
+      .from('member_invitations')
+      .insert({
+        email: defaultAdmin.email,
+        first_name: defaultAdmin.first_name,
+        last_name: defaultAdmin.last_name,
+        role: defaultAdmin.role,
+        invited_by: profileId, // Self-invited
+        status: 'pending'
+      });
+
+    if (invitationError) {
+      console.warn('Warning: Could not create invitation record for default admin:', invitationError);
+      // Don't fail the entire setup for this
     }
 
     console.log('Default admin profile created successfully:', newProfile);

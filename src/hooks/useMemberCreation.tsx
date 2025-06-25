@@ -44,12 +44,35 @@ export const useMemberCreation = () => {
     setIsCreating(true);
 
     try {
-      console.log('Creating member with data:', memberData);
+      console.log('Creating member invitation with data:', memberData);
 
-      // Generate a UUID for the new profile
+      // Step 1: Create invitation record
+      const { data: invitation, error: invitationError } = await supabase
+        .from('member_invitations')
+        .insert({
+          email: memberData.email,
+          first_name: memberData.firstName,
+          last_name: memberData.lastName,
+          phone: memberData.phone,
+          role: memberData.role,
+          invited_by: user.id
+        })
+        .select()
+        .single();
+
+      if (invitationError) {
+        console.error('Invitation creation error:', invitationError);
+        
+        if (invitationError.code === '23505') {
+          throw new Error('An invitation for this email already exists');
+        }
+        throw invitationError;
+      }
+
+      console.log('Invitation created successfully:', invitation);
+
+      // Step 2: Create profile entry for immediate display in members list
       const profileId = crypto.randomUUID();
-
-      // Step 1: Create the profile entry first (this will allow the user to be invited later)
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .insert({
@@ -65,6 +88,9 @@ export const useMemberCreation = () => {
       if (profileError) {
         console.error('Profile creation error:', profileError);
         
+        // Clean up invitation if profile creation fails
+        await supabase.from('member_invitations').delete().eq('id', invitation.id);
+        
         if (profileError.code === '23505') {
           throw new Error('A member with this email already exists');
         }
@@ -73,7 +99,7 @@ export const useMemberCreation = () => {
 
       console.log('Profile created successfully:', profile);
 
-      // Step 2: Create user role entry
+      // Step 3: Create user role entry
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
@@ -83,21 +109,25 @@ export const useMemberCreation = () => {
 
       if (roleError) {
         console.error('Role creation error:', roleError);
-        // Clean up profile if role creation fails
+        
+        // Clean up profile and invitation if role creation fails
         await supabase.from('profiles').delete().eq('id', profileId);
+        await supabase.from('member_invitations').delete().eq('id', invitation.id);
+        
         throw roleError;
       }
 
       console.log('Member created successfully with invitation approach');
 
-      // Step 3: Send invitation email via the send-otp function
+      // Step 4: Send invitation email
       try {
-        const { error: emailError } = await supabase.functions.invoke('send-otp', {
+        const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
           body: {
-            phoneNumber: memberData.email,
-            name: `${memberData.firstName} ${memberData.lastName}`,
-            type: 'member_invitation',
-            userId: user?.id
+            email: memberData.email,
+            firstName: memberData.firstName,
+            lastName: memberData.lastName,
+            role: memberData.role,
+            userId: user.id
           }
         });
 
@@ -110,8 +140,8 @@ export const useMemberCreation = () => {
           });
         } else {
           toast({
-            title: "Member Created Successfully",
-            description: `${memberData.firstName} ${memberData.lastName} has been added and an invitation email has been sent`,
+            title: "Member Invited Successfully",
+            description: `${memberData.firstName} ${memberData.lastName} has been invited and will receive an email with login instructions`,
           });
         }
       } catch (emailError) {
@@ -129,7 +159,9 @@ export const useMemberCreation = () => {
       
       let errorMessage = "Failed to create member";
       
-      if (error.code === '23505') {
+      if (error.message?.includes('invitation for this email already exists')) {
+        errorMessage = "An invitation for this email is already pending";
+      } else if (error.message?.includes('member with this email already exists')) {
         errorMessage = "A member with this email already exists";
       } else if (error.message?.includes('rate limit')) {
         errorMessage = "Too many requests. Please try again later.";

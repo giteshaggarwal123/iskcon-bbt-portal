@@ -489,6 +489,45 @@ export type Database = {
         }
         Relationships: []
       }
+      member_invitations: {
+        Row: {
+          created_at: string | null
+          email: string
+          expires_at: string | null
+          first_name: string
+          id: string
+          invited_by: string
+          last_name: string
+          phone: string | null
+          role: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          expires_at?: string | null
+          first_name: string
+          id?: string
+          invited_by: string
+          last_name: string
+          phone?: string | null
+          role: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          expires_at?: string | null
+          first_name?: string
+          id?: string
+          invited_by?: string
+          last_name?: string
+          phone?: string | null
+          role?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
       otp_codes: {
         Row: {
           attempts: number | null
