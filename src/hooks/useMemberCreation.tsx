@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
@@ -59,8 +58,8 @@ export const useMemberCreation = () => {
         return;
       }
 
-      // Cast role to the correct type for the database
-      const validRole = role as 'super_admin' | 'admin' | 'member';
+      // Cast role to the correct type for the database - using proper type assertion
+      const validRole = role as 'super_admin' | 'admin' | 'member' | 'secretary' | 'treasurer';
 
       const { error: roleError } = await supabase
         .from('user_roles')

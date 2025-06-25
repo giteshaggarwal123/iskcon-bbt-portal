@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export class DatabaseSetupError extends Error {
@@ -109,8 +108,8 @@ export const ensureUserRole = async (userId: string, role: string) => {
     if (!existingRole) {
       console.log('Creating user role...');
       
-      // Cast role to the correct type for the database
-      const validRole = role as 'super_admin' | 'admin' | 'member';
+      // Cast role to the correct type for the database - using proper type assertion
+      const validRole = role as 'super_admin' | 'admin' | 'member' | 'secretary' | 'treasurer';
       
       const { error: roleError } = await supabase
         .from('user_roles')
