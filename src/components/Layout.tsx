@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -48,7 +47,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     setCurrentModule(module);
     if (isMobile) setSidebarOpen(false);
     
-    // Use React Router navigation with proper error handling
     const routePath = module === 'dashboard' ? '/' : `/${module}`;
     console.log('Layout - Navigating to:', routePath);
     
@@ -56,7 +54,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       navigate(routePath);
     } catch (error) {
       console.error('Layout - Navigation error:', error);
-      // Fallback: force page reload if navigation fails
       window.location.href = routePath;
     }
   };
@@ -72,10 +69,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-background flex w-full overflow-hidden">
-      {/* Mobile sidebar overlay with blur effect - Covers entire screen */}
+      {/* Mobile sidebar overlay with blur effect - Higher z-index to cover bottom nav */}
       {isMobile && sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[55]"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -118,7 +115,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </main>
         
-        {/* Mobile Bottom Navigation Bar */}
+        {/* Mobile Bottom Navigation Bar - Lower z-index */}
         {isMobile && (
           <div className="bg-white border-t border-gray-200 px-2 py-2 fixed bottom-2 left-0 right-0 z-50 h-20 mx-2 rounded-lg shadow-lg">
             <div className="flex items-center justify-around h-full max-w-full">
