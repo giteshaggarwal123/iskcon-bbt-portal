@@ -73,7 +73,7 @@ export const useMemberCreation = () => {
         .from('user_roles')
         .insert({
           user_id: userId,
-          role: role
+          role: role as ValidRole
         });
 
       if (roleError) {
