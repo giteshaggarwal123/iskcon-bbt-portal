@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
@@ -69,14 +70,11 @@ export const useMemberCreation = () => {
         throw new Error(`Invalid role: ${role}. Must be one of: super_admin, admin, member, secretary, treasurer`);
       }
 
-      // Now TypeScript knows role is ValidRole, but we need to cast for the insert
-      const validRole = role as ValidRole;
-
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
           user_id: userId,
-          role: validRole
+          role: role
         });
 
       if (roleError) {
