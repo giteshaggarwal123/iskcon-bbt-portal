@@ -376,16 +376,19 @@ export const MeetingsModule: React.FC = () => {
               View Details
             </Button>
 
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => handleViewTranscript(meeting)}
-              disabled={isDeleting}
-              className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Transcript
-            </Button>
+            {/* Only show Transcript button for past meetings */}
+            {isPast && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleViewTranscript(meeting)}
+                disabled={isDeleting}
+                className="bg-purple-50 hover:bg-purple-100 text-purple-700 min-h-[40px]"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Transcript
+              </Button>
+            )}
 
             <Button 
               variant="outline" 
