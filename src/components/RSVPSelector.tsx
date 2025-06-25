@@ -185,8 +185,8 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
     );
   }
 
-  // For upcoming meetings, only show action buttons without any RSVP content
-  if (isUpcomingMeeting) {
+  // For past meetings, only show action buttons without any RSVP content
+  if (!isUpcomingMeeting) {
     return (
       <div className="space-y-4">
         {/* Desktop: Action buttons */}
@@ -241,7 +241,7 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
     );
   }
 
-  // For past meetings, show full RSVP form
+  // For upcoming meetings, show full RSVP form
   return (
     <div className="space-y-4">
       {/* Desktop: Action buttons at top, RSVP form below */}
