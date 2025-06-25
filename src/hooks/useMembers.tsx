@@ -1,8 +1,8 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { useMemberCreation } from './useMemberCreation';
 
 interface Member {
   id: string;
@@ -30,6 +30,7 @@ export const useMembers = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { createMember, loading: memberCreationLoading } = useMemberCreation();
 
   const fetchMembers = useCallback(async () => {
     try {
@@ -197,173 +198,16 @@ export const useMembers = () => {
     phone?: string;
     role: string;
   }) => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to add members",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Validate that phone number is provided
-    if (!memberData.phone || memberData.phone.trim() === '') {
-      toast({
-        title: "Phone Number Required",
-        description: "Phone number is required for OTP login functionality",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      console.log('Adding member:', memberData);
-
-      // First, sign up the user using Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: memberData.email,
-        password: memberData.password,
-        options: {
-          data: {
-            first_name: memberData.firstName,
-            last_name: memberData.lastName,
-            phone: memberData.phone
-          }
-        }
-      });
-
-      if (authError) {
-        console.error('Auth signup error:', authError);
-        // Handle rate limit error specifically
-        if (authError.message.includes('rate limit') || authError.message.includes('429')) {
-          // Continue with manual invitation process
-          console.log('Rate limit hit, continuing with manual invitation process...');
-        } else {
-          throw authError;
-        }
-      }
-
-      let userId = authData?.user?.id;
-
-      // If we don't have a user ID due to rate limiting, create profile manually
-      if (!userId) {
-        console.log('Creating member profile manually due to rate limiting...');
-        
-        // Generate a UUID for the user
-        const tempUserId = crypto.randomUUID();
-        userId = tempUserId;
-        
-        // Create profile directly
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: tempUserId,
-            email: memberData.email,
-            first_name: memberData.firstName,
-            last_name: memberData.lastName,
-            phone: memberData.phone
-          });
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          throw profileError;
-        }
-      } else {
-        // Wait a moment for the trigger to complete, then ensure profile exists
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Ensure the profile is created with all required data including phone
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: userId,
-            email: memberData.email,
-            first_name: memberData.firstName,
-            last_name: memberData.lastName,
-            phone: memberData.phone
-          }, {
-            onConflict: 'id'
-          });
-
-        if (profileError) {
-          console.error('Profile upsert error:', profileError);
-          // Don't throw error here, but log it
-        } else {
-          console.log('Profile successfully created/updated for user:', userId);
-        }
-      }
-
-      // Add role if specified
-      if (memberData.role && userId) {
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .upsert({
-            user_id: userId,
-            role: memberData.role as any
-          }, {
-            onConflict: 'user_id,role'
-          });
-
-        if (roleError) {
-          console.error('Error adding role:', roleError);
-        } else {
-          console.log('Role successfully added for user:', userId);
-        }
-      }
-
-      // Send invitation email with improved error handling
-      try {
-        const { data: invitationResult, error: emailError } = await supabase.functions.invoke('send-invitation-email', {
-          body: {
-            email: memberData.email,
-            firstName: memberData.firstName,
-            lastName: memberData.lastName,
-            role: memberData.role,
-            userId: userId
-          }
-        });
-
-        if (emailError) {
-          console.error('Email sending error:', emailError);
-        }
-
-        // Show appropriate success message based on email result
-        if (invitationResult?.method === 'outlook') {
-          toast({
-            title: "Member Added Successfully!",
-            description: `${memberData.firstName} ${memberData.lastName} has been added and invitation sent via Outlook.`
-          });
-        } else {
-          toast({
-            title: "Member Added Successfully!",
-            description: `${memberData.firstName} ${memberData.lastName} has been added. Please manually share the login details with them at ${memberData.email}.`,
-            duration: 8000
-          });
-        }
-
-      } catch (emailError) {
-        console.error('Failed to send invitation email:', emailError);
-        toast({
-          title: "Member Added (Email Failed)",
-          description: `${memberData.firstName} ${memberData.lastName} has been added but invitation email could not be sent. Please contact them manually.`,
-          duration: 8000
-        });
-      }
-
+    const result = await createMember(memberData);
+    
+    if (result) {
       await logActivity('Added new member', `Added ${memberData.firstName} ${memberData.lastName} as ${memberData.role.replace('_', ' ')}`);
-
+      
       // Force immediate refresh
       await fetchMembers();
-      
-      return { id: userId };
-    } catch (error: any) {
-      console.error('Error adding member:', error);
-      toast({
-        title: "Failed to Add Member",
-        description: error.message || "An error occurred while adding the member",
-        variant: "destructive"
-      });
     }
+    
+    return result;
   };
 
   const updateMemberRole = async (memberId: string, newRole: string) => {
@@ -654,7 +498,7 @@ export const useMembers = () => {
   return {
     members,
     activityLogs,
-    loading,
+    loading: loading || memberCreationLoading,
     addMember,
     updateMemberRole,
     deleteMember,
