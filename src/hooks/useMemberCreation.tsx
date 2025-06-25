@@ -48,18 +48,19 @@ export const useMemberCreation = () => {
     try {
       console.log('Creating member with data:', memberData);
 
-      // Step 1: Create the profile directly
+      // Split full_name into first_name and last_name
+      const nameParts = memberData.full_name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      // Step 1: Create the profile directly with correct field names
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .insert({
           email: memberData.email,
-          full_name: memberData.full_name,
-          role: memberData.role as ValidRole, // Now TypeScript knows this is a valid role
+          first_name: firstName,
+          last_name: lastName,
           phone: memberData.phone,
-          address: memberData.address,
-          emergency_contact: memberData.emergency_contact,
-          notes: memberData.notes,
-          created_by: user.id
         })
         .select()
         .single();
@@ -67,6 +68,21 @@ export const useMemberCreation = () => {
       if (profileError) {
         console.error('Profile creation error:', profileError);
         throw profileError;
+      }
+
+      // Step 2: Create user role entry
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: profile.id,
+          role: memberData.role as ValidRole,
+        });
+
+      if (roleError) {
+        console.error('Role creation error:', roleError);
+        // Clean up profile if role creation fails
+        await supabase.from('profiles').delete().eq('id', profile.id);
+        throw roleError;
       }
 
       console.log('Profile created successfully:', profile);

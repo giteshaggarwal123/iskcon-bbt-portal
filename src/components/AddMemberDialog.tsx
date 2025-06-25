@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { User, Mail, Phone, Shield } from 'lucide-react';
-import { useMembers } from '@/hooks/useMembers';
+import { useMemberCreation } from '@/hooks/useMemberCreation';
 
 interface AddMemberDialogProps {
   open: boolean;
@@ -16,11 +16,9 @@ interface AddMemberDialogProps {
 }
 
 export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenChange, onMemberAdded }) => {
-  const { addMember } = useMembers();
-  const [loading, setLoading] = useState(false);
+  const { createMember, isCreating } = useMemberCreation();
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
     firstName: '',
     lastName: '',
     phone: '',
@@ -30,22 +28,21 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenCh
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
     try {
-      await addMember({
+      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+      
+      await createMember({
         email: formData.email,
-        password: formData.password,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+        full_name: fullName,
+        role: formData.role,
         phone: formData.phone,
-        role: formData.role
+        notes: formData.notes
       });
 
       // Reset form
       setFormData({
         email: '',
-        password: '',
         firstName: '',
         lastName: '',
         phone: '',
@@ -57,8 +54,6 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenCh
       onOpenChange(false);
     } catch (error) {
       console.error('Error in form submission:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -115,22 +110,6 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenCh
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="password">Temporary Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-              placeholder="Enter temporary password"
-              required
-              minLength={6}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Member can change this after first login
-            </p>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="phone">Phone Number</Label>
@@ -154,6 +133,8 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenCh
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="secretary">Secretary</SelectItem>
+                  <SelectItem value="treasurer">Treasurer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -174,8 +155,8 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenCh
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90">
-              {loading ? 'Adding...' : 'Add Member'}
+            <Button type="submit" disabled={isCreating} className="bg-primary hover:bg-primary/90">
+              {isCreating ? 'Adding...' : 'Add Member'}
             </Button>
           </div>
         </form>

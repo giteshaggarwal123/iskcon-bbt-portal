@@ -11,11 +11,17 @@ export const ensureAdminExists = async () => {
   try {
     console.log('Checking for existing admin users...');
     
-    // Check if any admin users exist
+    // Check if any admin users exist by joining profiles with user_roles
     const { data: admins, error: adminError } = await supabase
       .from('profiles')
-      .select('id, email, role')
-      .in('role', ['super_admin', 'admin']);
+      .select(`
+        id, 
+        email, 
+        first_name,
+        last_name,
+        user_roles!inner(role)
+      `)
+      .in('user_roles.role', ['super_admin', 'admin']);
 
     if (adminError) {
       console.error('Error checking for admin users:', adminError);
@@ -32,7 +38,8 @@ export const ensureAdminExists = async () => {
     // Create a default admin user
     const defaultAdmin = {
       email: 'admin@iskconbureau.in',
-      full_name: 'System Administrator',
+      first_name: 'System',
+      last_name: 'Administrator',
       role: 'super_admin'
     };
 
@@ -42,23 +49,38 @@ export const ensureAdminExists = async () => {
       return;
     }
 
-    const { data: newAdmin, error: createError } = await supabase
+    // Step 1: Create profile
+    const { data: newProfile, error: createProfileError } = await supabase
       .from('profiles')
       .insert({
         email: defaultAdmin.email,
-        full_name: defaultAdmin.full_name,
-        role: defaultAdmin.role as ValidRole, // Now TypeScript knows this is a valid role
-        created_at: new Date().toISOString()
+        first_name: defaultAdmin.first_name,
+        last_name: defaultAdmin.last_name,
       })
       .select()
       .single();
 
-    if (createError) {
-      console.error('Error creating default admin:', createError);
+    if (createProfileError) {
+      console.error('Error creating default admin profile:', createProfileError);
       return;
     }
 
-    console.log('Default admin created successfully:', newAdmin);
+    // Step 2: Create user role
+    const { error: createRoleError } = await supabase
+      .from('user_roles')
+      .insert({
+        user_id: newProfile.id,
+        role: defaultAdmin.role as ValidRole,
+      });
+
+    if (createRoleError) {
+      console.error('Error creating default admin role:', createRoleError);
+      // Clean up profile if role creation fails
+      await supabase.from('profiles').delete().eq('id', newProfile.id);
+      return;
+    }
+
+    console.log('Default admin created successfully:', newProfile);
 
   } catch (error) {
     console.error('Error in ensureAdminExists:', error);
