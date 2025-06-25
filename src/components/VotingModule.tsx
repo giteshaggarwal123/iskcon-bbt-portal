@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Vote, Check, Plus, Calendar, Users, FileText, Edit, Trash2, Eye, RefreshCw } from 'lucide-react';
+import { Vote, Check, Plus, Calendar, Users, FileText, Edit, Trash2, Eye, RefreshCw, CheckCircle, XCircle, MinusCircle } from 'lucide-react';
 import { CreatePollDialog } from './CreatePollDialog';
 import { SimpleVotingDialog } from './SimpleVotingDialog';
 import { PollResultsDialog } from './PollResultsDialog';
@@ -15,6 +14,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { supabase } from '@/integrations/supabase/client';
 
 export const VotingModule: React.FC = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -23,6 +23,7 @@ export const VotingModule: React.FC = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showReopenDialog, setShowReopenDialog] = useState(false);
   const [selectedPoll, setSelectedPoll] = useState<any>(null);
+  const [pollResults, setPollResults] = useState<{[key: string]: any}>({});
   
   const { polls, loading, deletePoll, updatePollStatus } = usePolls();
   const userRole = useUserRole();
@@ -31,6 +32,101 @@ export const VotingModule: React.FC = () => {
 
   const activePolls = polls.filter(poll => poll.status === 'active');
   const completedPolls = polls.filter(poll => poll.status === 'completed');
+
+  // Fetch results for completed polls
+  React.useEffect(() => {
+    const fetchCompletedPollResults = async () => {
+      const results: {[key: string]: any} = {};
+      
+      for (const poll of completedPolls) {
+        try {
+          const { data: votes, error } = await supabase
+            .from('poll_votes')
+            .select('sub_poll_id, vote')
+            .eq('poll_id', poll.id);
+
+          if (error) throw error;
+
+          const subPollResults: {[key: string]: any} = {};
+          
+          // Initialize each sub-poll with zero counts
+          poll.sub_polls?.forEach(subPoll => {
+            subPollResults[subPoll.id] = {
+              favor: 0,
+              against: 0,
+              abstain: 0,
+              total: 0
+            };
+          });
+
+          // Count votes for each sub-poll
+          votes?.forEach(vote => {
+            if (subPollResults[vote.sub_poll_id]) {
+              if (vote.vote === 'favor') {
+                subPollResults[vote.sub_poll_id].favor++;
+              } else if (vote.vote === 'against') {
+                subPollResults[vote.sub_poll_id].against++;
+              } else if (vote.vote === 'abstain') {
+                subPollResults[vote.sub_poll_id].abstain++;
+              }
+              subPollResults[vote.sub_poll_id].total++;
+            }
+          });
+
+          results[poll.id] = subPollResults;
+        } catch (error) {
+          console.error('Error fetching poll results:', error);
+        }
+      }
+      
+      setPollResults(results);
+    };
+
+    if (completedPolls.length > 0) {
+      fetchCompletedPollResults();
+    }
+  }, [completedPolls]);
+
+  const getOverallPollResult = (poll: any) => {
+    const results = pollResults[poll.id];
+    if (!results || !poll.sub_polls) return null;
+
+    let totalFavor = 0;
+    let totalAgainst = 0;
+    let totalAbstain = 0;
+    let totalVotes = 0;
+
+    // Sum up all votes across all sub-polls
+    Object.values(results).forEach((result: any) => {
+      totalFavor += result.favor;
+      totalAgainst += result.against;
+      totalAbstain += result.abstain;
+      totalVotes += result.total;
+    });
+
+    if (totalVotes === 0) return null;
+
+    const max = Math.max(totalFavor, totalAgainst, totalAbstain);
+    if (totalFavor === max && totalFavor > 0) return 'favor';
+    if (totalAgainst === max && totalAgainst > 0) return 'against';
+    if (totalAbstain === max && totalAbstain > 0) return 'abstain';
+    return null;
+  };
+
+  const getResultBadge = (result: string | null) => {
+    if (!result) return null;
+    
+    switch (result) {
+      case 'favor':
+        return <Badge className="bg-green-100 text-green-800 border-green-300"><CheckCircle className="h-3 w-3 mr-1" />Passed</Badge>;
+      case 'against':
+        return <Badge className="bg-red-100 text-red-800 border-red-300"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
+      case 'abstain':
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300"><MinusCircle className="h-3 w-3 mr-1" />Abstained</Badge>;
+      default:
+        return null;
+    }
+  };
 
   const handleVoteNow = (poll: any) => {
     setSelectedPoll(poll);
@@ -276,49 +372,57 @@ export const VotingModule: React.FC = () => {
               </Card>
             ) : (
               <div className="grid gap-6">
-                {completedPolls.map((poll) => (
-                  <Card key={poll.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader className={isMobile ? 'p-4 pb-3' : ''}>
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <CardTitle className={`${isMobile ? 'text-lg' : 'text-xl'} flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
-                            <span className={isMobile ? 'w-full mb-2' : ''}>{poll.title}</span>
-                            <Badge variant="secondary">Completed</Badge>
-                          </CardTitle>
-                          <CardDescription className={`mt-2 ${isMobile ? 'text-sm' : ''}`}>
-                            Completed on {format(new Date(poll.deadline), 'MMM dd, yyyy')}
-                          </CardDescription>
+                {completedPolls.map((poll) => {
+                  const overallResult = getOverallPollResult(poll);
+                  const resultBadge = getResultBadge(overallResult);
+                  
+                  return (
+                    <Card key={poll.id} className="hover:shadow-md transition-shadow">
+                      <CardHeader className={isMobile ? 'p-4 pb-3' : ''}>
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <CardTitle className={`${isMobile ? 'text-lg' : 'text-xl'} flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
+                              <span className={isMobile ? 'w-full mb-2' : ''}>{poll.title}</span>
+                              <div className={`flex gap-2 ${isMobile ? 'w-full' : ''}`}>
+                                <Badge variant="secondary">Completed</Badge>
+                                {resultBadge}
+                              </div>
+                            </CardTitle>
+                            <CardDescription className={`mt-2 ${isMobile ? 'text-sm' : ''}`}>
+                              Completed on {format(new Date(poll.deadline), 'MMM dd, yyyy')}
+                            </CardDescription>
+                          </div>
                         </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className={isMobile ? 'p-4 pt-0' : ''}>
-                      {isMobile && <div className="border-t pt-4" />}
-                      <div className={`flex ${isMobile ? 'flex-col gap-3' : 'flex-wrap gap-2'}`}>
-                        <Button 
-                          variant="outline" 
-                          onClick={() => handleViewResults(poll)}
-                          className={isMobile ? 'w-full text-base py-3' : ''}
-                          size={isMobile ? "default" : "default"}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Results
-                        </Button>
-                        
-                        {userRole.canEditVoting && (
+                      </CardHeader>
+                      <CardContent className={isMobile ? 'p-4 pt-0' : ''}>
+                        {isMobile && <div className="border-t pt-4" />}
+                        <div className={`flex ${isMobile ? 'flex-col gap-3' : 'flex-wrap gap-2'}`}>
                           <Button 
                             variant="outline" 
-                            onClick={() => handleReopenPoll(poll)}
-                            className={`text-blue-600 hover:text-blue-700 hover:bg-blue-50 ${isMobile ? 'w-full text-base py-3' : ''}`}
+                            onClick={() => handleViewResults(poll)}
+                            className={isMobile ? 'w-full text-base py-3' : ''}
                             size={isMobile ? "default" : "default"}
                           >
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Reopen Poll
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Results
                           </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                          
+                          {userRole.canEditVoting && (
+                            <Button 
+                              variant="outline" 
+                              onClick={() => handleReopenPoll(poll)}
+                              className={`text-blue-600 hover:text-blue-700 hover:bg-blue-50 ${isMobile ? 'w-full text-base py-3' : ''}`}
+                              size={isMobile ? "default" : "default"}
+                            >
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Reopen Poll
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
