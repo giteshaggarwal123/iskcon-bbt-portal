@@ -64,7 +64,7 @@ export const useMemberCreation = () => {
         return;
       }
 
-      // Validate role before casting
+      // Validate role before assignment
       if (!isValidRole(role)) {
         throw new Error(`Invalid role: ${role}. Must be one of: super_admin, admin, member, secretary, treasurer`);
       }
@@ -73,7 +73,7 @@ export const useMemberCreation = () => {
         .from('user_roles')
         .insert({
           user_id: userId,
-          role: role as ValidRole
+          role: role // TypeScript now knows this is ValidRole due to the guard above
         });
 
       if (roleError) {

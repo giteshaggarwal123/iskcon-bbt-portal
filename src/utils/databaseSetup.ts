@@ -114,7 +114,7 @@ export const ensureUserRole = async (userId: string, role: string) => {
     if (!existingRole) {
       console.log('Creating user role...');
       
-      // Validate role before casting
+      // Validate role before assignment
       if (!isValidRole(role)) {
         throw new DatabaseSetupError(`Invalid role: ${role}. Must be one of: super_admin, admin, member, secretary, treasurer`);
       }
@@ -123,7 +123,7 @@ export const ensureUserRole = async (userId: string, role: string) => {
         .from('user_roles')
         .insert({
           user_id: userId,
-          role: role as ValidRole
+          role: role // TypeScript now knows this is ValidRole due to the guard above
         });
 
       if (roleError) {
