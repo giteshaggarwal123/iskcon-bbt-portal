@@ -107,15 +107,6 @@ export const MeetingsModule: React.FC = () => {
     setShowRSVPDialog(true);
   };
 
-  const handleViewReport = (meeting: any) => {
-    // Add logic for viewing reports
-    console.log('View report for meeting:', meeting.title);
-    toast({
-      title: "Report View",
-      description: "Report viewing functionality will be implemented soon"
-    });
-  };
-
   const handleDeleteMeeting = async (meetingId: string, meetingTitle: string) => {
     // Check if user role allows deletion (admin check)
     if (!canDeleteMeetings) {
