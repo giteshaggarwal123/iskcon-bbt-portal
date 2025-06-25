@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CheckCircle, XCircle, MinusCircle, Users, Calendar, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, MinusCircle, Users, Calendar, Clock, Trophy } from 'lucide-react';
 import { Poll } from '@/hooks/usePolls';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -158,6 +157,31 @@ export const PollResultsDialog: React.FC<PollResultsDialogProps> = ({ open, onOp
     return total > 0 ? Math.round((count / total) * 100) : 0;
   };
 
+  const getWinningOption = (results: { favor: number; against: number; abstain: number; total: number }) => {
+    if (results.total === 0) return null;
+    
+    const max = Math.max(results.favor, results.against, results.abstain);
+    if (results.favor === max && results.favor > 0) return 'favor';
+    if (results.against === max && results.against > 0) return 'against';
+    if (results.abstain === max && results.abstain > 0) return 'abstain';
+    return null;
+  };
+
+  const getResultBadge = (winningOption: string | null) => {
+    if (!winningOption) return <Badge variant="secondary">No Votes</Badge>;
+    
+    switch (winningOption) {
+      case 'favor':
+        return <Badge className="bg-green-100 text-green-800 border-green-300"><CheckCircle className="h-3 w-3 mr-1" />Passed</Badge>;
+      case 'against':
+        return <Badge className="bg-red-100 text-red-800 border-red-300"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
+      case 'abstain':
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300"><MinusCircle className="h-3 w-3 mr-1" />Abstained</Badge>;
+      default:
+        return <Badge variant="secondary">No Result</Badge>;
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
@@ -214,6 +238,43 @@ export const PollResultsDialog: React.FC<PollResultsDialogProps> = ({ open, onOp
               </div>
             </CardContent>
           </Card>
+
+          {/* Results Summary */}
+          {poll.sub_polls && poll.sub_polls.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Trophy className="h-5 w-5" />
+                  Results Summary
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Quick overview of winning options for each question
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {poll.sub_polls.map((subPoll, index) => {
+                    const results = voteResults[subPoll.id] || { favor: 0, against: 0, abstain: 0, total: 0 };
+                    const winningOption = getWinningOption(results);
+                    
+                    return (
+                      <div key={subPoll.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">Question {index + 1}: {subPoll.title}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {results.total} total votes
+                          </p>
+                        </div>
+                        <div className="ml-4">
+                          {getResultBadge(winningOption)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Member Voting Status */}
           <Card>
@@ -320,7 +381,7 @@ export const PollResultsDialog: React.FC<PollResultsDialogProps> = ({ open, onOp
 
           {/* Question Results */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Question Results</h3>
+            <h3 className="text-lg font-semibold">Detailed Question Results</h3>
             {loadingResults ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -328,13 +389,17 @@ export const PollResultsDialog: React.FC<PollResultsDialogProps> = ({ open, onOp
             ) : poll.sub_polls && poll.sub_polls.length > 0 ? (
               poll.sub_polls.map((subPoll, index) => {
                 const results = voteResults[subPoll.id] || { favor: 0, against: 0, abstain: 0, total: 0 };
+                const winningOption = getWinningOption(results);
                 
                 return (
                   <Card key={subPoll.id}>
                     <CardHeader>
-                      <CardTitle className="text-base">
-                        Question {index + 1}: {subPoll.title}
-                      </CardTitle>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base">
+                          Question {index + 1}: {subPoll.title}
+                        </CardTitle>
+                        {getResultBadge(winningOption)}
+                      </div>
                       {subPoll.description && (
                         <p className="text-sm text-muted-foreground">{subPoll.description}</p>
                       )}
