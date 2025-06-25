@@ -189,18 +189,8 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
   if (!isUpcomingMeeting) {
     return (
       <div className="space-y-4">
-        {/* Desktop: Action buttons */}
+        {/* Desktop: Only Report button */}
         <div className="hidden md:flex justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onViewRSVP?.(meeting)}
-            className="bg-purple-50 hover:bg-purple-100 text-purple-700"
-          >
-            <CheckSquare className="h-4 w-4 mr-1" />
-            View RSVP
-          </Button>
-          
           {userRole.canViewReports && (
             <Button
               variant="outline"
@@ -213,18 +203,8 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
           )}
         </div>
 
-        {/* Mobile: Action buttons */}
+        {/* Mobile: Only Report button */}
         <div className="flex md:hidden justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onViewRSVP?.(meeting)}
-            className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs px-2 py-1 h-8"
-          >
-            <CheckSquare className="h-3 w-3 mr-1" />
-            View RSVP
-          </Button>
-          
           {userRole.canViewReports && (
             <Button
               variant="outline"
