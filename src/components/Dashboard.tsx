@@ -166,6 +166,27 @@ export const Dashboard: React.FC = () => {
 
   const isPastDeadline = (deadline: string) => new Date(deadline) < new Date();
 
+  // Helper function to extract plain text from HTML email body
+  const getEmailPreview = (htmlBody: string, maxLength: number = 80) => {
+    if (!htmlBody) return 'No preview available';
+    
+    // Remove HTML tags and decode HTML entities
+    const textContent = htmlBody
+      .replace(/<[^>]*>/g, '') // Remove HTML tags
+      .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+      .replace(/&amp;/g, '&') // Replace &amp; with &
+      .replace(/&lt;/g, '<') // Replace &lt; with <
+      .replace(/&gt;/g, '>') // Replace &gt; with >
+      .replace(/&quot;/g, '"') // Replace &quot; with "
+      .replace(/&#39;/g, "'") // Replace &#39; with '
+      .replace(/\s+/g, ' ') // Replace multiple whitespace with single space
+      .trim();
+    
+    return textContent.length > maxLength 
+      ? textContent.substring(0, maxLength) + '...' 
+      : textContent;
+  };
+
   // Show loading state if still loading essential data
   if (meetingsLoading || documentsLoading || emailsLoading) {
     return (
@@ -214,7 +235,7 @@ export const Dashboard: React.FC = () => {
 
           {/* Main Grid - Clean Layout */}
           <div className="dashboard-grid grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Recent Emails */}
+            {/* Recent Emails - Enhanced with content preview */}
             <Card className="dashboard-card border border-border bg-card">
               <CardHeader className="pb-4">
                 <CardTitle className="dashboard-card-title flex items-center space-x-3 text-lg sm:text-xl">
@@ -230,7 +251,13 @@ export const Dashboard: React.FC = () => {
                     {recentEmails.map((email) => (
                       <div key={email.id} className="dashboard-item p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
                         <div className="dashboard-item-header flex justify-between items-start mb-2">
-                          <h4 className="dashboard-item-title font-medium text-sm truncate flex-1 mr-2">{email.subject}</h4>
+                          <div className="flex-1 min-w-0 mr-2">
+                            <h4 className="dashboard-item-title font-medium text-sm truncate mb-1">{email.subject || 'No Subject'}</h4>
+                            <p className="text-xs text-muted-foreground mb-1">From: {email.from.name}</p>
+                            <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
+                              {getEmailPreview(email.body)}
+                            </p>
+                          </div>
                           <Button
                             size="sm"
                             variant="outline"
@@ -241,8 +268,7 @@ export const Dashboard: React.FC = () => {
                             Open
                           </Button>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-1">From: {email.from.name}</p>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between pt-2">
                           <span className="text-xs text-muted-foreground">
                             {new Date(email.receivedDateTime).toLocaleDateString()}
                           </span>
