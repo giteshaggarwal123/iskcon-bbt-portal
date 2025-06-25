@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy, CheckSquare, AlertTriangle, BarChart3 } from 'lucide-react';
+import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy, CheckSquare, AlertTriangle } from 'lucide-react';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 import { ViewAgendaDialog } from './ViewAgendaDialog';
 import { ManageAttendeesDialog } from './ManageAttendeesDialog';
@@ -300,7 +299,6 @@ export const MeetingsModule: React.FC = () => {
           <RSVPSelector 
             meeting={meeting} 
             onResponseUpdate={handleRSVPUpdate}
-            onViewReport={handleViewReport}
             onViewRSVP={handleViewRSVP}
           />
 
@@ -399,17 +397,6 @@ export const MeetingsModule: React.FC = () => {
             >
               <CheckSquare className="h-4 w-4 mr-2" />
               View RSVP
-            </Button>
-
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => handleViewReport(meeting)}
-              disabled={isDeleting}
-              className="bg-orange-50 hover:bg-orange-100 text-orange-700 min-h-[40px]"
-            >
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Report
             </Button>
             
             {canDeleteMeetings && (
