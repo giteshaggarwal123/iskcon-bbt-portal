@@ -288,58 +288,81 @@ export const useMeetings = () => {
         hour12: true
       })}`;
 
+      // Clean, professional email format without icons
       const emailBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2563eb; margin-bottom: 20px;">Meeting Invitation</h2>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #2563eb; font-size: 28px; margin: 0; font-weight: 600;">Meeting Invitation</h1>
+          </div>
           
-          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin: 0 0 15px 0; color: #1e293b;">${meeting.title}</h3>
+          <div style="background-color: #f8fafc; padding: 25px; border-radius: 8px; border-left: 4px solid #2563eb; margin-bottom: 25px;">
+            <h2 style="margin: 0 0 20px 0; color: #1e293b; font-size: 22px; font-weight: 600;">${meeting.title}</h2>
             
-            <div style="margin-bottom: 10px;">
-              <strong>📅 Date:</strong> ${meetingDate}
-            </div>
-            
-            <div style="margin-bottom: 10px;">
-              <strong>🕒 Time:</strong> ${timeRange}
-            </div>
-            
-            <div style="margin-bottom: 10px;">
-              <strong>📍 Location:</strong> ${meeting.location || 'TBD'}
-            </div>
-            
-            ${meeting.teams_join_url ? `
-              <div style="margin-bottom: 10px;">
-                <strong>💻 Join Online:</strong> 
-                <a href="${meeting.teams_join_url}" style="color: #2563eb;">Click to join Teams meeting</a>
-              </div>
-            ` : ''}
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; vertical-align: top; width: 80px;">
+                  <strong style="color: #374151;">Date:</strong>
+                </td>
+                <td style="padding: 8px 0; color: #1f2937;">
+                  ${meetingDate}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; vertical-align: top;">
+                  <strong style="color: #374151;">Time:</strong>
+                </td>
+                <td style="padding: 8px 0; color: #1f2937;">
+                  ${timeRange}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; vertical-align: top;">
+                  <strong style="color: #374151;">Location:</strong>
+                </td>
+                <td style="padding: 8px 0; color: #1f2937;">
+                  ${meeting.location || 'To be determined'}
+                </td>
+              </tr>
+              ${meeting.teams_join_url ? `
+                <tr>
+                  <td style="padding: 8px 0; vertical-align: top;">
+                    <strong style="color: #374151;">Join Online:</strong>
+                  </td>
+                  <td style="padding: 8px 0;">
+                    <a href="${meeting.teams_join_url}" style="color: #2563eb; text-decoration: none; background-color: #dbeafe; padding: 8px 12px; border-radius: 4px; display: inline-block;">Click to join Teams meeting</a>
+                  </td>
+                </tr>
+              ` : ''}
+            </table>
             
             ${meeting.description ? `
-              <div style="margin-top: 15px;">
-                <strong>📋 Description:</strong>
-                <p style="margin: 5px 0 0 0; color: #64748b;">${meeting.description}</p>
+              <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <strong style="color: #374151; display: block; margin-bottom: 8px;">Description:</strong>
+                <p style="margin: 0; color: #4b5563; line-height: 1.5;">${meeting.description}</p>
               </div>
             ` : ''}
           </div>
           
           ${meetingAttachments.length > 0 ? `
-            <div style="margin-bottom: 20px;">
-              <strong>📎 Attachments:</strong>
-              <ul style="margin: 10px 0; padding-left: 20px;">
-                ${meetingAttachments.map(att => `<li>${att.name}</li>`).join('')}
+            <div style="margin-bottom: 25px; padding: 20px; background-color: #f9fafb; border-radius: 6px;">
+              <strong style="color: #374151; display: block; margin-bottom: 12px;">Attachments:</strong>
+              <ul style="margin: 0; padding-left: 20px; color: #4b5563;">
+                ${meetingAttachments.map(att => `<li style="margin-bottom: 4px;">${att.name}</li>`).join('')}
               </ul>
             </div>
           ` : ''}
           
-          <p style="color: #64748b; font-size: 14px;">
-            Please mark your calendar and let us know if you cannot attend.
-          </p>
+          <div style="background-color: #fef3c7; padding: 15px; border-radius: 6px; border-left: 4px solid #f59e0b; margin-bottom: 25px;">
+            <p style="margin: 0; color: #92400e; font-weight: 500;">
+              Please mark your calendar and let us know if you cannot attend.
+            </p>
+          </div>
           
-          <hr style="border: none; height: 1px; background-color: #e2e8f0; margin: 20px 0;">
-          
-          <p style="color: #94a3b8; font-size: 12px;">
-            This invitation was sent automatically by the meeting management system.
-          </p>
+          <div style="text-align: center; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; font-size: 14px; margin: 0;">
+              This invitation was sent automatically by the meeting management system.
+            </p>
+          </div>
         </div>
       `;
 
