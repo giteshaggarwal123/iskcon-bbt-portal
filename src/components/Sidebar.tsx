@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
@@ -169,7 +170,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       !isMobile && isCollapsed ? 'w-20' : 'w-64'
     } left-0`}>
       <div className="flex flex-col h-full">
-        {/* Logo Section - Exact match to reference */}
+        {/* Logo Section - ISKCON BUREAU on same line */}
         <div className="p-6 border-b border-gray-200">
           <button 
             onClick={handleLogoClick}
@@ -196,7 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div className="text-left">
                   <h1 className="text-lg font-bold text-[#8E1616] leading-tight">
-                    ISKCON BUREAU
+                    ISKCON <span className="text-[#8E1616]">BUREAU</span>
                   </h1>
                   <p className="text-sm text-gray-600 leading-tight">
                     Management Portal
@@ -302,3 +303,4 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </div>
   );
 };
+
