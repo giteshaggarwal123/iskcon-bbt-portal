@@ -49,10 +49,14 @@ export const ensureAdminExists = async () => {
       return;
     }
 
-    // Step 1: Create profile
+    // Generate a UUID for the new profile
+    const profileId = crypto.randomUUID();
+
+    // Step 1: Create profile with generated ID
     const { data: newProfile, error: createProfileError } = await supabase
       .from('profiles')
       .insert({
+        id: profileId,
         email: defaultAdmin.email,
         first_name: defaultAdmin.first_name,
         last_name: defaultAdmin.last_name,
@@ -69,14 +73,14 @@ export const ensureAdminExists = async () => {
     const { error: createRoleError } = await supabase
       .from('user_roles')
       .insert({
-        user_id: newProfile.id,
+        user_id: profileId,
         role: defaultAdmin.role as ValidRole,
       });
 
     if (createRoleError) {
       console.error('Error creating default admin role:', createRoleError);
       // Clean up profile if role creation fails
-      await supabase.from('profiles').delete().eq('id', newProfile.id);
+      await supabase.from('profiles').delete().eq('id', profileId);
       return;
     }
 

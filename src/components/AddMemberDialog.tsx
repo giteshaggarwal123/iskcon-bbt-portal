@@ -30,28 +30,28 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenCh
     e.preventDefault();
 
     try {
-      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-      
-      await createMember({
+      const result = await createMember({
         email: formData.email,
-        full_name: fullName,
-        role: formData.role,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         phone: formData.phone,
-        notes: formData.notes
+        role: formData.role
       });
 
-      // Reset form
-      setFormData({
-        email: '',
-        firstName: '',
-        lastName: '',
-        phone: '',
-        role: 'member',
-        notes: ''
-      });
+      if (result) {
+        // Reset form
+        setFormData({
+          email: '',
+          firstName: '',
+          lastName: '',
+          phone: '',
+          role: 'member',
+          notes: ''
+        });
 
-      onMemberAdded?.();
-      onOpenChange(false);
+        onMemberAdded?.();
+        onOpenChange(false);
+      }
     } catch (error) {
       console.error('Error in form submission:', error);
     }

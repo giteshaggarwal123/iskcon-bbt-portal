@@ -30,7 +30,7 @@ export const useMembers = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
-  const { createMember, loading: memberCreationLoading } = useMemberCreation();
+  const { createMember, isCreating } = useMemberCreation();
 
   const fetchMembers = useCallback(async () => {
     try {
@@ -192,7 +192,6 @@ export const useMembers = () => {
 
   const addMember = async (memberData: {
     email: string;
-    password: string;
     firstName: string;
     lastName: string;
     phone?: string;
@@ -498,7 +497,7 @@ export const useMembers = () => {
   return {
     members,
     activityLogs,
-    loading: loading || memberCreationLoading,
+    loading: loading || isCreating,
     addMember,
     updateMemberRole,
     deleteMember,

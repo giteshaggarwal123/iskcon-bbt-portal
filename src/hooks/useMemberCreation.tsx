@@ -17,12 +17,10 @@ export const useMemberCreation = () => {
 
   const createMember = async (memberData: {
     email: string;
-    full_name: string;
-    role: string;
+    firstName: string;
+    lastName: string;
     phone?: string;
-    address?: string;
-    emergency_contact?: string;
-    notes?: string;
+    role: string;
   }) => {
     if (!user) {
       toast({
@@ -48,18 +46,17 @@ export const useMemberCreation = () => {
     try {
       console.log('Creating member with data:', memberData);
 
-      // Split full_name into first_name and last_name
-      const nameParts = memberData.full_name.trim().split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      // Generate a UUID for the new profile
+      const profileId = crypto.randomUUID();
 
-      // Step 1: Create the profile directly with correct field names
+      // Step 1: Create the profile with generated ID
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .insert({
+          id: profileId,
           email: memberData.email,
-          first_name: firstName,
-          last_name: lastName,
+          first_name: memberData.firstName,
+          last_name: memberData.lastName,
           phone: memberData.phone,
         })
         .select()
@@ -74,14 +71,14 @@ export const useMemberCreation = () => {
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
-          user_id: profile.id,
+          user_id: profileId,
           role: memberData.role as ValidRole,
         });
 
       if (roleError) {
         console.error('Role creation error:', roleError);
         // Clean up profile if role creation fails
-        await supabase.from('profiles').delete().eq('id', profile.id);
+        await supabase.from('profiles').delete().eq('id', profileId);
         throw roleError;
       }
 
@@ -89,7 +86,7 @@ export const useMemberCreation = () => {
 
       toast({
         title: "Member Created Successfully",
-        description: `${memberData.full_name} has been added to the system`,
+        description: `${memberData.firstName} ${memberData.lastName} has been added to the system`,
       });
 
       return profile;
