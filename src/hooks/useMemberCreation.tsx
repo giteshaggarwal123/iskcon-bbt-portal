@@ -69,11 +69,14 @@ export const useMemberCreation = () => {
         throw new Error(`Invalid role: ${role}. Must be one of: super_admin, admin, member, secretary, treasurer`);
       }
 
+      // Now TypeScript knows role is ValidRole, but we need to cast for the insert
+      const validRole = role as ValidRole;
+
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
           user_id: userId,
-          role: role // TypeScript now knows this is ValidRole due to the guard above
+          role: validRole
         });
 
       if (roleError) {
