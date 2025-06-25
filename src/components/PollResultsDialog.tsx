@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CheckCircle, XCircle, MinusCircle, Users, Calendar, Clock } from 'lucide-react';
 import { Poll } from '@/hooks/usePolls';
@@ -27,13 +26,25 @@ interface MemberVotingStatus {
   voted_at: string | null;
 }
 
+interface VoteResults {
+  [subPollId: string]: {
+    favor: number;
+    against: number;
+    abstain: number;
+    total: number;
+  };
+}
+
 export const PollResultsDialog: React.FC<PollResultsDialogProps> = ({ open, onOpenChange, poll }) => {
   const [memberStatuses, setMemberStatuses] = useState<MemberVotingStatus[]>([]);
+  const [voteResults, setVoteResults] = useState<VoteResults>({});
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const [loadingResults, setLoadingResults] = useState(false);
 
   useEffect(() => {
     if (poll && open) {
       fetchMemberVotingStatus();
+      fetchVoteResults();
     }
   }, [poll, open]);
 
@@ -85,10 +96,67 @@ export const PollResultsDialog: React.FC<PollResultsDialogProps> = ({ open, onOp
     }
   };
 
+  const fetchVoteResults = async () => {
+    if (!poll) return;
+    
+    setLoadingResults(true);
+    try {
+      console.log('Fetching vote results for poll:', poll.id);
+      
+      // Get all votes for this poll
+      const { data: votes, error } = await supabase
+        .from('poll_votes')
+        .select('sub_poll_id, vote')
+        .eq('poll_id', poll.id);
+
+      if (error) throw error;
+
+      console.log('Retrieved votes:', votes);
+
+      // Initialize results object
+      const results: VoteResults = {};
+      
+      // Initialize each sub-poll with zero counts
+      poll.sub_polls?.forEach(subPoll => {
+        results[subPoll.id] = {
+          favor: 0,
+          against: 0,
+          abstain: 0,
+          total: 0
+        };
+      });
+
+      // Count votes for each sub-poll
+      votes?.forEach(vote => {
+        if (results[vote.sub_poll_id]) {
+          if (vote.vote === 'favor') {
+            results[vote.sub_poll_id].favor++;
+          } else if (vote.vote === 'against') {
+            results[vote.sub_poll_id].against++;
+          } else if (vote.vote === 'abstain') {
+            results[vote.sub_poll_id].abstain++;
+          }
+          results[vote.sub_poll_id].total++;
+        }
+      });
+
+      console.log('Calculated results:', results);
+      setVoteResults(results);
+    } catch (error) {
+      console.error('Error fetching vote results:', error);
+    } finally {
+      setLoadingResults(false);
+    }
+  };
+
   if (!poll) return null;
 
   const votedMembers = memberStatuses.filter(m => m.has_voted);
   const pendingMembers = memberStatuses.filter(m => !m.has_voted);
+
+  const getVotePercentage = (count: number, total: number) => {
+    return total > 0 ? Math.round((count / total) * 100) : 0;
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -253,56 +321,78 @@ export const PollResultsDialog: React.FC<PollResultsDialogProps> = ({ open, onOp
           {/* Question Results */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Question Results</h3>
-            {poll.sub_polls && poll.sub_polls.length > 0 ? (
-              poll.sub_polls.map((subPoll, index) => (
-                <Card key={subPoll.id}>
-                  <CardHeader>
-                    <CardTitle className="text-base">
-                      Question {index + 1}: {subPoll.title}
-                    </CardTitle>
-                    {subPoll.description && (
-                      <p className="text-sm text-muted-foreground">{subPoll.description}</p>
-                    )}
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* For Votes */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="text-sm font-medium">For</span>
+            {loadingResults ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : poll.sub_polls && poll.sub_polls.length > 0 ? (
+              poll.sub_polls.map((subPoll, index) => {
+                const results = voteResults[subPoll.id] || { favor: 0, against: 0, abstain: 0, total: 0 };
+                
+                return (
+                  <Card key={subPoll.id}>
+                    <CardHeader>
+                      <CardTitle className="text-base">
+                        Question {index + 1}: {subPoll.title}
+                      </CardTitle>
+                      {subPoll.description && (
+                        <p className="text-sm text-muted-foreground">{subPoll.description}</p>
+                      )}
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* For Votes */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <span className="text-sm font-medium">For</span>
+                          </div>
+                          <span className="text-sm text-muted-foreground">
+                            {results.favor} votes ({getVotePercentage(results.favor, results.total)}%)
+                          </span>
                         </div>
-                        <span className="text-sm text-muted-foreground">0 votes (0%)</span>
+                        <Progress value={getVotePercentage(results.favor, results.total)} className="h-2" />
                       </div>
-                      <Progress value={0} className="h-2" />
-                    </div>
 
-                    {/* Against Votes */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <XCircle className="h-4 w-4 text-red-600" />
-                          <span className="text-sm font-medium">Against</span>
+                      {/* Against Votes */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <XCircle className="h-4 w-4 text-red-600" />
+                            <span className="text-sm font-medium">Against</span>
+                          </div>
+                          <span className="text-sm text-muted-foreground">
+                            {results.against} votes ({getVotePercentage(results.against, results.total)}%)
+                          </span>
                         </div>
-                        <span className="text-sm text-muted-foreground">0 votes (0%)</span>
+                        <Progress value={getVotePercentage(results.against, results.total)} className="h-2" />
                       </div>
-                      <Progress value={0} className="h-2" />
-                    </div>
 
-                    {/* Abstain Votes */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <MinusCircle className="h-4 w-4 text-yellow-600" />
-                          <span className="text-sm font-medium">Abstain</span>
+                      {/* Abstain Votes */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <MinusCircle className="h-4 w-4 text-yellow-600" />
+                            <span className="text-sm font-medium">Abstain</span>
+                          </div>
+                          <span className="text-sm text-muted-foreground">
+                            {results.abstain} votes ({getVotePercentage(results.abstain, results.total)}%)
+                          </span>
                         </div>
-                        <span className="text-sm text-muted-foreground">0 votes (0%)</span>
+                        <Progress value={getVotePercentage(results.abstain, results.total)} className="h-2" />
                       </div>
-                      <Progress value={0} className="h-2" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+
+                      {results.total > 0 && (
+                        <div className="mt-3 pt-3 border-t">
+                          <p className="text-sm text-muted-foreground">
+                            Total votes: {results.total}
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })
             ) : (
               <Card>
                 <CardContent className="p-8 text-center">
