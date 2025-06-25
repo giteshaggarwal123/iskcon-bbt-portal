@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,9 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const userRole = useUserRole();
+
+  // Check if meeting is upcoming
+  const isUpcomingMeeting = meeting && new Date(meeting.start_time) > new Date();
 
   useEffect(() => {
     if (meeting && user) {
@@ -182,6 +186,84 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
     );
   }
 
+  // For upcoming meetings, only show action buttons without RSVP form
+  if (isUpcomingMeeting) {
+    return (
+      <div className="space-y-4">
+        {/* Desktop: Action buttons at top */}
+        <div className="hidden md:flex justify-end gap-2 mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onViewRSVP?.(meeting)}
+            className="bg-purple-50 hover:bg-purple-100 text-purple-700"
+          >
+            <CheckSquare className="h-4 w-4 mr-1" />
+            View RSVP
+          </Button>
+          
+          {userRole.canViewReports && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onViewReport?.(meeting)}
+            >
+              <Eye className="h-4 w-4 mr-1" />
+              Report
+            </Button>
+          )}
+        </div>
+
+        <Card className="w-full">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-base md:text-lg">
+              <div className="flex items-center space-x-2">
+                <Users className="h-4 w-4 md:h-5 md:w-5" />
+                <span>Meeting RSVP Status</span>
+              </div>
+              
+              {/* Mobile: Show buttons in header */}
+              <div className="flex md:hidden gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onViewRSVP?.(meeting)}
+                  className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs px-2 py-1 h-8"
+                >
+                  <CheckSquare className="h-3 w-3 mr-1" />
+                  View RSVP
+                </Button>
+                
+                {userRole.canViewReports && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onViewReport?.(meeting)}
+                    className="text-xs px-2 py-1 h-8"
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    Report
+                  </Button>
+                )}
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-4">
+            {/* Current Response Display */}
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-600">Your Response:</span>
+              {getResponseBadge(currentResponse)}
+            </div>
+            <p className="text-sm text-gray-500">
+              RSVP is disabled for upcoming meetings. Use "View RSVP" to see responses.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // For past meetings, show full RSVP form
   return (
     <div className="space-y-4">
       {/* Desktop: Action buttons at top, RSVP form below */}
@@ -193,7 +275,7 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
           className="bg-purple-50 hover:bg-purple-100 text-purple-700"
         >
           <CheckSquare className="h-4 w-4 mr-1" />
-          RSVP
+          View RSVP
         </Button>
         
         {userRole.canViewReports && (
@@ -225,7 +307,7 @@ export const RSVPSelector: React.FC<RSVPSelectorProps> = ({
                 className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs px-2 py-1 h-8"
               >
                 <CheckSquare className="h-3 w-3 mr-1" />
-                RSVP
+                View RSVP
               </Button>
               
               {userRole.canViewReports && (
