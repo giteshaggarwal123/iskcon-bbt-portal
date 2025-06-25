@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -68,16 +67,16 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
     }
   }, [open, preselectedDate]);
 
-  // Check if selected time is in the past for today
+  // Enhanced time validation function
   const isTimeInPast = (timeString: string, selectedDate: Date | undefined) => {
     if (!timeString || !selectedDate) return false;
     
     const now = new Date();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
     const selectedDateOnly = new Date(selectedDate);
     selectedDateOnly.setHours(0, 0, 0, 0);
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
     // Only check if it's today
     if (selectedDateOnly.getTime() !== today.getTime()) return false;
@@ -86,7 +85,10 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
     const selectedDateTime = new Date();
     selectedDateTime.setHours(hours, minutes, 0, 0);
     
-    return selectedDateTime <= now;
+    // Add 5-minute buffer to current time
+    const nowWithBuffer = new Date(now.getTime() + 5 * 60 * 1000);
+    
+    return selectedDateTime <= nowWithBuffer;
   };
 
   // File upload constraints
@@ -258,11 +260,11 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
       return;
     }
 
-    // Check if time is in the past for today
+    // Enhanced validation: Check if time is in the past for today
     if (isTimeInPast(data.time, selectedDate)) {
       toast({
         title: "Invalid Time",
-        description: "Cannot schedule a meeting in the past. Please select a future time.",
+        description: "Cannot schedule a meeting in the past. Please select a future time (at least 5 minutes from now).",
         variant: "destructive"
       });
       return;
@@ -282,11 +284,12 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
     const [hours, minutes] = data.time.split(':').map(Number);
     meetingDate.setHours(hours, minutes, 0, 0);
 
-    // Final check - ensure the complete datetime is in the future
-    if (meetingDate <= new Date()) {
+    // Final enhanced check - ensure the complete datetime is in the future with buffer
+    const nowWithBuffer = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+    if (meetingDate <= nowWithBuffer) {
       toast({
         title: "Invalid DateTime",
-        description: "Meeting time must be in the future",
+        description: "Meeting time must be at least 5 minutes in the future",
         variant: "destructive"
       });
       return;
@@ -331,7 +334,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
     onOpenChange(false, false); // Pass false to indicate no meeting was created
   };
 
-  // Generate minimum time for today (current time + 15 minutes buffer)
+  // Generate minimum time for today (current time + 5 minutes buffer)
   const getMinTimeForToday = () => {
     if (!selectedDate) return '';
     
@@ -345,8 +348,8 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
     // Only apply minimum time if it's today
     if (selectedDateOnly.getTime() !== today.getTime()) return '';
     
-    // Add 15-minute buffer to current time
-    const minTime = new Date(now.getTime() + 15 * 60 * 1000);
+    // Add 5-minute buffer to current time
+    const minTime = new Date(now.getTime() + 5 * 60 * 1000);
     const hours = minTime.getHours().toString().padStart(2, '0');
     const minutes = minTime.getMinutes().toString().padStart(2, '0');
     
@@ -453,7 +456,7 @@ export const ScheduleMeetingDialog: React.FC<ScheduleMeetingDialogProps> = ({
                 </div>
                 {watchTime && isTimeInPast(watchTime, selectedDate) && (
                   <p className="text-sm text-red-500 mt-1">
-                    Selected time is in the past. Please choose a future time.
+                    Selected time is in the past. Please choose a time at least 5 minutes from now.
                   </p>
                 )}
               </div>

@@ -1,140 +1,79 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-export class DatabaseSetupError extends Error {
-  constructor(message: string, public originalError?: any) {
-    super(message);
-    this.name = 'DatabaseSetupError';
-  }
-}
-
 type ValidRole = 'super_admin' | 'admin' | 'member' | 'secretary' | 'treasurer';
 
 const isValidRole = (role: string): role is ValidRole => {
   return ['super_admin', 'admin', 'member', 'secretary', 'treasurer'].includes(role);
 };
 
-export const checkDatabaseConfiguration = async () => {
+export const ensureAdminExists = async () => {
   try {
-    console.log('Checking database configuration...');
+    console.log('Checking for existing admin users...');
     
-    // Check if profiles table exists and is accessible
-    const { data: profilesCheck, error: profilesError } = await supabase
+    // Check if any admin users exist
+    const { data: admins, error: adminError } = await supabase
       .from('profiles')
-      .select('id')
-      .limit(1);
+      .select('id, email, role')
+      .in('role', ['super_admin', 'admin']);
 
-    if (profilesError) {
-      console.error('Profiles table check failed:', profilesError);
-      throw new DatabaseSetupError('Profiles table is not properly configured', profilesError);
+    if (adminError) {
+      console.error('Error checking for admin users:', adminError);
+      return;
     }
 
-    // Check if user_roles table exists and is accessible
-    const { data: rolesCheck, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('id')
-      .limit(1);
-
-    if (rolesError) {
-      console.error('User roles table check failed:', rolesError);
-      throw new DatabaseSetupError('User roles table is not properly configured', rolesError);
+    if (admins && admins.length > 0) {
+      console.log('Admin users found:', admins.length);
+      return;
     }
 
-    console.log('Database configuration check passed');
-    return true;
+    console.log('No admin users found, creating default admin...');
+
+    // Create a default admin user
+    const defaultAdmin = {
+      email: 'admin@iskconbureau.in',
+      full_name: 'System Administrator',
+      role: 'super_admin'
+    };
+
+    // Validate role before insertion
+    if (!isValidRole(defaultAdmin.role)) {
+      console.error('Invalid role for default admin');
+      return;
+    }
+
+    const { data: newAdmin, error: createError } = await supabase
+      .from('profiles')
+      .insert({
+        email: defaultAdmin.email,
+        full_name: defaultAdmin.full_name,
+        role: defaultAdmin.role as ValidRole, // Now TypeScript knows this is a valid role
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('Error creating default admin:', createError);
+      return;
+    }
+
+    console.log('Default admin created successfully:', newAdmin);
+
   } catch (error) {
-    console.error('Database configuration check failed:', error);
-    throw error;
+    console.error('Error in ensureAdminExists:', error);
   }
 };
 
-export const ensureUserProfile = async (userId: string, userData: {
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-}) => {
+export const setupDatabase = async () => {
+  console.log('Setting up database...');
+  
   try {
-    // First check if profile exists
-    const { data: existingProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', userId)
-      .single();
-
-    if (existingProfile) {
-      console.log('Profile already exists, updating...');
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          email: userData.email,
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          phone: userData.phone || '',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-
-      if (updateError) {
-        throw new DatabaseSetupError('Failed to update existing profile', updateError);
-      }
-    } else {
-      console.log('Creating new profile...');
-      const { error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          email: userData.email,
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          phone: userData.phone || ''
-        });
-
-      if (insertError) {
-        throw new DatabaseSetupError('Failed to create new profile', insertError);
-      }
-    }
-
-    return true;
+    // Ensure admin exists
+    await ensureAdminExists();
+    
+    console.log('Database setup completed successfully');
   } catch (error) {
-    console.error('Error ensuring user profile:', error);
-    throw error;
-  }
-};
-
-export const ensureUserRole = async (userId: string, role: string) => {
-  try {
-    // Check if role already exists
-    const { data: existingRole } = await supabase
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('role', role)
-      .single();
-
-    if (!existingRole) {
-      console.log('Creating user role...');
-      
-      // Validate role before assignment
-      if (!isValidRole(role)) {
-        throw new DatabaseSetupError(`Invalid role: ${role}. Must be one of: super_admin, admin, member, secretary, treasurer`);
-      }
-      
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: userId,
-          role: role
-        });
-
-      if (roleError) {
-        throw new DatabaseSetupError('Failed to assign user role', roleError);
-      }
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error ensuring user role:', error);
-    throw error;
+    console.error('Database setup failed:', error);
   }
 };
