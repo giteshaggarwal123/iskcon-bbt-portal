@@ -25,7 +25,7 @@ export const AttendanceModule: React.FC = () => {
   const [showRSVPDialog, setShowRSVPDialog] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
 
-  const { meetings = [], loading: meetingsLoading } = useMeetings();
+  const { meetings = [], loading: meetingsLoading, fetchMeetings } = useMeetings();
   const { attendanceRecords = [], loading: attendanceLoading, generateAttendanceReport } = useAttendance();
   const { user } = useAuth();
   const userRole = useUserRole();
@@ -35,12 +35,22 @@ export const AttendanceModule: React.FC = () => {
     meetingsCount: meetings.length,
     meetingsLoading,
     attendanceLoading,
-    userRole
+    userRole,
+    meetings: meetings.map(m => ({ id: m.id, title: m.title, start_time: m.start_time }))
   });
 
-  // Calculate dynamic statistics
+  // Force refresh meetings on component mount if needed
+  React.useEffect(() => {
+    if (!meetingsLoading && meetings.length === 0) {
+      console.log('AttendanceModule - No meetings found, attempting to refresh');
+      fetchMeetings();
+    }
+  }, [meetingsLoading, meetings.length, fetchMeetings]);
+
+  // Calculate dynamic statistics with better error handling
   const statistics = useMemo(() => {
     if (!user || meetingsLoading || attendanceLoading) {
+      console.log('AttendanceModule - Still loading or no user');
       return {
         thisMonthAttended: 0,
         attendanceRate: 0,
@@ -54,8 +64,13 @@ export const AttendanceModule: React.FC = () => {
 
     // Filter meetings for this month that have ended
     const thisMonthMeetings = meetings.filter(meeting => {
-      const meetingDate = parseISO(meeting.start_time);
-      return meetingDate >= monthStart && meetingDate <= monthEnd && meetingDate <= now;
+      try {
+        const meetingDate = parseISO(meeting.start_time);
+        return meetingDate >= monthStart && meetingDate <= monthEnd && meetingDate <= now;
+      } catch (error) {
+        console.error('Error parsing meeting date:', meeting.start_time, error);
+        return false;
+      }
     });
 
     // Get attendance records for current user this month
@@ -72,18 +87,30 @@ export const AttendanceModule: React.FC = () => {
 
     // Calculate pending check-ins (meetings that can be checked into now)
     const pendingCheckIns = meetings.filter(meeting => {
-      const start = parseISO(meeting.start_time);
-      const end = parseISO(meeting.end_time);
-      const hourBefore = new Date(start.getTime() - 60 * 60 * 1000);
-      
-      // Meeting is within check-in window and user hasn't marked attendance yet
-      const canCheckIn = now >= hourBefore && now <= end;
-      const hasAttendance = attendanceRecords.some(record => 
-        record.meeting_id === meeting.id && record.user_id === user.id
-      );
-      
-      return canCheckIn && !hasAttendance;
+      try {
+        const start = parseISO(meeting.start_time);
+        const end = parseISO(meeting.end_time);
+        const hourBefore = new Date(start.getTime() - 60 * 60 * 1000);
+        
+        // Meeting is within check-in window and user hasn't marked attendance yet
+        const canCheckIn = now >= hourBefore && now <= end;
+        const hasAttendance = attendanceRecords.some(record => 
+          record.meeting_id === meeting.id && record.user_id === user.id
+        );
+        
+        return canCheckIn && !hasAttendance;
+      } catch (error) {
+        console.error('Error calculating pending check-ins for meeting:', meeting.id, error);
+        return false;
+      }
     }).length;
+
+    console.log('AttendanceModule - Statistics calculated:', {
+      thisMonthMeetings: thisMonthMeetings.length,
+      attendedMeetings,
+      attendanceRate,
+      pendingCheckIns
+    });
 
     return {
       thisMonthAttended: attendedMeetings,
@@ -92,15 +119,49 @@ export const AttendanceModule: React.FC = () => {
     };
   }, [meetings, attendanceRecords, user, meetingsLoading, attendanceLoading]);
 
-  // Filter meetings for attendance tracking
+  // Filter meetings for attendance tracking with better error handling
   const now = new Date();
   const upcomingMeetings = meetings
-    .filter(meeting => new Date(meeting.start_time) > now)
-    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+    .filter(meeting => {
+      try {
+        return new Date(meeting.start_time) > now;
+      } catch (error) {
+        console.error('Error filtering upcoming meetings:', meeting.id, error);
+        return false;
+      }
+    })
+    .sort((a, b) => {
+      try {
+        return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+      } catch (error) {
+        console.error('Error sorting upcoming meetings:', error);
+        return 0;
+      }
+    });
 
   const pastMeetings = meetings
-    .filter(meeting => new Date(meeting.start_time) <= now)
-    .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
+    .filter(meeting => {
+      try {
+        return new Date(meeting.start_time) <= now;
+      } catch (error) {
+        console.error('Error filtering past meetings:', meeting.id, error);
+        return false;
+      }
+    })
+    .sort((a, b) => {
+      try {
+        return new Date(b.start_time).getTime() - new Date(a.start_time).getTime();
+      } catch (error) {
+        console.error('Error sorting past meetings:', error);
+        return 0;
+      }
+    });
+
+  console.log('AttendanceModule - Meetings filtered:', {
+    total: meetings.length,
+    upcoming: upcomingMeetings.length,
+    past: pastMeetings.length
+  });
 
   const handleMarkAttendance = (meeting: any) => {
     setSelectedMeeting(meeting);
@@ -126,11 +187,16 @@ export const AttendanceModule: React.FC = () => {
   };
 
   const canMarkAttendance = (meeting: any) => {
-    const start = new Date(meeting.start_time);
-    const end = new Date(meeting.end_time);
-    const hourBefore = new Date(start.getTime() - 60 * 60 * 1000);
-    const now = new Date();
-    return now >= hourBefore && now <= end;
+    try {
+      const start = new Date(meeting.start_time);
+      const end = new Date(meeting.end_time);
+      const hourBefore = new Date(start.getTime() - 60 * 60 * 1000);
+      const now = new Date();
+      return now >= hourBefore && now <= end;
+    } catch (error) {
+      console.error('Error checking attendance eligibility:', meeting.id, error);
+      return false;
+    }
   };
 
   const getMeetingAttendanceStatus = (meeting: any) => {
@@ -155,7 +221,8 @@ export const AttendanceModule: React.FC = () => {
 
   const handleRSVPUpdate = () => {
     // This could trigger a refresh of meeting data if needed
-    console.log('RSVP updated');
+    console.log('RSVP updated - refreshing meetings');
+    fetchMeetings();
   };
 
   if (meetingsLoading || attendanceLoading) {
@@ -167,7 +234,7 @@ export const AttendanceModule: React.FC = () => {
     );
   }
 
-  console.log('AttendanceModule - Rendering main content');
+  console.log('AttendanceModule - Rendering main content with meetings:', meetings.length);
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 lg:px-8">
@@ -186,6 +253,17 @@ export const AttendanceModule: React.FC = () => {
             View Reports
           </Button>
         </div>
+
+        {/* Debug Info - Remove in production */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
+            <p><strong>Debug Info:</strong></p>
+            <p>Total Meetings: {meetings.length}</p>
+            <p>Upcoming: {upcomingMeetings.length}</p>
+            <p>Past: {pastMeetings.length}</p>
+            <p>Loading: meetings={meetingsLoading.toString()}, attendance={attendanceLoading.toString()}</p>
+          </div>
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -248,7 +326,7 @@ export const AttendanceModule: React.FC = () => {
                           </div>
                           <div className="flex items-center">
                             <Users className="h-4 w-4 mr-2 shrink-0" />
-                            <span>{meeting.attendees?.length || 0} expected attendees</span>
+                            <span>{meeting.attendee_count || meeting.attendees?.length || 0} expected attendees</span>
                           </div>
                         </div>
                       </div>
@@ -293,6 +371,12 @@ export const AttendanceModule: React.FC = () => {
                 <CardContent className="p-8 text-center">
                   <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                   <p className="text-muted-foreground">No upcoming meetings</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {meetings.length === 0 
+                      ? "No meetings have been scheduled yet"
+                      : "All meetings are in the past"
+                    }
+                  </p>
                 </CardContent>
               </Card>
             )}
@@ -381,6 +465,12 @@ export const AttendanceModule: React.FC = () => {
                 <CardContent className="p-8 text-center">
                   <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                   <p className="text-muted-foreground">No meeting history available</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {meetings.length === 0 
+                      ? "No meetings have been scheduled yet"
+                      : "No meetings have occurred yet"
+                    }
+                  </p>
                 </CardContent>
               </Card>
             )}
