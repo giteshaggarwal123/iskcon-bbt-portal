@@ -16,7 +16,7 @@ import { DocumentFilters } from './documents/DocumentFilters';
 import { FolderManager } from './documents/FolderManager';
 import { TrashFolder } from './documents/TrashFolder';
 import { DocumentViewer } from './DocumentViewer';
-import { Search, Upload, Trash2, Grid, List, Plus, Home } from 'lucide-react';
+import { Search, Upload, Trash2, Grid, List, Plus, Home, ArrowLeft, ChevronLeft } from 'lucide-react';
 
 export const DocumentsModule = () => {
   const { user } = useAuth();
@@ -52,6 +52,20 @@ export const DocumentsModule = () => {
   const handleFolderClick = (folderId: string) => {
     console.log('Folder clicked:', folderId);
     setSelectedFolder(folderId);
+  };
+
+  // Enhanced back button functionality
+  const handleBackClick = () => {
+    if (selectedFolder) {
+      // Find the current folder and get its parent
+      const currentFolder = folders?.find(f => f.id === selectedFolder);
+      if (currentFolder?.parent_folder_id) {
+        setSelectedFolder(currentFolder.parent_folder_id);
+      } else {
+        // Go to root if no parent
+        setSelectedFolder(null);
+      }
+    }
   };
 
   // Generate breadcrumb path with error handling
@@ -345,13 +359,37 @@ export const DocumentsModule = () => {
 
   return (
     <div className={`${isMobile ? 'px-3 py-4' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6'} space-y-4`}>
-      {/* Header Section */}
+      {/* Enhanced Header Section with Back Button */}
       <div className={`${isMobile ? 'space-y-3' : 'flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4'}`}>
-        <div>
-          <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-foreground`}>Document Repository</h1>
-          <p className={`text-muted-foreground ${isMobile ? 'text-sm' : 'mt-1'}`}>
-            Manage and organize your documents • {filteredDocuments?.length || 0} documents
-          </p>
+        <div className="flex items-center gap-3">
+          {/* Dynamic Back Button */}
+          {selectedFolder && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBackClick}
+              className="flex items-center gap-2 hover:bg-gray-100 transition-colors"
+              title="Go back"
+            >
+              {isMobile ? (
+                <ChevronLeft className="h-5 w-5" />
+              ) : (
+                <>
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Back</span>
+                </>
+              )}
+            </Button>
+          )}
+          
+          <div>
+            <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-foreground`}>
+              {selectedFolder && currentFolder ? currentFolder.name : 'Document Repository'}
+            </h1>
+            <p className={`text-muted-foreground ${isMobile ? 'text-sm' : 'mt-1'}`}>
+              Manage and organize your documents • {filteredDocuments?.length || 0} documents
+            </p>
+          </div>
         </div>
         
         {/* Action Buttons */}
