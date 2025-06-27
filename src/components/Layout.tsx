@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, File, Users, Settings, Mail, Clock, Check, Home, UserCheck, Vote } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -11,7 +10,7 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false); // Start closed by default
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentModule, setCurrentModule] = useState('dashboard');
   const isMobile = useIsMobile();
@@ -35,14 +34,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     setCurrentModule(module);
   }, [location]);
 
-  // Handle sidebar state based on device type
   useEffect(() => {
     if (isMobile) {
-      setSidebarOpen(false); // Always closed on mobile
-      setSidebarCollapsed(false);
+      setSidebarOpen(false);
     } else {
-      // On desktop, you can choose default behavior
-      setSidebarOpen(false); // Start closed to avoid overlap
+      setSidebarOpen(true);
     }
   }, [isMobile]);
 
@@ -72,8 +68,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#FCFAF5] relative">
-      {/* Mobile sidebar overlay - Only show on mobile */}
+    <div className="min-h-screen flex w-full overflow-hidden" style={{ backgroundColor: '#FCFAF5' }}>
+      {/* Mobile sidebar overlay with blur effect - Higher z-index to cover bottom nav */}
       {isMobile && sidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[55]"
@@ -81,14 +77,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         />
       )}
       
-      {/* Header - Fixed at top */}
+      {/* Header - Fixed positioning */}
       <Header 
         onMenuClick={() => {
           if (isMobile) {
             setSidebarOpen(!sidebarOpen);
           } else {
             setSidebarCollapsed(!sidebarCollapsed);
-            setSidebarOpen(!sidebarOpen);
           }
         }}
         onProfileClick={() => handleModuleChange('settings')}
@@ -97,59 +92,61 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         showMenuButton={true}
       />
       
-      {/* Sidebar - Only show when open */}
-      {sidebarOpen && (
-        <Sidebar 
-          isOpen={sidebarOpen} 
-          onClose={() => setSidebarOpen(false)}
-          currentModule={currentModule}
-          onModuleChange={handleModuleChange}
-          isCollapsed={!isMobile && sidebarCollapsed}
-        />
-      )}
+      {/* Sidebar - Fixed positioning */}
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        onClose={() => setSidebarOpen(false)}
+        currentModule={currentModule}
+        onModuleChange={handleModuleChange}
+        isCollapsed={!isMobile && sidebarCollapsed}
+      />
       
-      {/* Main content area - Full width with proper top padding */}
-      <div className={`w-full min-h-screen transition-all duration-300 ${
-        isMobile ? 'pt-16 pb-24' : 'pt-16'
-      }`}>        
-        <main className="w-full h-full p-4 md:p-6">
+      {/* Main content area - Properly aligned with sidebar */}
+      <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${
+        isMobile ? 'ml-0' : 
+        (!isMobile && sidebarOpen && !sidebarCollapsed) ? 'ml-64' : 
+        (!isMobile && sidebarOpen && sidebarCollapsed) ? 'ml-16' : 'ml-0'
+      } ${isMobile ? 'pt-28' : 'pt-16'}`}>        
+        <main className={`flex-1 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
+          isMobile ? 'p-4 pb-32 pt-4' : 'p-6'
+        }`}>
           <div className="w-full max-w-none mx-auto">
             {children}
           </div>
         </main>
-      </div>
         
-      {/* Mobile Bottom Navigation Bar - Only on mobile */}
-      {isMobile && (
-        <div className="bg-white border-t border-gray-200 px-2 py-2 fixed bottom-2 left-0 right-0 z-50 h-20 mx-2 rounded-lg shadow-lg">
-          <div className="flex items-center justify-around h-full max-w-full">
-            {mobileNavItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleModuleChange(item.id)}
-                className={`flex flex-col items-center justify-center flex-1 py-2 px-1 transition-colors duration-200 h-full ${
-                  currentModule === item.id
-                    ? 'text-primary'
-                    : 'text-black hover:text-gray-700'
-                }`}
-                style={{
-                  WebkitTapHighlightColor: 'transparent',
-                  touchAction: 'manipulation'
-                }}
-              >
-                <item.icon className={`h-8 w-8 mb-1 ${
-                  currentModule === item.id ? 'text-primary' : 'text-black'
-                }`} />
-                <span className={`text-xs font-medium leading-tight ${
-                  currentModule === item.id ? 'text-primary' : 'text-black'
-                }`}>
-                  {item.label}
-                </span>
-              </button>
-            ))}
+        {/* Mobile Bottom Navigation Bar - Lower z-index */}
+        {isMobile && (
+          <div className="bg-white border-t border-gray-200 px-2 py-2 fixed bottom-2 left-0 right-0 z-50 h-20 mx-2 rounded-lg shadow-lg">
+            <div className="flex items-center justify-around h-full max-w-full">
+              {mobileNavItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleModuleChange(item.id)}
+                  className={`flex flex-col items-center justify-center flex-1 py-2 px-1 transition-colors duration-200 h-full ${
+                    currentModule === item.id
+                      ? 'text-primary'
+                      : 'text-black hover:text-gray-700'
+                  }`}
+                  style={{
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation'
+                  }}
+                >
+                  <item.icon className={`h-8 w-8 mb-1 ${
+                    currentModule === item.id ? 'text-primary' : 'text-black'
+                  }`} />
+                  <span className={`text-xs font-medium leading-tight ${
+                    currentModule === item.id ? 'text-primary' : 'text-black'
+                  }`}>
+                    {item.label}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

@@ -155,16 +155,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className={`fixed z-[60] bg-white shadow-xl transition-all duration-300 ${
-      isMobile 
-        ? 'w-64 top-16 bottom-0 left-0' 
-        : `top-16 bottom-0 left-0 ${isCollapsed ? 'w-20' : 'w-64'}`
-    }`}>
+    <div className={`fixed z-[60] bg-white shadow-xl transform transition-all duration-300 ${
+      isOpen ? 'translate-x-0' : '-translate-x-full'
+    } ${isMobile ? 'w-64 top-12 bottom-0' : 'top-16 bottom-0 lg:translate-x-0'} ${
+      !isMobile && isCollapsed ? 'w-20' : 'w-64'
+    } left-0`}>
       <div className="flex flex-col h-full">
-        {/* Navigation */}
+        {/* Navigation - Starts directly with menu items */}
         <nav className="flex-1 px-4 pt-6 pb-6 space-y-1 overflow-y-auto">
           {menuItems.map((item) => (
             <button
@@ -223,16 +221,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <ProfileAvatarLoader 
-                userName={user?.user_metadata?.first_name || user?.email?.split('@')[0] || 'User'} 
+                userName={userName} 
                 userId={user?.id}
                 refreshTrigger={avatarRefreshTrigger + profileRefreshTrigger + Date.now()}
               />
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {user?.user_metadata?.first_name || user?.email?.split('@')[0] || 'User'}
+                  {userName}
                 </p>
                 <p className="text-xs text-gray-500 truncate">
-                  {user?.email || 'user@iskcon.org'}
+                  {userEmail}
                 </p>
               </div>
             </button>
@@ -245,10 +243,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button 
               onClick={handleProfileClick}
               className="p-2 rounded-lg hover:bg-gray-50 transition-colors"
-              title={user?.user_metadata?.first_name || user?.email?.split('@')[0] || 'User'}
+              title={userName}
             >
               <ProfileAvatarLoader 
-                userName={user?.user_metadata?.first_name || user?.email?.split('@')[0] || 'User'} 
+                userName={userName} 
                 userId={user?.id}
                 refreshTrigger={avatarRefreshTrigger + profileRefreshTrigger + Date.now()}
               />
