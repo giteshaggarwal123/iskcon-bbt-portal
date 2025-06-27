@@ -57,13 +57,13 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      {/* Theme-colored status bar indicator - Only on mobile */}
+      {/* Theme-colored status bar indicator - Only on mobile with higher z-index */}
       {isMobile && (
-        <div className="fixed top-0 left-0 right-0 h-12 bg-[#8E1616] z-[60]" />
+        <div className="fixed top-0 left-0 right-0 h-12 bg-[#8E1616] z-60" />
       )}
       
-      <header className={`bg-white border-b border-gray-200 px-4 py-3 fixed left-0 right-0 z-50 h-16 ${
-        isMobile ? 'top-12' : 'top-0'
+      <header className={`bg-white border-b border-gray-200 px-4 py-3 fixed left-0 right-0 h-16 ${
+        isMobile ? 'top-12 z-60' : 'top-0 z-50'
       }`}>
         <div className="flex items-center justify-between h-full">
           <div className="flex items-center space-x-4">

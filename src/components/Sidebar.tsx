@@ -156,11 +156,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className={`fixed z-20 bg-white shadow-xl transform transition-all duration-300 ${
+    <div className={`fixed transform transition-all duration-300 ${
       isOpen ? 'translate-x-0' : '-translate-x-full'
-    } ${isMobile ? 'w-64 top-12 bottom-0' : 'top-16 bottom-0 lg:translate-x-0'} ${
+    } ${isMobile ? 'w-64 top-12 bottom-0 z-20' : 'top-16 bottom-0 lg:translate-x-0 z-20'} ${
       !isMobile && isCollapsed ? 'w-20' : 'w-64'
-    } left-0`}>
+    } left-0 bg-white shadow-xl`}>
       <div className="flex flex-col h-full">
         {/* Navigation - Starts directly with menu items */}
         <nav className="flex-1 px-4 pt-6 pb-6 space-y-1 overflow-y-auto">

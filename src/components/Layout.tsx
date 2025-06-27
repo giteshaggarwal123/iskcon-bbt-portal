@@ -70,15 +70,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen flex w-full overflow-hidden" style={{ backgroundColor: '#FCFAF5' }}>
-      {/* Mobile sidebar overlay with blur effect - Lower z-index than dialogs */}
+      {/* Mobile sidebar overlay with blur effect - Lowest z-index on mobile */}
       {isMobile && sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-10"
           onClick={() => setSidebarOpen(false)}
         />
       )}
       
-      {/* Header - Fixed positioning */}
+      {/* Header - Higher z-index on mobile */}
       <Header 
         onMenuClick={() => {
           if (isMobile) {
@@ -93,7 +93,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         showMenuButton={true}
       />
       
-      {/* Sidebar - Fixed positioning with lower z-index */}
+      {/* Sidebar - Lowest z-index on mobile, normal on desktop */}
       <Sidebar 
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)}
@@ -116,9 +116,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </main>
         
-        {/* Mobile Bottom Navigation Bar - Lower z-index */}
+        {/* Mobile Bottom Navigation Bar - Higher z-index on mobile */}
         {isMobile && (
-          <div className="bg-white border-t border-gray-200 px-2 py-2 fixed bottom-2 left-0 right-0 z-30 h-20 mx-2 rounded-lg shadow-lg">
+          <div className="bg-white border-t border-gray-200 px-2 py-2 fixed bottom-2 left-0 right-0 z-50 h-20 mx-2 rounded-lg shadow-lg">
             <div className="flex items-center justify-around h-full max-w-full">
               {mobileNavItems.map((item) => (
                 <button
