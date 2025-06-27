@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy, CheckSquare, AlertTriangle, RefreshCw, Sync } from 'lucide-react';
+import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy, CheckSquare, AlertTriangle, RefreshCw } from 'lucide-react';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 import { ViewAgendaDialog } from './ViewAgendaDialog';
 import { ManageAttendeesDialog } from './ManageAttendeesDialog';
@@ -276,7 +276,7 @@ export const MeetingsModule: React.FC = () => {
                 )}
                 {meeting.outlook_event_id && (
                   <Badge className="bg-green-500 text-white shrink-0">
-                    <Sync className="h-3 w-3 mr-1" />
+                    <RefreshCw className="h-3 w-3 mr-1" />
                     Outlook
                   </Badge>
                 )}
@@ -501,7 +501,7 @@ export const MeetingsModule: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <Sync className="h-4 w-4 mr-2" />
+                  <RefreshCw className="h-4 w-4 mr-2" />
                   Sync Outlook
                 </>
               )}
@@ -559,7 +559,7 @@ export const MeetingsModule: React.FC = () => {
                         </>
                       ) : (
                         <>
-                          <Sync className="h-4 w-4 mr-2" />
+                          <RefreshCw className="h-4 w-4 mr-2" />
                           Sync from Outlook
                         </>
                       )}
