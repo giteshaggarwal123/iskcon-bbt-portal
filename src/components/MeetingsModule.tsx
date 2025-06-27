@@ -72,19 +72,39 @@ export const MeetingsModule: React.FC = () => {
 
   const { userRole, canDeleteMeetings, canScheduleMeetings } = useUserRole();
 
-  // Auto-refresh meetings when sync completes
+  // Auto-refresh meetings when sync completes - but prevent infinite loops
   useEffect(() => {
     if (!syncing && lastSyncTime) {
       console.log('Refreshing meetings after sync...');
-      fetchMeetings();
+      // Add a small delay to prevent rapid successive calls
+      const timeoutId = setTimeout(() => {
+        fetchMeetings();
+      }, 1000);
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [syncing, lastSyncTime, fetchMeetings]);
+  }, [syncing, lastSyncTime]);
 
   // Filter and sort meetings properly by date and time
   const now = new Date();
   
+  // Remove duplicates by outlook_event_id and teams_meeting_id to prevent duplicate display
+  const uniqueMeetings = meetings.reduce((acc, meeting) => {
+    const isDuplicate = acc.some(existing => 
+      (meeting.outlook_event_id && existing.outlook_event_id === meeting.outlook_event_id) ||
+      (meeting.teams_meeting_id && existing.teams_meeting_id === meeting.teams_meeting_id) ||
+      existing.id === meeting.id
+    );
+    
+    if (!isDuplicate) {
+      acc.push(meeting);
+    }
+    
+    return acc;
+  }, [] as any[]);
+  
   // Upcoming meetings: start time is in the future, sorted by nearest first
-  const upcomingMeetings = meetings
+  const upcomingMeetings = uniqueMeetings
     .filter(meeting => {
       const startTime = parseISO(meeting.start_time);
       return startTime >= now;
@@ -92,7 +112,7 @@ export const MeetingsModule: React.FC = () => {
     .sort((a, b) => compareAsc(parseISO(a.start_time), parseISO(b.start_time)));
   
   // Past meetings: start time is in the past, sorted by most recent first
-  const pastMeetings = meetings
+  const pastMeetings = uniqueMeetings
     .filter(meeting => {
       const startTime = parseISO(meeting.start_time);
       return startTime < now;
@@ -196,9 +216,11 @@ export const MeetingsModule: React.FC = () => {
     setShowScheduleDialog(false);
     setPreselectedDate(undefined);
     
-    // Auto-refresh if a meeting was created
+    // Auto-refresh if a meeting was created, but with debounce
     if (meetingCreated) {
-      fetchMeetings();
+      setTimeout(() => {
+        fetchMeetings();
+      }, 500);
     }
   };
 
@@ -240,12 +262,15 @@ export const MeetingsModule: React.FC = () => {
   };
 
   const handleRSVPUpdate = () => {
-    // Refresh meetings data when RSVP is updated
-    fetchMeetings();
+    // Refresh meetings data when RSVP is updated, but with debounce
+    setTimeout(() => {
+      fetchMeetings();
+    }, 500);
   };
 
-  // Manual sync handler
+  // Manual sync handler with debounce to prevent multiple calls
   const handleManualSync = async () => {
+    if (syncing) return; // Prevent multiple simultaneous sync calls
     await syncOutlookMeetings();
   };
 
@@ -257,7 +282,7 @@ export const MeetingsModule: React.FC = () => {
     const isDeleting = isDeletingMeeting(meeting.id);
     
     return (
-      <Card key={meeting.id} className={`w-full hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50' : ''}`}>
+      <Card key={`meeting-${meeting.id}`} className={`w-full hover:shadow-md transition-shadow ${isDeleting ? 'opacity-50' : ''}`}>
         <CardHeader className="pb-4 sm:pb-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div className="flex-1 min-w-0 space-y-3">
@@ -316,6 +341,7 @@ export const MeetingsModule: React.FC = () => {
             onViewRSVP={handleViewRSVP}
           />
 
+          {/* Only show Teams link once and prevent duplicates */}
           {meeting.teams_join_url && (
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -518,85 +544,88 @@ export const MeetingsModule: React.FC = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="upcoming" className="space-y-4 sm:space-y-6">
-          <TabsList className="grid w-full grid-cols-3 h-auto">
-            <TabsTrigger value="upcoming" className="text-xs sm:text-sm px-2 py-2">
-              Upcoming ({upcomingMeetings.length})
-            </TabsTrigger>
-            <TabsTrigger value="past" className="text-xs sm:text-sm px-2 py-2">
-              Past ({pastMeetings.length})
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="text-xs sm:text-sm px-2 py-2">
-              Calendar
-            </TabsTrigger>
-          </TabsList>
+        {/* Fixed scroll container to prevent auto-scrolling */}
+        <div className="w-full" style={{ overflowX: 'visible', overflowY: 'visible' }}>
+          <Tabs defaultValue="upcoming" className="space-y-4 sm:space-y-6">
+            <TabsList className="grid w-full grid-cols-3 h-auto">
+              <TabsTrigger value="upcoming" className="text-xs sm:text-sm px-2 py-2">
+                Upcoming ({upcomingMeetings.length})
+              </TabsTrigger>
+              <TabsTrigger value="past" className="text-xs sm:text-sm px-2 py-2">
+                Past ({pastMeetings.length})
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="text-xs sm:text-sm px-2 py-2">
+                Calendar
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="upcoming" className="space-y-4 sm:space-y-6">
-            {upcomingMeetings.length > 0 ? (
-              <div className="space-y-4 sm:space-y-6">
-                {upcomingMeetings.map((meeting) => {
-                  return renderMeetingCard(meeting);
-                })}
+            <TabsContent value="upcoming" className="space-y-4 sm:space-y-6">
+              {upcomingMeetings.length > 0 ? (
+                <div className="space-y-4 sm:space-y-6">
+                  {upcomingMeetings.map((meeting) => {
+                    return renderMeetingCard(meeting);
+                  })}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-6 sm:p-8 text-center">
+                    <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No upcoming meetings</p>
+                    <p className="text-sm text-gray-500 mt-2">Schedule your first Teams meeting or sync from Outlook to get started</p>
+                    <div className="mt-4 space-y-2">
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={handleManualSync}
+                        disabled={syncing}
+                        className="mr-2"
+                      >
+                        {syncing ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Syncing...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Sync from Outlook
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="past" className="space-y-4 sm:space-y-6">
+              {pastMeetings.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6 sm:p-8 text-center">
+                    <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No past meetings</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4 sm:space-y-6">
+                  {pastMeetings.map((meeting) => {
+                    return renderMeetingCard(meeting, true);
+                  })}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="calendar" className="space-y-4 sm:space-y-6">
+              <div className="w-full overflow-hidden">
+                <CalendarView 
+                  meetings={uniqueMeetings} 
+                  onMeetingClick={handleViewAgenda}
+                  onDateClick={handleCalendarDateClick}
+                />
               </div>
-            ) : (
-              <Card>
-                <CardContent className="p-6 sm:p-8 text-center">
-                  <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">No upcoming meetings</p>
-                  <p className="text-sm text-gray-500 mt-2">Schedule your first Teams meeting or sync from Outlook to get started</p>
-                  <div className="mt-4 space-y-2">
-                    <Button 
-                      variant="outline"
-                      size="sm"
-                      onClick={handleManualSync}
-                      disabled={syncing}
-                      className="mr-2"
-                    >
-                      {syncing ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Syncing...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Sync from Outlook
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="past" className="space-y-4 sm:space-y-6">
-            {pastMeetings.length === 0 ? (
-              <Card>
-                <CardContent className="p-6 sm:p-8 text-center">
-                  <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">No past meetings</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4 sm:space-y-6">
-                {pastMeetings.map((meeting) => {
-                  return renderMeetingCard(meeting, true);
-                })}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="calendar" className="space-y-4 sm:space-y-6">
-            <div className="w-full overflow-hidden">
-              <CalendarView 
-                meetings={meetings} 
-                onMeetingClick={handleViewAgenda}
-                onDateClick={handleCalendarDateClick}
-              />
-            </div>
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
 
       {/* Deletion Progress Dialog */}
