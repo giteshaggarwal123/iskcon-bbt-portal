@@ -10,7 +10,7 @@ interface AuthContextType {
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   sendOTP: (phoneNumber: string) => Promise<{ error: any; otp?: string }>;
-  sendLoginOTP: (email: string) => Promise<{ error: any; otp?: string }>;
+  sendLoginOTP: (email: string) => Promise<{ error: any; otp?: string; maskedPhone?: string }>;
   verifyOTP: (email: string, otp: string, newPassword: string) => Promise<{ error: any }>;
   verifyLoginOTP: (email: string, otp: string) => Promise<{ error: any }>;
   resetPasswordWithOTP: (email: string, otp: string, newPassword: string) => Promise<{ error: any }>;
@@ -234,32 +234,63 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const sendLoginOTP = async (email: string) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase.functions.invoke('send-login-otp', {
         body: { email }
       });
 
       if (error) {
+        console.error('OTP send error:', error);
+        
+        // Parse error response for better user feedback
+        let errorMessage = "Failed to send verification code. Please try again.";
+        let errorDetails = "Please check your internet connection and try again.";
+        
+        if (error.message) {
+          try {
+            const parsedError = JSON.parse(error.message);
+            errorMessage = parsedError.error || errorMessage;
+            errorDetails = parsedError.details || errorDetails;
+          } catch {
+            errorMessage = error.message;
+          }
+        }
+
         toast({
           title: "OTP Error",
-          description: "Failed to send verification code. Please try again.",
+          description: errorMessage,
           variant: "destructive"
         });
-        return { error };
+        
+        return { error: { message: errorMessage, details: errorDetails } };
+      }
+
+      if (data?.error) {
+        console.error('OTP service error:', data);
+        toast({
+          title: "OTP Error",
+          description: data.error,
+          variant: "destructive"
+        });
+        return { error: data };
       }
 
       toast({
         title: "Verification Code Sent",
-        description: "Please check your phone for the verification code."
+        description: data?.message || "Please check your phone for the verification code."
       });
 
-      return { error: null, otp: data.otp };
+      return { error: null, otp: data.otp, maskedPhone: data.maskedPhone };
     } catch (error: any) {
+      console.error('Unexpected OTP error:', error);
       toast({
         title: "OTP Error",
-        description: error.message,
+        description: "Network error. Please check your connection and try again.",
         variant: "destructive"
       });
       return { error };
+    } finally {
+      setLoading(false);
     }
   };
 

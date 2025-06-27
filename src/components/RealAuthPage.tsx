@@ -31,6 +31,9 @@ export const RealAuthPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [maskedPhoneNumber, setMaskedPhoneNumber] = useState('');
+  const [otpRetryCount, setOtpRetryCount] = useState(0);
+  const [otpCooldown, setOtpCooldown] = useState(0);
 
   // Add redirect logic when user is authenticated
   useEffect(() => {
@@ -49,13 +52,18 @@ export const RealAuthPage: React.FC = () => {
     } else {
       // Send OTP to phone number linked with email
       setLoginEmail(formData.email);
-      const { error } = await sendLoginOTP(formData.email);
-      if (!error) {
+      setOtpRetryCount(0);
+      const result = await sendLoginOTP(formData.email);
+      if (!result.error) {
         setStep('otp');
+        setMaskedPhoneNumber(result.maskedPhone || '');
         toast({
           title: "OTP Sent",
-          description: "Please check your phone for the verification code.",
+          description: result.maskedPhone ? `Verification code sent to ${result.maskedPhone}` : "Please check your phone for the verification code.",
         });
+      } else {
+        // Error is already handled in the hook with toast
+        console.error('Login OTP error:', result.error);
       }
     }
   };
@@ -150,14 +158,32 @@ export const RealAuthPage: React.FC = () => {
   };
 
   const handleResendLoginOTP = async () => {
-    if (step === 'otp' && loginEmail) {
-      const { error } = await sendLoginOTP(loginEmail);
-      if (!error) {
+    if (step === 'otp' && loginEmail && otpCooldown === 0) {
+      setOtpRetryCount(prev => prev + 1);
+      
+      // Implement exponential backoff cooldown
+      const cooldownTime = Math.min(30 + (otpRetryCount * 15), 120); // Max 2 minutes
+      setOtpCooldown(cooldownTime);
+      
+      const result = await sendLoginOTP(loginEmail);
+      if (!result.error) {
+        setMaskedPhoneNumber(result.maskedPhone || '');
         toast({
           title: "OTP Resent",
-          description: "A new verification code has been sent to your phone.",
+          description: result.maskedPhone ? `New verification code sent to ${result.maskedPhone}` : "A new verification code has been sent to your phone.",
         });
       }
+      
+      // Start cooldown timer
+      const timer = setInterval(() => {
+        setOtpCooldown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
   };
 
@@ -285,6 +311,11 @@ export const RealAuthPage: React.FC = () => {
                     <p className="text-sm text-gray-600">
                       Enter the 6-digit code sent to your registered mobile number
                     </p>
+                    {maskedPhoneNumber && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Sent to: {maskedPhoneNumber}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-500 mt-1">
                       Linked with: {loginEmail}
                     </p>
@@ -308,6 +339,11 @@ export const RealAuthPage: React.FC = () => {
                         </InputOTPGroup>
                       </InputOTP>
                     </div>
+                    {otpRetryCount > 0 && (
+                      <p className="text-xs text-center text-gray-500">
+                        Retry attempt: {otpRetryCount}/5
+                      </p>
+                    )}
                   </div>
                 </div>
                 
@@ -331,12 +367,19 @@ export const RealAuthPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleResendLoginOTP}
-                    className="text-primary hover:underline"
-                    disabled={loading}
+                    className="text-primary hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
+                    disabled={loading || otpCooldown > 0 || otpRetryCount >= 5}
                   >
-                    Resend OTP
+                    {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : 
+                     otpRetryCount >= 5 ? 'Max attempts reached' : 'Resend OTP'}
                   </button>
                 </div>
+                
+                {otpRetryCount >= 3 && (
+                  <div className="text-center text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                    Having trouble? Contact administrator if you continue to experience issues.
+                  </div>
+                )}
               </form>
             ) : step === 'forgot-phone' ? (
               <form onSubmit={handleSendForgotOTP} className="space-y-4">
