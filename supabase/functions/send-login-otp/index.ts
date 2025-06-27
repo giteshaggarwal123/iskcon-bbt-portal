@@ -45,6 +45,81 @@ const generateOTP = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+// Function to send SMS with retry logic
+const sendSMSWithRetry = async (
+  twilioUrl: string,
+  credentials: string,
+  twilioPhoneNumber: string,
+  formattedPhone: string,
+  smsBody: string,
+  maxRetries: number = 3
+): Promise<{ success: boolean; data?: any; error?: any }> => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`SMS attempt ${attempt}/${maxRetries} to ${formattedPhone}`);
+      
+      const response = await fetch(twilioUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          From: twilioPhoneNumber,
+          To: formattedPhone,
+          Body: smsBody
+        }),
+      });
+
+      const responseText = await response.text();
+      
+      if (response.ok) {
+        const responseData = JSON.parse(responseText);
+        console.log(`SMS sent successfully on attempt ${attempt}:`, responseData.sid);
+        return { success: true, data: responseData };
+      } else {
+        console.error(`Twilio error on attempt ${attempt}:`, responseText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch {
+          errorData = { message: responseText };
+        }
+
+        // If it's a permanent error (auth, config, etc.), don't retry
+        if (errorData.code === 20003 || errorData.code === 21211 || errorData.code === 21614 || errorData.code === 21608) {
+          console.log(`Permanent error detected (${errorData.code}), not retrying`);
+          return { success: false, error: errorData };
+        }
+
+        // If it's the last attempt, return the error
+        if (attempt === maxRetries) {
+          return { success: false, error: errorData };
+        }
+
+        // Wait before retrying (exponential backoff)
+        const waitTime = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
+        console.log(`Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    } catch (fetchError) {
+      console.error(`Network error on attempt ${attempt}:`, fetchError);
+      
+      // If it's the last attempt, return the network error
+      if (attempt === maxRetries) {
+        return { success: false, error: { code: 'NETWORK_ERROR', message: fetchError.message } };
+      }
+
+      // Wait before retrying
+      const waitTime = Math.pow(2, attempt - 1) * 1000;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+  }
+  
+  return { success: false, error: { code: 'MAX_RETRIES_EXCEEDED', message: 'All retry attempts failed' } };
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -74,7 +149,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: 'Service temporarily unavailable',
-          details: 'Please try again later or contact support.',
+          details: 'Server configuration error. Please try again later or contact support.',
           code: 'CONFIG_ERROR'
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -118,12 +193,12 @@ serve(async (req) => {
     // Format the phone number properly
     const formattedPhone = formatPhoneNumber(profile.phone);
     const maskedPhone = maskPhoneNumber(profile.phone);
-    console.log('Formatted phone:', formattedPhone);
+    console.log('Original phone:', profile.phone, 'Formatted phone:', formattedPhone);
 
     // Generate 6-digit OTP
     const otp = generateOTP();
     
-    // Get Twilio credentials with validation
+    // Get Twilio credentials with enhanced validation
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
     const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
@@ -133,14 +208,14 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: 'SMS service unavailable',
-          details: 'Unable to send verification code at this time. Please try again later.',
+          details: 'SMS service is not configured. Please contact support.',
           code: 'SMS_CONFIG_ERROR'
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Validate Twilio credentials format
+    // Enhanced Twilio credentials validation
     if (!twilioAccountSid.startsWith('AC') || twilioAccountSid.length !== 34) {
       console.error('Invalid Twilio Account SID format');
       return new Response(
@@ -153,109 +228,108 @@ serve(async (req) => {
       );
     }
 
+    if (twilioAuthToken.length < 32) {
+      console.error('Invalid Twilio Auth Token format');
+      return new Response(
+        JSON.stringify({ 
+          error: 'SMS authentication error',
+          details: 'SMS service authentication is not properly configured. Please contact support.',
+          code: 'INVALID_TWILIO_AUTH'
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!twilioPhoneNumber.startsWith('+')) {
+      console.error('Invalid Twilio Phone Number format');
+      return new Response(
+        JSON.stringify({ 
+          error: 'SMS service phone error',
+          details: 'SMS service phone number is not properly configured. Please contact support.',
+          code: 'INVALID_TWILIO_PHONE'
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Create personalized greeting
     const firstName = profile.first_name || '';
     const greeting = firstName ? `Hi ${firstName}` : 'Hello';
     const smsBody = `${greeting}, your ISKCON Bureau login code is ${otp}. Valid for 5 minutes. Do not share this code.`;
 
-    // Send SMS via Twilio with enhanced error handling
+    // Send SMS via Twilio with retry logic
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
     const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
 
-    try {
-      console.log('Attempting to send SMS to:', formattedPhone);
-      
-      const response = await fetch(twilioUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${credentials}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          From: twilioPhoneNumber,
-          To: formattedPhone,
-          Body: smsBody
-        }),
-      });
+    const smsResult = await sendSMSWithRetry(
+      twilioUrl,
+      credentials,
+      twilioPhoneNumber,
+      formattedPhone,
+      smsBody
+    );
 
-      const responseText = await response.text();
-      
-      if (response.ok) {
-        const responseData = JSON.parse(responseText);
-        console.log('SMS sent successfully:', responseData.sid);
-        
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            message: `Verification code sent to ${maskedPhone}`,
-            maskedPhone: maskedPhone,
-            otp: otp // Remove this in production - store securely instead
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      } else {
-        console.error('Twilio API error response:', responseText);
-        
-        let errorData;
-        try {
-          errorData = JSON.parse(responseText);
-        } catch {
-          errorData = { message: responseText };
-        }
-
-        // Handle specific Twilio error codes
-        if (errorData.code === 20003) {
-          return new Response(
-            JSON.stringify({ 
-              error: 'SMS service authentication failed',
-              details: 'Unable to send verification code due to service configuration issues. Please contact support.',
-              code: 'TWILIO_AUTH_ERROR',
-              twilioError: responseText
-            }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        } else if (errorData.code === 21211 || errorData.code === 21614) {
-          return new Response(
-            JSON.stringify({ 
-              error: 'Invalid phone number',
-              details: 'Your registered phone number appears to be invalid. Please contact support to update it.',
-              code: 'INVALID_PHONE',
-              twilioError: responseText
-            }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        } else if (errorData.code === 21608) {
-          return new Response(
-            JSON.stringify({ 
-              error: 'Phone number not verified',
-              details: 'Unable to send SMS to unverified number. Please contact support.',
-              code: 'UNVERIFIED_PHONE',
-              twilioError: responseText
-            }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        } else {
-          return new Response(
-            JSON.stringify({ 
-              error: 'Unable to send verification code',
-              details: 'SMS service is temporarily unavailable. Please try again later or contact support.',
-              code: 'SMS_SEND_FAILED',
-              twilioError: responseText
-            }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
-    } catch (fetchError) {
-      console.error('Network error calling Twilio:', fetchError);
+    if (smsResult.success) {
       return new Response(
         JSON.stringify({ 
-          error: 'Network error',
-          details: 'Unable to connect to SMS service. Please check your internet connection and try again.',
-          code: 'NETWORK_ERROR'
+          success: true, 
+          message: `Verification code sent to ${maskedPhone}`,
+          maskedPhone: maskedPhone,
+          otp: otp // Remove this in production - store securely instead
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    } else {
+      const error = smsResult.error;
+      
+      // Handle specific Twilio error codes with better messaging
+      if (error.code === 20003) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'SMS authentication failed',
+            details: 'SMS service authentication error. Please contact the administrator to verify Twilio credentials.',
+            code: 'TWILIO_AUTH_ERROR'
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else if (error.code === 21211 || error.code === 21614) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Invalid phone number',
+            details: 'Your registered phone number appears to be invalid. Please contact support to update it.',
+            code: 'INVALID_PHONE'
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else if (error.code === 21608) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Phone number not verified',
+            details: 'Unable to send SMS to unverified number. Please contact support.',
+            code: 'UNVERIFIED_PHONE'
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else if (error.code === 'NETWORK_ERROR') {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Network error',
+            details: 'Unable to connect to SMS service. Please check your internet connection and try again.',
+            code: 'NETWORK_ERROR'
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Unable to send verification code',
+            details: 'SMS service is temporarily unavailable. Please try again later or contact support.',
+            code: 'SMS_SEND_FAILED',
+            twilioError: error
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
   } catch (error) {
@@ -263,7 +337,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: 'Service temporarily unavailable',
-        details: 'An unexpected error occurred. Please try again in a few minutes.',
+        details: 'An unexpected error occurred. Please try again in a few minutes or contact support.',
         code: 'INTERNAL_ERROR'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

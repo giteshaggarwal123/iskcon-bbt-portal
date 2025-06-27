@@ -253,7 +253,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             errorTitle = parsedError.error || errorTitle;
             errorMessage = parsedError.details || errorMessage;
             
-            // Handle specific error codes
+            // Handle specific error codes with better messaging
             switch (parsedError.code) {
               case 'USER_NOT_FOUND':
                 errorTitle = "Account Not Found";
@@ -265,28 +265,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 break;
               case 'TWILIO_AUTH_ERROR':
                 errorTitle = "SMS Service Error";
-                errorMessage = "SMS service is temporarily unavailable. Please try again later or contact support.";
+                errorMessage = "SMS service authentication failed. Please contact the administrator.";
+                break;
+              case 'INVALID_TWILIO_CONFIG':
+              case 'INVALID_TWILIO_AUTH':
+              case 'INVALID_TWILIO_PHONE':
+                errorTitle = "SMS Configuration Error";
+                errorMessage = "SMS service is not properly configured. Please contact support.";
                 break;
               case 'INVALID_PHONE':
                 errorTitle = "Invalid Phone Number";
                 errorMessage = "Your registered phone number is invalid. Please contact support to update it.";
                 break;
+              case 'UNVERIFIED_PHONE':
+                errorTitle = "Phone Number Not Verified";
+                errorMessage = "Unable to send SMS to unverified number. Please contact support.";
+                break;
               case 'NETWORK_ERROR':
                 errorTitle = "Connection Error";
                 errorMessage = "Please check your internet connection and try again.";
                 break;
+              case 'SMS_CONFIG_ERROR':
+                errorTitle = "SMS Service Unavailable";
+                errorMessage = "SMS service is not configured. Please contact support.";
+                break;
               default:
                 errorTitle = parsedError.error || "Service Error";
-                errorMessage = parsedError.details || "Please try again later.";
+                errorMessage = parsedError.details || "Please try again later or contact support.";
             }
           } catch {
-            // If parsing fails, use the original error message
+            // If parsing fails, handle specific known error patterns
             if (error.message.includes('20003')) {
-              errorTitle = "SMS Configuration Error";
-              errorMessage = "SMS service is not properly configured. Please contact support.";
-            } else if (error.message.includes('network')) {
+              errorTitle = "SMS Authentication Error";
+              errorMessage = "SMS service authentication failed. Please contact the administrator to verify Twilio credentials.";
+            } else if (error.message.includes('network') || error.message.includes('connection')) {
               errorTitle = "Network Error";
               errorMessage = "Please check your connection and try again.";
+            } else if (error.message.includes('non-2xx')) {
+              errorTitle = "Service Error";
+              errorMessage = "SMS service is temporarily unavailable. Please contact support if this continues.";
             } else {
               errorMessage = error.message;
             }
@@ -311,8 +328,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Handle specific response error codes
         switch (data.code) {
           case 'TWILIO_AUTH_ERROR':
-            errorTitle = "SMS Service Error";
-            errorMessage = "SMS service authentication failed. Please contact support.";
+            errorTitle = "SMS Authentication Error";
+            errorMessage = "SMS service authentication failed. Please contact the administrator.";
+            break;
+          case 'INVALID_TWILIO_CONFIG':
+          case 'INVALID_TWILIO_AUTH':
+          case 'INVALID_TWILIO_PHONE':
+            errorTitle = "SMS Configuration Error";
+            errorMessage = "SMS service is not properly configured. Please contact support.";
             break;
           case 'INVALID_PHONE':
             errorTitle = "Phone Number Issue";
@@ -321,6 +344,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           case 'USER_NOT_FOUND':
             errorTitle = "Account Not Found";
             errorMessage = "This email is not registered in our system.";
+            break;
+          case 'UNVERIFIED_PHONE':
+            errorTitle = "Phone Number Not Verified";
+            errorMessage = "Unable to send SMS to unverified number. Please contact support.";
             break;
           default:
             errorTitle = "Service Error";
@@ -345,7 +372,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error('Unexpected OTP error:', error);
       toast({
         title: "Connection Error",
-        description: "Unable to connect to verification service. Please check your internet connection.",
+        description: "Unable to connect to verification service. Please check your internet connection and try again.",
         variant: "destructive"
       });
       return { error: { message: "Network connection failed", code: 'NETWORK_ERROR' } };
