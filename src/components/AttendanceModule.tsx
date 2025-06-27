@@ -376,17 +376,6 @@ export const AttendanceModule: React.FC = () => {
           </Button>
         </div>
 
-        {/* Debug Info - Remove in production */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
-            <p><strong>Debug Info:</strong></p>
-            <p>Total Meetings: {meetings.length}</p>
-            <p>Upcoming: {upcomingMeetings.length}</p>
-            <p>Past: {pastMeetings.length}</p>
-            <p>Loading: meetings={meetingsLoading.toString()}, attendance={attendanceLoading.toString()}</p>
-          </div>
-        )}
-
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
