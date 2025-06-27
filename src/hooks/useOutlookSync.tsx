@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
@@ -81,13 +82,33 @@ export const useOutlookSync = () => {
   }, [user, toast]);
 
   const autoSync = useCallback(async () => {
-    // Only auto-sync if we haven't synced in the last 15 minutes
-    if (lastSyncTime && Date.now() - lastSyncTime.getTime() < 15 * 60 * 1000) {
+    // Only auto-sync if we haven't synced in the last 5 minutes
+    if (lastSyncTime && Date.now() - lastSyncTime.getTime() < 5 * 60 * 1000) {
       return;
     }
     
     await syncOutlookMeetings();
   }, [syncOutlookMeetings, lastSyncTime]);
+
+  // Auto-sync when component mounts and user is available
+  useEffect(() => {
+    if (user) {
+      console.log('Auto-syncing meetings on mount...');
+      autoSync();
+    }
+  }, [user, autoSync]);
+
+  // Auto-sync every 10 minutes when user is active
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(() => {
+      console.log('Auto-syncing meetings (periodic)...');
+      autoSync();
+    }, 10 * 60 * 1000); // 10 minutes
+
+    return () => clearInterval(interval);
+  }, [user, autoSync]);
 
   return {
     syncing,

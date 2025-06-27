@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy, CheckSquare, AlertTriangle } from 'lucide-react';
+import { Calendar, Clock, Users, Video, FileText, Plus, Trash2, UserCheck, ExternalLink, Copy, CheckSquare, AlertTriangle, RefreshCw, Sync } from 'lucide-react';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 import { ViewAgendaDialog } from './ViewAgendaDialog';
 import { ManageAttendeesDialog } from './ManageAttendeesDialog';
@@ -33,6 +33,7 @@ import { useMeetings } from '@/hooks/useMeetings';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useAutoTranscript } from '@/hooks/useAutoTranscript';
+import { useOutlookSync } from '@/hooks/useOutlookSync';
 import { format, parseISO, compareAsc, compareDesc } from 'date-fns';
 import { useUserRole } from '@/hooks/useUserRole';
 import { RSVPSelector } from './RSVPSelector';
@@ -63,10 +64,21 @@ export const MeetingsModule: React.FC = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   
+  // Add Outlook sync functionality
+  const { syncing, lastSyncTime, syncOutlookMeetings } = useOutlookSync();
+  
   // Add auto-transcript functionality
   useAutoTranscript();
 
   const { userRole, canDeleteMeetings, canScheduleMeetings } = useUserRole();
+
+  // Auto-refresh meetings when sync completes
+  useEffect(() => {
+    if (!syncing && lastSyncTime) {
+      console.log('Refreshing meetings after sync...');
+      fetchMeetings();
+    }
+  }, [syncing, lastSyncTime, fetchMeetings]);
 
   // Filter and sort meetings properly by date and time
   const now = new Date();
@@ -232,6 +244,11 @@ export const MeetingsModule: React.FC = () => {
     fetchMeetings();
   };
 
+  // Manual sync handler
+  const handleManualSync = async () => {
+    await syncOutlookMeetings();
+  };
+
   const renderMeetingCard = (meeting: any, isPast = false) => {
     const timeInfo = formatMeetingTime(meeting.start_time, meeting.end_time);
     const isLive = !isPast && isLiveMeeting(meeting);
@@ -255,6 +272,12 @@ export const MeetingsModule: React.FC = () => {
                   <Badge className="bg-blue-500 text-white shrink-0">
                     <Video className="h-3 w-3 mr-1" />
                     Teams
+                  </Badge>
+                )}
+                {meeting.outlook_event_id && (
+                  <Badge className="bg-green-500 text-white shrink-0">
+                    <Sync className="h-3 w-3 mr-1" />
+                    Outlook
                   </Badge>
                 )}
                 {isDeleting && (
@@ -457,18 +480,42 @@ export const MeetingsModule: React.FC = () => {
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">Meeting Management</h1>
             <p className="text-sm sm:text-base text-gray-600 mt-1">Schedule, track, and manage all your meetings</p>
+            {lastSyncTime && (
+              <p className="text-xs text-gray-500 mt-1">
+                Last synced: {format(lastSyncTime, 'MMM dd, yyyy h:mm a')}
+              </p>
+            )}
           </div>
-          {canScheduleMeetings && (
-            <div className="flex-shrink-0">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={handleManualSync}
+              disabled={syncing}
+              className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+            >
+              {syncing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Syncing...
+                </>
+              ) : (
+                <>
+                  <Sync className="h-4 w-4 mr-2" />
+                  Sync Outlook
+                </>
+              )}
+            </Button>
+            {canScheduleMeetings && (
               <Button 
-                className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+                className="bg-primary hover:bg-primary/90"
                 onClick={() => setShowScheduleDialog(true)}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Schedule Meeting
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <Tabs defaultValue="upcoming" className="space-y-4 sm:space-y-6">
@@ -496,7 +543,28 @@ export const MeetingsModule: React.FC = () => {
                 <CardContent className="p-6 sm:p-8 text-center">
                   <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600">No upcoming meetings</p>
-                  <p className="text-sm text-gray-500 mt-2">Schedule your first Teams meeting to get started</p>
+                  <p className="text-sm text-gray-500 mt-2">Schedule your first Teams meeting or sync from Outlook to get started</p>
+                  <div className="mt-4 space-y-2">
+                    <Button 
+                      variant="outline"
+                      size="sm"
+                      onClick={handleManualSync}
+                      disabled={syncing}
+                      className="mr-2"
+                    >
+                      {syncing ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Syncing...
+                        </>
+                      ) : (
+                        <>
+                          <Sync className="h-4 w-4 mr-2" />
+                          Sync from Outlook
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
