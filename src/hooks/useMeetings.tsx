@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -87,6 +88,7 @@ export const useMeetings = () => {
             return;
           }
           
+          // Automatically refresh when meetings are added/updated
           setTimeout(() => {
             fetchMeetings();
           }, 500);
