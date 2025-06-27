@@ -49,6 +49,12 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const handleLogoClick = () => {
+    if (onNavigate) {
+      onNavigate('dashboard');
+    }
+  };
+
   return (
     <>
       {/* Theme-colored status bar indicator - Only on mobile */}
@@ -74,8 +80,12 @@ export const Header: React.FC<HeaderProps> = ({
               </Button>
             )}
             
-            {/* Logo and Title */}
-            <div className="flex items-center space-x-3">
+            {/* Logo and Title - Now clickable */}
+            <button 
+              onClick={handleLogoClick}
+              className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+              title="Go to Dashboard"
+            >
               <div className="flex items-center justify-center w-10 h-10 flex-shrink-0">
                 <img 
                   src="/lovable-uploads/7ccf6269-31c1-46b9-bc5c-60b58a22c03e.png" 
@@ -105,7 +115,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </>
                 )}
               </div>
-            </div>
+            </button>
           </div>
 
           <div className="flex items-center space-x-2">
