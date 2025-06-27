@@ -158,7 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <div className={`fixed transform transition-all duration-300 ${
       isOpen ? 'translate-x-0' : '-translate-x-full'
-    } ${isMobile ? 'w-64 top-12 bottom-0 z-20' : 'top-16 bottom-0 lg:translate-x-0 z-20'} ${
+    } ${isMobile ? 'w-64 top-12 bottom-0 z-50' : 'top-16 bottom-0 lg:translate-x-0 z-20'} ${
       !isMobile && isCollapsed ? 'w-20' : 'w-64'
     } left-0 bg-white shadow-xl`}>
       <div className="flex flex-col h-full">
