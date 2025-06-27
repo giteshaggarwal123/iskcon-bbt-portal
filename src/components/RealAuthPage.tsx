@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Mail, Shield, Lock, Phone, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Mail, Shield, Lock, Phone, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { useNavigate } from 'react-router-dom';
@@ -34,6 +34,7 @@ export const RealAuthPage: React.FC = () => {
   const [maskedPhoneNumber, setMaskedPhoneNumber] = useState('');
   const [otpRetryCount, setOtpRetryCount] = useState(0);
   const [otpCooldown, setOtpCooldown] = useState(0);
+  const [lastError, setLastError] = useState<{ title: string; message: string; code?: string } | null>(null);
 
   // Add redirect logic when user is authenticated
   useEffect(() => {
@@ -45,6 +46,8 @@ export const RealAuthPage: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLastError(null);
+    
     if (forgotPassword) {
       // Store the email for password reset
       setResetEmail(formData.email);
@@ -62,14 +65,20 @@ export const RealAuthPage: React.FC = () => {
           description: result.maskedPhone ? `Verification code sent to ${result.maskedPhone}` : "Please check your phone for the verification code.",
         });
       } else {
-        // Error is already handled in the hook with toast
-        console.error('Login OTP error:', result.error);
+        // Store error for display
+        setLastError({
+          title: "Login Error",
+          message: result.error.message || "Unable to send verification code",
+          code: result.error.code
+        });
       }
     }
   };
 
   const handleVerifyLoginOTP = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLastError(null);
+    
     if (formData.otp.length !== 6) {
       toast({
         title: "Error",
@@ -85,6 +94,11 @@ export const RealAuthPage: React.FC = () => {
       toast({
         title: "Success",
         description: "Login successful! Welcome to ISKCON Bureau.",
+      });
+    } else {
+      setLastError({
+        title: "Login Failed",
+        message: result.error.message || "Invalid credentials",
       });
     }
   };
@@ -146,6 +160,7 @@ export const RealAuthPage: React.FC = () => {
   const resetToLogin = () => {
     setStep('login');
     setForgotPassword(false);
+    setLastError(null);
     setFormData(prev => ({ 
       ...prev, 
       otp: '', 
@@ -159,6 +174,7 @@ export const RealAuthPage: React.FC = () => {
 
   const handleResendLoginOTP = async () => {
     if (step === 'otp' && loginEmail && otpCooldown === 0) {
+      setLastError(null);
       setOtpRetryCount(prev => prev + 1);
       
       // Implement exponential backoff cooldown
@@ -171,6 +187,12 @@ export const RealAuthPage: React.FC = () => {
         toast({
           title: "OTP Resent",
           description: result.maskedPhone ? `New verification code sent to ${result.maskedPhone}` : "A new verification code has been sent to your phone.",
+        });
+      } else {
+        setLastError({
+          title: "Resend Failed",
+          message: result.error.message || "Unable to resend verification code",
+          code: result.error.code
         });
       }
       
@@ -231,6 +253,22 @@ export const RealAuthPage: React.FC = () => {
           </CardHeader>
           
           <CardContent>
+            {/* Error Display */}
+            {lastError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-red-800">{lastError.title}</h4>
+                    <p className="text-sm text-red-700 mt-1">{lastError.message}</p>
+                    {lastError.code && (
+                      <p className="text-xs text-red-600 mt-1">Error Code: {lastError.code}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {step === 'login' ? (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
@@ -296,7 +334,10 @@ export const RealAuthPage: React.FC = () => {
                 <div className="text-center">
                   <button
                     type="button"
-                    onClick={() => setForgotPassword(!forgotPassword)}
+                    onClick={() => {
+                      setForgotPassword(!forgotPassword);
+                      setLastError(null);
+                    }}
                     className="text-sm text-primary hover:underline"
                   >
                     {forgotPassword ? 'Back to Login' : 'Forgot Password?'}

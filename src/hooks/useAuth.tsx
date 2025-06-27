@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -242,39 +243,98 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error) {
         console.error('OTP send error:', error);
         
-        // Parse error response for better user feedback
-        let errorMessage = "Failed to send verification code. Please try again.";
-        let errorDetails = "Please check your internet connection and try again.";
+        // Enhanced error handling based on error structure
+        let errorTitle = "Verification Code Error";
+        let errorMessage = "Unable to send verification code. Please try again.";
         
         if (error.message) {
           try {
             const parsedError = JSON.parse(error.message);
-            errorMessage = parsedError.error || errorMessage;
-            errorDetails = parsedError.details || errorDetails;
+            errorTitle = parsedError.error || errorTitle;
+            errorMessage = parsedError.details || errorMessage;
+            
+            // Handle specific error codes
+            switch (parsedError.code) {
+              case 'USER_NOT_FOUND':
+                errorTitle = "Account Not Found";
+                errorMessage = "This email is not registered. Please contact your administrator.";
+                break;
+              case 'NO_PHONE':
+                errorTitle = "Phone Number Required";
+                errorMessage = "Your account needs a phone number. Please contact support.";
+                break;
+              case 'TWILIO_AUTH_ERROR':
+                errorTitle = "SMS Service Error";
+                errorMessage = "SMS service is temporarily unavailable. Please try again later or contact support.";
+                break;
+              case 'INVALID_PHONE':
+                errorTitle = "Invalid Phone Number";
+                errorMessage = "Your registered phone number is invalid. Please contact support to update it.";
+                break;
+              case 'NETWORK_ERROR':
+                errorTitle = "Connection Error";
+                errorMessage = "Please check your internet connection and try again.";
+                break;
+              default:
+                errorTitle = parsedError.error || "Service Error";
+                errorMessage = parsedError.details || "Please try again later.";
+            }
           } catch {
-            errorMessage = error.message;
+            // If parsing fails, use the original error message
+            if (error.message.includes('20003')) {
+              errorTitle = "SMS Configuration Error";
+              errorMessage = "SMS service is not properly configured. Please contact support.";
+            } else if (error.message.includes('network')) {
+              errorTitle = "Network Error";
+              errorMessage = "Please check your connection and try again.";
+            } else {
+              errorMessage = error.message;
+            }
           }
         }
 
         toast({
-          title: "OTP Error",
+          title: errorTitle,
           description: errorMessage,
           variant: "destructive"
         });
         
-        return { error: { message: errorMessage, details: errorDetails } };
+        return { error: { message: errorMessage, code: error.code || 'UNKNOWN_ERROR' } };
       }
 
       if (data?.error) {
         console.error('OTP service error:', data);
+        
+        let errorTitle = "Verification Error";
+        let errorMessage = data.details || data.error || "Unable to send verification code.";
+        
+        // Handle specific response error codes
+        switch (data.code) {
+          case 'TWILIO_AUTH_ERROR':
+            errorTitle = "SMS Service Error";
+            errorMessage = "SMS service authentication failed. Please contact support.";
+            break;
+          case 'INVALID_PHONE':
+            errorTitle = "Phone Number Issue";
+            errorMessage = "Your phone number format is invalid. Please contact support.";
+            break;
+          case 'USER_NOT_FOUND':
+            errorTitle = "Account Not Found";
+            errorMessage = "This email is not registered in our system.";
+            break;
+          default:
+            errorTitle = "Service Error";
+        }
+        
         toast({
-          title: "OTP Error",
-          description: data.error,
+          title: errorTitle,
+          description: errorMessage,
           variant: "destructive"
         });
         return { error: data };
       }
 
+      // Success case
       toast({
         title: "Verification Code Sent",
         description: data?.message || "Please check your phone for the verification code."
@@ -284,11 +344,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       console.error('Unexpected OTP error:', error);
       toast({
-        title: "OTP Error",
-        description: "Network error. Please check your connection and try again.",
+        title: "Connection Error",
+        description: "Unable to connect to verification service. Please check your internet connection.",
         variant: "destructive"
       });
-      return { error };
+      return { error: { message: "Network connection failed", code: 'NETWORK_ERROR' } };
     } finally {
       setLoading(false);
     }
