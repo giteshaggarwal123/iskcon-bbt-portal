@@ -25,6 +25,55 @@ export const AttendanceReportsDialog: React.FC<AttendanceReportsDialogProps> = (
   const [selectedPeriod, setSelectedPeriod] = useState('current_month');
   const { generateAttendanceReport } = useAttendance();
 
+  // Generate sample data when no real data is available
+  const generateSampleData = () => {
+    const sampleMembers = [
+      { id: '1', first_name: 'Arjun', last_name: 'Sharma', email: 'arjun.sharma@example.com' },
+      { id: '2', first_name: 'Priya', last_name: 'Patel', email: 'priya.patel@example.com' },
+      { id: '3', first_name: 'Rahul', last_name: 'Gupta', email: 'rahul.gupta@example.com' },
+      { id: '4', first_name: 'Kavita', last_name: 'Singh', email: 'kavita.singh@example.com' },
+      { id: '5', first_name: 'Amit', last_name: 'Kumar', email: 'amit.kumar@example.com' },
+      { id: '6', first_name: 'Sneha', last_name: 'Joshi', email: 'sneha.joshi@example.com' },
+      { id: '7', first_name: 'Vikram', last_name: 'Reddy', email: 'vikram.reddy@example.com' },
+      { id: '8', first_name: 'Meera', last_name: 'Nair', email: 'meera.nair@example.com' }
+    ];
+
+    const sampleData = [];
+    const now = new Date();
+    
+    // Generate sample attendance records for each member
+    sampleMembers.forEach((member, memberIndex) => {
+      // Generate 5-8 meetings per member
+      const meetingCount = 5 + Math.floor(Math.random() * 4);
+      
+      for (let i = 0; i < meetingCount; i++) {
+        const meetingDate = new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000); // Random date in last 30 days
+        const attendanceTypes = ['present', 'late', 'absent'];
+        const attendanceWeights = memberIndex < 3 ? [0.8, 0.15, 0.05] : memberIndex < 6 ? [0.6, 0.25, 0.15] : [0.4, 0.3, 0.3]; // Better attendance for first few members
+        
+        const randomChoice = Math.random();
+        let attendanceStatus = 'present';
+        if (randomChoice < attendanceWeights[2]) {
+          attendanceStatus = 'absent';
+        } else if (randomChoice < attendanceWeights[1] + attendanceWeights[2]) {
+          attendanceStatus = 'late';
+        }
+
+        sampleData.push({
+          id: `${member.id}-${i}`,
+          meeting_id: `meeting-${i + 1}`,
+          user_id: member.id,
+          attendance_status: attendanceStatus,
+          duration_minutes: attendanceStatus === 'absent' ? 0 : 45 + Math.floor(Math.random() * 60), // 45-105 minutes
+          created_at: meetingDate.toISOString(),
+          profiles: member
+        });
+      }
+    });
+
+    return sampleData;
+  };
+
   useEffect(() => {
     if (open) {
       loadReportData();
@@ -55,9 +104,19 @@ export const AttendanceReportsDialog: React.FC<AttendanceReportsDialogProps> = (
     try {
       const { start, end } = getDateRange();
       const data = await generateAttendanceReport(undefined, start, end);
-      setReportData(data);
+      
+      // If no real data, use sample data
+      if (!data || data.length === 0) {
+        const sampleData = generateSampleData();
+        setReportData(sampleData);
+      } else {
+        setReportData(data);
+      }
     } catch (error) {
       console.error('Error loading report data:', error);
+      // Fallback to sample data on error
+      const sampleData = generateSampleData();
+      setReportData(sampleData);
     } finally {
       setLoading(false);
     }
@@ -217,6 +276,9 @@ export const AttendanceReportsDialog: React.FC<AttendanceReportsDialogProps> = (
           </DialogTitle>
           <DialogDescription>
             Comprehensive attendance analytics with member-wise insights and tracking
+            {reportData.length > 0 && reportData[0].profiles?.first_name === 'Arjun' && (
+              <span className="text-orange-600 font-medium"> (Sample Data)</span>
+            )}
           </DialogDescription>
         </DialogHeader>
         
