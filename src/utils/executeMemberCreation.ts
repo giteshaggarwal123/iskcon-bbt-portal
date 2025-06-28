@@ -1,4 +1,3 @@
-
 import { createSpecificMember } from './createSpecificMember';
 
 // Function to create the specific member
@@ -33,6 +32,7 @@ export const executeMemberCreation = async () => {
   }
 };
 
-// Auto-execute when this file is imported
-console.log('🚀 Executing member creation for HH Bhakti Rasamrita Swami...');
-executeMemberCreation();
+// Note: This function is available for manual execution by administrators
+// To execute, call executeMemberCreation() manually from the browser console
+// or trigger it through an admin interface with proper authentication
+console.log('📋 Member creation function is available for manual execution');
