@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 type ValidRole = 'super_admin' | 'admin' | 'member' | 'secretary' | 'treasurer';
@@ -24,7 +23,7 @@ export const createSpecificMember = async () => {
         last_name: memberData.lastName,
         phone: memberData.phone,
         role: memberData.role,
-        invited_by: 'system' // Using system as the inviter
+        invited_by: '6ab3186f-7dae-46b3-8dd5-5256c560658e' // Using system admin UUID instead of 'system'
       })
       .select()
       .single();
