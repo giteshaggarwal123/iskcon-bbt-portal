@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,23 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Download, TrendingUp, Users, Clock, BarChart3, UserCheck, Target } from 'lucide-react';
+import { Calendar, Download, TrendingUp, Users, Clock, BarChart3, UserCheck, Target } from 'lucide-react';
 import { useAttendance } from '@/hooks/useAttendance';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subWeeks, parseISO } from 'date-fns';
-
-interface AttendanceRecord {
-  id: string;
-  meeting_id: string;
-  user_id: string;
-  attendance_status: string;
-  duration_minutes: number;
-  created_at: string;
-  profiles: {
-    first_name: string;
-    last_name: string;
-    email: string;
-  };
-}
 
 interface AttendanceReportsDialogProps {
   open: boolean;
@@ -33,13 +20,13 @@ export const AttendanceReportsDialog: React.FC<AttendanceReportsDialogProps> = (
   open, 
   onOpenChange 
 }) => {
-  const [reportData, setReportData] = useState<AttendanceRecord[]>([]);
+  const [reportData, setReportData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('current_month');
   const { generateAttendanceReport } = useAttendance();
 
   // Generate sample data when no real data is available
-  const generateSampleData = (): AttendanceRecord[] => {
+  const generateSampleData = () => {
     const sampleMembers = [
       { id: '1', first_name: 'Arjun', last_name: 'Sharma', email: 'arjun.sharma@example.com' },
       { id: '2', first_name: 'Priya', last_name: 'Patel', email: 'priya.patel@example.com' },
@@ -51,7 +38,7 @@ export const AttendanceReportsDialog: React.FC<AttendanceReportsDialogProps> = (
       { id: '8', first_name: 'Meera', last_name: 'Nair', email: 'meera.nair@example.com' }
     ];
 
-    const sampleData: AttendanceRecord[] = [];
+    const sampleData = [];
     const now = new Date();
     
     // Generate sample attendance records for each member
