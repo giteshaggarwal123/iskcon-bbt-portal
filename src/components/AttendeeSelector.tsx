@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -106,35 +107,6 @@ export const AttendeeSelector: React.FC<AttendeeSelectorProps> = ({
       return `${user.first_name} ${user.last_name}`;
     }
     return email;
-  };
-
-  const handleDownloadBackup = async () => {
-    const { data, error } = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/export-backup`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${yourSupabaseAuthToken}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    if (!data || error) {
-      // Show error toast
-      return;
-    }
-
-    // Download the file
-    const blob = await data.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'iskcon-portal-backup.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
   };
 
   return (

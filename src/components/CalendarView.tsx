@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, ChevronRight, Calendar, Clock, Users, Video, Plus } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, startOfWeek, endOfWeek } from 'date-fns';
 
@@ -127,7 +126,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ meetings, onMeetingC
                   <div className="sm:hidden">
                     {dayMeetings.length > 0 && (
                       <div className="flex flex-wrap gap-0.5 mt-1">
-                        {dayMeetings.slice(0, 3).map((meeting, index) => (
+                        {dayMeetings.slice(0, 3).map((meeting) => (
                           <div
                             key={meeting.id}
                             onClick={(e) => {
