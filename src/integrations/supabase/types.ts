@@ -63,6 +63,20 @@ export type Database = {
             referencedRelation: "meetings"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "attendance_records_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       document_analytics: {
@@ -446,6 +460,7 @@ export type Database = {
           end_time: string
           id: string
           location: string | null
+          manual_attendees: string[] | null
           meeting_type: string | null
           outlook_event_id: string | null
           rsvp_enabled: boolean | null
@@ -462,6 +477,7 @@ export type Database = {
           end_time: string
           id?: string
           location?: string | null
+          manual_attendees?: string[] | null
           meeting_type?: string | null
           outlook_event_id?: string | null
           rsvp_enabled?: boolean | null
@@ -478,6 +494,7 @@ export type Database = {
           end_time?: string
           id?: string
           location?: string | null
+          manual_attendees?: string[] | null
           meeting_type?: string | null
           outlook_event_id?: string | null
           rsvp_enabled?: boolean | null
@@ -525,6 +542,42 @@ export type Database = {
           phone?: string | null
           role?: string
           status?: string | null
+        }
+        Relationships: []
+      }
+      microsoft_configs: {
+        Row: {
+          client_id: string
+          client_secret: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          redirect_uri: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          client_id: string
+          client_secret: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          redirect_uri: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          client_secret?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          redirect_uri?: string
+          tenant_id?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
